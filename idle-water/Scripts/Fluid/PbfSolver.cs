@@ -11,6 +11,13 @@ public class PbfSolver
     private const float Relaxation = 0.01f;
     private const int Iterations = 4;
 
+    private const float MinX = 20.0f;
+    private const float MaxX = 700.0f;
+    private const float MinY = 20.0f;
+    private const float MaxY = 1260.0f;
+
+    private const float CollisionDamping = 0.9f;
+
     public PbfSolver(SpatialHash hash)
     {
         this.hash = hash;
@@ -129,6 +136,8 @@ public class PbfSolver
                 particles.PredX[i] += correction.X;
                 particles.PredY[i] += correction.Y;
             }
+
+            ConstrainToBounds(particles);
         }
 
         // 3. Convert corrected predicted positions
@@ -138,11 +147,26 @@ public class PbfSolver
             float oldX = particles.PosX[i];
             float oldY = particles.PosY[i];
 
-            particles.VelX[i] =
+            float newVelocityX =
                 (particles.PredX[i] - oldX) / dt;
 
-            particles.VelY[i] =
+            float newVelocityY =
                 (particles.PredY[i] - oldY) / dt;
+
+            if (particles.PredX[i] <= MinX ||
+                particles.PredX[i] >= MaxX)
+            {
+                newVelocityX *= -CollisionDamping;
+            }
+
+            if (particles.PredY[i] <= MinY ||
+                particles.PredY[i] >= MaxY)
+            {
+                newVelocityY *= -CollisionDamping;
+            }
+
+            particles.VelX[i] = newVelocityX;
+            particles.VelY[i] = newVelocityY;
 
             particles.PosX[i] =
                 particles.PredX[i];
@@ -235,5 +259,23 @@ public class PbfSolver
         float value = h - distance;
 
         return value * value;
+    }
+
+    private void ConstrainToBounds(ParticleData particles)
+    {
+        for (int i = 0; i < particles.Count; i++)
+        {
+            particles.PredX[i] = Mathf.Clamp(
+                particles.PredX[i],
+                MinX,
+                MaxX
+            );
+
+            particles.PredY[i] = Mathf.Clamp(
+                particles.PredY[i],
+                MinY,
+                MaxY
+            );
+        }
     }
 }
