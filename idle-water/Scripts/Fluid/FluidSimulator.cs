@@ -52,22 +52,22 @@ public override void _Ready()
 
 	private void Spawn()
 	{
-		const int columns = 20;
-		const float spacing = 8.0f;
-
-		const float startX = 100.0f;
-		const float startY = 100.0f;
+		const int Columns = 80;
+		const float ParticleSpacing = 8.0f;
 
 		for (int i = 0; i < ParticleCount; i++)
 		{
-			int x = i % columns;
-			int y = i / columns;
+			int column = i % Columns;
+			int row = i / Columns;
 
-			particles.PosX[i] = startX + x * spacing;
-			particles.PosY[i] = startY + y * spacing;
+			particles.PosX[i] = 40.0f + column * ParticleSpacing;
+			particles.PosY[i] = 40.0f + row * ParticleSpacing;
 
 			particles.VelX[i] = 0.0f;
 			particles.VelY[i] = 0.0f;
+
+			particles.PredX[i] = particles.PosX[i];
+			particles.PredY[i] = particles.PosY[i];
 		}
 	}
 
