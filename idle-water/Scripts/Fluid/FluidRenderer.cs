@@ -54,20 +54,15 @@ public partial class FluidRenderer : Node2D
 
 	public void UpdateParticles(ParticleData particles)
 	{
+		// Reuse a single Transform2D to avoid per-particle allocations.
+		Transform2D transform = new Transform2D();
 		for (int i = 0; i < particleCount; i++)
 		{
-			Transform2D transform = new Transform2D(
-				0.0f,
-				new Vector2(
-					particles.PosX[i],
-					particles.PosY[i]
-				)
-			);
+			// Write particle position directly into the transform origin.
+			transform.origin.x = particles.PosX[i];
+			transform.origin.y = particles.PosY[i];
 
-			multiMesh.SetInstanceTransform2D(
-				i,
-				transform
-			);
+			multiMesh.SetInstanceTransform2D(i, transform);
 		}
 	}
 }
