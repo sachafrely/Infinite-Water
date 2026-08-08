@@ -19,290 +19,166 @@ public class PbfSolver
 	private const float MinY = 24.0f;
 	private const float MaxY = 1256.0f;
 
-	private readonly float[] lambda;
-	private readonly float[] deltaX;
-	private readonly float[] deltaY;
+	private float[] lambda;
+	private float[] deltaX;
+	private float[] deltaY;
+
+	// Neighbor cache per iteration to avoid double Query calls.
+	private int[][] neighbors;
+	private int[] neighborCounts;
+
+	private const float LambdaEpsilon = 0.0001f;
+	private const float Relaxation = 0.01f;
+	private const float CollisionDamping = 0.9f;
 
 	public PbfSolver(SpatialHash spatialHash)
 	{
 		hash = spatialHash;
-
-		// Our current project uses at most 10,000 particles.
-		lambda = new float[10000];
-		deltaX = new float[10000];
-		deltaY = new float[10000];
 	}
 
 	public void Solve(ParticleData particles, float dt)
 	{
-		int count = particles.PosX.Length;
+		int count = particles.Count;
 
-		// ------------------------------------------------------------
-		// 1. Predict positions
-		// ------------------------------------------------------------
+		// Allocate working buffers if needed.
+		if (lambda == null || lambda.Length < count)
+		{
+			lambda = new float[count];
+			deltaX = new float[count];
+			deltaY = new float[count];
+			neighbors = new int[count][];
+			neighborCounts = new int[count];
+		}
 
+		// 1) Predict positions
 		for (int i = 0; i < count; i++)
 		{
 			particles.VelY[i] += Gravity * dt;
-
-			particles.PredX[i] =
-				particles.PosX[i] +
-				particles.VelX[i] * dt;
-
-			particles.PredY[i] =
-				particles.PosY[i] +
-				particles.VelY[i] * dt;
+			particles.PredX[i] = particles.PosX[i] + particles.VelX[i] * dt;
+			particles.PredY[i] = particles.PosY[i] + particles.VelY[i] * dt;
 		}
 
-		// ------------------------------------------------------------
-		// 2. PBF iterations
-		// ------------------------------------------------------------
-
-		for (int iteration = 0; iteration < Iterations; iteration++)
+		// 2) PBF iterations (reduced to 1 for profiling)
+		for (int iter = 0; iter < Iterations; iter++)
 		{
+			// Rebuild spatial hash using float API to avoid Vector2 allocations.
 			hash.Clear();
-
-			// Insert predicted positions.
 			for (int i = 0; i < count; i++)
-			{
-				hash.Insert(
-					i,
-					particles.PredX[i],
-					particles.PredY[i]
-				);
-			}
+				hash.Insert(i, particles.PredX[i], particles.PredY[i]);
 
-			// --------------------------------------------------------
-			// Calculate lambda for every particle
-			// --------------------------------------------------------
-
+			// Phase A: compute density & gradient-sum in one neighbor traversal and cache neighbors.
 			for (int i = 0; i < count; i++)
 			{
 				float px = particles.PredX[i];
 				float py = particles.PredY[i];
 
-				int neighborCount =
-					hash.Query(
-						px,
-						py,
-						SmoothingRadius
-					);
+				int ncount = hash.Query(px, py, SmoothingRadius);
+				neighborCounts[i] = ncount;
+
+				if (neighbors[i] == null || neighbors[i].Length < ncount)
+					neighbors[i] = new int[ncount];
+
+				for (int n = 0; n < ncount; n++)
+					neighbors[i][n] = hash.GetResult(n);
 
 				float density = 0.0f;
+				float gradSum = 0.0f;
 
-				for (int k = 0; k < neighborCount; k++)
+				for (int n = 0; n < ncount; n++)
 				{
-					int j = hash.GetResult(k);
-
-					float dx =
-						px - particles.PredX[j];
-
-					float dy =
-						py - particles.PredY[j];
-
-					float distanceSquared =
-						dx * dx + dy * dy;
-
-					if (distanceSquared >
-						SmoothingRadius * SmoothingRadius)
-					{
+					int j = neighbors[i][n];
+					float dx = px - particles.PredX[j];
+					float dy = py - particles.PredY[j];
+					float dist2 = dx * dx + dy * dy;
+					if (dist2 >= SmoothingRadius * SmoothingRadius)
 						continue;
-					}
-
-					float distance =
-						Mathf.Sqrt(distanceSquared);
-
-					float q =
-						1.0f -
-						distance / SmoothingRadius;
-
-					// Normalized-to-self kernel.
-					density += q * q * q;
-				}
-
-				float constraint =
-					density / RestDensity - 1.0f;
-
-				// Approximation of the PBF constraint denominator.
-				float denominator = 0.0f;
-
-				for (int k = 0; k < neighborCount; k++)
-				{
-					int j = hash.GetResult(k);
+					float dist = Mathf.Sqrt(dist2);
+					float q = 1.0f - dist / SmoothingRadius;
+					density += q * q * q; // Poly6-style
 
 					if (j == i)
 						continue;
-
-					float dx =
-						px - particles.PredX[j];
-
-					float dy =
-						py - particles.PredY[j];
-
-					float distanceSquared =
-						dx * dx + dy * dy;
-
-					if (distanceSquared < Epsilon ||
-						distanceSquared >
-						SmoothingRadius * SmoothingRadius)
-					{
+					if (dist <= 1e-5f)
 						continue;
-					}
-
-					float distance =
-						Mathf.Sqrt(distanceSquared);
-
-					float q =
-						1.0f -
-						distance / SmoothingRadius;
-
-					float gradientMagnitude =
-						3.0f *
-						q * q /
-						SmoothingRadius;
-
-					denominator +=
-						gradientMagnitude *
-						gradientMagnitude;
+					float g = SpikyGradient(dist);
+					gradSum += (g * g);
 				}
 
-				lambda[i] =
-					-constraint /
-					(denominator + Epsilon);
+				float constraint = density / RestDensity - 1.0f;
+				float lam = -constraint / (gradSum + LambdaEpsilon);
+				lam *= Relaxation;
+				lambda[i] = lam;
 			}
 
-			// --------------------------------------------------------
-			// Calculate position corrections
-			// --------------------------------------------------------
+			// Phase B: compute position deltas using cached neighbors.
+			for (int i = 0; i < count; i++)
+			{
+				deltaX[i] = 0.0f;
+				deltaY[i] = 0.0f;
+			}
 
 			for (int i = 0; i < count; i++)
 			{
 				float px = particles.PredX[i];
-				float py = particles.PredY[i];
-
-				int neighborCount =
-					hash.Query(
-						px,
-						py,
-						SmoothingRadius
-					);
-
-				float correctionX = 0.0f;
-				float correctionY = 0.0f;
-
-				for (int k = 0; k < neighborCount; k++)
+				int ncount = neighborCounts[i];
+				for (int n = 0; n < ncount; n++)
 				{
-					int j = hash.GetResult(k);
-
-					if (j == i)
-						continue;
-
-					float dx =
-						px - particles.PredX[j];
-
-					float dy =
-						py - particles.PredY[j];
-
-					float distanceSquared =
-						dx * dx + dy * dy;
-
-					if (distanceSquared < Epsilon ||
-						distanceSquared >
-						SmoothingRadius * SmoothingRadius)
-					{
-						continue;
-					}
-
-					float distance =
-						Mathf.Sqrt(distanceSquared);
-
-					float q =
-						1.0f -
-						distance / SmoothingRadius;
-
-					float gradient =
-						-3.0f *
-						q * q /
-						SmoothingRadius;
-
-					float gradientX =
-						gradient * dx / distance;
-
-					float gradientY =
-						gradient * dy / distance;
-
-					float strength =
-						lambda[i] +
-						lambda[j];
-
-					correctionX +=
-						strength * gradientX;
-
-					correctionY +=
-						strength * gradientY;
+					int j = neighbors[i][n];
+					if (j == i) continue;
+					float dx = px - particles.PredX[j];
+					float dy = py - particles.PredY[j];
+					float dist2 = dx * dx + dy * dy;
+					if (dist2 >= SmoothingRadius * SmoothingRadius || dist2 <= 1e-5f) continue;
+					float dist = Mathf.Sqrt(dist2);
+					float g = SpikyGradient(dist);
+					float nx = dx / dist;
+					float ny = dy / dist;
+					float s = (lambda[i] + lambda[j]);
+					deltaX[i] += s * nx * g;
+					deltaY[i] += s * ny * g;
 				}
-
-				deltaX[i] = correctionX;
-				deltaY[i] = correctionY;
 			}
 
-			// --------------------------------------------------------
-			// Apply corrections and collision
-			// --------------------------------------------------------
-
+			// Apply deltas
 			for (int i = 0; i < count; i++)
 			{
-				particles.PredX[i] += deltaX[i];
-				particles.PredY[i] += deltaY[i];
-
-				particles.PredX[i] =
-					Mathf.Clamp(
-						particles.PredX[i],
-						MinX,
-						MaxX
-					);
-
-				particles.PredY[i] =
-					Mathf.Clamp(
-						particles.PredY[i],
-						MinY,
-						MaxY
-					);
+				particles.PredX[i] += deltaX[i] / RestDensity;
+				particles.PredY[i] += deltaY[i] / RestDensity;
 			}
+
+			ConstrainToBounds(particles);
 		}
 
-		// ------------------------------------------------------------
-		// 3. Update velocity and positions
-		// ------------------------------------------------------------
-
+		// 3) Update velocities & positions
 		for (int i = 0; i < count; i++)
 		{
-			particles.VelX[i] =
-				(particles.PredX[i] -
-				 particles.PosX[i]) / dt;
+			float oldX = particles.PosX[i];
+			float oldY = particles.PosY[i];
+			float newVelX = (particles.PredX[i] - oldX) / dt;
+			float newVelY = (particles.PredY[i] - oldY) / dt;
+			if (particles.PredX[i] <= MinX || particles.PredX[i] >= MaxX) newVelX *= -CollisionDamping;
+			if (particles.PredY[i] <= MinY || particles.PredY[i] >= MaxY) newVelY *= -CollisionDamping;
+			particles.VelX[i] = newVelX;
+			particles.VelY[i] = newVelY;
+			particles.PosX[i] = particles.PredX[i];
+			particles.PosY[i] = particles.PredY[i];
+		}
+	}
 
-			particles.VelY[i] =
-				(particles.PredY[i] -
-				 particles.PosY[i]) / dt;
+	private float SpikyGradient(float distance)
+	{
+		float h = SmoothingRadius;
+		if (distance <= 0.0f || distance >= h) return 0.0f;
+		float v = (h - distance) / h;
+		return (v * v) / h;
+	}
 
-			particles.PosX[i] =
-				particles.PredX[i];
-
-			particles.PosY[i] =
-				particles.PredY[i];
-
-			// Stop particles from bouncing off the floor.
-			if (particles.PosY[i] >= MaxY &&
-				particles.VelY[i] > 0.0f)
-			{
-				particles.VelY[i] = 0.0f;
-			}
-
-			if (particles.PosX[i] <= MinX ||
-				particles.PosX[i] >= MaxX)
-			{
-				particles.VelX[i] = 0.0f;
-			}
+	private void ConstrainToBounds(ParticleData particles)
+	{
+		for (int i = 0; i < particles.Count; i++)
+		{
+			particles.PredX[i] = Mathf.Clamp(particles.PredX[i], MinX, MaxX);
+			particles.PredY[i] = Mathf.Clamp(particles.PredY[i], MinY, MaxY);
 		}
 	}
 }
