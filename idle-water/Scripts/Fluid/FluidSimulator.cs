@@ -15,12 +15,12 @@ public partial class FluidSimulator : Node2D
 
 	// Fluid parameters.
 	private const float ParticleRadius = 0.05f;
-	private const float SmoothingRadius = 0.10f;
+	private const float SmoothingRadius = 12.0f;
 
 	// Spatial hash.
-	private const float HashCellSize = SmoothingRadius;
-	private const int HashWidth = 80;
-	private const int HashHeight = 140;
+	private const float HashCellSize = 12.0f;
+	private const int HashWidth = 100;
+	private const int HashHeight = 200;
 
 	// Physics.
 	private const float Gravity = 9.81f;
@@ -53,10 +53,10 @@ public override void _Ready()
 	private void Spawn()
 	{
 		const int columns = 20;
-		const float spacing = 0.08f;
+		const float spacing = 8.0f;
 
-		const float startX = 2.0f;
-		const float startY = 2.0f;
+		const float startX = 100.0f;
+		const float startY = 100.0f;
 
 		for (int i = 0; i < ParticleCount; i++)
 		{
@@ -76,39 +76,9 @@ public override void _Ready()
 	{
 		float dt = (float)delta;
 
-		ApplyGravity(dt);
-		UpdateHash();
-
-		// PBF will be enabled later.
-		// solver.Solve(particles);
+		solver.Solve(particles, dt);
 
 		renderer.UpdateParticles(particles);
-	}
-
-
-	private void ApplyGravity(float dt)
-	{
-		for (int i = 0; i < particles.Count; i++)
-		{
-			particles.VelY[i] += Gravity * dt;
-
-			particles.PosX[i] += particles.VelX[i] * dt;
-			particles.PosY[i] += particles.VelY[i] * dt;
-		}
-	}
-
-
-	private void UpdateHash()
-	{
-		hash.Clear();
-
-		for (int i = 0; i < particles.Count; i++)
-		{
-			hash.Insert(
-				i,
-				particles.GetPosition(i)
-			);
-		}
 	}
 
 
