@@ -1,20 +1,25 @@
 using Godot;
-
-
 public partial class FluidSimulator : Node2D
+
 {
-
 	private ParticleData particles;
-
 	private SpatialHash hash;
-
 	private PbfSolver solver;
-
-
-
+	
 	private const int ParticleCount = 1000;
 
+		// Simulation world dimensions.
+	private const float WorldWidth = 8.0f;
+	private const float WorldHeight = 14.0f;
 
+		// PBF parameters.
+	private const float ParticleRadius = 0.05f;
+	private const float SmoothingRadius = 0.10f;
+
+		// Spatial hash.
+	private const float HashCellSize = SmoothingRadius;
+	private const int HashWidth = 80;
+	private const int HashHeight = 140;
 
 	public override void _Ready()
 	{
@@ -25,13 +30,12 @@ public partial class FluidSimulator : Node2D
 			);
 
 
-		hash =
-			new SpatialHash(
-				ParticleCount,
-				0.12f,
-				100,
-				200
-			);
+hash = new SpatialHash(
+	ParticleCount,
+	HashCellSize,
+	HashWidth,
+	HashHeight
+);
 
 
 		solver =
