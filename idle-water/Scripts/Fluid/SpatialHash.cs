@@ -46,7 +46,7 @@ public class SpatialHash
 
 	private int Hash(int x, int y)
 	{
-		if (x < 0 || y < 0 ||
+		if(x < 0 || y < 0 ||
 		   x >= width ||
 		   y >= height)
 			return -1;
@@ -60,12 +60,12 @@ public class SpatialHash
 	// Compatibility overloads: keep Vector2-based API.
 	public void Insert(int id, Vector2 position)
 	{
-		Insert(id, position.x, position.y);
+		Insert(id, position.X, position.Y);
 	}
 
 	public int Query(Vector2 position, float radius)
 	{
-		return Query(position.x, position.y, radius);
+		return Query(position.X, position.Y, radius);
 	}
 
 	// New faster, allocation-free API using raw floats.
