@@ -88,8 +88,8 @@ public class PbfSolver
 
 					Vector2 neighborPos = GetPredictedPosition(particles, neighbor);
 
-					float dx = pos.x - neighborPos.x;
-					float dy = pos.y - neighborPos.y;
+					float dx = pos.X - neighborPos.X;
+					float dy = pos.Y - neighborPos.Y;
 					float dist2 = dx * dx + dy * dy;
 
 					if (dist2 >= SmoothingRadius * SmoothingRadius)
@@ -136,8 +136,8 @@ public class PbfSolver
 						continue;
 
 					Vector2 neighborPos = GetPredictedPosition(particles, neighbor);
-					float dx = pos.x - neighborPos.x;
-					float dy = pos.y - neighborPos.y;
+					float dx = pos.X - neighborPos.X;
+					float dy = pos.Y - neighborPos.Y;
 					float dist2 = dx * dx + dy * dy;
 					if (dist2 >= SmoothingRadius * SmoothingRadius || dist2 <= 0.00001f)
 						continue;
@@ -197,6 +197,7 @@ public class PbfSolver
 
 		for (int i = 0; i < particles.Count; i++)
 		{
+			// Use the float-based Insert API to avoid Vector2 allocations.
 			hash.Insert(i, GetPredictedPosition(particles, i));
 		}
 	}
