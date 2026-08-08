@@ -33,6 +33,17 @@ public class PbfSolver
 	private const float Relaxation = 0.01f;
 	private const float CollisionDamping = 0.9f;
 
+	// Perf knobs
+	private const int MaxNeighbors = 32; // cap per-particle neighbors for bounded cost
+
+	// Lightweight profiler (averages printed every N frames).
+	private const int ProfilerPrintInterval = 60;
+	private int profilerFrames = 0;
+	private ulong accumBuild = 0;
+	private ulong accumPhaseA = 0;
+	private ulong accumPhaseB = 0;
+	private ulong accumTotal = 0;
+
 	public PbfSolver(SpatialHash spatialHash)
 	{
 		hash = spatialHash;
@@ -53,6 +64,8 @@ public class PbfSolver
 			neighborBuffer = new int[Mathf.Max(1, count * 8)]; // initial capacity guess
 		}
 
+		ulong tTotalStart = OS.GetTicksMsec();
+
 		// 1) Predict positions
 		for (int i = 0; i < count; i++)
 		{
@@ -65,18 +78,22 @@ public class PbfSolver
 		for (int iter = 0; iter < Iterations; iter++)
 		{
 			// Rebuild spatial hash using float API to avoid Vector2 allocations.
+			ulong tBuildStart = OS.GetTicksMsec();
 			hash.Clear();
 			for (int i = 0; i < count; i++)
 				hash.Insert(i, particles.PredX[i], particles.PredY[i]);
+			accumBuild += OS.GetTicksMsec() - tBuildStart;
 
 			// Phase A: compute density & gradient-sum in one neighbor traversal and cache neighbors in a contiguous buffer.
+			ulong tPhaseAStart = OS.GetTicksMsec();
 			int bufferWritePos = 0;
 			for (int i = 0; i < count; i++)
 			{
 				float px = particles.PredX[i];
 				float py = particles.PredY[i];
 
-				int ncount = hash.Query(px, py, SmoothingRadius);
+				int rawCount = hash.Query(px, py, SmoothingRadius);
+				int ncount = rawCount > MaxNeighbors ? MaxNeighbors : rawCount; // cap neighbors to bound cost
 				neighborCounts[i] = ncount;
 				neighborOffsets[i] = bufferWritePos;
 
@@ -90,6 +107,7 @@ public class PbfSolver
 					neighborBuffer = newBuf;
 				}
 
+				// Copy up to ncount neighbors from the hash results.
 				for (int n = 0; n < ncount; n++)
 				{
 					int nb = hash.GetResult(n);
@@ -122,8 +140,10 @@ public class PbfSolver
 				lam *= Relaxation;
 				lambdas[i] = lam;
 			}
+			accumPhaseA += OS.GetTicksMsec() - tPhaseAStart;
 
 			// Phase B: compute position deltas using the contiguous neighbor buffer.
+			ulong tPhaseBStart = OS.GetTicksMsec();
 			for (int i = 0; i < count; i++)
 			{
 				deltaX[i] = 0.0f;
@@ -153,6 +173,7 @@ public class PbfSolver
 					deltaY[i] += s * ny * g;
 				}
 			}
+			accumPhaseB += OS.GetTicksMsec() - tPhaseBStart;
 
 			// Apply deltas
 			for (int i = 0; i < count; i++)
@@ -162,6 +183,20 @@ public class PbfSolver
 			}
 
 			ConstrainToBounds(particles);
+		}
+
+		accumTotal += OS.GetTicksMsec() - tTotalStart;
+		profilerFrames++;
+		if (profilerFrames >= ProfilerPrintInterval)
+		{
+			ulong avgBuild = accumBuild / (ulong)profilerFrames;
+			ulong avgA = accumPhaseA / (ulong)profilerFrames;
+			ulong avgB = accumPhaseB / (ulong)profilerFrames;
+			ulong avgTotal = accumTotal / (ulong)profilerFrames;
+			GD.Print($"PBF profiler (avg ms over {profilerFrames} frames): Build={avgBuild}ms PhaseA={avgA}ms PhaseB={avgB}ms Total={avgTotal}ms (MaxNeighbors={MaxNeighbors})");
+			// reset
+			profilerFrames = 0;
+			accumBuild = accumPhaseA = accumPhaseB = accumTotal = 0;
 		}
 
 		// 3) Update velocities & positions
