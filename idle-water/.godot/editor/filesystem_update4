@@ -1,3 +1,4 @@
 res://Scenes/Main.tscn
 res://Scripts/Fluid/PbfSolver.cs
 res://Scripts/Fluid/FluidSimulator.cs
+res://Scripts/Fluid/FluidRenderer.cs
