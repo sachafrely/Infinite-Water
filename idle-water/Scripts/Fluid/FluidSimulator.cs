@@ -76,7 +76,7 @@ public override void _Ready()
 	{
 		float dt = (float)delta;
 
-		solver.Solve(particles, dt);
+		// solver.Solve(particles, dt);
 
 		renderer.UpdateParticles(particles);
 	}
