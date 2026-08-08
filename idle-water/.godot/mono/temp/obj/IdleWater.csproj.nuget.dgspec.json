@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\ll\\Documents\\idle-water\\IdleWater.csproj": {}
+    "C:\\Users\\ll\\Documents\\GITHUB\\IdleWater\\idle-water\\IdleWater.csproj": {}
   },
   "projects": {
-    "C:\\Users\\ll\\Documents\\idle-water\\IdleWater.csproj": {
+    "C:\\Users\\ll\\Documents\\GITHUB\\IdleWater\\idle-water\\IdleWater.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\ll\\Documents\\idle-water\\IdleWater.csproj",
+        "projectUniqueName": "C:\\Users\\ll\\Documents\\GITHUB\\IdleWater\\idle-water\\IdleWater.csproj",
         "projectName": "IdleWater",
-        "projectPath": "C:\\Users\\ll\\Documents\\idle-water\\IdleWater.csproj",
+        "projectPath": "C:\\Users\\ll\\Documents\\GITHUB\\IdleWater\\idle-water\\IdleWater.csproj",
         "packagesPath": "C:\\Users\\ll\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\ll\\Documents\\idle-water\\.godot\\mono\\temp\\obj\\",
+        "outputPath": "C:\\Users\\ll\\Documents\\GITHUB\\IdleWater\\idle-water\\.godot\\mono\\temp\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\ll\\AppData\\Roaming\\NuGet\\NuGet.Config"

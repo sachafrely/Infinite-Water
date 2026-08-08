@@ -1,5 +1,3 @@
-res://Scripts/Fluid/FluidSimulator.cs
-res://Scripts/Fluid/ParticleData.cs
-res://Scripts/Fluid/PbfSolver.cs
-res://Scripts/Fluid/SpatialHash.cs
 res://Scenes/Main.tscn
+res://Scripts/Fluid/PbfSolver.cs
+res://Scripts/Fluid/FluidSimulator.cs
