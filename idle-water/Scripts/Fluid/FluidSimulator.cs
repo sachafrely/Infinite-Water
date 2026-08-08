@@ -7,7 +7,7 @@ public partial class FluidSimulator : Node2D
 	private PbfSolver solver;
 	private FluidRenderer renderer;
 	
-	private const int ParticleCount = 10000;
+	private const int ParticleCount = 1000;
 
 	// Simulation world (use viewport-sized coordinates).
 	private const float WorldWidth = 720.0f;
