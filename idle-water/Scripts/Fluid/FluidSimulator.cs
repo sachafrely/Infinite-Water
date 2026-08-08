@@ -5,8 +5,7 @@ public partial class FluidSimulator : Node2D
 	private ParticleData particles;
 	private SpatialHash hash;
 	private PbfSolver solver;
-	private FluidRenderer renderer;
-	
+	private FluidRenderer renderer;	
 	private const int ParticleCount = 1000;
 
 	// Simulation world (use viewport-sized coordinates).
@@ -48,6 +47,10 @@ public override void _Ready()
 	);
 
 	Spawn();
+
+	// Quick sanity prints to verify particle positions after spawning.
+	GD.Print($"Particle 0: {particles.PosX[0]}, {particles.PosY[0]}");
+	GD.Print($"Particle 999: {particles.PosX[999]}, {particles.PosY[999]}");
 }
 
 	private void Spawn()
@@ -76,6 +79,7 @@ public override void _Ready()
 	{
 		float dt = (float)delta;
 
+		// For this rendering test, avoid running the solver — just draw particles.
 		// solver.Solve(particles, dt);
 
 		renderer.UpdateParticles(particles);
