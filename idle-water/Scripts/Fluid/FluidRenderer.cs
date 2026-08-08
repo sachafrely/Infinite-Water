@@ -7,12 +7,10 @@ public partial class FluidRenderer : Node2D
 
 	private int particleCount;
 
-
 	public void Initialize(int count, float particleDiameter)
 	{
 		particleCount = count;
 
-		// Create the mesh used by every particle.
 		QuadMesh particleMesh = new QuadMesh
 		{
 			Size = new Vector2(
@@ -21,27 +19,27 @@ public partial class FluidRenderer : Node2D
 			)
 		};
 
-
-		// Create the GPU instance buffer.
 		multiMesh = new MultiMesh
 		{
 			TransformFormat = MultiMesh.TransformFormatEnum.Transform2D,
+
+			// IMPORTANT:
+			// This must be enabled before InstanceCount.
 			UseColors = true,
-			InstanceCount = count,
+
 			Mesh = particleMesh
 		};
 
+		// Set the instance count AFTER UseColors.
+		multiMesh.InstanceCount = count;
 
 		multiMeshInstance = new MultiMeshInstance2D
 		{
 			Multimesh = multiMesh
 		};
 
-
 		AddChild(multiMeshInstance);
 
-
-		// Give every particle its color.
 		for (int i = 0; i < count; i++)
 		{
 			multiMesh.SetInstanceColor(
@@ -51,17 +49,21 @@ public partial class FluidRenderer : Node2D
 		}
 	}
 
-
 	public void UpdateParticles(ParticleData particles)
 	{
-		// Reuse a single Transform2D to avoid per-particle allocations.
-		Transform2D transform = new Transform2D();
+		Transform2D transform = Transform2D.Identity;
+
 		for (int i = 0; i < particleCount; i++)
 		{
-			// Write particle position directly into the transform origin.
-			transform.Origin = new Vector2(particles.PosX[i], particles.PosY[i]);
+			transform.Origin = new Vector2(
+				particles.PosX[i],
+				particles.PosY[i]
+			);
 
-			multiMesh.SetInstanceTransform2D(i, transform);
+			multiMesh.SetInstanceTransform2D(
+				i,
+				transform
+			);
 		}
 	}
 }

@@ -7,10 +7,17 @@ public partial class FluidSimulator : Node2D
 	private PbfSolver solver;
 	private FluidRenderer renderer;	
 	private const int ParticleCount = 1000;
-
+	
+	
 	// Simulation world (use viewport-sized coordinates).
 	private const float WorldWidth = 720.0f;
 	private const float WorldHeight = 1280.0f;
+	
+	// Walls
+	private const float LeftBound = 20.0f;
+	private const float RightBound = 700.0f;
+	private const float TopBound = 20.0f;
+	private const float BottomBound = 1260.0f;
 
 	// Fluid parameters.
 	private const float ParticleRadius = 4.0f;
@@ -22,7 +29,7 @@ public partial class FluidSimulator : Node2D
 	private const int HashHeight = 110;
 
 	// Physics.
-	private const float Gravity = 9.81f;
+	private const float Gravity = 50f;
 
 
 public override void _Ready()
@@ -43,7 +50,7 @@ public override void _Ready()
 
 	renderer.Initialize(
 		ParticleCount,
-		ParticleRadius * 2.0f
+		ParticleRadius
 	);
 
 	Spawn();
@@ -75,15 +82,13 @@ public override void _Ready()
 	}
 
 
-	public override void _PhysicsProcess(double delta)
-	{
-		float dt = (float)delta;
+public override void _PhysicsProcess(double delta)
+{
+	float dt = (float)delta;
 
-		// For this rendering test, avoid running the solver — just draw particles.
-		// solver.Solve(particles, dt);
+	solver.Solve(particles, dt);
 
-		renderer.UpdateParticles(particles);
-	}
-
+	renderer.UpdateParticles(particles);
+}
 
 }
