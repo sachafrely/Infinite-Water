@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Diagnostics;
 
 public class PbfSolver
 {
@@ -39,10 +40,10 @@ public class PbfSolver
 	// Lightweight profiler (averages printed every N frames).
 	private const int ProfilerPrintInterval = 60;
 	private int profilerFrames = 0;
-	private ulong accumBuild = 0;
-	private ulong accumPhaseA = 0;
-	private ulong accumPhaseB = 0;
-	private ulong accumTotal = 0;
+	private double accumBuildMs = 0.0;
+	private double accumPhaseAMs = 0.0;
+	private double accumPhaseBMs = 0.0;
+	private double accumTotalMs = 0.0;
 
 	public PbfSolver(SpatialHash spatialHash)
 	{
@@ -64,7 +65,7 @@ public class PbfSolver
 			neighborBuffer = new int[Mathf.Max(1, count * 8)]; // initial capacity guess
 		}
 
-		ulong tTotalStart = OS.GetTicksMsec();
+		long tTotalStart = Stopwatch.GetTimestamp();
 
 		// 1) Predict positions
 		for (int i = 0; i < count; i++)
@@ -78,14 +79,15 @@ public class PbfSolver
 		for (int iter = 0; iter < Iterations; iter++)
 		{
 			// Rebuild spatial hash using float API to avoid Vector2 allocations.
-			ulong tBuildStart = OS.GetTicksMsec();
+			long tBuildStart = Stopwatch.GetTimestamp();
 			hash.Clear();
 			for (int i = 0; i < count; i++)
 				hash.Insert(i, particles.PredX[i], particles.PredY[i]);
-			accumBuild += OS.GetTicksMsec() - tBuildStart;
+			long tBuildEnd = Stopwatch.GetTimestamp();
+			accumBuildMs += (tBuildEnd - tBuildStart) * 1000.0 / Stopwatch.Frequency;
 
 			// Phase A: compute density & gradient-sum in one neighbor traversal and cache neighbors in a contiguous buffer.
-			ulong tPhaseAStart = OS.GetTicksMsec();
+			long tPhaseAStart = Stopwatch.GetTimestamp();
 			int bufferWritePos = 0;
 			for (int i = 0; i < count; i++)
 			{
@@ -140,10 +142,11 @@ public class PbfSolver
 				lam *= Relaxation;
 				lambdas[i] = lam;
 			}
-			accumPhaseA += OS.GetTicksMsec() - tPhaseAStart;
+			long tPhaseAEnd = Stopwatch.GetTimestamp();
+			accumPhaseAMs += (tPhaseAEnd - tPhaseAStart) * 1000.0 / Stopwatch.Frequency;
 
 			// Phase B: compute position deltas using the contiguous neighbor buffer.
-			ulong tPhaseBStart = OS.GetTicksMsec();
+			long tPhaseBStart = Stopwatch.GetTimestamp();
 			for (int i = 0; i < count; i++)
 			{
 				deltaX[i] = 0.0f;
@@ -173,7 +176,8 @@ public class PbfSolver
 					deltaY[i] += s * ny * g;
 				}
 			}
-			accumPhaseB += OS.GetTicksMsec() - tPhaseBStart;
+			long tPhaseBEnd = Stopwatch.GetTimestamp();
+			accumPhaseBMs += (tPhaseBEnd - tPhaseBStart) * 1000.0 / Stopwatch.Frequency;
 
 			// Apply deltas
 			for (int i = 0; i < count; i++)
@@ -185,18 +189,19 @@ public class PbfSolver
 			ConstrainToBounds(particles);
 		}
 
-		accumTotal += OS.GetTicksMsec() - tTotalStart;
+		long tTotalEnd = Stopwatch.GetTimestamp();
+		accumTotalMs += (tTotalEnd - tTotalStart) * 1000.0 / Stopwatch.Frequency;
 		profilerFrames++;
 		if (profilerFrames >= ProfilerPrintInterval)
 		{
-			ulong avgBuild = accumBuild / (ulong)profilerFrames;
-			ulong avgA = accumPhaseA / (ulong)profilerFrames;
-			ulong avgB = accumPhaseB / (ulong)profilerFrames;
-			ulong avgTotal = accumTotal / (ulong)profilerFrames;
-			GD.Print($"PBF profiler (avg ms over {profilerFrames} frames): Build={avgBuild}ms PhaseA={avgA}ms PhaseB={avgB}ms Total={avgTotal}ms (MaxNeighbors={MaxNeighbors})");
+			double avgBuild = accumBuildMs / profilerFrames;
+			double avgA = accumPhaseAMs / profilerFrames;
+			double avgB = accumPhaseBMs / profilerFrames;
+			double avgTotal = accumTotalMs / profilerFrames;
+			GD.Print($"PBF profiler (avg ms over {profilerFrames} frames): Build={avgBuild:F2}ms PhaseA={avgA:F2}ms PhaseB={avgB:F2}ms Total={avgTotal:F2}ms (MaxNeighbors={MaxNeighbors})");
 			// reset
 			profilerFrames = 0;
-			accumBuild = accumPhaseA = accumPhaseB = accumTotal = 0;
+			accumBuildMs = accumPhaseAMs = accumPhaseBMs = accumTotalMs = 0.0;
 		}
 
 		// 3) Update velocities & positions
