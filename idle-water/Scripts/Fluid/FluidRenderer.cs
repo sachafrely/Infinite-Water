@@ -59,8 +59,7 @@ public partial class FluidRenderer : Node2D
 		for (int i = 0; i < particleCount; i++)
 		{
 			// Write particle position directly into the transform origin.
-			transform.origin.x = particles.PosX[i];
-			transform.origin.y = particles.PosY[i];
+			transform.Origin = new Vector2(particles.PosX[i], particles.PosY[i]);
 
 			multiMesh.SetInstanceTransform2D(i, transform);
 		}
