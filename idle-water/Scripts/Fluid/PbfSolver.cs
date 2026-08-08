@@ -12,7 +12,7 @@ public class PbfSolver
 
 	private const float Epsilon = 0.000001f;
 
-	private const int Iterations = 2;
+	private const int Iterations = 1;
 
 	private const float MinX = 24.0f;
 	private const float MaxX = 696.0f;
@@ -305,4 +305,3 @@ public class PbfSolver
 			}
 		}
 	}
-}
