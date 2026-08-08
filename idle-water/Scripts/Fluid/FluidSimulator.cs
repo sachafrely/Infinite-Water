@@ -9,18 +9,18 @@ public partial class FluidSimulator : Node2D
 	
 	private const int ParticleCount = 10000;
 
-	// Simulation world.
-	private const float WorldWidth = 8.0f;
-	private const float WorldHeight = 14.0f;
+	// Simulation world (use viewport-sized coordinates).
+	private const float WorldWidth = 720.0f;
+	private const float WorldHeight = 1280.0f;
 
 	// Fluid parameters.
-	private const float ParticleRadius = 0.05f;
+	private const float ParticleRadius = 4.0f;
 	private const float SmoothingRadius = 12.0f;
 
 	// Spatial hash.
-	private const float HashCellSize = 12.0f;
-	private const int HashWidth = 100;
-	private const int HashHeight = 200;
+	private const float HashCellSize = SmoothingRadius;
+	private const int HashWidth = 60;
+	private const int HashHeight = 110;
 
 	// Physics.
 	private const float Gravity = 9.81f;
