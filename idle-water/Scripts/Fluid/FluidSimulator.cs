@@ -5,7 +5,8 @@ public partial class FluidSimulator : Node2D
 	private ParticleData particles;
 	private SpatialHash hash;
 	private PbfSolver solver;
-
+	private FluidRenderer renderer;
+	
 	private const int ParticleCount = 1000;
 
 	// Simulation world.
@@ -25,22 +26,29 @@ public partial class FluidSimulator : Node2D
 	private const float Gravity = 9.81f;
 
 
-	public override void _Ready()
-	{
-		particles = new ParticleData(ParticleCount);
+public override void _Ready()
+{
+	particles = new ParticleData(ParticleCount);
 
-		hash = new SpatialHash(
-			ParticleCount,
-			HashCellSize,
-			HashWidth,
-			HashHeight
-		);
+	hash = new SpatialHash(
+		ParticleCount,
+		HashCellSize,
+		HashWidth,
+		HashHeight
+	);
 
-		solver = new PbfSolver(hash);
+	solver = new PbfSolver(hash);
 
-		Spawn();
-	}
+	renderer = new FluidRenderer();
+	AddChild(renderer);
 
+	renderer.Initialize(
+		ParticleCount,
+		ParticleRadius * 2.0f
+	);
+
+	Spawn();
+}
 
 	private void Spawn()
 	{
@@ -74,7 +82,7 @@ public partial class FluidSimulator : Node2D
 		// PBF will be enabled later.
 		// solver.Solve(particles);
 
-		QueueRedraw();
+		renderer.UpdateParticles(particles);
 	}
 
 
@@ -104,15 +112,4 @@ public partial class FluidSimulator : Node2D
 	}
 
 
-	public override void _Draw()
-	{
-		for (int i = 0; i < particles.Count; i++)
-		{
-			DrawCircle(
-				particles.GetPosition(i),
-				ParticleRadius,
-				Colors.Blue
-			);
-		}
-	}
 }

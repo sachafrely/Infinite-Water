@@ -20,11 +20,7 @@ public class SpatialHash
 
 
 
-	public SpatialHash(
-		int maxParticles,
-		float cellSize,
-		int width,
-		int height)
+	public SpatialHash(int maxParticles, float cellSize, int width, int height)
 	{
 		this.cellSize = cellSize;
 		this.invCellSize = 1.0f / cellSize;
