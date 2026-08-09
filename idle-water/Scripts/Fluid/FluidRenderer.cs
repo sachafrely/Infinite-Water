@@ -15,10 +15,29 @@ public partial class FluidRenderer : Node2D
 	private const float SurfaceThreshold = 0.28f;
 
 	// ============================================================
-	// RENDER UPDATE THROTTLE
+	// PIXEL ART
 	//
-	// Simulation can continue every physics frame.
-	// The expensive mesh is rebuilt only every Nth update.
+	// The simulation still uses the original density resolution.
+	// The renderer groups several simulation cells into larger
+	// visual pixels.
+	//
+	// 2 = 8x8 pixels when DensityField cellSize = 4
+	// 3 = 12x12
+	// 4 = 16x16
+	// ============================================================
+
+	private const int PixelScale = 1;
+
+	private float PixelSize
+	{
+		get
+		{
+			return cellSize * PixelScale;
+		}
+	}
+
+	// ============================================================
+	// Render update throttle
 	// ============================================================
 
 	private const int RenderEveryNFrames = 2;
@@ -124,10 +143,6 @@ public partial class FluidRenderer : Node2D
 				width * (height - 1)
 			);
 
-		// --------------------------------------------------------
-		// Vertex caches
-		// --------------------------------------------------------
-
 		cornerIndices =
 			new int[cornerGridSize];
 
@@ -146,19 +161,11 @@ public partial class FluidRenderer : Node2D
 		verticalCacheGeneration =
 			new int[verticalSize];
 
-		// --------------------------------------------------------
-		// Render masks
-		// --------------------------------------------------------
-
 		renderWater =
 			new bool[gridSize];
 
 		renderWaterScratch =
 			new bool[gridSize];
-
-		// --------------------------------------------------------
-		// Visual data
-		// --------------------------------------------------------
 
 		visualDepth =
 			new float[gridSize];
@@ -423,10 +430,6 @@ void fragment()
 	{
 		renderFrameCounter++;
 
-		// --------------------------------------------------------
-		// Do not rebuild the expensive mesh every physics frame.
-		// --------------------------------------------------------
-
 		if (
 			renderFrameCounter <
 			RenderEveryNFrames
@@ -440,7 +443,7 @@ void fragment()
 		Stopwatch totalTimer =
 			Stopwatch.StartNew();
 
-		BuildMarchingSquaresMesh(
+		BuildPixelArtMesh(
 			densityField
 		);
 
@@ -454,7 +457,7 @@ void fragment()
 		if (profilerFrameCount >= 60)
 		{
 			GD.Print(
-				"Marching Squares profiler " +
+				"Pixel Water profiler " +
 				"(avg ms over 60 render updates): " +
 				"Particles=" +
 				particles.Count +
@@ -467,7 +470,9 @@ void fragment()
 				"ms Vertices=" +
 				vertices.Count +
 				" Indices=" +
-				indices.Count
+				indices.Count +
+				" PixelSize=" +
+				PixelSize
 			);
 
 			profilerMeshTime = 0.0;
@@ -477,10 +482,10 @@ void fragment()
 	}
 
 	// ============================================================
-	// Build Marching Squares mesh
+	// Pixel-art mesh
 	// ============================================================
 
-	private void BuildMarchingSquaresMesh(
+	private void BuildPixelArtMesh(
 		DensityField densityField)
 	{
 		float[] values =
@@ -527,218 +532,57 @@ void fragment()
 			densityField
 		);
 
-		int minX =
-			Mathf.Max(
-				0,
-				densityField.ActiveMinX - 1
+		// --------------------------------------------------------
+		// Instead of drawing every 4x4 density cell, we snap the
+		// rendered geometry to larger pixel-art blocks.
+		// --------------------------------------------------------
+
+		int pixelWidth =
+			Mathf.CeilToInt(
+				(width * cellSize) /
+				PixelSize
 			);
 
-		int minY =
-			Mathf.Max(
-				0,
-				densityField.ActiveMinY - 1
-			);
-
-		int maxX =
-			Mathf.Min(
-				width - 1,
-				densityField.ActiveMaxX + 1
-			);
-
-		int maxY =
-			Mathf.Min(
-				height - 1,
-				densityField.ActiveMaxY + 1
+		int pixelHeight =
+			Mathf.CeilToInt(
+				(height * cellSize) /
+				PixelSize
 			);
 
 		for (
-			int y = minY;
-			y < maxY;
-			y++)
+			int py = 0;
+			py < pixelHeight;
+			py++)
 		{
-			int row =
-				y * width;
-
-			int nextRow =
-				row + width;
-
-			float y0 =
-				y * cellSize;
-
-			float y1 =
-				y0 + cellSize;
-
 			for (
-				int x = minX;
-				x < maxX;
-				x++)
+				int px = 0;
+				px < pixelWidth;
+				px++)
 			{
-				int indexA =
-					row + x;
-
-				int indexB =
-					indexA + 1;
-
-				int indexD =
-					nextRow + x;
-
-				int indexC =
-					indexD + 1;
-
-				int caseIndex = 0;
-
-				if (renderWater[indexA])
-					caseIndex |= 1;
-
-				if (renderWater[indexB])
-					caseIndex |= 2;
-
-				if (renderWater[indexC])
-					caseIndex |= 4;
-
-				if (renderWater[indexD])
-					caseIndex |= 8;
-
-				if (caseIndex == 0)
-					continue;
-
-				float a =
-					values[indexA];
-
-				float b =
-					values[indexB];
-
-				float c =
-					values[indexC];
-
-				float d =
-					values[indexD];
-
 				float x0 =
-					x * cellSize;
+					px * PixelSize;
+
+				float y0 =
+					py * PixelSize;
 
 				float x1 =
-					x0 + cellSize;
+					x0 + PixelSize;
 
-				int cornerA =
-					GetCornerVertex(
-						x,
-						y,
-						new Vector2(
-							x0,
-							y0
-						)
-					);
+				float y1 =
+					y0 + PixelSize;
 
-				int cornerB =
-					GetCornerVertex(
-						x + 1,
-						y,
-						new Vector2(
-							x1,
-							y0
-						)
-					);
-
-				int cornerC =
-					GetCornerVertex(
-						x + 1,
-						y + 1,
-						new Vector2(
-							x1,
-							y1
-						)
-					);
-
-				int cornerD =
-					GetCornerVertex(
-						x,
-						y + 1,
-						new Vector2(
-							x0,
-							y1
-						)
-					);
-
-				int top = -1;
-				int right = -1;
-				int bottom = -1;
-				int left = -1;
-
-				if (
-					renderWater[indexA] !=
-					renderWater[indexB]
-				)
+				if (!PixelBlockContainsWater(
+					px,
+					py))
 				{
-					top =
-						GetHorizontalEdgeVertex(
-							x,
-							y,
-							Interpolate(a, b),
-							x0,
-							x1,
-							y0
-						);
+					continue;
 				}
 
-				if (
-					renderWater[indexB] !=
-					renderWater[indexC]
-				)
-				{
-					right =
-						GetVerticalEdgeVertex(
-							x + 1,
-							y,
-							Interpolate(b, c),
-							x1,
-							y0,
-							y1
-						);
-				}
-
-				if (
-					renderWater[indexD] !=
-					renderWater[indexC]
-				)
-				{
-					bottom =
-						GetHorizontalEdgeVertex(
-							x,
-							y + 1,
-							Interpolate(d, c),
-							x0,
-							x1,
-							y1
-						);
-				}
-
-				if (
-					renderWater[indexD] !=
-					renderWater[indexA]
-				)
-				{
-					left =
-						GetVerticalEdgeVertex(
-							x,
-							y,
-							Interpolate(d, a),
-							x0,
-							y0,
-							y1
-						);
-				}
-
-				AddCell(
-					caseIndex,
-					cornerA,
-					cornerB,
-					cornerC,
-					cornerD,
-					top,
-					right,
-					bottom,
-					left
+				AddPixelBlock(
+					x0,
+					y0,
+					x1,
+					y1
 				);
 			}
 		}
@@ -752,6 +596,186 @@ void fragment()
 
 		profilerMeshTime +=
 			meshTimer.Elapsed.TotalMilliseconds;
+	}
+
+	// ============================================================
+	// Determine whether a large pixel contains water
+	// ============================================================
+
+	private bool PixelBlockContainsWater(
+		int pixelX,
+		int pixelY)
+	{
+		int startX =
+			Mathf.FloorToInt(
+				(pixelX * PixelSize) /
+				cellSize
+			);
+
+		int startY =
+			Mathf.FloorToInt(
+				(pixelY * PixelSize) /
+				cellSize
+			);
+
+		int endX =
+			Mathf.Min(
+				width - 1,
+				Mathf.CeilToInt(
+					((pixelX + 1) * PixelSize) /
+					cellSize
+				)
+			);
+
+		int endY =
+			Mathf.Min(
+				height - 1,
+				Mathf.CeilToInt(
+					((pixelY + 1) * PixelSize) /
+					cellSize
+				)
+			);
+
+		for (
+			int y = startY;
+			y <= endY;
+			y++)
+		{
+			int row =
+				y * width;
+
+			for (
+				int x = startX;
+				x <= endX;
+				x++)
+			{
+				if (
+					x >= 0 &&
+					x < width &&
+					y >= 0 &&
+					y < height &&
+					renderWater[row + x]
+				)
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	// ============================================================
+	// Add one large pixel block
+	// ============================================================
+
+	private void AddPixelBlock(
+		float x0,
+		float y0,
+		float x1,
+		float y1)
+	{
+		int baseIndex =
+			vertices.Count;
+
+		Vector2 a =
+			new Vector2(
+				x0,
+				y0
+			);
+
+		Vector2 b =
+			new Vector2(
+				x1,
+				y0
+			);
+
+		Vector2 c =
+			new Vector2(
+				x1,
+				y1
+			);
+
+		Vector2 d =
+			new Vector2(
+				x0,
+				y1
+			);
+
+		vertices.Add(a);
+		vertices.Add(b);
+		vertices.Add(c);
+		vertices.Add(d);
+
+		Color colorA =
+			GetPixelColor(
+				x0,
+				y0
+			);
+
+		Color colorB =
+			GetPixelColor(
+				x1,
+				y0
+			);
+
+		Color colorC =
+			GetPixelColor(
+				x1,
+				y1
+			);
+
+		Color colorD =
+			GetPixelColor(
+				x0,
+				y1
+			);
+
+		vertexColors.Add(colorA);
+		vertexColors.Add(colorB);
+		vertexColors.Add(colorC);
+		vertexColors.Add(colorD);
+
+		indices.Add(baseIndex);
+		indices.Add(baseIndex + 1);
+		indices.Add(baseIndex + 2);
+
+		indices.Add(baseIndex);
+		indices.Add(baseIndex + 2);
+		indices.Add(baseIndex + 3);
+	}
+
+	// ============================================================
+	// Pixel color
+	// ============================================================
+
+	private Color GetPixelColor(
+		float x,
+		float y)
+	{
+		// Sample the CENTER of the large pixel instead of its
+		// exact edge. This gives each pixel a consistent color.
+
+		float sampleX =
+			Mathf.Floor(
+				x / PixelSize
+			) *
+			PixelSize +
+			PixelSize * 0.5f;
+
+		float sampleY =
+			Mathf.Floor(
+				y / PixelSize
+			) *
+			PixelSize +
+			PixelSize * 0.5f;
+
+		return GetVertexColor(
+			new Vector2(
+				sampleX,
+				sampleY
+			)
+		);
 	}
 
 	// ============================================================
@@ -1036,13 +1060,6 @@ void fragment()
 			);
 		}
 
-		// --------------------------------------------------------
-		// Instead of searching neighboring cells, simply use the
-		// nearest valid vertical sample.
-		//
-		// This fallback is rarely used and is deliberately cheap.
-		// --------------------------------------------------------
-
 		for (
 			int offsetY = 1;
 			offsetY <= 2;
@@ -1077,159 +1094,6 @@ void fragment()
 			0.0f,
 			1.0f
 		);
-	}
-
-	// ============================================================
-	// Corner vertex
-	// ============================================================
-
-	private int GetCornerVertex(
-		int x,
-		int y,
-		Vector2 position)
-	{
-		int cacheIndex =
-			y * (width + 1) +
-			x;
-
-		if (
-			cornerCacheGeneration[cacheIndex] ==
-			cacheGeneration
-		)
-		{
-			return cornerIndices[cacheIndex];
-		}
-
-		int index =
-			vertices.Count;
-
-		vertices.Add(
-			position
-		);
-
-		vertexColors.Add(
-			GetVertexColor(position)
-		);
-
-		cornerIndices[cacheIndex] =
-			index;
-
-		cornerCacheGeneration[cacheIndex] =
-			cacheGeneration;
-
-		return index;
-	}
-
-	// ============================================================
-	// Horizontal edge vertex
-	// ============================================================
-
-	private int GetHorizontalEdgeVertex(
-		int edgeX,
-		int edgeY,
-		float t,
-		float x0,
-		float x1,
-		float worldY)
-	{
-		int edgeIndex =
-			edgeY * (width - 1) +
-			edgeX;
-
-		if (
-			horizontalCacheGeneration[edgeIndex] ==
-			cacheGeneration
-		)
-		{
-			return horizontalEdgeIndices[edgeIndex];
-		}
-
-		Vector2 position =
-			new Vector2(
-				x0 +
-				(x1 - x0) * t,
-				worldY
-			);
-
-		int index =
-			vertices.Count;
-
-		vertices.Add(
-			position
-		);
-
-		Color color =
-			GetVertexColor(position);
-
-		color.B = 1.0f;
-
-		vertexColors.Add(
-			color
-		);
-
-		horizontalEdgeIndices[edgeIndex] =
-			index;
-
-		horizontalCacheGeneration[edgeIndex] =
-			cacheGeneration;
-
-		return index;
-	}
-
-	// ============================================================
-	// Vertical edge vertex
-	// ============================================================
-
-	private int GetVerticalEdgeVertex(
-		int edgeX,
-		int edgeY,
-		float t,
-		float worldX,
-		float y0,
-		float y1)
-	{
-		int edgeIndex =
-			edgeY * width +
-			edgeX;
-
-		if (
-			verticalCacheGeneration[edgeIndex] ==
-			cacheGeneration
-		)
-		{
-			return verticalEdgeIndices[edgeIndex];
-		}
-
-		Vector2 position =
-			new Vector2(
-				worldX,
-				y0 +
-				(y1 - y0) * t
-			);
-
-		int index =
-			vertices.Count;
-
-		vertices.Add(
-			position
-		);
-
-		Color color =
-			GetVertexColor(position);
-
-		color.B = 1.0f;
-
-		vertexColors.Add(
-			color
-		);
-
-		verticalEdgeIndices[edgeIndex] =
-			index;
-
-		verticalCacheGeneration[edgeIndex] =
-			cacheGeneration;
-
-		return index;
 	}
 
 	// ============================================================
@@ -1283,192 +1147,5 @@ void fragment()
 			Mesh.PrimitiveType.Triangles,
 			arrays
 		);
-	}
-
-	// ============================================================
-	// Density interpolation
-	// ============================================================
-
-	private float Interpolate(
-		float valueA,
-		float valueB)
-	{
-		float difference =
-			valueB - valueA;
-
-		if (
-			Mathf.Abs(difference) <
-			0.0001f
-		)
-		{
-			return 0.5f;
-		}
-
-		float t =
-			(SurfaceThreshold - valueA) /
-			difference;
-
-		return Mathf.Clamp(
-			t,
-			0.0f,
-			1.0f
-		);
-	}
-
-	// ============================================================
-	// Marching Squares case table
-	// ============================================================
-
-	private void AddCell(
-		int caseIndex,
-		int a,
-		int b,
-		int c,
-		int d,
-		int top,
-		int right,
-		int bottom,
-		int left)
-	{
-		switch (caseIndex)
-		{
-			case 1:
-				AddTriangle(a, top, left);
-				break;
-
-			case 2:
-				AddTriangle(b, right, top);
-				break;
-
-			case 4:
-				AddTriangle(c, bottom, right);
-				break;
-
-			case 8:
-				AddTriangle(d, left, bottom);
-				break;
-
-			case 3:
-				AddQuad(a, b, right, left);
-				break;
-
-			case 6:
-				AddQuad(b, c, bottom, top);
-				break;
-
-			case 12:
-				AddQuad(c, d, left, right);
-				break;
-
-			case 5:
-				AddTriangle(a, top, left);
-				AddTriangle(c, right, bottom);
-				break;
-
-			case 10:
-				AddTriangle(b, right, top);
-				AddTriangle(d, left, bottom);
-				break;
-
-			case 7:
-				AddPolygon(a, b, c, bottom, left);
-				break;
-
-			case 11:
-				AddPolygon(a, b, right, bottom, d);
-				break;
-
-			case 13:
-				AddPolygon(a, top, right, c, d);
-				break;
-
-			case 14:
-				AddPolygon(b, c, d, left, top);
-				break;
-
-			case 9:
-				AddQuad(a, top, bottom, d);
-				break;
-
-			case 15:
-				AddQuad(a, b, c, d);
-				break;
-		}
-	}
-
-	// ============================================================
-	// Triangle
-	// ============================================================
-
-	private void AddTriangle(
-		int a,
-		int b,
-		int c)
-	{
-		if (
-			a < 0 ||
-			b < 0 ||
-			c < 0
-		)
-		{
-			return;
-		}
-
-		Vector2 va =
-			vertices[a];
-
-		Vector2 vb =
-			vertices[b];
-
-		Vector2 vc =
-			vertices[c];
-
-		float area =
-			(vb.X - va.X) *
-			(vc.Y - va.Y) -
-			(vb.Y - va.Y) *
-			(vc.X - va.X);
-
-		if (
-			Mathf.Abs(area) <
-			0.000001f
-		)
-		{
-			return;
-		}
-
-		indices.Add(a);
-		indices.Add(b);
-		indices.Add(c);
-	}
-
-	// ============================================================
-	// Quad
-	// ============================================================
-
-	private void AddQuad(
-		int a,
-		int b,
-		int c,
-		int d)
-	{
-		AddTriangle(a, b, c);
-		AddTriangle(a, c, d);
-	}
-
-	// ============================================================
-	// Five-point polygon
-	// ============================================================
-
-	private void AddPolygon(
-		int a,
-		int b,
-		int c,
-		int d,
-		int e)
-	{
-		AddTriangle(a, b, c);
-		AddTriangle(a, c, d);
-		AddTriangle(a, d, e);
 	}
 }

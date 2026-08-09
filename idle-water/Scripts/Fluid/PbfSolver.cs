@@ -1,10 +1,13 @@
+
 using Godot;
 using System;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 public class PbfSolver
 {
 	private readonly SpatialHash hash;
+	private readonly List<FluidPolygonCollider> polygonColliders;
 
 	// ============================================================
 	// Simulation parameters
@@ -13,120 +16,127 @@ public class PbfSolver
 	private const float Gravity = 200.0f;
 
 	private const float SmoothingRadius = 12.0f;
-
 	private const float SmoothingRadiusSquared =
 		SmoothingRadius * SmoothingRadius;
 
-	// ------------------------------------------------------------
+	// ============================================================
 	// Density
-	// ------------------------------------------------------------
+	// ============================================================
 
 	private const float RestDensity = 1.15f;
+	private const float InverseRestDensity = 1.0f / RestDensity;
 
 	private const float LambdaEpsilon = 0.00001f;
 
-	// ------------------------------------------------------------
-	// Adaptive PBF iterations
-	// ------------------------------------------------------------
+	// ============================================================
+	// PBF iterations
+	// ============================================================
 
 	private const int MinIterations = 2;
 	private const int MaxIterations = 4;
 
 	private const float DensityErrorThreshold = 0.035f;
 
-	private const float MaxCorrection = 1.5f;
+	// IMPORTANT:
+	// Reduced substantially to prevent large particle jumps.
+	private const float MaxCorrection = 0.5f;
+
+	private const float MaxCorrectionSquared =
+		MaxCorrection * MaxCorrection;
 
 	// ============================================================
-	// Artificial pressure / tensile instability
+	// Artificial pressure
+	//
+	// Disabled for stability testing.
 	// ============================================================
 
-	private const float ArtificialPressureStrength = 0.0002f;
+	private const float ArtificialPressureStrength = 0.0f;
 
-	private const float ArtificialPressureExponent = 4.0f;
-
-	private const float ArtificialPressureReferenceDistance =
-		0.10f;
+	private const float ArtificialPressureReferenceDistance = 0.10f;
 
 	private const float ArtificialPressureReferenceQ =
-		1.0f -
-		ArtificialPressureReferenceDistance;
+		1.0f - ArtificialPressureReferenceDistance;
 
 	private static readonly float ArtificialPressureReferenceKernel =
 		ArtificialPressureReferenceQ *
 		ArtificialPressureReferenceQ *
 		ArtificialPressureReferenceQ;
 
+	private static readonly float ArtificialPressureReferenceKernelInverse =
+		1.0f / ArtificialPressureReferenceKernel;
+
 	// ============================================================
 	// XSPH viscosity
+	//
+	// Disabled for stability testing.
 	// ============================================================
 
-	private const float Viscosity = 0.9f;
+	private const float Viscosity = 0.0f;
 
 	// ============================================================
-	// Vorticity confinement
+	// Vorticity
+	//
+	// Disabled for stability testing.
 	// ============================================================
 
-	private const float VorticityStrength = 0.35f;
+	private const float VorticityStrength = 0.0f;
 
 	private const float MaxVorticityVelocity = 18.0f;
 
+	private const float MaxVorticityVelocitySquared =
+		MaxVorticityVelocity *
+		MaxVorticityVelocity;
+
 	// ============================================================
-	// Surface detection / tension
+	// Surface
+	//
+	// Disabled for stability testing.
 	// ============================================================
 
 	private const float SurfaceThreshold = 0.35f;
 
-	private const float SurfaceTension = 4.0f;
+	private const float SurfaceThresholdSquared =
+		SurfaceThreshold *
+		SurfaceThreshold;
+
+	private const float SurfaceTension = 0.1f;
 
 	private const float MaxSurfaceVelocity = 200.0f;
 
+	private const float MaxSurfaceVelocitySquared =
+		MaxSurfaceVelocity *
+		MaxSurfaceVelocity;
+
 	// ============================================================
 	// Velocity damping
+	//
+	// Increased damping to remove residual energy.
 	// ============================================================
 
-	private const float VelocityDamping = 0.996f;
+	private const float VelocityDamping = 0.995f;
 
 	// ============================================================
-	// Particle sleeping
+	// Sleeping
 	//
-	// A particle does not immediately stop when its velocity
-	// becomes small.
-	//
-	// Instead:
-	//
-	// 1. Velocity falls below SleepVelocityThreshold.
-	// 2. Sleep progress gradually increases.
-	// 3. Velocity is progressively damped.
-	// 4. After SleepTime the particle becomes fully asleep.
-	//
-	// Sleeping particles do NOT receive gravity.
-	//
-	// WakeVelocityThreshold is slightly higher than the sleep
-	// threshold to prevent rapid sleep/wake oscillation.
+	// Disabled for now.
 	// ============================================================
 
 	private const float SleepVelocityThreshold = 2.0f;
-
 	private const float WakeVelocityThreshold = 4.0f;
 
 	private const float SleepTime = 0.35f;
-
 	private const float SleepDampingStrength = 3.0f;
 
+	private const float SleepVelocityThresholdSquared =
+		SleepVelocityThreshold *
+		SleepVelocityThreshold;
+
+	private const float WakeVelocityThresholdSquared =
+		WakeVelocityThreshold *
+		WakeVelocityThreshold;
+
 	// ============================================================
-	// Boundary collision
-	//
-	// BoundarySkin:
-	// Keeps particle centers slightly inside the simulation wall.
-	//
-	// BoundaryRestitution:
-	// Very low because we want water to behave softly.
-	//
-	// BoundaryFriction:
-	// Removes some tangential velocity when touching a wall.
-	//
-	// BoundaryVelocityEpsilon:
-	// Prevents tiny numerical velocities from causing jitter.
+	// World bounds
 	// ============================================================
 
 	private const float MinX = 24.0f;
@@ -138,16 +148,21 @@ public class PbfSolver
 	private const float BoundarySkin = 0.5f;
 
 	private const float BoundaryRestitution = 0.03f;
-
 	private const float BoundaryFriction = 0.03f;
 
 	private const float BoundaryVelocityEpsilon = 0.5f;
 
 	// ============================================================
+	// Polygon collision
+	// ============================================================
+
+	private const float PolygonParticleRadius = 4.0f;
+
+	// ============================================================
 	// Neighbor limit
 	// ============================================================
 
-	private const int MaxNeighbors = 64;
+	private const int MaxNeighbors = 48;
 
 	// ============================================================
 	// Working arrays
@@ -168,17 +183,11 @@ public class PbfSolver
 	private float[] vorticityVelocityY;
 
 	private float[] vorticity;
-
 	private float[] vorticityMagnitude;
 
 	private float[] particleDensity;
 
-	// ------------------------------------------------------------
-	// Particle sleep state
-	// ------------------------------------------------------------
-
 	private float[] sleepProgress;
-
 	private bool[] sleeping;
 
 	public bool[] SurfaceParticles;
@@ -188,14 +197,18 @@ public class PbfSolver
 	// ============================================================
 
 	private int[] neighborBuffer;
-
 	private int[] neighborOffsets;
 	private int[] neighborCounts;
 
 	private float[] neighborDx;
 	private float[] neighborDy;
+
 	private float[] neighborDistance;
+	private float[] neighborInverseDistance;
+
 	private float[] neighborQ;
+	private float[] neighborQ2;
+	private float[] neighborGradientScale;
 
 	// ============================================================
 	// Profiler
@@ -215,6 +228,8 @@ public class PbfSolver
 
 	private float maxObservedDensityError;
 
+	private int _lastParticleCount;
+
 	// ============================================================
 	// Constructor
 	// ============================================================
@@ -223,6 +238,27 @@ public class PbfSolver
 		SpatialHash spatialHash)
 	{
 		hash = spatialHash;
+
+		polygonColliders =
+			new List<FluidPolygonCollider>();
+	}
+
+	// ============================================================
+	// Polygon collider management
+	// ============================================================
+
+	public void AddPolygonCollider(
+		FluidPolygonCollider collider)
+	{
+		if (collider == null)
+			return;
+
+		polygonColliders.Add(collider);
+	}
+
+	public void ClearPolygonColliders()
+	{
+		polygonColliders.Clear();
 	}
 
 	// ============================================================
@@ -236,11 +272,14 @@ public class PbfSolver
 		int count =
 			particles.Count;
 
-		if (count <= 0)
-			return;
+		_lastParticleCount =
+			count;
 
-		if (dt <= 0.0f)
+		if (count <= 0 ||
+			dt <= 0.0f)
+		{
 			return;
+		}
 
 		EnsureBuffers(count);
 
@@ -251,40 +290,15 @@ public class PbfSolver
 		// 1. Predict positions
 		// ========================================================
 
+		float gravityDt =
+			Gravity * dt;
+
 		for (int i = 0;
 			 i < count;
 			 i++)
 		{
-			// ----------------------------------------------------
-			// Sleeping particle
-			//
-			// A sleeping particle stays exactly where it is.
-			// Gravity is deliberately NOT applied.
-			// ----------------------------------------------------
-
-			if (sleeping[i])
-			{
-				particles.VelX[i] =
-					0.0f;
-
-				particles.VelY[i] =
-					0.0f;
-
-				particles.PredX[i] =
-					particles.PosX[i];
-
-				particles.PredY[i] =
-					particles.PosY[i];
-
-				continue;
-			}
-
-			// ----------------------------------------------------
-			// Normal prediction
-			// ----------------------------------------------------
-
 			particles.VelY[i] +=
-				Gravity * dt;
+				gravityDt;
 
 			particles.PredX[i] =
 				particles.PosX[i] +
@@ -296,11 +310,10 @@ public class PbfSolver
 		}
 
 		// ========================================================
-		// 2. Adaptive PBF
+		// 2. PBF position solve
 		// ========================================================
 
-		int iterationsUsed =
-			0;
+		int iterationsUsed = 0;
 
 		float frameDensityError =
 			float.MaxValue;
@@ -311,9 +324,9 @@ public class PbfSolver
 		{
 			iterationsUsed++;
 
-			// ====================================================
+			// ----------------------------------------------------
 			// Build spatial hash
-			// ====================================================
+			// ----------------------------------------------------
 
 			long buildStart =
 				Stopwatch.GetTimestamp();
@@ -339,28 +352,24 @@ public class PbfSolver
 				1000.0 /
 				Stopwatch.Frequency;
 
-			// ====================================================
+			// ----------------------------------------------------
 			// Build neighbor cache
-			// ====================================================
+			// ----------------------------------------------------
 
 			BuildNeighborCache(
 				particles,
 				count
 			);
 
-			// ====================================================
-			// Phase A
-			//
-			// Density + lambda
-			// ====================================================
+			// ----------------------------------------------------
+			// Calculate lambdas
+			// ----------------------------------------------------
 
 			long phaseAStart =
 				Stopwatch.GetTimestamp();
 
 			frameDensityError =
-				CalculateLambdas(
-					count
-				);
+				CalculateLambdas(count);
 
 			long phaseAEnd =
 				Stopwatch.GetTimestamp();
@@ -377,11 +386,9 @@ public class PbfSolver
 					frameDensityError;
 			}
 
-			// ====================================================
-			// Phase B
-			//
-			// PBF pressure + artificial pressure
-			// ====================================================
+			// ----------------------------------------------------
+			// Calculate position corrections
+			// ----------------------------------------------------
 
 			long phaseBStart =
 				Stopwatch.GetTimestamp();
@@ -402,10 +409,15 @@ public class PbfSolver
 			}
 
 			// ----------------------------------------------------
-			// Boundary positional constraint
-			//
-			// This happens every PBF iteration so pressure
-			// corrections can never push particles outside.
+			// Polygon collision
+			// ----------------------------------------------------
+
+			ConstrainToPolygonColliders(
+				particles
+			);
+
+			// ----------------------------------------------------
+			// World bounds
 			// ----------------------------------------------------
 
 			ConstrainToBounds(
@@ -420,8 +432,11 @@ public class PbfSolver
 				1000.0 /
 				Stopwatch.Frequency;
 
-			if (iteration + 1 >=
-				MinIterations &&
+			// ----------------------------------------------------
+			// Adaptive exit
+			// ----------------------------------------------------
+
+			if (iteration + 1 >= MinIterations &&
 				frameDensityError <=
 				DensityErrorThreshold)
 			{
@@ -435,7 +450,7 @@ public class PbfSolver
 		// ========================================================
 		// 3. Velocity effects
 		//
-		// Final neighbor cache is reused.
+		// Currently all secondary velocity effects are disabled.
 		// ========================================================
 
 		long velocityStart =
@@ -456,34 +471,16 @@ public class PbfSolver
 			Stopwatch.Frequency;
 
 		// ========================================================
-		// 4. Update velocities + positions
+		// 4. Reconstruct velocity from corrected position
 		// ========================================================
+
+		float inverseDt =
+			1.0f / dt;
 
 		for (int i = 0;
 			 i < count;
 			 i++)
 		{
-			// ----------------------------------------------------
-			// Already sleeping
-			// ----------------------------------------------------
-
-			if (sleeping[i])
-			{
-				particles.VelX[i] =
-					0.0f;
-
-				particles.VelY[i] =
-					0.0f;
-
-				particles.PosX[i] =
-					particles.PredX[i];
-
-				particles.PosY[i] =
-					particles.PredY[i];
-
-				continue;
-			}
-
 			float oldX =
 				particles.PosX[i];
 
@@ -491,49 +488,32 @@ public class PbfSolver
 				particles.PosY[i];
 
 			float newVelocityX =
-				(particles.PredX[i] -
-				 oldX) /
-				dt;
+				(
+					particles.PredX[i] -
+					oldX
+				) *
+				inverseDt;
 
 			float newVelocityY =
-				(particles.PredY[i] -
-				 oldY) /
-				dt;
+				(
+					particles.PredY[i] -
+					oldY
+				) *
+				inverseDt;
 
-			// ----------------------------------------------------
-			// Combine all velocity effects FIRST.
+			// Only damping is applied.
 			//
-			// Boundary response happens after this.
-			// ----------------------------------------------------
+			// No artificial surface force.
+			// No vorticity.
+			// No XSPH viscosity.
 
 			float finalVelocityX =
-				newVelocityX +
-				viscosityX[i] +
-				surfaceVelocityX[i] +
-				vorticityVelocityX[i];
+				newVelocityX *
+				VelocityDamping;
 
 			float finalVelocityY =
-				newVelocityY +
-				viscosityY[i] +
-				surfaceVelocityY[i] +
-				vorticityVelocityY[i];
-
-			// ----------------------------------------------------
-			// Velocity damping
-			// ----------------------------------------------------
-
-			finalVelocityX *=
+				newVelocityY *
 				VelocityDamping;
-
-			finalVelocityY *=
-				VelocityDamping;
-
-			// ----------------------------------------------------
-			// Boundary response
-			//
-			// Apply this LAST so no later force can push the
-			// particle back into the wall during this frame.
-			// ----------------------------------------------------
 
 			ApplyBoundaryVelocityResponse(
 				particles,
@@ -542,21 +522,7 @@ public class PbfSolver
 				ref finalVelocityY
 			);
 
-			// ----------------------------------------------------
-			// Particle sleeping
-			//
-			// This happens after all velocity effects have been
-			// combined, so the sleep decision is based on the
-			// particle's actual final velocity.
-			// ----------------------------------------------------
-
-			ApplySleepBehavior(
-				particles,
-				i,
-				dt,
-				ref finalVelocityX,
-				ref finalVelocityY
-			);
+			// Sleeping intentionally disabled.
 
 			particles.VelX[i] =
 				finalVelocityX;
@@ -588,210 +554,118 @@ public class PbfSolver
 		if (profilerFrames >=
 			ProfilerPrintInterval)
 		{
-			double build =
-				accumBuildMs /
-				profilerFrames;
+			PrintProfiler();
 
-			double phaseA =
-				accumPhaseAMs /
-				profilerFrames;
-
-			double phaseB =
-				accumPhaseBMs /
-				profilerFrames;
-
-			double velocity =
-				accumVelocityMs /
-				profilerFrames;
-
-			double total =
-				accumTotalMs /
-				profilerFrames;
-
-			double averageIterations =
-				(double)accumIterations /
-				profilerFrames;
-
-			GD.Print(
-				$"PBF profiler " +
-				$"(avg ms over {profilerFrames} frames): " +
-				$"Particles={count} " +
-				$"Build={build:F2}ms " +
-				$"PhaseA={phaseA:F2}ms " +
-				$"PhaseB={phaseB:F2}ms " +
-				$"Velocity={velocity:F2}ms " +
-				$"Total={total:F2}ms " +
-				$"Iterations={averageIterations:F2} " +
-				$"MaxDensityError={maxObservedDensityError:F4} " +
-				$"(MaxNeighbors={MaxNeighbors})"
-			);
-
-			profilerFrames =
-				0;
-
-			accumBuildMs =
-				0.0;
-
-			accumPhaseAMs =
-				0.0;
-
-			accumPhaseBMs =
-				0.0;
-
-			accumVelocityMs =
-				0.0;
-
-			accumTotalMs =
-				0.0;
-
-			accumIterations =
-				0;
-
-			maxObservedDensityError =
-				0.0f;
+			ResetProfiler();
 		}
 	}
 
 	// ============================================================
-	// Particle sleeping
+	// Phase B
 	// ============================================================
 
-	private void ApplySleepBehavior(
-		ParticleData particles,
-		int i,
-		float dt,
-		ref float velocityX,
-		ref float velocityY)
+	private void CalculatePositionCorrections(
+		int count)
 	{
-		float velocitySquared =
-			velocityX * velocityX +
-			velocityY * velocityY;
-
-		float sleepThresholdSquared =
-			SleepVelocityThreshold *
-			SleepVelocityThreshold;
-
-		float wakeThresholdSquared =
-			WakeVelocityThreshold *
-			WakeVelocityThreshold;
-
-		// --------------------------------------------------------
-		// Fast particle
-		//
-		// Completely reset sleep progress.
-		// --------------------------------------------------------
-
-		if (velocitySquared >=
-			wakeThresholdSquared)
+		for (int i = 0;
+			 i < count;
+			 i++)
 		{
-			sleepProgress[i] =
-				0.0f;
+			float correctionX = 0.0f;
+			float correctionY = 0.0f;
 
-			sleeping[i] =
-				false;
+			int offset =
+				neighborOffsets[i];
 
-			return;
-		}
+			int neighborCount =
+				neighborCounts[i];
 
-		// --------------------------------------------------------
-		// Slow particle
-		//
-		// Gradually move toward sleep.
-		// --------------------------------------------------------
+			float lambdaI =
+				lambdas[i];
 
-		if (velocitySquared <
-			sleepThresholdSquared)
-		{
-			sleepProgress[i] +=
-				dt /
-				SleepTime;
-
-			sleepProgress[i] =
-				Mathf.Clamp(
-					sleepProgress[i],
-					0.0f,
-					1.0f
-				);
-
-			// ----------------------------------------------------
-			// Gradually increase damping as the particle
-			// approaches the sleeping state.
-			// ----------------------------------------------------
-
-			float sleepBlend =
-				sleepProgress[i];
-
-			float damping =
-				1.0f -
-				SleepDampingStrength *
-				sleepBlend *
-				dt;
-
-			damping =
-				Mathf.Clamp(
-					damping,
-					0.0f,
-					1.0f
-				);
-
-			velocityX *=
-				damping;
-
-			velocityY *=
-				damping;
-
-			// ----------------------------------------------------
-			// Fully asleep.
-			// ----------------------------------------------------
-
-			if (sleepProgress[i] >=
-				1.0f)
+			for (int n = 0;
+				 n < neighborCount;
+				 n++)
 			{
-				sleeping[i] =
-					true;
+				int index =
+					offset + n;
 
-				velocityX =
-					0.0f;
+				int j =
+					neighborBuffer[index];
 
-				velocityY =
-					0.0f;
+				if (j == i)
+					continue;
+
+				float gradientScale =
+					neighborGradientScale[index];
+
+				float gradientX =
+					neighborDx[index] *
+					gradientScale;
+
+				float gradientY =
+					neighborDy[index] *
+					gradientScale;
+
+				float lambdaSum =
+					lambdaI +
+					lambdas[j];
+
+				// Artificial pressure is disabled.
+
+				float pressureTerm =
+					lambdaSum;
+
+				correctionX +=
+					pressureTerm *
+					gradientX;
+
+				correctionY +=
+					pressureTerm *
+					gradientY;
 			}
 
-			return;
+			float correctionLengthSquared =
+				correctionX * correctionX +
+				correctionY * correctionY;
+
+			if (correctionLengthSquared >
+				MaxCorrectionSquared)
+			{
+				float inverseLength =
+					1.0f /
+					Mathf.Sqrt(
+						correctionLengthSquared
+					);
+
+				float scale =
+					MaxCorrection *
+					inverseLength;
+
+				correctionX *=
+					scale;
+
+				correctionY *=
+					scale;
+			}
+
+			deltaX[i] =
+				correctionX;
+
+			deltaY[i] =
+				correctionY;
 		}
-
-		// --------------------------------------------------------
-		// Velocity is between sleep and wake thresholds.
-		//
-		// Slowly move back toward an active state instead of
-		// immediately waking the particle.
-		// --------------------------------------------------------
-
-		sleepProgress[i] -=
-			dt /
-			SleepTime;
-
-		sleepProgress[i] =
-			Mathf.Clamp(
-				sleepProgress[i],
-				0.0f,
-				1.0f
-			);
-
-		sleeping[i] =
-			false;
 	}
 
 	// ============================================================
-	// Build neighbor cache
+	// Neighbor cache
 	// ============================================================
 
 	private void BuildNeighborCache(
 		ParticleData particles,
 		int count)
 	{
-		int bufferWritePosition =
-			0;
+		int bufferWritePosition = 0;
 
 		for (int i = 0;
 			 i < count;
@@ -802,6 +676,13 @@ public class PbfSolver
 
 			float py =
 				particles.PredY[i];
+
+			// Make sure enough memory exists before Query writes.
+
+			EnsureNeighborCapacity(
+				bufferWritePosition +
+				MaxNeighbors
+			);
 
 			int neighborCount =
 				hash.Query(
@@ -821,18 +702,12 @@ public class PbfSolver
 			neighborOffsets[i] =
 				bufferWritePosition;
 
-			EnsureNeighborCapacity(
-				bufferWritePosition +
-				neighborCount
-			);
-
 			for (int n = 0;
 				 n < neighborCount;
 				 n++)
 			{
 				int index =
-					bufferWritePosition +
-					n;
+					bufferWritePosition + n;
 
 				int j =
 					neighborBuffer[index];
@@ -850,12 +725,13 @@ public class PbfSolver
 					dy * dy;
 
 				float distance;
+				float inverseDistance;
 
 				if (distanceSquared <=
 					0.000001f)
 				{
-					distance =
-						0.0f;
+					distance = 0.0f;
+					inverseDistance = 0.0f;
 				}
 				else
 				{
@@ -863,6 +739,10 @@ public class PbfSolver
 						Mathf.Sqrt(
 							distanceSquared
 						);
+
+					inverseDistance =
+						1.0f /
+						distance;
 				}
 
 				neighborDx[index] =
@@ -874,16 +754,59 @@ public class PbfSolver
 				neighborDistance[index] =
 					distance;
 
-				float q =
-					1.0f -
-					distance /
-					SmoothingRadius;
+				neighborInverseDistance[index] =
+					inverseDistance;
+
+				// =================================================
+				// Correct smoothing kernel coordinate
+				// =================================================
+
+				float q;
+
+				if (distance <= 0.000001f)
+				{
+					q = 1.0f;
+				}
+				else
+				{
+					q =
+						1.0f -
+						distance /
+						SmoothingRadius;
+
+					if (q < 0.0f)
+						q = 0.0f;
+				}
 
 				neighborQ[index] =
-					Mathf.Max(
-						0.0f,
-						q
-					);
+					q;
+
+				float q2 =
+					q * q;
+
+				neighborQ2[index] =
+					q2;
+
+				// =================================================
+				// Kernel gradient
+				// =================================================
+
+				if (distance <= 0.000001f)
+				{
+					neighborGradientScale[index] =
+						0.0f;
+				}
+				else
+				{
+					neighborGradientScale[index] =
+						(
+							-3.0f *
+							q2 /
+							SmoothingRadius
+						) *
+						inverseDistance *
+						InverseRestDensity;
+				}
 			}
 
 			bufferWritePosition +=
@@ -893,8 +816,6 @@ public class PbfSolver
 
 	// ============================================================
 	// Phase A
-	//
-	// Density + lambda
 	// ============================================================
 
 	private float CalculateLambdas(
@@ -939,39 +860,18 @@ public class PbfSolver
 					neighborQ[index];
 
 				float q2 =
-					q * q;
+					neighborQ2[index];
 
-				float q3 =
-					q2 * q;
+				// Density kernel = q^3
 
 				density +=
-					q3;
+					q2 * q;
 
 				if (j == i)
 					continue;
 
-				float distance =
-					neighborDistance[index];
-
-				if (distance <=
-					0.000001f)
-				{
-					continue;
-				}
-
-				float gradientMagnitude =
-					-3.0f *
-					q2 /
-					SmoothingRadius;
-
-				float inverseDistance =
-					1.0f /
-					distance;
-
 				float gradientScale =
-					gradientMagnitude *
-					inverseDistance /
-					RestDensity;
+					neighborGradientScale[index];
 
 				float gx =
 					neighborDx[index] *
@@ -996,8 +896,8 @@ public class PbfSolver
 				density;
 
 			float constraint =
-				density /
-				RestDensity -
+				density *
+				InverseRestDensity -
 				1.0f;
 
 			float absoluteConstraint =
@@ -1029,172 +929,7 @@ public class PbfSolver
 	}
 
 	// ============================================================
-	// Phase B
-	//
-	// PBF correction + artificial pressure
-	// ============================================================
-
-	private void CalculatePositionCorrections(
-		int count)
-	{
-		float maxCorrectionSquared =
-			MaxCorrection *
-			MaxCorrection;
-
-		for (int i = 0;
-			 i < count;
-			 i++)
-		{
-			float correctionX =
-				0.0f;
-
-			float correctionY =
-				0.0f;
-
-			int neighborCount =
-				neighborCounts[i];
-
-			int offset =
-				neighborOffsets[i];
-
-			float lambdaI =
-				lambdas[i];
-
-			for (int n = 0;
-				 n < neighborCount;
-				 n++)
-			{
-				int index =
-					offset + n;
-
-				int j =
-					neighborBuffer[index];
-
-				if (j == i)
-					continue;
-
-				float distance =
-					neighborDistance[index];
-
-				if (distance <=
-					0.000001f)
-				{
-					continue;
-				}
-
-				float q =
-					neighborQ[index];
-
-				float q2 =
-					q * q;
-
-				float gradientMagnitude =
-					-3.0f *
-					q2 /
-					SmoothingRadius;
-
-				float inverseDistance =
-					1.0f /
-					distance;
-
-				float gradientScale =
-					gradientMagnitude *
-					inverseDistance /
-					RestDensity;
-
-				float gradientX =
-					neighborDx[index] *
-					gradientScale;
-
-				float gradientY =
-					neighborDy[index] *
-					gradientScale;
-
-				float lambdaSum =
-					lambdaI +
-					lambdas[j];
-
-				// ------------------------------------------------
-				// Artificial pressure
-				// ------------------------------------------------
-
-				float kernelValue =
-					q2 * q;
-
-				float kernelRatio =
-					kernelValue /
-					ArtificialPressureReferenceKernel;
-
-				kernelRatio =
-					Mathf.Clamp(
-						kernelRatio,
-						0.0f,
-						1.0f
-					);
-
-				float ratioSquared =
-					kernelRatio *
-					kernelRatio;
-
-				float ratioPower =
-					ratioSquared *
-					ratioSquared;
-
-				float artificialPressure =
-					-ArtificialPressureStrength *
-					ratioPower;
-
-				float pressureTerm =
-					lambdaSum +
-					artificialPressure;
-
-				correctionX +=
-					pressureTerm *
-					gradientX;
-
-				correctionY +=
-					pressureTerm *
-					gradientY;
-			}
-
-			float correctionLengthSquared =
-				correctionX * correctionX +
-				correctionY * correctionY;
-
-			if (correctionLengthSquared >
-				maxCorrectionSquared)
-			{
-				float correctionLength =
-					Mathf.Sqrt(
-						correctionLengthSquared
-					);
-
-				float scale =
-					MaxCorrection /
-					correctionLength;
-
-				correctionX *=
-					scale;
-
-				correctionY *=
-					scale;
-			}
-
-			deltaX[i] =
-				correctionX;
-
-			deltaY[i] =
-				correctionY;
-		}
-	}
-
-	// ============================================================
 	// Velocity effects
-	//
-	// XSPH viscosity
-	// Surface normal
-	// Surface tension
-	// Vorticity confinement
 	// ============================================================
 
 	private void CalculateVelocityEffects(
@@ -1203,438 +938,199 @@ public class PbfSolver
 		int count)
 	{
 		// ========================================================
-		// First pass:
-		//
-		// XSPH viscosity
-		// surface normal
-		// vorticity
+		// Everything here is intentionally disabled during
+		// stability testing.
 		// ========================================================
 
 		for (int i = 0;
 			 i < count;
 			 i++)
 		{
-			float velocityX =
-				(particles.PredX[i] -
-				 particles.PosX[i]) /
-				dt;
-
-			float velocityY =
-				(particles.PredY[i] -
-				 particles.PosY[i]) /
-				dt;
-
-			float viscosityCorrectionX =
-				0.0f;
-
-			float viscosityCorrectionY =
-				0.0f;
-
-			float normalX =
-				0.0f;
-
-			float normalY =
-				0.0f;
-
-			float localVorticity =
-				0.0f;
-
-			int neighborCount =
-				neighborCounts[i];
-
-			int offset =
-				neighborOffsets[i];
-
-			for (int n = 0;
-				 n < neighborCount;
-				 n++)
-			{
-				int index =
-					offset + n;
-
-				int j =
-					neighborBuffer[index];
-
-				if (j == i)
-					continue;
-
-				float distance =
-					neighborDistance[index];
-
-				if (distance <=
-					0.000001f)
-					continue;
-
-				float q =
-					neighborQ[index];
-
-				float q2 =
-					q * q;
-
-				float inverseDistance =
-					1.0f /
-					distance;
-
-				float nx =
-					neighborDx[index] *
-					inverseDistance;
-
-				float ny =
-					neighborDy[index] *
-					inverseDistance;
-
-				// ------------------------------------------------
-				// Neighbor velocity
-				// ------------------------------------------------
-
-				float neighborVelocityX =
-					(
-						particles.PredX[j] -
-						particles.PosX[j]
-					) /
-					dt;
-
-				float neighborVelocityY =
-					(
-						particles.PredY[j] -
-						particles.PosY[j]
-					) /
-					dt;
-
-				// ------------------------------------------------
-				// XSPH viscosity
-				// ------------------------------------------------
-
-				viscosityCorrectionX +=
-					(
-						neighborVelocityX -
-						velocityX
-					) *
-					q2;
-
-				viscosityCorrectionY +=
-					(
-						neighborVelocityY -
-						velocityY
-					) *
-					q2;
-
-				// ------------------------------------------------
-				// Surface normal
-				// ------------------------------------------------
-
-				normalX +=
-					nx *
-					q2;
-
-				normalY +=
-					ny *
-					q2;
-
-				// ------------------------------------------------
-				// Vorticity
-				// ------------------------------------------------
-
-				float velocityDifferenceX =
-					neighborVelocityX -
-					velocityX;
-
-				float velocityDifferenceY =
-					neighborVelocityY -
-					velocityY;
-
-				localVorticity +=
-					(
-						velocityDifferenceY *
-						nx -
-						velocityDifferenceX *
-						ny
-					) *
-					q2;
-			}
-
 			viscosityX[i] =
-				viscosityCorrectionX *
-				Viscosity;
+				0.0f;
 
 			viscosityY[i] =
-				viscosityCorrectionY *
-				Viscosity;
-
-			vorticity[i] =
-				localVorticity;
-
-			vorticityMagnitude[i] =
-				Mathf.Abs(
-					localVorticity
-				);
-
-			// ----------------------------------------------------
-			// Surface
-			// ----------------------------------------------------
-
-			float normalLengthSquared =
-				normalX * normalX +
-				normalY * normalY;
-
-			if (normalLengthSquared <
-				SurfaceThreshold *
-				SurfaceThreshold)
-			{
-				SurfaceParticles[i] =
-					false;
-
-				surfaceVelocityX[i] =
-					0.0f;
-
-				surfaceVelocityY[i] =
-					0.0f;
-			}
-			else
-			{
-				SurfaceParticles[i] =
-					true;
-
-				float normalLength =
-					Mathf.Sqrt(
-						normalLengthSquared
-					);
-
-				float surfaceNormalX =
-					normalX /
-					normalLength;
-
-				float surfaceNormalY =
-					normalY /
-					normalLength;
-
-				// ------------------------------------------------
-				// Surface tension
-				// ------------------------------------------------
-
-				float velocityChangeX =
-					-surfaceNormalX *
-					SurfaceTension *
-					dt;
-
-				float velocityChangeY =
-					-surfaceNormalY *
-					SurfaceTension *
-					dt;
-
-				float velocityChangeLengthSquared =
-					velocityChangeX *
-					velocityChangeX +
-					velocityChangeY *
-					velocityChangeY;
-
-				float maxSurfaceVelocitySquared =
-					MaxSurfaceVelocity *
-					MaxSurfaceVelocity;
-
-				if (velocityChangeLengthSquared >
-					maxSurfaceVelocitySquared)
-				{
-					float velocityChangeLength =
-						Mathf.Sqrt(
-							velocityChangeLengthSquared
-						);
-
-					float scale =
-						MaxSurfaceVelocity /
-						velocityChangeLength;
-
-					velocityChangeX *=
-						scale;
-
-					velocityChangeY *=
-						scale;
-				}
-
-				surfaceVelocityX[i] =
-					velocityChangeX;
-
-				surfaceVelocityY[i] =
-					velocityChangeY;
-			}
-		}
-
-		// ========================================================
-		// Second pass:
-		//
-		// Vorticity confinement
-		// ========================================================
-
-		for (int i = 0;
-			 i < count;
-			 i++)
-		{
-			float gradientX =
 				0.0f;
 
-			float gradientY =
+			surfaceVelocityX[i] =
 				0.0f;
 
-			int neighborCount =
-				neighborCounts[i];
-
-			int offset =
-				neighborOffsets[i];
-
-			for (int n = 0;
-				 n < neighborCount;
-				 n++)
-			{
-				int index =
-					offset + n;
-
-				int j =
-					neighborBuffer[index];
-
-				if (j == i)
-					continue;
-
-				float distance =
-					neighborDistance[index];
-
-				if (distance <=
-					0.000001f)
-					continue;
-
-				float q =
-					neighborQ[index];
-
-				float q2 =
-					q * q;
-
-				float inverseDistance =
-					1.0f /
-					distance;
-
-				float nx =
-					neighborDx[index] *
-					inverseDistance;
-
-				float ny =
-					neighborDy[index] *
-					inverseDistance;
-
-				float vorticityDifference =
-					vorticityMagnitude[j] -
-					vorticityMagnitude[i];
-
-				gradientX +=
-					vorticityDifference *
-					nx *
-					q2;
-
-				gradientY +=
-					vorticityDifference *
-					ny *
-					q2;
-			}
-
-			float gradientLengthSquared =
-				gradientX * gradientX +
-				gradientY * gradientY;
-
-			if (gradientLengthSquared <=
-				0.000001f)
-			{
-				vorticityVelocityX[i] =
-					0.0f;
-
-				vorticityVelocityY[i] =
-					0.0f;
-
-				continue;
-			}
-
-			float gradientLength =
-				Mathf.Sqrt(
-					gradientLengthSquared
-				);
-
-			float normalX =
-				gradientX /
-				gradientLength;
-
-			float normalY =
-				gradientY /
-				gradientLength;
-
-			float localVorticity =
-				vorticity[i];
-
-			float forceX =
-				normalY *
-				localVorticity *
-				VorticityStrength;
-
-			float forceY =
-				-normalX *
-				localVorticity *
-				VorticityStrength;
-
-			float velocityLengthSquared =
-				forceX * forceX +
-				forceY * forceY;
-
-			float maxVelocitySquared =
-				MaxVorticityVelocity *
-				MaxVorticityVelocity;
-
-			if (velocityLengthSquared >
-				maxVelocitySquared)
-			{
-				float velocityLength =
-					Mathf.Sqrt(
-						velocityLengthSquared
-					);
-
-				float scale =
-					MaxVorticityVelocity /
-					velocityLength;
-
-				forceX *=
-					scale;
-
-				forceY *=
-					scale;
-			}
+			surfaceVelocityY[i] =
+				0.0f;
 
 			vorticityVelocityX[i] =
-				forceX *
-				dt;
+				0.0f;
 
 			vorticityVelocityY[i] =
-				forceY *
-				dt;
+				0.0f;
+
+			vorticity[i] =
+				0.0f;
+
+			vorticityMagnitude[i] =
+				0.0f;
+
+			// We still expose surface particle information.
+			// For now, classify everything as non-surface.
+
+			SurfaceParticles[i] =
+				false;
 		}
 	}
 
 	// ============================================================
-	// Boundary constraints
-	//
-	// Positional collision during PBF.
+	// Polygon constraint
+	// ============================================================
+
+	private void ConstrainToPolygonColliders(
+		ParticleData particles)
+	{
+		if (polygonColliders == null ||
+			polygonColliders.Count == 0)
+		{
+			return;
+		}
+
+		for (int i = 0;
+			 i < particles.Count;
+			 i++)
+		{
+			Vector2 position =
+				new Vector2(
+					particles.PredX[i],
+					particles.PredY[i]
+				);
+
+			for (int c = 0;
+				 c < polygonColliders.Count;
+				 c++)
+			{
+				FluidPolygonCollider collider =
+					polygonColliders[c];
+
+				if (collider == null)
+					continue;
+
+				if (!collider.ResolveCollision(
+						position,
+						PolygonParticleRadius,
+						out Vector2 correctedPosition,
+						out Vector2 normal))
+				{
+					continue;
+				}
+
+				position =
+					correctedPosition;
+			}
+
+			particles.PredX[i] =
+				position.X;
+
+			particles.PredY[i] =
+				position.Y;
+		}
+	}
+
+	// ============================================================
+	// Sleep
+	// ============================================================
+
+	private void ApplySleepBehavior(
+		ParticleData particles,
+		int i,
+		float dt,
+		ref float velocityX,
+		ref float velocityY)
+	{
+		float velocitySquared =
+			velocityX * velocityX +
+			velocityY * velocityY;
+
+		if (velocitySquared >=
+			WakeVelocityThresholdSquared)
+		{
+			sleepProgress[i] =
+				0.0f;
+
+			sleeping[i] =
+				false;
+
+			return;
+		}
+
+		if (velocitySquared <
+			SleepVelocityThresholdSquared)
+		{
+			sleepProgress[i] +=
+				dt / SleepTime;
+
+			if (sleepProgress[i] > 1.0f)
+				sleepProgress[i] = 1.0f;
+
+			float sleepBlend =
+				sleepProgress[i];
+
+			float damping =
+				1.0f -
+				SleepDampingStrength *
+				sleepBlend *
+				dt;
+
+			if (damping < 0.0f)
+				damping = 0.0f;
+
+			velocityX *=
+				damping;
+
+			velocityY *=
+				damping;
+
+			if (sleepProgress[i] >= 1.0f)
+			{
+				sleeping[i] =
+					true;
+
+				velocityX =
+					0.0f;
+
+				velocityY =
+					0.0f;
+			}
+
+			return;
+		}
+
+		sleepProgress[i] -=
+			dt / SleepTime;
+
+		if (sleepProgress[i] < 0.0f)
+			sleepProgress[i] = 0.0f;
+
+		sleeping[i] =
+			false;
+	}
+
+	// ============================================================
+	// World bounds
 	// ============================================================
 
 	private void ConstrainToBounds(
 		ParticleData particles)
 	{
-		float leftBoundary =
+		float left =
 			MinX +
 			BoundarySkin;
 
-		float rightBoundary =
+		float right =
 			MaxX -
 			BoundarySkin;
 
-		float topBoundary =
+		float top =
 			MinY +
 			BoundarySkin;
 
-		float bottomBoundary =
+		float bottom =
 			MaxY -
 			BoundarySkin;
 
@@ -1642,47 +1138,32 @@ public class PbfSolver
 			 i < particles.Count;
 			 i++)
 		{
-			if (particles.PredX[i] <
-				leftBoundary)
-			{
-				particles.PredX[i] =
-					leftBoundary;
-			}
-			else if (particles.PredX[i] >
-					 rightBoundary)
-			{
-				particles.PredX[i] =
-					rightBoundary;
-			}
+			float x =
+				particles.PredX[i];
 
-			if (particles.PredY[i] <
-				topBoundary)
-			{
-				particles.PredY[i] =
-					topBoundary;
-			}
-			else if (particles.PredY[i] >
-					 bottomBoundary)
-			{
-				particles.PredY[i] =
-					bottomBoundary;
-			}
+			float y =
+				particles.PredY[i];
+
+			if (x < left)
+				x = left;
+			else if (x > right)
+				x = right;
+
+			if (y < top)
+				y = top;
+			else if (y > bottom)
+				y = bottom;
+
+			particles.PredX[i] =
+				x;
+
+			particles.PredY[i] =
+				y;
 		}
 	}
 
 	// ============================================================
-	// Boundary velocity response
-	//
-	// This is deliberately handled after ALL other velocity
-	// effects have been combined.
-	//
-	// The goal is:
-	//
-	// - no visible bouncing
-	// - no particles entering walls
-	// - no tiny jitter at rest
-	// - some sliding along walls
-	// - small amount of energy retained when hitting walls
+	// Boundary velocity
 	// ============================================================
 
 	private void ApplyBoundaryVelocityResponse(
@@ -1697,36 +1178,30 @@ public class PbfSolver
 		float y =
 			particles.PredY[i];
 
-		float leftBoundary =
+		float left =
 			MinX +
 			BoundarySkin;
 
-		float rightBoundary =
+		float right =
 			MaxX -
 			BoundarySkin;
 
-		float topBoundary =
+		float top =
 			MinY +
 			BoundarySkin;
 
-		float bottomBoundary =
+		float bottom =
 			MaxY -
 			BoundarySkin;
 
-		// --------------------------------------------------------
-		// Left wall
-		// --------------------------------------------------------
-
-		if (x <= leftBoundary +
-			0.001f)
+		if (x <= left + 0.001f)
 		{
 			if (velocityX < 0.0f)
 			{
 				if (Mathf.Abs(velocityX) <
 					BoundaryVelocityEpsilon)
 				{
-					velocityX =
-						0.0f;
+					velocityX = 0.0f;
 				}
 				else
 				{
@@ -1741,20 +1216,14 @@ public class PbfSolver
 				BoundaryFriction;
 		}
 
-		// --------------------------------------------------------
-		// Right wall
-		// --------------------------------------------------------
-
-		if (x >= rightBoundary -
-			0.001f)
+		if (x >= right - 0.001f)
 		{
 			if (velocityX > 0.0f)
 			{
 				if (Mathf.Abs(velocityX) <
 					BoundaryVelocityEpsilon)
 				{
-					velocityX =
-						0.0f;
+					velocityX = 0.0f;
 				}
 				else
 				{
@@ -1769,20 +1238,14 @@ public class PbfSolver
 				BoundaryFriction;
 		}
 
-		// --------------------------------------------------------
-		// Top wall
-		// --------------------------------------------------------
-
-		if (y <= topBoundary +
-			0.001f)
+		if (y <= top + 0.001f)
 		{
 			if (velocityY < 0.0f)
 			{
 				if (Mathf.Abs(velocityY) <
 					BoundaryVelocityEpsilon)
 				{
-					velocityY =
-						0.0f;
+					velocityY = 0.0f;
 				}
 				else
 				{
@@ -1797,20 +1260,14 @@ public class PbfSolver
 				BoundaryFriction;
 		}
 
-		// --------------------------------------------------------
-		// Bottom wall
-		// --------------------------------------------------------
-
-		if (y >= bottomBoundary -
-			0.001f)
+		if (y >= bottom - 0.001f)
 		{
 			if (velocityY > 0.0f)
 			{
 				if (Mathf.Abs(velocityY) <
 					BoundaryVelocityEpsilon)
 				{
-					velocityY =
-						0.0f;
+					velocityY = 0.0f;
 				}
 				else
 				{
@@ -1878,10 +1335,6 @@ public class PbfSolver
 		particleDensity =
 			new float[count];
 
-		// --------------------------------------------------------
-		// Sleep buffers
-		// --------------------------------------------------------
-
 		sleepProgress =
 			new float[count];
 
@@ -1912,7 +1365,16 @@ public class PbfSolver
 		neighborDistance =
 			new float[initialCapacity];
 
+		neighborInverseDistance =
+			new float[initialCapacity];
+
 		neighborQ =
+			new float[initialCapacity];
+
+		neighborQ2 =
+			new float[initialCapacity];
+
+		neighborGradientScale =
 			new float[initialCapacity];
 	}
 
@@ -1943,7 +1405,16 @@ public class PbfSolver
 		float[] newNeighborDistance =
 			new float[newCapacity];
 
+		float[] newNeighborInverseDistance =
+			new float[newCapacity];
+
 		float[] newNeighborQ =
+			new float[newCapacity];
+
+		float[] newNeighborQ2 =
+			new float[newCapacity];
+
+		float[] newNeighborGradientScale =
 			new float[newCapacity];
 
 		Array.Copy(
@@ -1971,9 +1442,27 @@ public class PbfSolver
 		);
 
 		Array.Copy(
+			neighborInverseDistance,
+			newNeighborInverseDistance,
+			neighborInverseDistance.Length
+		);
+
+		Array.Copy(
 			neighborQ,
 			newNeighborQ,
 			neighborQ.Length
+		);
+
+		Array.Copy(
+			neighborQ2,
+			newNeighborQ2,
+			neighborQ2.Length
+		);
+
+		Array.Copy(
+			neighborGradientScale,
+			newNeighborGradientScale,
+			neighborGradientScale.Length
 		);
 
 		neighborBuffer =
@@ -1988,12 +1477,21 @@ public class PbfSolver
 		neighborDistance =
 			newNeighborDistance;
 
+		neighborInverseDistance =
+			newNeighborInverseDistance;
+
 		neighborQ =
 			newNeighborQ;
+
+		neighborQ2 =
+			newNeighborQ2;
+
+		neighborGradientScale =
+			newNeighborGradientScale;
 	}
 
 	// ============================================================
-	// Density field support
+	// Density field
 	// ============================================================
 
 	public void BuildDensityField(
@@ -2021,5 +1519,69 @@ public class PbfSolver
 				density
 			);
 		}
+	}
+
+	// ============================================================
+	// Profiler
+	// ============================================================
+
+	private void PrintProfiler()
+	{
+		double frames =
+			profilerFrames;
+
+		double build =
+			accumBuildMs /
+			frames;
+
+		double phaseA =
+			accumPhaseAMs /
+			frames;
+
+		double phaseB =
+			accumPhaseBMs /
+			frames;
+
+		double velocity =
+			accumVelocityMs /
+			frames;
+
+		double total =
+			accumTotalMs /
+			frames;
+
+		double averageIterations =
+			accumIterations /
+			frames;
+
+		GD.Print(
+			$"PBF profiler " +
+			$"(avg ms over {profilerFrames} frames): " +
+			$"Particles={_lastParticleCount} " +
+			$"Build={build:F2}ms " +
+			$"PhaseA={phaseA:F2}ms " +
+			$"PhaseB={phaseB:F2}ms " +
+			$"Velocity={velocity:F2}ms " +
+			$"Total={total:F2}ms " +
+			$"Iterations={averageIterations:F2} " +
+			$"MaxDensityError={maxObservedDensityError:F4} " +
+			$"(MaxNeighbors={MaxNeighbors})"
+		);
+	}
+
+	private void ResetProfiler()
+	{
+		profilerFrames = 0;
+
+		accumBuildMs = 0.0;
+		accumPhaseAMs = 0.0;
+		accumPhaseBMs = 0.0;
+		accumVelocityMs = 0.0;
+		accumTotalMs = 0.0;
+
+		accumIterations = 0;
+
+		maxObservedDensityError =
+			0.0f;
 	}
 }

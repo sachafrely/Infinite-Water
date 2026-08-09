@@ -8,12 +8,12 @@ public partial class FluidSimulator : Node2D
 	private PbfSolver solver;
 	private FluidRenderer renderer;
 	private DensityField densityField;
-
+	
 	// ------------------------------------------------------------
 	// Maximum number of particles
 	// ------------------------------------------------------------
 
-	private const int ParticleCount = 6000;
+	private const int ParticleCount = 10000;
 
 	// ------------------------------------------------------------
 	// Density rendering grid
@@ -107,8 +107,27 @@ public partial class FluidSimulator : Node2D
 			);
 
 		solver =
-			new PbfSolver(hash);
+	new PbfSolver(hash);
 
+// --------------------------------------------------------
+// Triangle obstacle
+// --------------------------------------------------------
+
+Vector2[] triangle =
+{
+	new Vector2(250, 700),
+	new Vector2(450, 700),
+	new Vector2(350, 500)
+};
+
+FluidPolygonCollider obstacle =
+	new FluidPolygonCollider(triangle);
+
+solver.AddPolygonCollider(obstacle);
+			
+			
+	
+		
 		densityField =
 			new DensityField(
 				DensityWidth,
