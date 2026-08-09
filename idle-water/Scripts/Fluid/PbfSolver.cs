@@ -877,14 +877,15 @@ for (int i = 0; i < count; i++)
 				profilerFrames;
 
 			GD.Print(
-				$"PBF profiler " +
-				$"(avg ms over {profilerFrames} frames): " +
-				$"Build={build:F2}ms " +
-				$"PhaseA={phaseA:F2}ms " +
-				$"PhaseB={phaseB:F2}ms " +
-				$"Total={total:F2}ms " +
-				$"(MaxNeighbors={MaxNeighbors})"
-			);
+$"PBF profiler " +
+$"(avg ms over {profilerFrames} frames): " +
+$"Particles={count} " +
+$"Build={build}ms " +
+$"PhaseA={phaseA}ms " +
+$"PhaseB={phaseB}ms " +
+$"Total={total}ms " +
+$"(MaxNeighbors={MaxNeighbors})"
+);
 
 			profilerFrames = 0;
 

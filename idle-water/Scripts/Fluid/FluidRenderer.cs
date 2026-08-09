@@ -100,17 +100,20 @@ public void Update(
 	if (profilerFrameCount >= 60)
 	{
 		GD.Print(
-			"Marching Squares profiler " +
-			"(avg ms over 60 frames): " +
-			"Total=" +
-			(profilerTotalTime / 60.0)
-				.ToString("F2") +
-			"ms " +
-			"Mesh=" +
-			(profilerMeshTime / 60.0)
-				.ToString("F2") +
-			"ms"
-		);
+"Marching Squares profiler " +
+"(avg ms over 60 frames): " +
+"Particles=" +
+particles.Count +
+" " +
+"Total=" +
+(profilerTotalTime / 60.0)
+.ToString("F2") +
+"ms " +
+"Mesh=" +
+(profilerMeshTime / 60.0)
+.ToString("F2") +
+"ms"
+);
 
 		profilerMeshTime = 0.0;
 		profilerFrameCount = 0;
