@@ -87,6 +87,11 @@ public partial class FluidSimulator : Node2D
 	private double fullDensityTime = 0.0;
 	private double fullRendererTime = 0.0;
 
+	private double fullRendererBuildPixelsTime = 0.0;
+	private double fullRendererSurfaceGlowTime = 0.0;
+	private double fullRendererFillBytesTime = 0.0;
+	private double fullRendererTextureUploadTime = 0.0;
+
 	// ------------------------------------------------------------
 	// Initialization
 	// ------------------------------------------------------------
@@ -242,6 +247,18 @@ solver.AddPolygonCollider(obstacle);
 		fullRendererTime +=
 			rendererTimer.Elapsed.TotalMilliseconds;
 
+		fullRendererBuildPixelsTime +=
+			renderer.LastBuildPixelsMs;
+
+		fullRendererSurfaceGlowTime +=
+			renderer.LastSurfaceGlowMs;
+
+		fullRendererFillBytesTime +=
+			renderer.LastFillBytesMs;
+
+		fullRendererTextureUploadTime +=
+			renderer.LastTextureUploadMs;
+
 		// --------------------------------------------------------
 		// Stop entire PhysicsProcess timer
 		// --------------------------------------------------------
@@ -293,6 +310,22 @@ solver.AddPolygonCollider(obstacle);
 
 		double rendererMs =
 			fullRendererTime /
+			frameCount;
+
+		double rendererBuildPixelsMs =
+			fullRendererBuildPixelsTime /
+			frameCount;
+
+		double rendererSurfaceGlowMs =
+			fullRendererSurfaceGlowTime /
+			frameCount;
+
+		double rendererFillBytesMs =
+			fullRendererFillBytesTime /
+			frameCount;
+
+		double rendererTextureUploadMs =
+			fullRendererTextureUploadTime /
 			frameCount;
 
 		double measuredWork =
@@ -376,6 +409,30 @@ solver.AddPolygonCollider(obstacle);
 		);
 
 		GD.Print(
+			"    BuildPixels=" +
+			rendererBuildPixelsMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    SurfaceGlow=" +
+			rendererSurfaceGlowMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    FillBytes=" +
+			rendererFillBytesMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    TextureUpload=" +
+			rendererTextureUploadMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
 			"  Other=" +
 			otherMs.ToString("F2") +
 			"ms"
@@ -406,6 +463,10 @@ solver.AddPolygonCollider(obstacle);
 		fullPbfTime = 0.0;
 		fullDensityTime = 0.0;
 		fullRendererTime = 0.0;
+		fullRendererBuildPixelsTime = 0.0;
+		fullRendererSurfaceGlowTime = 0.0;
+		fullRendererFillBytesTime = 0.0;
+		fullRendererTextureUploadTime = 0.0;
 	}
 
 	// ------------------------------------------------------------

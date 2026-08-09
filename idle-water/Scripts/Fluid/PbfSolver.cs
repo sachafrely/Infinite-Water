@@ -1,4 +1,3 @@
-
 using Godot;
 using System;
 using System.Diagnostics;
@@ -31,13 +30,6 @@ public class PbfSolver
 
 	// ============================================================
 	// PBF
-	//
-	// PERFORMANCE CHANGE:
-	//
-	// 2 iterations is the normal case.
-	// A third iteration is used only when necessary.
-	//
-	// This is substantially cheaper than always doing 4.
 	// ============================================================
 
 	private const int MinIterations = 2;
@@ -98,11 +90,6 @@ public class PbfSolver
 
 	// ============================================================
 	// Neighbor limit
-	//
-	// 48 was rarely useful and creates a lot of work.
-	//
-	// 40 gives us a meaningful reduction while keeping
-	// enough neighbors for the current particle spacing.
 	// ============================================================
 
 	private const int MaxNeighbors = 40;
@@ -121,18 +108,6 @@ public class PbfSolver
 
 	// ============================================================
 	// Neighbor cache
-	//
-	// q2 has been removed.
-	//
-	// q2 was only used to calculate q³:
-	//
-	// q * q2
-	//
-	// We simply calculate:
-	//
-	// q * q * q
-	//
-	// when needed.
 	// ============================================================
 
 	private int[] neighborBuffer;
@@ -153,9 +128,16 @@ public class PbfSolver
 
 	private int profilerFrames;
 
+	private double accumPredictMs;
 	private double accumBuildMs;
+	private double accumNeighborsMs;
 	private double accumPhaseAMs;
-	private double accumPhaseBMs;
+
+	private double accumCorrectionMs;
+	private double accumPolygonMs;
+	private double accumBoundsMs;
+
+	private double accumVelocityMs;
 	private double accumTotalMs;
 
 	private int accumIterations;
@@ -243,6 +225,9 @@ public class PbfSolver
 		// 1. Predict positions
 		// ========================================================
 
+		long predictStart =
+			Stopwatch.GetTimestamp();
+
 		float gravityDt =
 			Gravity * dt;
 
@@ -258,6 +243,14 @@ public class PbfSolver
 				posY[i] +
 				velY[i] * dt;
 		}
+
+		long predictEnd =
+			Stopwatch.GetTimestamp();
+
+		accumPredictMs +=
+			(predictEnd - predictStart) *
+			1000.0 /
+			Stopwatch.Frequency;
 
 		// ========================================================
 		// 2. PBF
@@ -305,11 +298,22 @@ public class PbfSolver
 			// Neighbor cache
 			// ----------------------------------------------------
 
+			long neighborsStart =
+				Stopwatch.GetTimestamp();
+
 			BuildNeighborCache(
 				predX,
 				predY,
 				count
 			);
+
+			long neighborsEnd =
+				Stopwatch.GetTimestamp();
+
+			accumNeighborsMs +=
+				(neighborsEnd - neighborsStart) *
+				1000.0 /
+				Stopwatch.Frequency;
 
 			// ----------------------------------------------------
 			// Phase A
@@ -340,19 +344,10 @@ public class PbfSolver
 			}
 
 			// ----------------------------------------------------
-			// Phase B
-			//
-			// Directly modify predicted positions.
-			//
-			// This removes:
-			//
-			// deltaX[]
-			// deltaY[]
-			//
-			// and the additional full particle loop.
+			// Position correction
 			// ----------------------------------------------------
 
-			long phaseBStart =
+			long correctionStart =
 				Stopwatch.GetTimestamp();
 
 			ApplyPositionCorrections(
@@ -361,18 +356,44 @@ public class PbfSolver
 				count
 			);
 
+			long correctionEnd =
+				Stopwatch.GetTimestamp();
+
+			accumCorrectionMs +=
+				(correctionEnd - correctionStart) *
+				1000.0 /
+				Stopwatch.Frequency;
+
 			// ----------------------------------------------------
-			// Collision constraints
+			// Polygon collision
 			// ----------------------------------------------------
 
 			if (polygonColliders.Count > 0)
 			{
+				long polygonStart =
+					Stopwatch.GetTimestamp();
+
 				ConstrainToPolygonColliders(
 					predX,
 					predY,
 					count
 				);
+
+				long polygonEnd =
+					Stopwatch.GetTimestamp();
+
+				accumPolygonMs +=
+					(polygonEnd - polygonStart) *
+					1000.0 /
+					Stopwatch.Frequency;
 			}
+
+			// ----------------------------------------------------
+			// World bounds
+			// ----------------------------------------------------
+
+			long boundsStart =
+				Stopwatch.GetTimestamp();
 
 			ConstrainToBounds(
 				predX,
@@ -380,11 +401,11 @@ public class PbfSolver
 				count
 			);
 
-			long phaseBEnd =
+			long boundsEnd =
 				Stopwatch.GetTimestamp();
 
-			accumPhaseBMs +=
-				(phaseBEnd - phaseBStart) *
+			accumBoundsMs +=
+				(boundsEnd - boundsStart) *
 				1000.0 /
 				Stopwatch.Frequency;
 
@@ -392,7 +413,7 @@ public class PbfSolver
 			// Adaptive exit
 			//
 			// We always do two iterations.
-			// A third is only used if the result is still poor.
+			// A third is only used if necessary.
 			// ----------------------------------------------------
 
 			if (
@@ -411,6 +432,9 @@ public class PbfSolver
 		// ========================================================
 		// 3. Velocity reconstruction
 		// ========================================================
+
+		long velocityStart =
+			Stopwatch.GetTimestamp();
 
 		float inverseDt =
 			1.0f / dt;
@@ -574,6 +598,14 @@ public class PbfSolver
 			posY[i] =
 				predY[i];
 		}
+
+		long velocityEnd =
+			Stopwatch.GetTimestamp();
+
+		accumVelocityMs +=
+			(velocityEnd - velocityStart) *
+			1000.0 /
+			Stopwatch.Frequency;
 
 		// ========================================================
 		// Profiler
@@ -1205,16 +1237,64 @@ public class PbfSolver
 		double frames =
 			profilerFrames;
 
+		double predict =
+			accumPredictMs / frames;
+
+		double build =
+			accumBuildMs / frames;
+
+		double neighbors =
+			accumNeighborsMs / frames;
+
+		double phaseA =
+			accumPhaseAMs / frames;
+
+		double correction =
+			accumCorrectionMs / frames;
+
+		double polygon =
+			accumPolygonMs / frames;
+
+		double bounds =
+			accumBoundsMs / frames;
+
+		double velocity =
+			accumVelocityMs / frames;
+
+		double total =
+			accumTotalMs / frames;
+
+		double iterations =
+			accumIterations / frames;
+
 		GD.Print(
 			$"PBF profiler " +
 			$"(avg ms over {profilerFrames} frames): " +
+
 			$"Particles={lastParticleCount} " +
-			$"Build={(accumBuildMs / frames):F2}ms " +
-			$"PhaseA={(accumPhaseAMs / frames):F2}ms " +
-			$"PhaseB={(accumPhaseBMs / frames):F2}ms " +
-			$"Total={(accumTotalMs / frames):F2}ms " +
-			$"Iterations={(accumIterations / frames):F2} " +
+
+			$"Predict={predict:F2}ms " +
+
+			$"Build={build:F2}ms " +
+
+			$"Neighbors={neighbors:F2}ms " +
+
+			$"PhaseA={phaseA:F2}ms " +
+
+			$"Correction={correction:F2}ms " +
+
+			$"Polygon={polygon:F2}ms " +
+
+			$"Bounds={bounds:F2}ms " +
+
+			$"Velocity={velocity:F2}ms " +
+
+			$"Total={total:F2}ms " +
+
+			$"Iterations={iterations:F2} " +
+
 			$"MaxDensityError={maxObservedDensityError:F4} " +
+
 			$"MaxNeighbors={MaxNeighbors}"
 		);
 	}
@@ -1223,9 +1303,16 @@ public class PbfSolver
 	{
 		profilerFrames = 0;
 
+		accumPredictMs = 0.0;
 		accumBuildMs = 0.0;
+		accumNeighborsMs = 0.0;
 		accumPhaseAMs = 0.0;
-		accumPhaseBMs = 0.0;
+
+		accumCorrectionMs = 0.0;
+		accumPolygonMs = 0.0;
+		accumBoundsMs = 0.0;
+
+		accumVelocityMs = 0.0;
 		accumTotalMs = 0.0;
 
 		accumIterations = 0;

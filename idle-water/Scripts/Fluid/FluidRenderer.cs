@@ -1,4 +1,3 @@
-
 using System.Diagnostics;
 using Godot;
 
@@ -76,6 +75,15 @@ public partial class FluidRenderer : Node2D
 
 	private double profilerTotalMs;
 	private double profilerImageMs;
+
+	// Last measured renderer stages.
+	// These are read by FluidSimulator so the full-frame profiler
+	// can show exactly where renderer time is going.
+	public double LastTotalMs { get; private set; }
+	public double LastBuildPixelsMs { get; private set; }
+	public double LastSurfaceGlowMs { get; private set; }
+	public double LastFillBytesMs { get; private set; }
+	public double LastTextureUploadMs { get; private set; }
 
 	// ============================================================
 	// Initialization
@@ -469,10 +477,21 @@ void fragment()
 			RenderEveryNFrames
 		)
 		{
+			LastTotalMs = 0.0;
+			LastBuildPixelsMs = 0.0;
+			LastSurfaceGlowMs = 0.0;
+			LastFillBytesMs = 0.0;
+			LastTextureUploadMs = 0.0;
 			return;
 		}
 
 		renderFrameCounter = 0;
+
+		LastTotalMs = 0.0;
+		LastBuildPixelsMs = 0.0;
+		LastSurfaceGlowMs = 0.0;
+		LastFillBytesMs = 0.0;
+		LastTextureUploadMs = 0.0;
 
 		if (!densityField.HasDensity)
 		{
@@ -489,8 +508,11 @@ void fragment()
 
 		totalTimer.Stop();
 
-		profilerTotalMs +=
+		LastTotalMs =
 			totalTimer.Elapsed.TotalMilliseconds;
+
+		profilerTotalMs +=
+			LastTotalMs;
 
 		profilerFrameCount++;
 
@@ -591,6 +613,9 @@ void fragment()
 		// --------------------------------------------------------
 		// Convert density cells to pixels
 		// --------------------------------------------------------
+
+		Stopwatch buildPixelsTimer =
+			Stopwatch.StartNew();
 
 		int firstPixelX =
 			Mathf.Clamp(
@@ -755,11 +780,22 @@ void fragment()
 			}
 		}
 
+		buildPixelsTimer.Stop();
+		LastBuildPixelsMs =
+			buildPixelsTimer.Elapsed.TotalMilliseconds;
+
 		// ========================================================
 		// Build 4-pixel surface glow
 		// ========================================================
 
+		Stopwatch glowTimer =
+			Stopwatch.StartNew();
+
 		BuildSurfaceGlow();
+
+		glowTimer.Stop();
+		LastSurfaceGlowMs =
+			glowTimer.Elapsed.TotalMilliseconds;
 
 		// --------------------------------------------------------
 		// Convert to RGBA8
@@ -768,11 +804,21 @@ void fragment()
 		Stopwatch imageTimer =
 			Stopwatch.StartNew();
 
+		Stopwatch fillBytesTimer =
+			Stopwatch.StartNew();
+
 		FillPixelBytes();
+
+		fillBytesTimer.Stop();
+		LastFillBytesMs =
+			fillBytesTimer.Elapsed.TotalMilliseconds;
 
 		// --------------------------------------------------------
 		// Upload texture
 		// --------------------------------------------------------
+
+		Stopwatch uploadTimer =
+			Stopwatch.StartNew();
 
 		waterImage.SetData(
 			pixelWidth,
@@ -785,6 +831,10 @@ void fragment()
 		waterTexture.Update(
 			waterImage
 		);
+
+		uploadTimer.Stop();
+		LastTextureUploadMs =
+			uploadTimer.Elapsed.TotalMilliseconds;
 
 		imageTimer.Stop();
 
