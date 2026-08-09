@@ -19,7 +19,7 @@ public class DensityField
 	// Density kernel
 	// ------------------------------------------------------------
 
-	private const float Radius = 18.0f;
+	private const float Radius = 14.0f;
 
 	private readonly int kernelRadius;
 	private readonly int kernelSize;
@@ -146,7 +146,7 @@ public class DensityField
 					distance / Radius;
 
 				float weight =
-					q * q * q;
+					q * q * q * q;
 
 				if (weight <= 0.0f)
 					continue;

@@ -11,20 +11,55 @@ public partial class FluidRenderer : Node2D
 	private int height;
 	private float cellSize;
 
-	private float surfaceThreshold = 0.3f;
+	private float surfaceThreshold = 0.28f;
 
+	// ------------------------------------------------------------
 	// Profiler
+	// ------------------------------------------------------------
+
 	private int profilerFrameCount = 0;
 
 	private double profilerMeshTime = 0.0;
 	private double profilerTotalTime = 0.0;
 
-	// Reused every frame.
+	// ------------------------------------------------------------
+	// Mesh buffers
+	// ------------------------------------------------------------
+
 	private readonly List<Vector2> vertices =
 		new List<Vector2>(16384);
 
 	private readonly List<int> indices =
 		new List<int>(24576);
+
+	// One color per vertex.
+	//
+	// R = normalized water depth
+	// G = surface influence
+	// B = unused
+	// A = water alpha
+	//
+	private readonly List<Color> vertexColors =
+		new List<Color>(16384);
+
+	// ------------------------------------------------------------
+	// Vertex caches
+	// ------------------------------------------------------------
+
+	private int[] cornerIndices;
+
+	private int[] horizontalEdgeIndices;
+
+	private int[] verticalEdgeIndices;
+
+	// ------------------------------------------------------------
+	// Surface information
+	//
+	// Stores the first/uppermost density position for every
+	// horizontal column.
+	// ------------------------------------------------------------
+
+	private float[] surfaceY;
 
 	// ------------------------------------------------------------
 	// Initialization
@@ -39,49 +74,284 @@ public partial class FluidRenderer : Node2D
 		height = densityHeight;
 		cellSize = densityCellSize;
 
-		waterMesh = new MeshInstance2D();
+		waterMesh =
+			new MeshInstance2D();
 
-		mesh = new ArrayMesh();
+		mesh =
+			new ArrayMesh();
 
-		waterMesh.Mesh = mesh;
+		waterMesh.Mesh =
+			mesh;
+
+		// --------------------------------------------------------
+		// Allocate vertex caches.
+		// --------------------------------------------------------
+
+		cornerIndices =
+			new int[
+				width * height
+			];
+
+		horizontalEdgeIndices =
+			new int[
+				Mathf.Max(
+					1,
+					(width - 1) * height
+				)
+			];
+
+		verticalEdgeIndices =
+			new int[
+				Mathf.Max(
+					1,
+					width * (height - 1)
+				)
+			];
+
+		surfaceY =
+			new float[
+				width
+			];
 
 		CreateWaterMaterial();
 
 		AddChild(waterMesh);
 	}
 
-	// ------------------------------------------------------------
+	// ============================================================
 	// Water material
-	// ------------------------------------------------------------
+	// ============================================================
 
 	private void CreateWaterMaterial()
-	{
-		Shader shader = new Shader();
+{
+	Shader shader =
+		new Shader();
 
-		shader.Code = @"
+	shader.Code = @"
 shader_type canvas_item;
 
-uniform vec3 water_color : source_color =
-vec3(0.02, 0.7, 1.0);
+// ------------------------------------------------------------
+// Water colors
+// ------------------------------------------------------------
 
-uniform float water_alpha = 0.50;
+uniform vec3 deep_color : source_color =
+	vec3(0.005, 0.16, 0.48);
+
+uniform vec3 middle_color : source_color =
+	vec3(0.01, 0.38, 0.78);
+
+uniform vec3 shallow_color : source_color =
+	vec3(0.04, 0.68, 0.95);
+
+uniform vec3 surface_color : source_color =
+	vec3(0.72, 0.94, 1.0);
+
+// ------------------------------------------------------------
+// Transparency
+// ------------------------------------------------------------
+
+uniform float water_alpha = 0.76;
+
+// ------------------------------------------------------------
+// Surface
+// ------------------------------------------------------------
+
+uniform float surface_glow_strength = 0.85;
+uniform float surface_glow_width = 0.75;
+
+// ------------------------------------------------------------
+// Shimmer
+// ------------------------------------------------------------
+
+uniform float shimmer_strength = 0.055;
+uniform float shimmer_speed = 0.7;
+uniform float shimmer_scale = 0.045;
+
+// ------------------------------------------------------------
+// Varyings
+//
+// These are explicitly passed from the vertex color.
+// This avoids relying on COLOR in the fragment stage for
+// intermediate calculations.
+// ------------------------------------------------------------
+
+varying float water_depth;
+varying float surface_factor;
+varying vec2 water_position;
+
+void vertex()
+{
+	// R = actual depth from the CPU.
+	// G = actual distance from the water surface.
+	water_depth = COLOR.r;
+	surface_factor = COLOR.g;
+
+	// Position in the water mesh.
+	water_position = VERTEX;
+}
 
 void fragment()
 {
-	COLOR = vec4(
-		water_color,
-		water_alpha
-	);
+	// --------------------------------------------------------
+	// Read water information.
+	// --------------------------------------------------------
+
+	float depth =
+		clamp(
+			water_depth,
+			0.0,
+			1.0
+		);
+
+	float surface =
+		clamp(
+			surface_factor,
+			0.0,
+			1.0
+		);
+
+	// --------------------------------------------------------
+	// DEPTH COLOR
+	//
+	// 0.0 = surface
+	// 1.0 = deep water
+	//
+	// This is completely independent of screen position.
+	// --------------------------------------------------------
+
+	vec3 water;
+
+	if (depth < 0.5)
+	{
+		float t =
+			depth / 0.5;
+
+		water =
+			mix(
+				shallow_color,
+				middle_color,
+				t
+			);
+	}
+	else
+	{
+		float t =
+			(depth - 0.5) / 0.5;
+
+		water =
+			mix(
+				middle_color,
+				deep_color,
+				t
+			);
+	}
+
+	// --------------------------------------------------------
+	// SURFACE GLOW
+	//
+	// Only the upper portion of the water receives this.
+	// --------------------------------------------------------
+
+	float glow =
+		pow(
+			surface,
+			2.5
+		);
+
+	water =
+		mix(
+			water,
+			surface_color,
+			glow * surface_glow_strength
+		);
+
+	// --------------------------------------------------------
+	// SUBTLE WATER SHIMMER
+	//
+	// Important:
+	// This is a brightness variation, NOT a green color.
+	// --------------------------------------------------------
+
+	float wave1 =
+		sin(
+			water_position.x * shimmer_scale +
+			water_position.y * shimmer_scale * 0.35 +
+			TIME * shimmer_speed
+		);
+
+	float wave2 =
+		sin(
+			water_position.x * shimmer_scale * 1.73 -
+			water_position.y * shimmer_scale * 0.55 -
+			TIME * shimmer_speed * 0.73
+		);
+
+	float wave =
+		(wave1 + wave2) * 0.5;
+
+	// Convert from [-1,1] to [0,1].
+	wave =
+		wave * 0.5 + 0.5;
+
+	// Shimmer is strongest near the surface.
+	float shimmer_mask =
+		0.25 +
+		surface * 0.75;
+
+	float shimmer =
+		wave *
+		shimmer_strength *
+		shimmer_mask;
+
+	// Add neutral light instead of green.
+	water +=
+		vec3(
+			shimmer,
+			shimmer,
+			shimmer
+		);
+
+	// --------------------------------------------------------
+	// Very subtle surface reflection.
+	// --------------------------------------------------------
+
+	float highlight =
+		pow(
+			surface,
+			5.0
+		);
+
+	water +=
+		surface_color *
+		highlight *
+		0.10;
+
+	// --------------------------------------------------------
+	// Final output.
+	// --------------------------------------------------------
+
+	COLOR =
+		vec4(
+			clamp(
+				water,
+				0.0,
+				1.0
+			),
+			water_alpha
+		);
 }
 ";
 
-		ShaderMaterial material =
-			new ShaderMaterial();
+	ShaderMaterial material =
+		new ShaderMaterial();
 
-		material.Shader = shader;
+	material.Shader =
+		shader;
 
-		waterMesh.Material = material;
-	}
+	waterMesh.Material =
+		material;
+}
+	
 
 	// ============================================================
 	// Update
@@ -146,77 +416,62 @@ void fragment()
 
 		vertices.Clear();
 		indices.Clear();
+		vertexColors.Clear();
 
-		// --------------------------------------------------------
-		// Find active density bounds.
-		// --------------------------------------------------------
+		System.Array.Fill(
+			cornerIndices,
+			-1
+		);
 
-		int minX = width;
-		int minY = height;
-		int maxX = -1;
-		int maxY = -1;
+		System.Array.Fill(
+			horizontalEdgeIndices,
+			-1
+		);
 
-		for (int y = 0; y < height; y++)
-		{
-			int rowStart =
-				y * width;
+		System.Array.Fill(
+			verticalEdgeIndices,
+			-1
+		);
 
-			for (int x = 0; x < width; x++)
-			{
-				if (values[rowStart + x] >=
-					surfaceThreshold)
-				{
-					if (x < minX)
-						minX = x;
-
-					if (x > maxX)
-						maxX = x;
-
-					if (y < minY)
-						minY = y;
-
-					if (y > maxY)
-						maxY = y;
-				}
-			}
-		}
-
-		// No fluid.
-		if (maxX < 0)
+		if (!densityField.HasDensity)
 		{
 			mesh.ClearSurfaces();
 			return;
 		}
 
 		// --------------------------------------------------------
-		// Expand by one cell.
+		// Calculate actual surface height for every X column.
 		//
-		// Marching Squares needs the neighboring corners around
-		// the active region.
+		// This is the important part:
+		// depth is measured from the water surface.
 		// --------------------------------------------------------
 
-		minX =
+		CalculateSurfaceProfile(
+			values
+		);
+
+		int minX =
 			Mathf.Max(
 				0,
-				minX - 1
+				densityField.ActiveMinX - 1
 			);
 
-		minY =
+		int minY =
 			Mathf.Max(
 				0,
-				minY - 1
+				densityField.ActiveMinY - 1
 			);
 
-		maxX =
+		int maxX =
 			Mathf.Min(
 				width - 1,
-				maxX + 1
+				densityField.ActiveMaxX + 1
 			);
 
-		maxY =
+		int maxY =
 			Mathf.Min(
 				height - 1,
-				maxY + 1
+				densityField.ActiveMaxY + 1
 			);
 
 		// --------------------------------------------------------
@@ -266,34 +521,6 @@ void fragment()
 				if (caseIndex == 0)
 					continue;
 
-				// ------------------------------------------------
-				// Intersections.
-				// ------------------------------------------------
-
-				float topT =
-					Interpolate(
-						a,
-						b
-					);
-
-				float rightT =
-					Interpolate(
-						b,
-						c
-					);
-
-				float bottomT =
-					Interpolate(
-						d,
-						c
-					);
-
-				float leftT =
-					Interpolate(
-						d,
-						a
-					);
-
 				float x0 =
 					x * cellSize;
 
@@ -306,61 +533,134 @@ void fragment()
 				float y1 =
 					(y + 1) * cellSize;
 
-				Vector2 top =
-					new Vector2(
-						x0 +
-						(x1 - x0) * topT,
-						y0
+				// ------------------------------------------------
+				// Corner vertices.
+				// ------------------------------------------------
+
+				int cornerA =
+					GetCornerVertex(
+						x,
+						y,
+						new Vector2(
+							x0,
+							y0
+						)
 					);
 
-				Vector2 right =
-					new Vector2(
-						x1,
-						y0 +
-						(y1 - y0) * rightT
+				int cornerB =
+					GetCornerVertex(
+						x + 1,
+						y,
+						new Vector2(
+							x1,
+							y0
+						)
 					);
 
-				Vector2 bottom =
-					new Vector2(
-						x0 +
-						(x1 - x0) * bottomT,
-						y1
+				int cornerC =
+					GetCornerVertex(
+						x + 1,
+						y + 1,
+						new Vector2(
+							x1,
+							y1
+						)
 					);
 
-				Vector2 left =
-					new Vector2(
-						x0,
-						y0 +
-						(y1 - y0) * leftT
+				int cornerD =
+					GetCornerVertex(
+						x,
+						y + 1,
+						new Vector2(
+							x0,
+							y1
+						)
 					);
 
 				// ------------------------------------------------
-				// Cell corners.
+				// Edge vertices.
 				// ------------------------------------------------
 
-				Vector2 cornerA =
-					new Vector2(
-						x0,
-						y0
-					);
+				int top = -1;
+				int right = -1;
+				int bottom = -1;
+				int left = -1;
 
-				Vector2 cornerB =
-					new Vector2(
-						x1,
-						y0
-					);
+				if (
+					(a >= surfaceThreshold) !=
+					(b >= surfaceThreshold)
+				)
+				{
+					top =
+						GetHorizontalEdgeVertex(
+							x,
+							y,
+							Interpolate(
+								a,
+								b
+							),
+							x0,
+							x1,
+							y0
+						);
+				}
 
-				Vector2 cornerC =
-					new Vector2(
-						x1,
-						y1
-					);
+				if (
+					(b >= surfaceThreshold) !=
+					(c >= surfaceThreshold)
+				)
+				{
+					right =
+						GetVerticalEdgeVertex(
+							x + 1,
+							y,
+							Interpolate(
+								b,
+								c
+							),
+							x1,
+							y0,
+							y1
+						);
+				}
 
-				Vector2 cornerD =
-					new Vector2(
-						x0,
-						y1
-					);
+				if (
+					(d >= surfaceThreshold) !=
+					(c >= surfaceThreshold)
+				)
+				{
+					bottom =
+						GetHorizontalEdgeVertex(
+							x,
+							y + 1,
+							Interpolate(
+								d,
+								c
+							),
+							x0,
+							x1,
+							y1
+						);
+				}
+
+				if (
+					(d >= surfaceThreshold) !=
+					(a >= surfaceThreshold)
+				)
+				{
+					left =
+						GetVerticalEdgeVertex(
+							x,
+							y,
+							Interpolate(
+								d,
+								a
+							),
+							x0,
+							y0,
+							y1
+						);
+				}
 
 				AddCell(
 					caseIndex,
@@ -377,7 +677,7 @@ void fragment()
 		}
 
 		// --------------------------------------------------------
-		// Upload generated geometry.
+		// Upload geometry.
 		// --------------------------------------------------------
 
 		Stopwatch meshTimer =
@@ -392,6 +692,327 @@ void fragment()
 	}
 
 	// ============================================================
+	// Calculate surface profile
+	// ============================================================
+
+	private void CalculateSurfaceProfile(
+		float[] values)
+	{
+		for (int x = 0;
+			 x < width;
+			 x++)
+		{
+			float foundY =
+				-1.0f;
+
+			for (int y = 0;
+				 y < height;
+				 y++)
+			{
+				float value =
+					values[
+						y * width + x
+					];
+
+				if (value >= surfaceThreshold)
+				{
+					foundY =
+						y * cellSize;
+
+					break;
+				}
+			}
+
+			surfaceY[x] =
+				foundY;
+		}
+
+		// --------------------------------------------------------
+		// Fill gaps in the surface profile.
+		//
+		// This prevents isolated empty columns from producing
+		// incorrect depth values.
+		// --------------------------------------------------------
+
+		for (int x = 0;
+			 x < width;
+			 x++)
+		{
+			if (surfaceY[x] >= 0.0f)
+				continue;
+
+			float left =
+				FindNearestSurface(
+					x,
+					-1
+				);
+
+			float right =
+				FindNearestSurface(
+					x,
+					1
+				);
+
+			if (left >= 0.0f &&
+				right >= 0.0f)
+			{
+				surfaceY[x] =
+					(left + right) * 0.5f;
+			}
+			else if (left >= 0.0f)
+			{
+				surfaceY[x] =
+					left;
+			}
+			else if (right >= 0.0f)
+			{
+				surfaceY[x] =
+					right;
+			}
+			else
+			{
+				surfaceY[x] =
+					0.0f;
+			}
+		}
+	}
+
+	// ============================================================
+	// Find nearest valid surface
+	// ============================================================
+
+	private float FindNearestSurface(
+		int startX,
+		int direction)
+	{
+		int x =
+			startX + direction;
+
+		while (x >= 0 &&
+			   x < width)
+		{
+			if (surfaceY[x] >= 0.0f)
+				return surfaceY[x];
+
+			x += direction;
+		}
+
+		return -1.0f;
+	}
+
+	// ============================================================
+	// Calculate vertex visual information
+	// ============================================================
+
+	private Color GetVertexColor(
+		Vector2 position)
+	{
+		int column =
+			Mathf.Clamp(
+				Mathf.RoundToInt(
+					position.X / cellSize
+				),
+				0,
+				width - 1
+			);
+
+		float top =
+			surfaceY[column];
+
+		if (top < 0.0f)
+			top = position.Y;
+
+		// --------------------------------------------------------
+		// Approximate water depth.
+		//
+		// We use the active water height as normalization so
+		// deeper parts of the same body become progressively
+		// darker.
+		// --------------------------------------------------------
+
+		float bottom =
+			height * cellSize;
+
+		float totalDepth =
+			Mathf.Max(
+				32.0f,
+				bottom - top
+			);
+
+		float depth =
+			(position.Y - top) /
+			totalDepth;
+
+		depth =
+			Mathf.Clamp(
+				depth,
+				0.0f,
+				1.0f
+			);
+
+		// --------------------------------------------------------
+		// Surface glow.
+		//
+		// 1 at the surface.
+		// Quickly fades away underneath it.
+		// --------------------------------------------------------
+
+		float surfaceDistance =
+			Mathf.Abs(
+				position.Y - top
+			);
+
+		float surface =
+			1.0f -
+			Mathf.Clamp(
+				surfaceDistance / 28.0f,
+				0.0f,
+				1.0f
+			);
+
+		surface =
+			surface * surface;
+
+		return new Color(
+			depth,
+			surface,
+			0.0f,
+			1.0f
+		);
+	}
+
+	// ============================================================
+	// Corner vertex
+	// ============================================================
+
+	private int GetCornerVertex(
+		int x,
+		int y,
+		Vector2 position)
+	{
+		int cacheIndex =
+			y * width + x;
+
+		int existing =
+			cornerIndices[cacheIndex];
+
+		if (existing >= 0)
+			return existing;
+
+		int index =
+			vertices.Count;
+
+		vertices.Add(
+			position
+		);
+
+		vertexColors.Add(
+			GetVertexColor(
+				position
+			)
+		);
+
+		cornerIndices[cacheIndex] =
+			index;
+
+		return index;
+	}
+
+	// ============================================================
+	// Horizontal edge vertex
+	// ============================================================
+
+	private int GetHorizontalEdgeVertex(
+		int edgeX,
+		int edgeY,
+		float t,
+		float x0,
+		float x1,
+		float worldY)
+	{
+		int edgeIndex =
+			edgeY * (width - 1) + edgeX;
+
+		int existing =
+			horizontalEdgeIndices[edgeIndex];
+
+		if (existing >= 0)
+			return existing;
+
+		Vector2 position =
+			new Vector2(
+				x0 +
+				(x1 - x0) * t,
+				worldY
+			);
+
+		int index =
+			vertices.Count;
+
+		vertices.Add(
+			position
+		);
+
+		vertexColors.Add(
+			GetVertexColor(
+				position
+			)
+		);
+
+		horizontalEdgeIndices[edgeIndex] =
+			index;
+
+		return index;
+	}
+
+	// ============================================================
+	// Vertical edge vertex
+	// ============================================================
+
+	private int GetVerticalEdgeVertex(
+		int edgeX,
+		int edgeY,
+		float t,
+		float worldX,
+		float y0,
+		float y1)
+	{
+		int edgeIndex =
+			edgeY * width + edgeX;
+
+		int existing =
+			verticalEdgeIndices[edgeIndex];
+
+		if (existing >= 0)
+			return existing;
+
+		Vector2 position =
+			new Vector2(
+				worldX,
+				y0 +
+				(y1 - y0) * t
+			);
+
+		int index =
+			vertices.Count;
+
+		vertices.Add(
+			position
+		);
+
+		vertexColors.Add(
+			GetVertexColor(
+				position
+			)
+		);
+
+		verticalEdgeIndices[edgeIndex] =
+			index;
+
+		return index;
+	}
+
+	// ============================================================
 	// Build Godot mesh
 	// ============================================================
 
@@ -399,8 +1020,11 @@ void fragment()
 	{
 		mesh.ClearSurfaces();
 
-		if (vertices.Count == 0)
+		if (vertices.Count == 0 ||
+			indices.Count == 0)
+		{
 			return;
+		}
 
 		Vector2[] vertexArray =
 			vertices.ToArray();
@@ -408,29 +1032,8 @@ void fragment()
 		int[] indexArray =
 			indices.ToArray();
 
-		Vector2[] uvs =
-			new Vector2[
-				vertexArray.Length
-			];
-
-		float worldWidth =
-			width * cellSize;
-
-		float worldHeight =
-			height * cellSize;
-
-		for (int i = 0;
-			 i < vertexArray.Length;
-			 i++)
-		{
-			uvs[i] =
-				new Vector2(
-					vertexArray[i].X /
-						worldWidth,
-					vertexArray[i].Y /
-						worldHeight
-				);
-		}
+		Color[] colorArray =
+			vertexColors.ToArray();
 
 		Godot.Collections.Array arrays =
 			new Godot.Collections.Array();
@@ -445,9 +1048,9 @@ void fragment()
 			vertexArray;
 
 		arrays[
-			(int)Mesh.ArrayType.TexUV
+			(int)Mesh.ArrayType.Color
 		] =
-			uvs;
+			colorArray;
 
 		arrays[
 			(int)Mesh.ArrayType.Index
@@ -494,21 +1097,17 @@ void fragment()
 
 	private void AddCell(
 		int caseIndex,
-		Vector2 a,
-		Vector2 b,
-		Vector2 c,
-		Vector2 d,
-		Vector2 top,
-		Vector2 right,
-		Vector2 bottom,
-		Vector2 left)
+		int a,
+		int b,
+		int c,
+		int d,
+		int top,
+		int right,
+		int bottom,
+		int left)
 	{
 		switch (caseIndex)
 		{
-			// ----------------------------------------------------
-			// Single-corner cases
-			// ----------------------------------------------------
-
 			case 1:
 				AddTriangle(
 					a,
@@ -541,10 +1140,6 @@ void fragment()
 				);
 				break;
 
-			// ----------------------------------------------------
-			// Two adjacent corners
-			// ----------------------------------------------------
-
 			case 3:
 				AddQuad(
 					a,
@@ -571,14 +1166,6 @@ void fragment()
 					right
 				);
 				break;
-
-			// ----------------------------------------------------
-			// TWO OPPOSITE CORNERS
-			//
-			// Cases 5 and 10 are intentionally two separate
-			// triangles. These represent two disconnected
-			// regions inside the cell.
-			// ----------------------------------------------------
 
 			case 5:
 				AddTriangle(
@@ -607,10 +1194,6 @@ void fragment()
 					bottom
 				);
 				break;
-
-			// ----------------------------------------------------
-			// Three corners inside
-			// ----------------------------------------------------
 
 			case 7:
 				AddPolygon(
@@ -652,24 +1235,6 @@ void fragment()
 				);
 				break;
 
-			// ----------------------------------------------------
-			// IMPORTANT: CASE 9
-			//
-			// A and D are inside.
-			//
-			// The filled region is:
-			//
-			//       A ----- top
-			//       |        |
-			//       D ----- bottom
-			//
-			// This is a QUAD.
-			//
-			// The old implementation added 'left' as a fifth
-			// vertex. That point lies on the A-D edge and created
-			// a degenerate extra triangle.
-			// ----------------------------------------------------
-
 			case 9:
 				AddQuad(
 					a,
@@ -678,10 +1243,6 @@ void fragment()
 					d
 				);
 				break;
-
-			// ----------------------------------------------------
-			// Completely inside
-			// ----------------------------------------------------
 
 			case 15:
 				AddQuad(
@@ -699,23 +1260,31 @@ void fragment()
 	// ============================================================
 
 	private void AddTriangle(
-		Vector2 a,
-		Vector2 b,
-		Vector2 c)
+		int a,
+		int b,
+		int c)
 	{
-		// --------------------------------------------------------
-		// Reject zero-area triangles.
-		//
-		// This protects the generated mesh from degenerate
-		// triangles caused by interpolation values landing on
-		// the same point.
-		// --------------------------------------------------------
+		if (a < 0 ||
+			b < 0 ||
+			c < 0)
+		{
+			return;
+		}
+
+		Vector2 va =
+			vertices[a];
+
+		Vector2 vb =
+			vertices[b];
+
+		Vector2 vc =
+			vertices[c];
 
 		float area =
-			(b.X - a.X) *
-			(c.Y - a.Y) -
-			(b.Y - a.Y) *
-			(c.X - a.X);
+			(vb.X - va.X) *
+			(vc.Y - va.Y) -
+			(vb.Y - va.Y) *
+			(vc.X - va.X);
 
 		if (Mathf.Abs(area) <
 			0.000001f)
@@ -723,16 +1292,9 @@ void fragment()
 			return;
 		}
 
-		int start =
-			vertices.Count;
-
-		vertices.Add(a);
-		vertices.Add(b);
-		vertices.Add(c);
-
-		indices.Add(start);
-		indices.Add(start + 1);
-		indices.Add(start + 2);
+		indices.Add(a);
+		indices.Add(b);
+		indices.Add(c);
 	}
 
 	// ============================================================
@@ -740,24 +1302,16 @@ void fragment()
 	// ============================================================
 
 	private void AddQuad(
-		Vector2 a,
-		Vector2 b,
-		Vector2 c,
-		Vector2 d)
+		int a,
+		int b,
+		int c,
+		int d)
 	{
-		// --------------------------------------------------------
-		// Triangle 1
-		// --------------------------------------------------------
-
 		AddTriangle(
 			a,
 			b,
 			c
 		);
-
-		// --------------------------------------------------------
-		// Triangle 2
-		// --------------------------------------------------------
 
 		AddTriangle(
 			a,
@@ -771,17 +1325,12 @@ void fragment()
 	// ============================================================
 
 	private void AddPolygon(
-		Vector2 a,
-		Vector2 b,
-		Vector2 c,
-		Vector2 d,
-		Vector2 e)
+		int a,
+		int b,
+		int c,
+		int d,
+		int e)
 	{
-		// These five-point polygons are convex for the standard
-		// three-corners-inside Marching Squares cases.
-		//
-		// Fan triangulation is therefore safe.
-
 		AddTriangle(
 			a,
 			b,
