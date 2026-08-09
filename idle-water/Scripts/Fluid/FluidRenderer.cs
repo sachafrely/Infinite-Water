@@ -4,56 +4,61 @@ using Godot;
 
 public partial class FluidRenderer : Node2D
 {
-private MeshInstance2D waterMesh;
-private ArrayMesh mesh;
+	private MeshInstance2D waterMesh;
+	private ArrayMesh mesh;
 
+	private int width;
+	private int height;
+	private float cellSize;
 
-private int width;
-private int height;
-private float cellSize;
+	private float surfaceThreshold = 0.3f;
 
-private float surfaceThreshold = 0.3f;
+	// Profiler
+	private int profilerFrameCount = 0;
 
-// Profiler
-private int profilerFrameCount = 0;
+	private double profilerMeshTime = 0.0;
+	private double profilerTotalTime = 0.0;
 
-private double profilerMeshTime = 0.0;
-private double profilerTotalTime = 0.0;
+	// Reused every frame.
+	private readonly List<Vector2> vertices =
+		new List<Vector2>(16384);
 
-// Reused every frame.
-private readonly List<Vector2> vertices =
-	new List<Vector2>(16384);
+	private readonly List<int> indices =
+		new List<int>(24576);
 
-private readonly List<int> indices =
-	new List<int>(24576);
+	// ------------------------------------------------------------
+	// Initialization
+	// ------------------------------------------------------------
 
-public void Initialize(
-	int densityWidth,
-	int densityHeight,
-	float densityCellSize)
-{
-	width = densityWidth;
-	height = densityHeight;
-	cellSize = densityCellSize;
+	public void Initialize(
+		int densityWidth,
+		int densityHeight,
+		float densityCellSize)
+	{
+		width = densityWidth;
+		height = densityHeight;
+		cellSize = densityCellSize;
 
-	waterMesh = new MeshInstance2D();
+		waterMesh = new MeshInstance2D();
 
-	mesh = new ArrayMesh();
+		mesh = new ArrayMesh();
 
-	waterMesh.Mesh = mesh;
+		waterMesh.Mesh = mesh;
 
-	CreateWaterMaterial();
+		CreateWaterMaterial();
 
-	AddChild(waterMesh);
-}
+		AddChild(waterMesh);
+	}
 
-private void CreateWaterMaterial()
-{
-	Shader shader = new Shader();
+	// ------------------------------------------------------------
+	// Water material
+	// ------------------------------------------------------------
 
-	shader.Code = @"
+	private void CreateWaterMaterial()
+	{
+		Shader shader = new Shader();
 
-
+		shader.Code = @"
 shader_type canvas_item;
 
 uniform vec3 water_color : source_color =
@@ -63,603 +68,736 @@ uniform float water_alpha = 0.50;
 
 void fragment()
 {
-COLOR = vec4(
-water_color,
-water_alpha
-);
+	COLOR = vec4(
+		water_color,
+		water_alpha
+	);
 }
 ";
 
+		ShaderMaterial material =
+			new ShaderMaterial();
 
-	ShaderMaterial material =
-		new ShaderMaterial();
+		material.Shader = shader;
 
-	material.Shader = shader;
-
-	waterMesh.Material = material;
-}
-
-public void Update(
-	ParticleData particles,
-	DensityField densityField)
-{
-	Stopwatch totalTimer =
-		Stopwatch.StartNew();
-
-	BuildMarchingSquaresMesh(
-		densityField
-	);
-
-	totalTimer.Stop();
-
-	profilerTotalTime +=
-		totalTimer.Elapsed.TotalMilliseconds;
-
-	profilerFrameCount++;
-
-	if (profilerFrameCount >= 60)
-	{
-		GD.Print(
-"Marching Squares profiler " +
-"(avg ms over 60 frames): " +
-"Particles=" +
-particles.Count +
-" " +
-"Total=" +
-(profilerTotalTime / 60.0)
-.ToString("F2") +
-"ms " +
-"Mesh=" +
-(profilerMeshTime / 60.0)
-.ToString("F2") +
-"ms"
-);
-
-		profilerMeshTime = 0.0;
-		profilerFrameCount = 0;
-		profilerTotalTime = 0.0;
+		waterMesh.Material = material;
 	}
-}
 
-private void BuildMarchingSquaresMesh(
-	DensityField densityField)
-{
-	float[] values =
-		densityField.GetValues();
+	// ============================================================
+	// Update
+	// ============================================================
 
-	vertices.Clear();
-	indices.Clear();
-
-	// ------------------------------------------------------------
-	// Find active density bounds.
-	// ------------------------------------------------------------
-
-	int minX = width;
-	int minY = height;
-	int maxX = -1;
-	int maxY = -1;
-
-	for (int y = 0; y < height; y++)
+	public void Update(
+		ParticleData particles,
+		DensityField densityField)
 	{
-		int rowStart =
-			y * width;
+		Stopwatch totalTimer =
+			Stopwatch.StartNew();
 
-		for (int x = 0; x < width; x++)
+		BuildMarchingSquaresMesh(
+			densityField
+		);
+
+		totalTimer.Stop();
+
+		profilerTotalTime +=
+			totalTimer.Elapsed.TotalMilliseconds;
+
+		profilerFrameCount++;
+
+		if (profilerFrameCount >= 60)
 		{
-			if (values[rowStart + x] >=
-				surfaceThreshold)
+			GD.Print(
+				"Marching Squares profiler " +
+				"(avg ms over 60 frames): " +
+				"Particles=" +
+				particles.Count +
+				" " +
+				"Total=" +
+				(profilerTotalTime / 60.0)
+					.ToString("F2") +
+				"ms " +
+				"Mesh=" +
+				(profilerMeshTime / 60.0)
+					.ToString("F2") +
+				"ms " +
+				"Vertices=" +
+				vertices.Count +
+				" " +
+				"Indices=" +
+				indices.Count
+			);
+
+			profilerMeshTime = 0.0;
+			profilerFrameCount = 0;
+			profilerTotalTime = 0.0;
+		}
+	}
+
+	// ============================================================
+	// Marching Squares
+	// ============================================================
+
+	private void BuildMarchingSquaresMesh(
+		DensityField densityField)
+	{
+		float[] values =
+			densityField.GetValues();
+
+		vertices.Clear();
+		indices.Clear();
+
+		// --------------------------------------------------------
+		// Find active density bounds.
+		// --------------------------------------------------------
+
+		int minX = width;
+		int minY = height;
+		int maxX = -1;
+		int maxY = -1;
+
+		for (int y = 0; y < height; y++)
+		{
+			int rowStart =
+				y * width;
+
+			for (int x = 0; x < width; x++)
 			{
-				if (x < minX)
-					minX = x;
+				if (values[rowStart + x] >=
+					surfaceThreshold)
+				{
+					if (x < minX)
+						minX = x;
 
-				if (x > maxX)
-					maxX = x;
+					if (x > maxX)
+						maxX = x;
 
-				if (y < minY)
-					minY = y;
+					if (y < minY)
+						minY = y;
 
-				if (y > maxY)
-					maxY = y;
+					if (y > maxY)
+						maxY = y;
+				}
 			}
 		}
+
+		// No fluid.
+		if (maxX < 0)
+		{
+			mesh.ClearSurfaces();
+			return;
+		}
+
+		// --------------------------------------------------------
+		// Expand by one cell.
+		//
+		// Marching Squares needs the neighboring corners around
+		// the active region.
+		// --------------------------------------------------------
+
+		minX =
+			Mathf.Max(
+				0,
+				minX - 1
+			);
+
+		minY =
+			Mathf.Max(
+				0,
+				minY - 1
+			);
+
+		maxX =
+			Mathf.Min(
+				width - 1,
+				maxX + 1
+			);
+
+		maxY =
+			Mathf.Min(
+				height - 1,
+				maxY + 1
+			);
+
+		// --------------------------------------------------------
+		// Marching Squares.
+		// --------------------------------------------------------
+
+		for (int y = minY;
+			 y < maxY;
+			 y++)
+		{
+			int row =
+				y * width;
+
+			int nextRow =
+				(y + 1) * width;
+
+			for (int x = minX;
+				 x < maxX;
+				 x++)
+			{
+				float a =
+					values[row + x];
+
+				float b =
+					values[row + x + 1];
+
+				float c =
+					values[nextRow + x + 1];
+
+				float d =
+					values[nextRow + x];
+
+				int caseIndex = 0;
+
+				if (a >= surfaceThreshold)
+					caseIndex |= 1;
+
+				if (b >= surfaceThreshold)
+					caseIndex |= 2;
+
+				if (c >= surfaceThreshold)
+					caseIndex |= 4;
+
+				if (d >= surfaceThreshold)
+					caseIndex |= 8;
+
+				if (caseIndex == 0)
+					continue;
+
+				// ------------------------------------------------
+				// Intersections.
+				// ------------------------------------------------
+
+				float topT =
+					Interpolate(
+						a,
+						b
+					);
+
+				float rightT =
+					Interpolate(
+						b,
+						c
+					);
+
+				float bottomT =
+					Interpolate(
+						d,
+						c
+					);
+
+				float leftT =
+					Interpolate(
+						d,
+						a
+					);
+
+				float x0 =
+					x * cellSize;
+
+				float y0 =
+					y * cellSize;
+
+				float x1 =
+					(x + 1) * cellSize;
+
+				float y1 =
+					(y + 1) * cellSize;
+
+				Vector2 top =
+					new Vector2(
+						x0 +
+						(x1 - x0) * topT,
+						y0
+					);
+
+				Vector2 right =
+					new Vector2(
+						x1,
+						y0 +
+						(y1 - y0) * rightT
+					);
+
+				Vector2 bottom =
+					new Vector2(
+						x0 +
+						(x1 - x0) * bottomT,
+						y1
+					);
+
+				Vector2 left =
+					new Vector2(
+						x0,
+						y0 +
+						(y1 - y0) * leftT
+					);
+
+				// ------------------------------------------------
+				// Cell corners.
+				// ------------------------------------------------
+
+				Vector2 cornerA =
+					new Vector2(
+						x0,
+						y0
+					);
+
+				Vector2 cornerB =
+					new Vector2(
+						x1,
+						y0
+					);
+
+				Vector2 cornerC =
+					new Vector2(
+						x1,
+						y1
+					);
+
+				Vector2 cornerD =
+					new Vector2(
+						x0,
+						y1
+					);
+
+				AddCell(
+					caseIndex,
+					cornerA,
+					cornerB,
+					cornerC,
+					cornerD,
+					top,
+					right,
+					bottom,
+					left
+				);
+			}
+		}
+
+		// --------------------------------------------------------
+		// Upload generated geometry.
+		// --------------------------------------------------------
+
+		Stopwatch meshTimer =
+			Stopwatch.StartNew();
+
+		BuildMesh();
+
+		meshTimer.Stop();
+
+		profilerMeshTime +=
+			meshTimer.Elapsed.TotalMilliseconds;
 	}
 
-	// No fluid.
-	if (maxX < 0)
+	// ============================================================
+	// Build Godot mesh
+	// ============================================================
+
+	private void BuildMesh()
 	{
 		mesh.ClearSurfaces();
-		return;
+
+		if (vertices.Count == 0)
+			return;
+
+		Vector2[] vertexArray =
+			vertices.ToArray();
+
+		int[] indexArray =
+			indices.ToArray();
+
+		Vector2[] uvs =
+			new Vector2[
+				vertexArray.Length
+			];
+
+		float worldWidth =
+			width * cellSize;
+
+		float worldHeight =
+			height * cellSize;
+
+		for (int i = 0;
+			 i < vertexArray.Length;
+			 i++)
+		{
+			uvs[i] =
+				new Vector2(
+					vertexArray[i].X /
+						worldWidth,
+					vertexArray[i].Y /
+						worldHeight
+				);
+		}
+
+		Godot.Collections.Array arrays =
+			new Godot.Collections.Array();
+
+		arrays.Resize(
+			(int)Mesh.ArrayType.Max
+		);
+
+		arrays[
+			(int)Mesh.ArrayType.Vertex
+		] =
+			vertexArray;
+
+		arrays[
+			(int)Mesh.ArrayType.TexUV
+		] =
+			uvs;
+
+		arrays[
+			(int)Mesh.ArrayType.Index
+		] =
+			indexArray;
+
+		mesh.AddSurfaceFromArrays(
+			Mesh.PrimitiveType.Triangles,
+			arrays
+		);
 	}
 
-	// Expand by one cell because Marching Squares
-	// needs neighboring corners.
-	minX =
-		Mathf.Max(
-			0,
-			minX - 1
-		);
+	// ============================================================
+	// Density interpolation
+	// ============================================================
 
-	minY =
-		Mathf.Max(
-			0,
-			minY - 1
-		);
-
-	maxX =
-		Mathf.Min(
-			width - 1,
-			maxX + 1
-		);
-
-	maxY =
-		Mathf.Min(
-			height - 1,
-			maxY + 1
-		);
-
-	// ------------------------------------------------------------
-	// Marching Squares.
-	// ------------------------------------------------------------
-
-	for (int y = minY; y < maxY; y++)
+	private float Interpolate(
+		float valueA,
+		float valueB)
 	{
-		int row =
-			y * width;
+		float difference =
+			valueB - valueA;
 
-		int nextRow =
-			(y + 1) * width;
-
-		for (int x = minX; x < maxX; x++)
+		if (Mathf.Abs(difference) <
+			0.0001f)
 		{
-			float a =
-				values[row + x];
+			return 0.5f;
+		}
 
-			float b =
-				values[row + x + 1];
+		float t =
+			(surfaceThreshold - valueA) /
+			difference;
 
-			float c =
-				values[nextRow + x + 1];
+		return Mathf.Clamp(
+			t,
+			0.0f,
+			1.0f
+		);
+	}
 
-			float d =
-				values[nextRow + x];
+	// ============================================================
+	// Marching Squares case table
+	// ============================================================
 
-			int caseIndex = 0;
+	private void AddCell(
+		int caseIndex,
+		Vector2 a,
+		Vector2 b,
+		Vector2 c,
+		Vector2 d,
+		Vector2 top,
+		Vector2 right,
+		Vector2 bottom,
+		Vector2 left)
+	{
+		switch (caseIndex)
+		{
+			// ----------------------------------------------------
+			// Single-corner cases
+			// ----------------------------------------------------
 
-			if (a >= surfaceThreshold)
-				caseIndex |= 1;
+			case 1:
+				AddTriangle(
+					a,
+					top,
+					left
+				);
+				break;
 
-			if (b >= surfaceThreshold)
-				caseIndex |= 2;
+			case 2:
+				AddTriangle(
+					b,
+					right,
+					top
+				);
+				break;
 
-			if (c >= surfaceThreshold)
-				caseIndex |= 4;
+			case 4:
+				AddTriangle(
+					c,
+					bottom,
+					right
+				);
+				break;
 
-			if (d >= surfaceThreshold)
-				caseIndex |= 8;
+			case 8:
+				AddTriangle(
+					d,
+					left,
+					bottom
+				);
+				break;
 
-			if (caseIndex == 0)
-				continue;
+			// ----------------------------------------------------
+			// Two adjacent corners
+			// ----------------------------------------------------
 
-			float topT =
-				Interpolate(a, b);
+			case 3:
+				AddQuad(
+					a,
+					b,
+					right,
+					left
+				);
+				break;
 
-			float rightT =
-				Interpolate(b, c);
+			case 6:
+				AddQuad(
+					b,
+					c,
+					bottom,
+					top
+				);
+				break;
 
-			float bottomT =
-				Interpolate(d, c);
+			case 12:
+				AddQuad(
+					c,
+					d,
+					left,
+					right
+				);
+				break;
 
-			float leftT =
-				Interpolate(d, a);
+			// ----------------------------------------------------
+			// TWO OPPOSITE CORNERS
+			//
+			// Cases 5 and 10 are intentionally two separate
+			// triangles. These represent two disconnected
+			// regions inside the cell.
+			// ----------------------------------------------------
 
-			float x0 =
-				x * cellSize;
-
-			float y0 =
-				y * cellSize;
-
-			float x1 =
-				(x + 1) * cellSize;
-
-			float y1 =
-				(y + 1) * cellSize;
-
-			Vector2 top =
-				new Vector2(
-					x0 +
-					(x1 - x0) * topT,
-					y0
+			case 5:
+				AddTriangle(
+					a,
+					top,
+					left
 				);
 
-			Vector2 right =
-				new Vector2(
-					x1,
-					y0 +
-					(y1 - y0) * rightT
+				AddTriangle(
+					c,
+					right,
+					bottom
+				);
+				break;
+
+			case 10:
+				AddTriangle(
+					b,
+					right,
+					top
 				);
 
-			Vector2 bottom =
-				new Vector2(
-					x0 +
-					(x1 - x0) * bottomT,
-					y1
+				AddTriangle(
+					d,
+					left,
+					bottom
 				);
+				break;
 
-			Vector2 left =
-				new Vector2(
-					x0,
-					y0 +
-					(y1 - y0) * leftT
+			// ----------------------------------------------------
+			// Three corners inside
+			// ----------------------------------------------------
+
+			case 7:
+				AddPolygon(
+					a,
+					b,
+					c,
+					bottom,
+					left
 				);
+				break;
 
-			Vector2 cornerA =
-				new Vector2(
-					x0,
-					y0
+			case 11:
+				AddPolygon(
+					a,
+					b,
+					right,
+					bottom,
+					d
 				);
+				break;
 
-			Vector2 cornerB =
-				new Vector2(
-					x1,
-					y0
+			case 13:
+				AddPolygon(
+					a,
+					top,
+					right,
+					c,
+					d
 				);
+				break;
 
-			Vector2 cornerC =
-				new Vector2(
-					x1,
-					y1
+			case 14:
+				AddPolygon(
+					b,
+					c,
+					d,
+					left,
+					top
 				);
+				break;
 
-			Vector2 cornerD =
-				new Vector2(
-					x0,
-					y1
+			// ----------------------------------------------------
+			// IMPORTANT: CASE 9
+			//
+			// A and D are inside.
+			//
+			// The filled region is:
+			//
+			//       A ----- top
+			//       |        |
+			//       D ----- bottom
+			//
+			// This is a QUAD.
+			//
+			// The old implementation added 'left' as a fifth
+			// vertex. That point lies on the A-D edge and created
+			// a degenerate extra triangle.
+			// ----------------------------------------------------
+
+			case 9:
+				AddQuad(
+					a,
+					top,
+					bottom,
+					d
 				);
+				break;
 
-			AddCell(
-				caseIndex,
-				cornerA,
-				cornerB,
-				cornerC,
-				cornerD,
-				top,
-				right,
-				bottom,
-				left
-			);
+			// ----------------------------------------------------
+			// Completely inside
+			// ----------------------------------------------------
+
+			case 15:
+				AddQuad(
+					a,
+					b,
+					c,
+					d
+				);
+				break;
 		}
 	}
 
-	// ------------------------------------------------------------
-	// Upload generated geometry.
-	// ------------------------------------------------------------
+	// ============================================================
+	// Triangle
+	// ============================================================
 
-	Stopwatch meshTimer =
-		Stopwatch.StartNew();
-
-	BuildMesh();
-
-	meshTimer.Stop();
-
-	profilerMeshTime +=
-		meshTimer.Elapsed.TotalMilliseconds;
-}
-
-private void BuildMesh()
-{
-	mesh.ClearSurfaces();
-
-	if (vertices.Count == 0)
-		return;
-
-	Vector2[] vertexArray =
-		vertices.ToArray();
-
-	int[] indexArray =
-		indices.ToArray();
-
-	Vector2[] uvs =
-		new Vector2[
-			vertexArray.Length
-		];
-
-	float worldWidth =
-		width * cellSize;
-
-	float worldHeight =
-		height * cellSize;
-
-	for (int i = 0;
-		i < vertexArray.Length;
-		i++)
+	private void AddTriangle(
+		Vector2 a,
+		Vector2 b,
+		Vector2 c)
 	{
-		uvs[i] =
-			new Vector2(
-				vertexArray[i].X /
-					worldWidth,
-				vertexArray[i].Y /
-					worldHeight
-			);
+		// --------------------------------------------------------
+		// Reject zero-area triangles.
+		//
+		// This protects the generated mesh from degenerate
+		// triangles caused by interpolation values landing on
+		// the same point.
+		// --------------------------------------------------------
+
+		float area =
+			(b.X - a.X) *
+			(c.Y - a.Y) -
+			(b.Y - a.Y) *
+			(c.X - a.X);
+
+		if (Mathf.Abs(area) <
+			0.000001f)
+		{
+			return;
+		}
+
+		int start =
+			vertices.Count;
+
+		vertices.Add(a);
+		vertices.Add(b);
+		vertices.Add(c);
+
+		indices.Add(start);
+		indices.Add(start + 1);
+		indices.Add(start + 2);
 	}
 
-	Godot.Collections.Array arrays =
-		new Godot.Collections.Array();
+	// ============================================================
+	// Quad
+	// ============================================================
 
-	arrays.Resize(
-		(int)Mesh.ArrayType.Max
-	);
-
-	arrays[
-		(int)Mesh.ArrayType.Vertex
-	] =
-		vertexArray;
-
-	arrays[
-		(int)Mesh.ArrayType.TexUV
-	] =
-		uvs;
-
-	arrays[
-		(int)Mesh.ArrayType.Index
-	] =
-		indexArray;
-
-	mesh.AddSurfaceFromArrays(
-		Mesh.PrimitiveType.Triangles,
-		arrays
-	);
-}
-
-private float Interpolate(
-	float valueA,
-	float valueB)
-{
-	float difference =
-		valueB - valueA;
-
-	if (Mathf.Abs(difference) < 0.0001f)
-		return 0.5f;
-
-	float t =
-		(surfaceThreshold - valueA) /
-		difference;
-
-	return Mathf.Clamp(
-		t,
-		0.0f,
-		1.0f
-	);
-}
-
-private void AddCell(
-	int caseIndex,
-	Vector2 a,
-	Vector2 b,
-	Vector2 c,
-	Vector2 d,
-	Vector2 top,
-	Vector2 right,
-	Vector2 bottom,
-	Vector2 left)
-{
-	switch (caseIndex)
+	private void AddQuad(
+		Vector2 a,
+		Vector2 b,
+		Vector2 c,
+		Vector2 d)
 	{
-		case 1:
-			AddTriangle(
-				a,
-				top,
-				left
-			);
-			break;
+		// --------------------------------------------------------
+		// Triangle 1
+		// --------------------------------------------------------
 
-		case 2:
-			AddTriangle(
-				b,
-				right,
-				top
-			);
-			break;
+		AddTriangle(
+			a,
+			b,
+			c
+		);
 
-		case 3:
-			AddQuad(
-				a,
-				b,
-				right,
-				left
-			);
-			break;
+		// --------------------------------------------------------
+		// Triangle 2
+		// --------------------------------------------------------
 
-		case 4:
-			AddTriangle(
-				c,
-				bottom,
-				right
-			);
-			break;
-
-		case 5:
-			AddTriangle(
-				a,
-				top,
-				left
-			);
-
-			AddTriangle(
-				c,
-				right,
-				bottom
-			);
-			break;
-
-		case 6:
-			AddQuad(
-				b,
-				c,
-				bottom,
-				top
-			);
-			break;
-
-		case 7:
-			AddPolygon(
-				a,
-				b,
-				c,
-				bottom,
-				left
-			);
-			break;
-
-		case 8:
-			AddTriangle(
-				d,
-				left,
-				bottom
-			);
-			break;
-
-		case 9:
-			AddPolygon(
-				a,
-				top,
-				bottom,
-				d,
-				left
-			);
-			break;
-
-		case 10:
-			AddTriangle(
-				b,
-				right,
-				top
-			);
-
-			AddTriangle(
-				d,
-				left,
-				bottom
-			);
-			break;
-
-		case 11:
-			AddPolygon(
-				a,
-				b,
-				right,
-				bottom,
-				d
-			);
-			break;
-
-		case 12:
-			AddQuad(
-				c,
-				d,
-				left,
-				right
-			);
-			break;
-
-		case 13:
-			AddPolygon(
-				a,
-				top,
-				right,
-				c,
-				d
-			);
-			break;
-
-		case 14:
-			AddPolygon(
-				b,
-				c,
-				d,
-				left,
-				top
-			);
-			break;
-
-		case 15:
-			AddQuad(
-				a,
-				b,
-				c,
-				d
-			);
-			break;
+		AddTriangle(
+			a,
+			c,
+			d
+		);
 	}
-}
 
-private void AddTriangle(
-	Vector2 a,
-	Vector2 b,
-	Vector2 c)
-{
-	int start =
-		vertices.Count;
+	// ============================================================
+	// Five-point polygon
+	// ============================================================
 
-	vertices.Add(a);
-	vertices.Add(b);
-	vertices.Add(c);
+	private void AddPolygon(
+		Vector2 a,
+		Vector2 b,
+		Vector2 c,
+		Vector2 d,
+		Vector2 e)
+	{
+		// These five-point polygons are convex for the standard
+		// three-corners-inside Marching Squares cases.
+		//
+		// Fan triangulation is therefore safe.
 
-	indices.Add(start);
-	indices.Add(start + 1);
-	indices.Add(start + 2);
-}
+		AddTriangle(
+			a,
+			b,
+			c
+		);
 
-private void AddQuad(
-	Vector2 a,
-	Vector2 b,
-	Vector2 c,
-	Vector2 d)
-{
-	int start =
-		vertices.Count;
+		AddTriangle(
+			a,
+			c,
+			d
+		);
 
-	vertices.Add(a);
-	vertices.Add(b);
-	vertices.Add(c);
-	vertices.Add(d);
-
-	indices.Add(start);
-	indices.Add(start + 1);
-	indices.Add(start + 2);
-
-	indices.Add(start);
-	indices.Add(start + 2);
-	indices.Add(start + 3);
-}
-
-private void AddPolygon(
-	Vector2 a,
-	Vector2 b,
-	Vector2 c,
-	Vector2 d,
-	Vector2 e)
-{
-	int start =
-		vertices.Count;
-
-	vertices.Add(a);
-	vertices.Add(b);
-	vertices.Add(c);
-	vertices.Add(d);
-	vertices.Add(e);
-
-	indices.Add(start);
-	indices.Add(start + 1);
-	indices.Add(start + 2);
-
-	indices.Add(start);
-	indices.Add(start + 2);
-	indices.Add(start + 3);
-
-	indices.Add(start);
-	indices.Add(start + 3);
-	indices.Add(start + 4);
-}
-
-
+		AddTriangle(
+			a,
+			d,
+			e
+		);
+	}
 }

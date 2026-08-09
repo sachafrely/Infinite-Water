@@ -1,8 +1,16 @@
 [gd_scene format=3 uid="uid://b1q58cwgcksfx"]
 
 [ext_resource type="Script" uid="uid://ccmt13qtfb4xi" path="res://Scripts/Fluid/FluidSimulator.cs" id="1_r150o"]
+[ext_resource type="Texture2D" uid="uid://b0ywre54gv6i5" path="res://background.png" id="2_idj7w"]
 
 [node name="Main" type="Node2D" unique_id=1086720320]
+
+[node name="Background" type="TextureRect" parent="." unique_id=1677817205]
+offset_left = -194.0
+offset_right = 1000.0
+offset_bottom = 1299.0
+texture = ExtResource("2_idj7w")
+stretch_mode = 1
 
 [node name="FluidSimulation" type="Node2D" parent="." unique_id=2118507538]
 script = ExtResource("1_r150o")
