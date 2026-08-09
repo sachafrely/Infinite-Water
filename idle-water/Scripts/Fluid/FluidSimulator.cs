@@ -9,7 +9,7 @@ private FluidRenderer renderer;
 private DensityField densityField;
 
 
-private const int ParticleCount = 2000;
+private const int ParticleCount = 1000;
 
 // Density rendering grid.
 private const int DensityWidth = 180;

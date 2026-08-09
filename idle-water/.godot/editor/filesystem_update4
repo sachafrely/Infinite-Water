@@ -1,4 +1,3 @@
 res://Scenes/Main.tscn
-res://Scripts/Fluid/FluidSimulator.cs
-res://Scripts/Fluid/DensityField.cs
 res://Scripts/Fluid/FluidRenderer.cs
+res://Scripts/Fluid/FluidSimulator.cs
