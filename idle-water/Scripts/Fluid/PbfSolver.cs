@@ -7,70 +7,88 @@ public class PbfSolver
 {
 	private readonly SpatialHash hash;
 
-	// ------------------------------------------------------------
+	// ============================================================
 	// Simulation parameters
-	// ------------------------------------------------------------
+	// ============================================================
 
-	private const float Gravity = 200f;
+	private const float Gravity = 200.0f;
+
 	private const float SmoothingRadius = 12.0f;
+
+	private const float SmoothingRadiusSquared =
+		SmoothingRadius * SmoothingRadius;
+
 	private const float Viscosity = 0.4f;
+
 	private const float SurfaceTension = 18.0f;
 
-	// Minimum surface-normal strength before we consider
-	// a particle to be a surface particle.
 	private const float SurfaceThreshold = 0.35f;
 
-	// Prevent surface tension from becoming unstable.
 	private const float MaxSurfaceVelocity = 25.0f;
-	// Our particles start 8 pixels apart.
-	// With the q^3 kernel below, the density of that initial
-	// lattice is approximately 1.15.
+
 	private const float RestDensity = 1.15f;
 
 	private const float LambdaEpsilon = 0.00001f;
 
-	// Start with one iteration for performance/stability.
 	private const int Iterations = 1;
 
-	// Position correction safety limit.
 	private const float MaxCorrection = 1.5f;
 
-	// Simulation boundaries.
+	// ============================================================
+	// Simulation boundaries
+	// ============================================================
+
 	private const float MinX = 24.0f;
 	private const float MaxX = 696.0f;
+
 	private const float MinY = 24.0f;
 	private const float MaxY = 1256.0f;
 
-	// Only process this many neighbors per particle.
+	// ============================================================
+	// Neighbor limit
+	// ============================================================
+
 	private const int MaxNeighbors = 32;
 
-	// ------------------------------------------------------------
-	// Working arrays
-	// ------------------------------------------------------------
+	// ============================================================
+	// PBF working arrays
+	// ============================================================
 
 	private float[] lambdas;
+
 	private float[] deltaX;
 	private float[] deltaY;
 
-	private float[] gradientSumX;
-	private float[] gradientSumY;
-	private float[] gradientSumSquared;
-	
 	private float[] viscosityX;
 	private float[] viscosityY;
-	
+
 	private float[] surfaceVelocityX;
 	private float[] surfaceVelocityY;
-	
+
 	public bool[] SurfaceParticles;
-	
+
+	// ============================================================
+	// Neighbor cache
+	// ============================================================
+
 	private int[] neighborBuffer;
 	private int[] neighborOffsets;
 	private int[] neighborCounts;
 
-	// ------------------------------------------------------------
+	private float[] neighborDx;
+	private float[] neighborDy;
+	private float[] neighborDistance;
+	private float[] neighborQ;
+
+	// ============================================================
+	// Density cache
+	// ============================================================
+
+	private float[] particleDensity;
+
+	// ============================================================
 	// Profiler
-	// ------------------------------------------------------------
+	// ============================================================
 
 	private const int ProfilerPrintInterval = 60;
 
@@ -81,26 +99,41 @@ public class PbfSolver
 	private double accumPhaseBMs;
 	private double accumTotalMs;
 
-	public PbfSolver(SpatialHash spatialHash)
+	public PbfSolver(
+		SpatialHash spatialHash)
 	{
 		hash = spatialHash;
 	}
 
-	public void Solve(ParticleData particles, float dt)
+	// ============================================================
+	// Main solver
+	// ============================================================
+
+	public void Solve(
+		ParticleData particles,
+		float dt)
 	{
-		int count = particles.Count;
+		int count =
+			particles.Count;
+
+		if (count <= 0)
+			return;
 
 		EnsureBuffers(count);
 
-		long totalStart = Stopwatch.GetTimestamp();
+		long totalStart =
+			Stopwatch.GetTimestamp();
 
-		// ============================================================
+		// ========================================================
 		// 1. Predict positions
-		// ============================================================
+		// ========================================================
 
-		for (int i = 0; i < count; i++)
+		for (int i = 0;
+			 i < count;
+			 i++)
 		{
-			particles.VelY[i] += Gravity * dt;
+			particles.VelY[i] +=
+				Gravity * dt;
 
 			particles.PredX[i] =
 				particles.PosX[i] +
@@ -110,25 +143,27 @@ public class PbfSolver
 				particles.PosY[i] +
 				particles.VelY[i] * dt;
 		}
-		
 
-		// ============================================================
-		// 2. PBF iterations
-		// ============================================================
+		// ========================================================
+		// 2. PBF
+		// ========================================================
 
 		for (int iteration = 0;
 			 iteration < Iterations;
 			 iteration++)
 		{
-			// --------------------------------------------------------
+			// ====================================================
 			// Build spatial hash
-			// --------------------------------------------------------
+			// ====================================================
 
-			long buildStart = Stopwatch.GetTimestamp();
+			long buildStart =
+				Stopwatch.GetTimestamp();
 
 			hash.Clear();
 
-			for (int i = 0; i < count; i++)
+			for (int i = 0;
+				 i < count;
+				 i++)
 			{
 				hash.Insert(
 					i,
@@ -137,34 +172,45 @@ public class PbfSolver
 				);
 			}
 
-			long buildEnd = Stopwatch.GetTimestamp();
+			long buildEnd =
+				Stopwatch.GetTimestamp();
 
 			accumBuildMs +=
 				(buildEnd - buildStart) *
 				1000.0 /
 				Stopwatch.Frequency;
 
-			// --------------------------------------------------------
-			// Find and cache neighbors
-			// --------------------------------------------------------
+			// ====================================================
+			// Build neighbor cache
+			// ====================================================
 
-			int bufferWritePosition = 0;
+			int bufferWritePosition =
+				0;
 
-			for (int i = 0; i < count; i++)
+			for (int i = 0;
+				 i < count;
+				 i++)
 			{
-				float px = particles.PredX[i];
-				float py = particles.PredY[i];
+				float px =
+					particles.PredX[i];
 
-				int rawCount =
+				float py =
+					particles.PredY[i];
+
+				// ------------------------------------------------
+				// Ask SpatialHash for ONLY actual neighbors.
+				// Maximum is already enforced here.
+				// ------------------------------------------------
+
+				int neighborCount =
 					hash.Query(
 						px,
 						py,
-						SmoothingRadius
-					);
-
-				int neighborCount =
-					Math.Min(
-						rawCount,
+						SmoothingRadius,
+						particles.PredX,
+						particles.PredY,
+						neighborBuffer,
+						bufferWritePosition,
 						MaxNeighbors
 					);
 
@@ -179,36 +225,82 @@ public class PbfSolver
 					neighborCount
 				);
 
+				// ------------------------------------------------
+				// Cache geometry.
+				// ------------------------------------------------
+
 				for (int n = 0;
 					 n < neighborCount;
 					 n++)
 				{
-					neighborBuffer[
-						bufferWritePosition + n
-					] = hash.GetResult(n);
+					int index =
+						bufferWritePosition + n;
+
+					int j =
+						neighborBuffer[index];
+
+					float dx =
+						px -
+						particles.PredX[j];
+
+					float dy =
+						py -
+						particles.PredY[j];
+
+					float distanceSquared =
+						dx * dx +
+						dy * dy;
+
+					float distance;
+
+					if (distanceSquared <=
+						0.000001f)
+					{
+						distance = 0.0f;
+					}
+					else
+					{
+						distance =
+							Mathf.Sqrt(
+								distanceSquared
+							);
+					}
+
+					neighborDx[index] =
+						dx;
+
+					neighborDy[index] =
+						dy;
+
+					neighborDistance[index] =
+						distance;
+
+					float q =
+						1.0f -
+						distance /
+						SmoothingRadius;
+
+					neighborQ[index] =
+						q;
 				}
 
 				bufferWritePosition +=
 					neighborCount;
 			}
 
-			// ========================================================
+			// ====================================================
 			// Phase A
 			//
-			// Calculate density and the complete PBF gradient.
-			// ========================================================
+			// Density + complete PBF gradient.
+			// ====================================================
 
 			long phaseAStart =
 				Stopwatch.GetTimestamp();
 
-			for (int i = 0; i < count; i++)
+			for (int i = 0;
+				 i < count;
+				 i++)
 			{
-				float px =
-					particles.PredX[i];
-
-				float py =
-					particles.PredY[i];
-
 				int neighborCount =
 					neighborCounts[i];
 
@@ -227,128 +319,51 @@ public class PbfSolver
 				float neighborGradientSquared =
 					0.0f;
 
-				// ----------------------------------------------------
-				// Density
-				// ----------------------------------------------------
-
 				for (int n = 0;
 					 n < neighborCount;
 					 n++)
 				{
+					int index =
+						offset + n;
+
 					int j =
-						neighborBuffer[
-							offset + n
-						];
-
-					float dx =
-						px -
-						particles.PredX[j];
-
-					float dy =
-						py -
-						particles.PredY[j];
-
-					float distanceSquared =
-						dx * dx +
-						dy * dy;
-
-					if (distanceSquared >=
-						SmoothingRadius *
-						SmoothingRadius)
-					{
-						continue;
-					}
-
-					float distance =
-						Mathf.Sqrt(
-							distanceSquared
-						);
+						neighborBuffer[index];
 
 					float q =
-						1.0f -
-						distance /
-						SmoothingRadius;
+						neighborQ[index];
 
+					// Density.
 					density +=
 						q * q * q;
-				}
-
-				// ----------------------------------------------------
-				// Constraint
-				// ----------------------------------------------------
-
-				float constraint =
-					density /
-					RestDensity -
-					1.0f;
-
-				// ----------------------------------------------------
-				// Complete gradient of constraint C_i
-				//
-				// grad_i C_i =
-				//     sum_j grad W_ij / rho0
-				//
-				// grad_j C_i =
-				//     -grad W_ij / rho0
-				// ----------------------------------------------------
-
-				for (int n = 0;
-					 n < neighborCount;
-					 n++)
-				{
-					int j =
-						neighborBuffer[
-							offset + n
-						];
 
 					if (j == i)
-					{
 						continue;
-					}
-
-					float dx =
-						px -
-						particles.PredX[j];
-
-					float dy =
-						py -
-						particles.PredY[j];
-
-					float distanceSquared =
-						dx * dx +
-						dy * dy;
-
-					if (distanceSquared <=
-						0.000001f ||
-						distanceSquared >=
-						SmoothingRadius *
-						SmoothingRadius)
-					{
-						continue;
-					}
 
 					float distance =
-						Mathf.Sqrt(
-							distanceSquared
-						);
+						neighborDistance[index];
 
-					float q =
-						1.0f -
-						distance /
-						SmoothingRadius;
+					if (distance <=
+						0.000001f)
+					{
+						continue;
+					}
 
-					// Gradient of q^3.
 					float gradientMagnitude =
 						-3.0f *
 						q * q /
 						SmoothingRadius;
 
-					// Normalize direction.
+					float invDistance =
+						1.0f /
+						distance;
+
 					float nx =
-						dx / distance;
+						neighborDx[index] *
+						invDistance;
 
 					float ny =
-						dy / distance;
+						neighborDy[index] *
+						invDistance;
 
 					float gx =
 						gradientMagnitude *
@@ -360,15 +375,24 @@ public class PbfSolver
 						ny /
 						RestDensity;
 
-					// Contribution to grad_i C_i.
-					gradSumX += gx;
-					gradSumY += gy;
+					gradSumX +=
+						gx;
 
-					// Contribution from grad_j C_i.
+					gradSumY +=
+						gy;
+
 					neighborGradientSquared +=
 						gx * gx +
 						gy * gy;
 				}
+
+				particleDensity[i] =
+					density;
+
+				float constraint =
+					density /
+					RestDensity -
+					1.0f;
 
 				float denominator =
 					gradSumX * gradSumX +
@@ -377,19 +401,10 @@ public class PbfSolver
 
 				lambdas[i] =
 					-constraint /
-					(denominator +
-					 LambdaEpsilon);
-
-				// Store the complete gradient for diagnostics/
-				// possible future optimizations.
-				gradientSumX[i] =
-					gradSumX;
-
-				gradientSumY[i] =
-					gradSumY;
-
-				gradientSumSquared[i] =
-					denominator;
+					(
+						denominator +
+						LambdaEpsilon
+					);
 			}
 
 			long phaseAEnd =
@@ -400,31 +415,22 @@ public class PbfSolver
 				1000.0 /
 				Stopwatch.Frequency;
 
-			// ========================================================
+			// ====================================================
 			// Phase B
-			//
-			// Calculate position corrections.
-			// ========================================================
+			// ====================================================
 
 			long phaseBStart =
 				Stopwatch.GetTimestamp();
 
-			for (int i = 0; i < count; i++)
+			for (int i = 0;
+				 i < count;
+				 i++)
 			{
-				deltaX[i] =
+				float correctionX =
 					0.0f;
 
-				deltaY[i] =
+				float correctionY =
 					0.0f;
-			}
-
-			for (int i = 0; i < count; i++)
-			{
-				float px =
-					particles.PredX[i];
-
-				float py =
-					particles.PredY[i];
 
 				int neighborCount =
 					neighborCounts[i];
@@ -432,76 +438,50 @@ public class PbfSolver
 				int offset =
 					neighborOffsets[i];
 
-				float correctionX =
-					0.0f;
-
-				float correctionY =
-					0.0f;
-
 				for (int n = 0;
 					 n < neighborCount;
 					 n++)
 				{
+					int index =
+						offset + n;
+
 					int j =
-						neighborBuffer[
-							offset + n
-						];
+						neighborBuffer[index];
 
 					if (j == i)
-					{
 						continue;
-					}
-
-					float dx =
-						px -
-						particles.PredX[j];
-
-					float dy =
-						py -
-						particles.PredY[j];
-
-					float distanceSquared =
-						dx * dx +
-						dy * dy;
-
-					if (distanceSquared <=
-						0.000001f ||
-						distanceSquared >=
-						SmoothingRadius *
-						SmoothingRadius)
-					{
-						continue;
-					}
 
 					float distance =
-						Mathf.Sqrt(
-							distanceSquared
-						);
+						neighborDistance[index];
+
+					if (distance <=
+						0.000001f)
+					{
+						continue;
+					}
 
 					float q =
-						1.0f -
-						distance /
-						SmoothingRadius;
+						neighborQ[index];
 
 					float gradientMagnitude =
 						-3.0f *
 						q * q /
 						SmoothingRadius;
 
-					float nx =
-						dx / distance;
-
-					float ny =
-						dy / distance;
+					float invDistance =
+						1.0f /
+						distance;
 
 					float gradientX =
 						gradientMagnitude *
-						nx /
+						neighborDx[index] *
+						invDistance /
 						RestDensity;
 
 					float gradientY =
 						gradientMagnitude *
-						ny /
+						neighborDy[index] *
+						invDistance /
 						RestDensity;
 
 					float lambdaSum =
@@ -517,45 +497,44 @@ public class PbfSolver
 						gradientY;
 				}
 
+				float correctionLengthSquared =
+					correctionX * correctionX +
+					correctionY * correctionY;
+
+				if (correctionLengthSquared >
+					MaxCorrection *
+					MaxCorrection)
+				{
+					float correctionLength =
+						Mathf.Sqrt(
+							correctionLengthSquared
+						);
+
+					float scale =
+						MaxCorrection /
+						correctionLength;
+
+					correctionX *=
+						scale;
+
+					correctionY *=
+						scale;
+				}
+
 				deltaX[i] =
 					correctionX;
 
 				deltaY[i] =
 					correctionY;
-
-				// ----------------------------------------------------
-				// Safety clamp.
-				//
-				// A single unstable correction must not launch a
-				// particle across the simulation.
-				// ----------------------------------------------------
-
-				float correctionLength =
-					Mathf.Sqrt(
-						correctionX * correctionX +
-						correctionY * correctionY
-					);
-
-				if (correctionLength >
-					MaxCorrection)
-				{
-					float scale =
-						MaxCorrection /
-						correctionLength;
-
-					deltaX[i] *=
-						scale;
-
-					deltaY[i] *=
-						scale;
-				}
 			}
 
-			// --------------------------------------------------------
+			// ----------------------------------------------------
 			// Apply corrections.
-			// --------------------------------------------------------
+			// ----------------------------------------------------
 
-			for (int i = 0; i < count; i++)
+			for (int i = 0;
+				 i < count;
+				 i++)
 			{
 				particles.PredX[i] +=
 					deltaX[i];
@@ -564,8 +543,9 @@ public class PbfSolver
 					deltaY[i];
 			}
 
-			// Keep predicted positions inside the container.
-			ConstrainToBounds(particles);
+			ConstrainToBounds(
+				particles
+			);
 
 			long phaseBEnd =
 				Stopwatch.GetTimestamp();
@@ -575,227 +555,228 @@ public class PbfSolver
 				1000.0 /
 				Stopwatch.Frequency;
 		}
-// ============================================================
-// XSPH viscosity
-// Smooth velocity differences between nearby particles.
-// ============================================================
 
-for (int i = 0; i < count; i++)
-{
-	float oldX = particles.PosX[i];
-	float oldY = particles.PosY[i];
+		// ========================================================
+		// 3. Viscosity + surface normal
+		//
+		// One neighbor pass.
+		// ========================================================
 
-	float velocityX =
-		(particles.PredX[i] - oldX) / dt;
-
-	float velocityY =
-		(particles.PredY[i] - oldY) / dt;
-
-	float correctionX = 0.0f;
-	float correctionY = 0.0f;
-
-	int neighborCount = neighborCounts[i];
-	int offset = neighborOffsets[i];
-
-	for (int n = 0; n < neighborCount; n++)
-	{
-		int j = neighborBuffer[offset + n];
-
-		if (j == i)
-			continue;
-
-		float dx =
-			particles.PredX[i] -
-			particles.PredX[j];
-
-		float dy =
-			particles.PredY[i] -
-			particles.PredY[j];
-
-		float distanceSquared =
-			dx * dx +
-			dy * dy;
-
-		if (distanceSquared <= 0.000001f ||
-			distanceSquared >= SmoothingRadius * SmoothingRadius)
+		for (int i = 0;
+			 i < count;
+			 i++)
 		{
-			continue;
+			float oldX =
+				particles.PosX[i];
+
+			float oldY =
+				particles.PosY[i];
+
+			float velocityX =
+				(particles.PredX[i] -
+				 oldX) /
+				dt;
+
+			float velocityY =
+				(particles.PredY[i] -
+				 oldY) /
+				dt;
+
+			float viscosityCorrectionX =
+				0.0f;
+
+			float viscosityCorrectionY =
+				0.0f;
+
+			float normalX =
+				0.0f;
+
+			float normalY =
+				0.0f;
+
+			int neighborCount =
+				neighborCounts[i];
+
+			int offset =
+				neighborOffsets[i];
+
+			for (int n = 0;
+				 n < neighborCount;
+				 n++)
+			{
+				int index =
+					offset + n;
+
+				int j =
+					neighborBuffer[index];
+
+				if (j == i)
+					continue;
+
+				float distance =
+					neighborDistance[index];
+
+				if (distance <=
+					0.000001f)
+				{
+					continue;
+				}
+
+				float q =
+					neighborQ[index];
+
+				// ------------------------------------------------
+				// Viscosity
+				// ------------------------------------------------
+
+				float neighborVelocityX =
+					(
+						particles.PredX[j] -
+						particles.PosX[j]
+					) / dt;
+
+				float neighborVelocityY =
+					(
+						particles.PredY[j] -
+						particles.PosY[j]
+					) / dt;
+
+				viscosityCorrectionX +=
+					(
+						neighborVelocityX -
+						velocityX
+					) * q;
+
+				viscosityCorrectionY +=
+					(
+						neighborVelocityY -
+						velocityY
+					) * q;
+
+				// ------------------------------------------------
+				// Surface normal
+				// ------------------------------------------------
+
+				float weight =
+					q * q;
+
+				float invDistance =
+					1.0f /
+					distance;
+
+				float nx =
+					neighborDx[index] *
+					invDistance;
+
+				float ny =
+					neighborDy[index] *
+					invDistance;
+
+				normalX +=
+					nx * weight;
+
+				normalY +=
+					ny * weight;
+			}
+
+			viscosityX[i] =
+				viscosityCorrectionX *
+				Viscosity;
+
+			viscosityY[i] =
+				viscosityCorrectionY *
+				Viscosity;
+
+			// ----------------------------------------------------
+			// Surface tension
+			// ----------------------------------------------------
+
+			float normalLengthSquared =
+				normalX * normalX +
+				normalY * normalY;
+
+			if (normalLengthSquared <
+				SurfaceThreshold *
+				SurfaceThreshold)
+			{
+				SurfaceParticles[i] =
+					false;
+
+				surfaceVelocityX[i] =
+					0.0f;
+
+				surfaceVelocityY[i] =
+					0.0f;
+
+				continue;
+			}
+
+			SurfaceParticles[i] =
+				true;
+
+			float normalLength =
+				Mathf.Sqrt(
+					normalLengthSquared
+				);
+
+			float surfaceNormalX =
+				normalX /
+				normalLength;
+
+			float surfaceNormalY =
+				normalY /
+				normalLength;
+
+			float velocityChangeX =
+				-surfaceNormalX *
+				SurfaceTension *
+				dt;
+
+			float velocityChangeY =
+				-surfaceNormalY *
+				SurfaceTension *
+				dt;
+
+			float velocityChangeLengthSquared =
+				velocityChangeX *
+				velocityChangeX +
+				velocityChangeY *
+				velocityChangeY;
+
+			if (velocityChangeLengthSquared >
+				MaxSurfaceVelocity *
+				MaxSurfaceVelocity)
+			{
+				float velocityChangeLength =
+					Mathf.Sqrt(
+						velocityChangeLengthSquared
+					);
+
+				float scale =
+					MaxSurfaceVelocity /
+					velocityChangeLength;
+
+				velocityChangeX *=
+					scale;
+
+				velocityChangeY *=
+					scale;
+			}
+
+			surfaceVelocityX[i] =
+				velocityChangeX;
+
+			surfaceVelocityY[i] =
+				velocityChangeY;
 		}
 
-		float distance =
-			Mathf.Sqrt(distanceSquared);
+		// ========================================================
+		// 4. Update velocities
+		// ========================================================
 
-		float q =
-			1.0f -
-			distance / SmoothingRadius;
-
-		float neighborVelocityX =
-			(particles.PredX[j] -
-			 particles.PosX[j]) / dt;
-
-		float neighborVelocityY =
-			(particles.PredY[j] -
-			 particles.PosY[j]) / dt;
-
-		correctionX +=
-			(neighborVelocityX - velocityX) *
-			q;
-
-		correctionY +=
-			(neighborVelocityY - velocityY) *
-			q;
-	}
-
-	viscosityX[i] =
-		correctionX * Viscosity;
-
-	viscosityY[i] =
-		correctionY * Viscosity;
-}
-
-
-// ============================================================
-// Surface tension / cohesion
-//
-// Estimate the surface normal from the local particle
-// distribution.
-//
-// For a particle in the middle of the fluid, neighbors
-// surround it and the vectors cancel out.
-//
-// For a particle on the surface, neighbors exist mostly
-// on one side, producing a normal pointing outward.
-//
-// We then apply a small velocity correction back toward
-// the fluid.
-// ============================================================
-
-for (int i = 0; i < count; i++)
-{
-	float px = particles.PredX[i];
-	float py = particles.PredY[i];
-
-	int neighborCount = neighborCounts[i];
-	int offset = neighborOffsets[i];
-
-	float normalX = 0.0f;
-	float normalY = 0.0f;
-
-	for (int n = 0; n < neighborCount; n++)
-	{
-		int j = neighborBuffer[offset + n];
-
-		if (j == i)
-			continue;
-
-		float dx =
-			px -
-			particles.PredX[j];
-
-		float dy =
-			py -
-			particles.PredY[j];
-
-		float distanceSquared =
-			dx * dx +
-			dy * dy;
-
-		if (distanceSquared <= 0.000001f ||
-			distanceSquared >=
-				SmoothingRadius * SmoothingRadius)
-		{
-			continue;
-		}
-
-		float distance =
-			Mathf.Sqrt(distanceSquared);
-
-		float q =
-			1.0f -
-			distance / SmoothingRadius;
-
-		// Direction from neighbor toward this particle.
-		float nx =
-			dx / distance;
-
-		float ny =
-			dy / distance;
-
-		// Weight closer particles more strongly.
-		float weight = q * q;
-
-		normalX += nx * weight;
-		normalY += ny * weight;
-	}
-
-	float normalLength =
-		Mathf.Sqrt(
-			normalX * normalX +
-			normalY * normalY
-		);
-
-	if (normalLength < SurfaceThreshold)
-	{
-		SurfaceParticles[i] = false;
-		surfaceVelocityX[i] = 0.0f;
-		surfaceVelocityY[i] = 0.0f;
-		continue;
-	}
-	SurfaceParticles[i] = true;
-	
-	// Normalize the outward surface normal.
-	float surfaceNormalX =
-		normalX / normalLength;
-
-	float surfaceNormalY =
-		normalY / normalLength;
-
-	// The surface normal points OUT of the fluid.
-	// Surface tension pulls back IN.
-	float forceX =
-		-surfaceNormalX * SurfaceTension;
-
-	float forceY =
-		-surfaceNormalY * SurfaceTension;
-
-	// Convert the force to a velocity change.
-	float velocityChangeX =
-		forceX * dt;
-
-	float velocityChangeY =
-		forceY * dt;
-
-	// Safety clamp.
-	float velocityChangeLength =
-		Mathf.Sqrt(
-			velocityChangeX * velocityChangeX +
-			velocityChangeY * velocityChangeY
-		);
-
-	if (velocityChangeLength >
-		MaxSurfaceVelocity)
-	{
-		float scale =
-			MaxSurfaceVelocity /
-			velocityChangeLength;
-
-		velocityChangeX *= scale;
-		velocityChangeY *= scale;
-	}
-
-	surfaceVelocityX[i] =
-		velocityChangeX;
-
-	surfaceVelocityY[i] =
-		velocityChangeY;
-}
-
-
-		// ============================================================
-		// 3. Update velocities from corrected positions
-		// ============================================================
-
-		for (int i = 0; i < count; i++)
+		for (int i = 0;
+			 i < count;
+			 i++)
 		{
 			float oldX =
 				particles.PosX[i];
@@ -813,28 +794,29 @@ for (int i = 0; i < count; i++)
 				 oldY) /
 				dt;
 
-			// Non-bouncy boundaries.
 			if (particles.PredX[i] <= MinX ||
 				particles.PredX[i] >= MaxX)
 			{
-				newVelX = 0.0f;
+				newVelX =
+					0.0f;
 			}
 
 			if (particles.PredY[i] <= MinY ||
 				particles.PredY[i] >= MaxY)
 			{
-				newVelY = 0.0f;
+				newVelY =
+					0.0f;
 			}
 
-		particles.VelX[i] =
-			newVelX +
-			viscosityX[i] +
-			surfaceVelocityX[i];
+			particles.VelX[i] =
+				newVelX +
+				viscosityX[i] +
+				surfaceVelocityX[i];
 
-		particles.VelY[i] =
-			newVelY +
-			viscosityY[i] +
-			surfaceVelocityY[i];
+			particles.VelY[i] =
+				newVelY +
+				viscosityY[i] +
+				surfaceVelocityY[i];
 
 			particles.PosX[i] =
 				particles.PredX[i];
@@ -843,9 +825,9 @@ for (int i = 0; i < count; i++)
 				particles.PredY[i];
 		}
 
-		// ============================================================
+		// ========================================================
 		// Profiler
-		// ============================================================
+		// ========================================================
 
 		long totalEnd =
 			Stopwatch.GetTimestamp();
@@ -877,15 +859,15 @@ for (int i = 0; i < count; i++)
 				profilerFrames;
 
 			GD.Print(
-$"PBF profiler " +
-$"(avg ms over {profilerFrames} frames): " +
-$"Particles={count} " +
-$"Build={build}ms " +
-$"PhaseA={phaseA}ms " +
-$"PhaseB={phaseB}ms " +
-$"Total={total}ms " +
-$"(MaxNeighbors={MaxNeighbors})"
-);
+				$"PBF profiler " +
+				$"(avg ms over {profilerFrames} frames): " +
+				$"Particles={count} " +
+				$"Build={build:F2}ms " +
+				$"PhaseA={phaseA:F2}ms " +
+				$"PhaseB={phaseB:F2}ms " +
+				$"Total={total:F2}ms " +
+				$"(MaxNeighbors={MaxNeighbors})"
+			);
 
 			profilerFrames = 0;
 
@@ -894,44 +876,74 @@ $"(MaxNeighbors={MaxNeighbors})"
 			accumPhaseBMs = 0.0;
 			accumTotalMs = 0.0;
 		}
-			}
+	}
 
-	// ================================================================
+	// ============================================================
 	// Buffer management
-	// ================================================================
+	// ============================================================
 
-	private void EnsureBuffers(int count)
+	private void EnsureBuffers(
+		int count)
 	{
 		if (lambdas != null &&
 			lambdas.Length >= count)
 		{
 			return;
 		}
-		viscosityX = new float[count];
-		viscosityY = new float[count];
-		
-		surfaceVelocityX = new float[count];
-		surfaceVelocityY = new float[count];
-		
-		SurfaceParticles = new bool[count];
-		
-		lambdas = new float[count];
 
-		deltaX = new float[count];
+		lambdas =
+			new float[count];
 
-		deltaY = new float[count];
+		deltaX =
+			new float[count];
 
-		gradientSumX = new float[count];
+		deltaY =
+			new float[count];
 
-		gradientSumY = new float[count];
+		viscosityX =
+			new float[count];
 
-		gradientSumSquared = new float[count];
+		viscosityY =
+			new float[count];
 
-		neighborOffsets = new int[count];
+		surfaceVelocityX =
+			new float[count];
 
-		neighborCounts = new int[count];
+		surfaceVelocityY =
+			new float[count];
 
-		neighborBuffer = new int[Math.Max(1,count * 8)];
+		SurfaceParticles =
+			new bool[count];
+
+		particleDensity =
+			new float[count];
+
+		neighborOffsets =
+			new int[count];
+
+		neighborCounts =
+			new int[count];
+
+		int initialCapacity =
+			Math.Max(
+				1,
+				count * MaxNeighbors
+			);
+
+		neighborBuffer =
+			new int[initialCapacity];
+
+		neighborDx =
+			new float[initialCapacity];
+
+		neighborDy =
+			new float[initialCapacity];
+
+		neighborDistance =
+			new float[initialCapacity];
+
+		neighborQ =
+			new float[initialCapacity];
 	}
 
 	private void EnsureNeighborCapacity(
@@ -949,22 +961,70 @@ $"(MaxNeighbors={MaxNeighbors})"
 				required
 			);
 
-		int[] newBuffer =
+		int[] newNeighborBuffer =
 			new int[newCapacity];
+
+		float[] newNeighborDx =
+			new float[newCapacity];
+
+		float[] newNeighborDy =
+			new float[newCapacity];
+
+		float[] newNeighborDistance =
+			new float[newCapacity];
+
+		float[] newNeighborQ =
+			new float[newCapacity];
 
 		Array.Copy(
 			neighborBuffer,
-			newBuffer,
+			newNeighborBuffer,
 			neighborBuffer.Length
 		);
 
+		Array.Copy(
+			neighborDx,
+			newNeighborDx,
+			neighborDx.Length
+		);
+
+		Array.Copy(
+			neighborDy,
+			newNeighborDy,
+			neighborDy.Length
+		);
+
+		Array.Copy(
+			neighborDistance,
+			newNeighborDistance,
+			neighborDistance.Length
+		);
+
+		Array.Copy(
+			neighborQ,
+			newNeighborQ,
+			neighborQ.Length
+		);
+
 		neighborBuffer =
-			newBuffer;
+			newNeighborBuffer;
+
+		neighborDx =
+			newNeighborDx;
+
+		neighborDy =
+			newNeighborDy;
+
+		neighborDistance =
+			newNeighborDistance;
+
+		neighborQ =
+			newNeighborQ;
 	}
 
-	// ================================================================
+	// ============================================================
 	// Boundary constraints
-	// ================================================================
+	// ============================================================
 
 	private void ConstrainToBounds(
 		ParticleData particles)
@@ -989,72 +1049,34 @@ $"(MaxNeighbors={MaxNeighbors})"
 		}
 	}
 
-public void BuildDensityField(
-	ParticleData particles,
-	DensityField field)
-{
-	field.Clear();
+	// ============================================================
+	// Density field support
+	// ============================================================
 
-	int count = particles.Count;
-
-	float h = SmoothingRadius;
-
-	float hSquared =
-		h * h;
-
-	for (int i = 0; i < count; i++)
+	public void BuildDensityField(
+		ParticleData particles,
+		DensityField field)
 	{
-		float px =
-			particles.PredX[i];
+		field.Clear();
 
-		float py =
-			particles.PredY[i];
+		int count =
+			particles.Count;
 
-		int neighborCount =
-			neighborCounts[i];
-
-		int offset =
-			neighborOffsets[i];
-
-		for (int n = 0;
-			 n < neighborCount;
-			 n++)
+		for (int i = 0;
+			 i < count;
+			 i++)
 		{
-			int j =
-				neighborBuffer[offset + n];
+			float density =
+				particleDensity[i];
 
-			float dx =
-				px -
-				particles.PredX[j];
-
-			float dy =
-				py -
-				particles.PredY[j];
-
-			float distanceSquared =
-				dx * dx +
-				dy * dy;
-
-			if (distanceSquared >= hSquared)
+			if (density <= 0.0f)
 				continue;
 
-			float distance =
-				Mathf.Sqrt(distanceSquared);
-
-			float q =
-				1.0f -
-				distance / h;
-
-			float density =
-				q * q * q;
-
 			field.AddDensity(
-				px,
-				py,
+				particles.PredX[i],
+				particles.PredY[i],
 				density
 			);
 		}
 	}
-}
-
 }

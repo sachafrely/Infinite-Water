@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Godot;
 
 public partial class FluidSimulator : Node2D
@@ -8,8 +9,11 @@ public partial class FluidSimulator : Node2D
 	private FluidRenderer renderer;
 	private DensityField densityField;
 
-	// Maximum number of particles.
-	private const int ParticleCount = 4000;
+	// ------------------------------------------------------------
+	// Maximum number of particles
+	// ------------------------------------------------------------
+
+	private const int ParticleCount = 5000;
 
 	// ------------------------------------------------------------
 	// Density rendering grid
@@ -59,7 +63,6 @@ public partial class FluidSimulator : Node2D
 
 	private const float EmitterSpacing = 8.0f;
 
-	// Three possible emission positions.
 	private static readonly float[] EmitterOffsets =
 	{
 		-EmitterSpacing,
@@ -67,8 +70,22 @@ public partial class FluidSimulator : Node2D
 		EmitterSpacing
 	};
 
-	// Keeps track of which emitter position is used next.
 	private int emitterIndex = 0;
+
+	// ------------------------------------------------------------
+	// Full-frame profiler
+	// ------------------------------------------------------------
+
+	private const int FullProfilerInterval = 60;
+
+	private int fullProfilerFrames = 0;
+
+	private double fullPhysicsTime = 0.0;
+
+	private double fullSpawnTime = 0.0;
+	private double fullPbfTime = 0.0;
+	private double fullDensityTime = 0.0;
+	private double fullRendererTime = 0.0;
 
 	// ------------------------------------------------------------
 	// Initialization
@@ -135,12 +152,33 @@ public partial class FluidSimulator : Node2D
 	public override void _PhysicsProcess(
 		double delta)
 	{
-		float dt = (float)delta;
+		Stopwatch physicsTimer =
+			Stopwatch.StartNew();
 
-		// Spawn exactly ONE particle per physics frame.
+		float dt =
+			(float)delta;
+
+		// --------------------------------------------------------
+		// Spawn
+		// --------------------------------------------------------
+
+		Stopwatch spawnTimer =
+			Stopwatch.StartNew();
+
 		SpawnParticle();
 
-		// Don't run the solver when there are no particles.
+		spawnTimer.Stop();
+
+		fullSpawnTime +=
+			spawnTimer.Elapsed.TotalMilliseconds;
+
+		// --------------------------------------------------------
+		// PBF
+		// --------------------------------------------------------
+
+		Stopwatch pbfTimer =
+			Stopwatch.StartNew();
+
 		if (particles.Count > 0)
 		{
 			solver.Solve(
@@ -149,12 +187,206 @@ public partial class FluidSimulator : Node2D
 			);
 		}
 
+		pbfTimer.Stop();
+
+		fullPbfTime +=
+			pbfTimer.Elapsed.TotalMilliseconds;
+
+		// --------------------------------------------------------
+		// Density field
+		// --------------------------------------------------------
+
+		Stopwatch densityTimer =
+			Stopwatch.StartNew();
+
 		BuildDensityField();
+
+		densityTimer.Stop();
+
+		fullDensityTime +=
+			densityTimer.Elapsed.TotalMilliseconds;
+
+		// --------------------------------------------------------
+		// Marching Squares / renderer
+		// --------------------------------------------------------
+
+		Stopwatch rendererTimer =
+			Stopwatch.StartNew();
 
 		renderer.Update(
 			particles,
 			densityField
 		);
+
+		rendererTimer.Stop();
+
+		fullRendererTime +=
+			rendererTimer.Elapsed.TotalMilliseconds;
+
+		// --------------------------------------------------------
+		// Stop entire PhysicsProcess timer
+		// --------------------------------------------------------
+
+		physicsTimer.Stop();
+
+		fullPhysicsTime +=
+			physicsTimer.Elapsed.TotalMilliseconds;
+
+		fullProfilerFrames++;
+
+		// --------------------------------------------------------
+		// Print profiler
+		// --------------------------------------------------------
+
+		if (fullProfilerFrames >=
+			FullProfilerInterval)
+		{
+			PrintFullProfiler();
+
+			ResetFullProfiler();
+		}
+	}
+
+	// ------------------------------------------------------------
+	// Full profiler output
+	// ------------------------------------------------------------
+
+	private void PrintFullProfiler()
+	{
+		double frameCount =
+			fullProfilerFrames;
+
+		double physicsMs =
+			fullPhysicsTime /
+			frameCount;
+
+		double spawnMs =
+			fullSpawnTime /
+			frameCount;
+
+		double pbfMs =
+			fullPbfTime /
+			frameCount;
+
+		double densityMs =
+			fullDensityTime /
+			frameCount;
+
+		double rendererMs =
+			fullRendererTime /
+			frameCount;
+
+		double measuredWork =
+			spawnMs +
+			pbfMs +
+			densityMs +
+			rendererMs;
+
+		double otherMs =
+			physicsMs -
+			measuredWork;
+
+		if (otherMs < 0.0)
+			otherMs = 0.0;
+
+		// This is the actual rendered FPS.
+		double fps =
+			Engine.GetFramesPerSecond();
+
+		// Theoretical FPS based ONLY on our
+		// measured PhysicsProcess duration.
+		double physicsFps =
+			physicsMs > 0.001
+				? 1000.0 / physicsMs
+				: 0.0;
+
+		GD.Print(
+			"========================================"
+		);
+
+		GD.Print(
+			"FULL FRAME PROFILER " +
+			"(avg over " +
+			fullProfilerFrames +
+			" physics frames)"
+		);
+
+		GD.Print(
+			"Particles=" +
+			particles.Count
+		);
+
+		GD.Print(
+			"RenderedFPS=" +
+			fps.ToString("F1")
+		);
+
+		GD.Print(
+			"PhysicsFPS=" +
+			physicsFps.ToString("F1")
+		);
+
+		GD.Print(
+			"PhysicsProcess=" +
+			physicsMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Spawn=" +
+			spawnMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  PBF=" +
+			pbfMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Density=" +
+			densityMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Renderer=" +
+			rendererMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Other=" +
+			otherMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"MeasuredWork=" +
+			measuredWork.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"========================================"
+		);
+	}
+
+	// ------------------------------------------------------------
+	// Reset profiler
+	// ------------------------------------------------------------
+
+	private void ResetFullProfiler()
+	{
+		fullProfilerFrames = 0;
+
+		fullPhysicsTime = 0.0;
+
+		fullSpawnTime = 0.0;
+		fullPbfTime = 0.0;
+		fullDensityTime = 0.0;
+		fullRendererTime = 0.0;
 	}
 
 	// ------------------------------------------------------------
@@ -183,7 +415,6 @@ public partial class FluidSimulator : Node2D
 			0.0f
 		);
 
-		// Move to the next emitter position.
 		emitterIndex++;
 
 		if (emitterIndex >=
