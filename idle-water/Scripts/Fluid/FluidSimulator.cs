@@ -13,7 +13,7 @@ public partial class FluidSimulator : Node2D
 	// Maximum number of particles
 	// ------------------------------------------------------------
 
-	private const int ParticleCount = 10000;
+	private const int ParticleCount = 4000;
 
 	// ------------------------------------------------------------
 	// Density rendering grid

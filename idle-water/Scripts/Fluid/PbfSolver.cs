@@ -1,4 +1,3 @@
-
 using Godot;
 using System;
 using System.Diagnostics;
@@ -37,7 +36,7 @@ public class PbfSolver
 	private const int MinIterations = 2;
 	private const int MaxIterations = 3;
 
-	private const float DensityErrorThreshold = 0.035f;
+	private const float DensityErrorThreshold = 0.75f;
 
 	private const float MaxCorrection = 0.5f;
 
@@ -48,7 +47,23 @@ public class PbfSolver
 	// Stability
 	// ============================================================
 
-	private const float VelocityDamping = 0.995f;
+	private const float VelocityDamping = 0.9925f;
+
+	// ============================================================
+	// Impact damping
+	//
+	// Only the velocity component pointing OUT of a collision
+	// surface is damped.
+	//
+	// Tangential velocity is preserved.
+	//
+	// 0.0 = no impact damping
+	// 1.0 = completely remove outgoing normal velocity
+	// ============================================================
+
+	private const float ImpactDamping = 0.65f;
+
+	private const float ImpactNormalEpsilon = 0.0001f;
 
 	// ============================================================
 	// Sleeping
@@ -108,6 +123,20 @@ public class PbfSolver
 	private bool[] sleeping;
 
 	public bool[] SurfaceParticles;
+
+	// ============================================================
+	// Collision impact data
+	//
+	// These arrays store the collision normal generated during
+	// the current simulation step.
+	//
+	// A zero normal means the particle did not collide.
+	// ============================================================
+
+	private float[] impactNormalX;
+	private float[] impactNormalY;
+
+	private bool[] impacted;
 
 	// ============================================================
 	// Neighbor cache
@@ -225,6 +254,28 @@ public class PbfSolver
 			particles.PredY;
 
 		// ========================================================
+		// Reset collision state
+		// ========================================================
+
+		Array.Clear(
+			impacted,
+			0,
+			count
+		);
+
+		Array.Clear(
+			impactNormalX,
+			0,
+			count
+		);
+
+		Array.Clear(
+			impactNormalY,
+			0,
+			count
+		);
+
+		// ========================================================
 		// Predict positions
 		// ========================================================
 
@@ -256,7 +307,54 @@ public class PbfSolver
 			Stopwatch.Frequency;
 
 		// ========================================================
-		// PBF
+		// Build neighbor topology ONCE
+		// ========================================================
+
+		long buildStart =
+			Stopwatch.GetTimestamp();
+
+		hash.Clear();
+
+		for (int i = 0; i < count; i++)
+		{
+			hash.Insert(
+				i,
+				predX[i],
+				predY[i]
+			);
+		}
+
+		long buildEnd =
+			Stopwatch.GetTimestamp();
+
+		accumBuildMs +=
+			(buildEnd - buildStart) *
+			1000.0 /
+			Stopwatch.Frequency;
+
+		// ========================================================
+		// Full neighbor topology construction
+		// ========================================================
+
+		long neighborsStart =
+			Stopwatch.GetTimestamp();
+
+		BuildNeighborCache(
+			predX,
+			predY,
+			count
+		);
+
+		long neighborsEnd =
+			Stopwatch.GetTimestamp();
+
+		accumNeighborsMs +=
+			(neighborsEnd - neighborsStart) *
+			1000.0 /
+			Stopwatch.Frequency;
+
+		// ========================================================
+		// PBF iterations
 		// ========================================================
 
 		int iterationsUsed = 0;
@@ -271,90 +369,13 @@ public class PbfSolver
 		{
 			iterationsUsed++;
 
-			// ====================================================
-			// Neighbor topology
-			//
-			// Iteration 1:
-			//     Build everything from the spatial hash.
-			//
-			// Iteration 2:
-			//     Reuse neighbor indices.
-			//     Only recalculate distances/kernel values.
-			//
-			// Iteration 3:
-			//     Rebuild the topology because enough position
-			//     corrections may have accumulated that particles
-			//     can enter/leave the smoothing radius.
-			// ====================================================
+			// ----------------------------------------------------
+			// Update neighbor geometry
+			// ----------------------------------------------------
 
-			bool rebuildNeighbors =
-				iteration == 0 ||
-				iteration == 2;
-
-			if (rebuildNeighbors)
+			if (iteration > 0)
 			{
-				// ------------------------------------------------
-				// Spatial hash
-				// ------------------------------------------------
-
-				long buildStart =
-					Stopwatch.GetTimestamp();
-
-				hash.Clear();
-
-				for (int i = 0; i < count; i++)
-				{
-					hash.Insert(
-						i,
-						predX[i],
-						predY[i]
-					);
-				}
-
-				long buildEnd =
-					Stopwatch.GetTimestamp();
-
-				accumBuildMs +=
-					(buildEnd - buildStart) *
-					1000.0 /
-					Stopwatch.Frequency;
-
-				// ------------------------------------------------
-				// Full neighbor construction
-				// ------------------------------------------------
-
-				long neighborsStart =
-					Stopwatch.GetTimestamp();
-
-				BuildNeighborCache(
-					predX,
-					predY,
-					count
-				);
-
-				long neighborsEnd =
-					Stopwatch.GetTimestamp();
-
-				accumNeighborsMs +=
-					(neighborsEnd - neighborsStart) *
-					1000.0 /
-					Stopwatch.Frequency;
-			}
-			else
-			{
-				// ------------------------------------------------
-				// Fast neighbor update
-				//
-				// The topology is reused. This avoids:
-				//
-				// hash.Clear()
-				// hash.Insert(...)
-				// hash.Query(...)
-				//
-				// on the second iteration.
-				// ------------------------------------------------
-
-				long neighborsStart =
+				long updateStart =
 					Stopwatch.GetTimestamp();
 
 				UpdateNeighborCache(
@@ -363,24 +384,26 @@ public class PbfSolver
 					count
 				);
 
-				long neighborsEnd =
+				long updateEnd =
 					Stopwatch.GetTimestamp();
 
 				accumNeighborsMs +=
-					(neighborsEnd - neighborsStart) *
+					(updateEnd - updateStart) *
 					1000.0 /
 					Stopwatch.Frequency;
 			}
 
-			// ====================================================
+			// ----------------------------------------------------
 			// Phase A
-			// ====================================================
+			// ----------------------------------------------------
 
 			long phaseAStart =
 				Stopwatch.GetTimestamp();
 
 			frameDensityError =
-				CalculateLambdas(count);
+				CalculateLambdas(
+					count
+				);
 
 			long phaseAEnd =
 				Stopwatch.GetTimestamp();
@@ -398,9 +421,9 @@ public class PbfSolver
 					frameDensityError;
 			}
 
-			// ====================================================
+			// ----------------------------------------------------
 			// Position correction
-			// ====================================================
+			// ----------------------------------------------------
 
 			long correctionStart =
 				Stopwatch.GetTimestamp();
@@ -419,9 +442,9 @@ public class PbfSolver
 				1000.0 /
 				Stopwatch.Frequency;
 
-			// ====================================================
+			// ----------------------------------------------------
 			// Polygon collision
-			// ====================================================
+			// ----------------------------------------------------
 
 			if (polygonColliders.Count > 0)
 			{
@@ -443,9 +466,9 @@ public class PbfSolver
 					Stopwatch.Frequency;
 			}
 
-			// ====================================================
+			// ----------------------------------------------------
 			// World bounds
-			// ====================================================
+			// ----------------------------------------------------
 
 			long boundsStart =
 				Stopwatch.GetTimestamp();
@@ -464,16 +487,9 @@ public class PbfSolver
 				1000.0 /
 				Stopwatch.Frequency;
 
-			// ====================================================
-			// Adaptive exit
-			//
-			// Always perform two iterations.
-			//
-			// If density is good enough after iteration two,
-			// stop there.
-			//
-			// Otherwise iteration three is performed.
-			// ====================================================
+			// ----------------------------------------------------
+			// Adaptive iteration exit
+			// ----------------------------------------------------
 
 			if (
 				iteration + 1 >= MinIterations &&
@@ -630,6 +646,26 @@ public class PbfSolver
 			}
 
 			// ----------------------------------------------------
+			// Polygon impact damping
+			//
+			// This happens AFTER velocity reconstruction.
+			//
+			// Only the velocity component pointing away from the
+			// collision surface is reduced.
+			//
+			// Tangential velocity is preserved.
+			// ----------------------------------------------------
+
+			if (impacted[i])
+			{
+				ApplyImpactDamping(
+					i,
+					ref finalVelocityX,
+					ref finalVelocityY
+				);
+			}
+
+			// ----------------------------------------------------
 			// Sleep
 			// ----------------------------------------------------
 
@@ -708,7 +744,8 @@ public class PbfSolver
 				lambdas[i];
 
 			int end =
-				offset + neighborCount;
+				offset +
+				neighborCount;
 
 			for (
 				int index = offset;
@@ -831,11 +868,6 @@ public class PbfSolver
 
 	// ============================================================
 	// Fast neighbor cache update
-	//
-	// Reuses the neighbor indices from the previous iteration.
-	//
-	// This is much cheaper than rebuilding the spatial hash and
-	// running hash.Query() again.
 	// ============================================================
 
 	private void UpdateNeighborCache(
@@ -928,6 +960,23 @@ public class PbfSolver
 			}
 
 			// ----------------------------------------------------
+			// Outside radius
+			// ----------------------------------------------------
+
+			if (
+				distanceSquared >=
+				SmoothingRadiusSquared)
+			{
+				neighborQ[index] =
+					0.0f;
+
+				neighborGradientScale[index] =
+					0.0f;
+
+				continue;
+			}
+
+			// ----------------------------------------------------
 			// Distance
 			// ----------------------------------------------------
 
@@ -1012,7 +1061,6 @@ public class PbfSolver
 				float q =
 					neighborQ[index];
 
-				// q³
 				density +=
 					q * q * q;
 
@@ -1095,6 +1143,12 @@ public class PbfSolver
 					predY[i]
 				);
 
+			Vector2 accumulatedNormal =
+				Vector2.Zero;
+
+			bool particleImpacted =
+				false;
+
 			for (
 				int c = 0;
 				c < colliderCount;
@@ -1105,6 +1159,9 @@ public class PbfSolver
 
 				if (collider == null)
 					continue;
+
+				Vector2 before =
+					position;
 
 				if (
 					!collider.ResolveCollision(
@@ -1120,6 +1177,23 @@ public class PbfSolver
 
 				position =
 					correctedPosition;
+
+				// ------------------------------------------------
+				// Accumulate collision normal.
+				//
+				// Multiple colliders can affect one particle.
+				// ------------------------------------------------
+
+				if (
+					normal.LengthSquared() >
+					ImpactNormalEpsilon)
+				{
+					accumulatedNormal +=
+						normal;
+
+					particleImpacted =
+						true;
+				}
 			}
 
 			predX[i] =
@@ -1127,7 +1201,98 @@ public class PbfSolver
 
 			predY[i] =
 				position.Y;
+
+			if (particleImpacted)
+			{
+				float normalLengthSquared =
+					accumulatedNormal.LengthSquared();
+
+				if (
+					normalLengthSquared >
+					ImpactNormalEpsilon)
+				{
+					float inverseLength =
+						1.0f /
+						Mathf.Sqrt(
+							normalLengthSquared
+						);
+
+					accumulatedNormal *=
+						inverseLength;
+
+					impactNormalX[i] =
+						accumulatedNormal.X;
+
+					impactNormalY[i] =
+						accumulatedNormal.Y;
+
+					impacted[i] =
+						true;
+				}
+			}
 		}
+	}
+
+	// ============================================================
+	// Impact damping
+	//
+	// Damps ONLY the velocity component pointing away from the
+	// collision surface.
+	//
+	// Example:
+	//
+	// Floor normal = (0,-1)
+	//
+	// Velocity = (0,-100)
+	//
+	// This is outgoing velocity from the floor and gets reduced.
+	//
+	// Horizontal velocity remains unchanged.
+	// ============================================================
+
+	private void ApplyImpactDamping(
+		int i,
+		ref float velocityX,
+		ref float velocityY)
+	{
+		float normalX =
+			impactNormalX[i];
+
+		float normalY =
+			impactNormalY[i];
+
+		float normalVelocity =
+			velocityX * normalX +
+			velocityY * normalY;
+
+		// --------------------------------------------------------
+		// Positive normal velocity means the particle is moving
+		// OUT of the collision surface.
+		//
+		// Only this component is damped.
+		// --------------------------------------------------------
+
+		if (
+			normalVelocity <= 0.0f)
+		{
+			return;
+		}
+
+		float dampedNormalVelocity =
+			normalVelocity *
+			(1.0f - ImpactDamping);
+
+		float velocityChange =
+			normalVelocity -
+			dampedNormalVelocity;
+
+		velocityX -=
+			normalX *
+			velocityChange;
+
+		velocityY -=
+			normalY *
+			velocityChange;
 	}
 
 	// ============================================================
@@ -1227,14 +1392,42 @@ public class PbfSolver
 				predY[i];
 
 			if (x < left)
+			{
 				x = left;
+
+				impacted[i] = true;
+
+				impactNormalX[i] = 1.0f;
+				impactNormalY[i] = 0.0f;
+			}
 			else if (x > right)
+			{
 				x = right;
 
+				impacted[i] = true;
+
+				impactNormalX[i] = -1.0f;
+				impactNormalY[i] = 0.0f;
+			}
+
 			if (y < top)
+			{
 				y = top;
+
+				impacted[i] = true;
+
+				impactNormalX[i] = 0.0f;
+				impactNormalY[i] = 1.0f;
+			}
 			else if (y > bottom)
+			{
 				y = bottom;
+
+				impacted[i] = true;
+
+				impactNormalX[i] = 0.0f;
+				impactNormalY[i] = -1.0f;
+			}
 
 			predX[i] =
 				x;
@@ -1271,6 +1464,15 @@ public class PbfSolver
 			new bool[count];
 
 		SurfaceParticles =
+			new bool[count];
+
+		impactNormalX =
+			new float[count];
+
+		impactNormalY =
+			new float[count];
+
+		impacted =
 			new bool[count];
 
 		neighborOffsets =
