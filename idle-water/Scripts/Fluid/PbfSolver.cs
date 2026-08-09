@@ -831,16 +831,15 @@ public class PbfSolver
 			);
 
 			int neighborCount =
-				hash.Query(
-					px,
-					py,
-					SmoothingRadius,
-					predX,
-					predY,
-					neighborBuffer,
-					bufferWritePosition,
-					MaxNeighbors
-				);
+	hash.QueryPbf(
+		px,
+		py,
+		predX,
+		predY,
+		neighborBuffer,
+		bufferWritePosition,
+		MaxNeighbors
+	);
 
 			neighborOffsets[i] =
 				bufferWritePosition;

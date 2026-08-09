@@ -1,571 +1,444 @@
-
 using Godot;
 using System;
 
-public class SpatialHash
+public sealed class SpatialHash
 {
-	// ============================================================
-	// Configuration
-	// ============================================================
+// ============================================================
+// Configuration
+// ============================================================
 
-	private readonly float cellSize;
-	private readonly float invCellSize;
 
-	private readonly int width;
-	private readonly int height;
+// Must be >= PBF smoothing radius.
+//
+// Your PBF uses:
+//     SmoothingRadius = 12
+//
+// Therefore 12 is the ideal cell size because a query only
+// needs the 3x3 cells surrounding the particle.
+// ============================================================
 
-	// ============================================================
-	// Hash storage
-	// ============================================================
+private const float CellSize = 12.0f;
+private const float InverseCellSize = 1.0f / CellSize;
 
-	private readonly int[] head;
-	private readonly int[] next;
+private const int MaxNeighborsPerQuery = 40;
 
-	// ============================================================
-	// Compatibility API
-	// ============================================================
+// ============================================================
+// Hash table
+// ============================================================
 
-	private int[] compatibilityResults =
-		new int[32];
+// Power-of-two table allows:
+//
+//     hash & (capacity - 1)
+//
+// instead of modulo.
+// ============================================================
 
-	private int compatibilityResultCount;
+private const int HashCapacity = 8192;
+private const int HashMask = HashCapacity - 1;
 
-	// ============================================================
-	// Constructor
-	// ============================================================
+// ============================================================
+// World
+// ============================================================
 
-	public SpatialHash(
-		int maxParticles,
-		float cellSize,
-		int width,
-		int height)
-	{
-		this.cellSize = cellSize;
-		this.invCellSize = 1.0f / cellSize;
+private const float WorldMinX = 0.0f;
+private const float WorldMinY = 0.0f;
 
-		this.width = width;
-		this.height = height;
+// ============================================================
+// Bucket storage
+//
+// Each hash bucket is a linked list.
+//
+// head[bucket] -> particle index
+//
+// next[particle] -> next particle in same bucket
+// ============================================================
 
-		head =
-			new int[width * height];
+private readonly int[] heads;
+private int[] next;
 
-		next =
-			new int[maxParticles];
+// ============================================================
+// Constructor
+// ============================================================
 
-		Clear();
-	}
+public SpatialHash(int particleCapacity)
+{
+	if (particleCapacity < 1)
+		particleCapacity = 1;
 
-	// ============================================================
-	// Clear
-	// ============================================================
+	heads =
+		new int[HashCapacity];
 
-	public void Clear()
-	{
-		Array.Fill(head, -1);
-	}
+	next =
+		new int[particleCapacity];
 
-	// ============================================================
-	// Insert
-	// ============================================================
+	Clear();
+}
 
-	public void Insert(
-		int id,
-		Vector2 position)
-	{
-		Insert(
-			id,
-			position.X,
-			position.Y
+// ============================================================
+// Clear
+// ============================================================
+
+public void Clear()
+{
+	// -1 means bucket is empty.
+	Array.Fill(heads, -1);
+}
+
+// ============================================================
+// Ensure particle capacity
+// ============================================================
+
+private void EnsureParticleCapacity(int required)
+{
+	if (next.Length >= required)
+		return;
+
+	int newCapacity =
+		next.Length * 2;
+
+	if (newCapacity < required)
+		newCapacity = required;
+
+	if (newCapacity < 1)
+		newCapacity = 1;
+
+	Array.Resize(
+		ref next,
+		newCapacity
+	);
+}
+
+// ============================================================
+// Insert
+// ============================================================
+
+public void Insert(
+	int particleIndex,
+	float x,
+	float y)
+{
+	EnsureParticleCapacity(
+		particleIndex + 1
+	);
+
+	int cellX =
+		FastFloorToInt(
+			(x - WorldMinX) *
+			InverseCellSize
 		);
-	}
 
-	public void Insert(
-		int id,
-		float posX,
-		float posY)
-	{
-		int cellX =
-			(int)(posX * invCellSize);
-
-		int cellY =
-			(int)(posY * invCellSize);
-
-		if (
-			cellX < 0 ||
-			cellY < 0 ||
-			cellX >= width ||
-			cellY >= height)
-		{
-			next[id] = -1;
-			return;
-		}
-
-		int cellIndex =
-			cellY * width + cellX;
-
-		next[id] =
-			head[cellIndex];
-
-		head[cellIndex] =
-			id;
-	}
-
-	// ============================================================
-	// Optimized PBF Query
-	//
-	// Hot path used by PbfSolver.
-	//
-	// This version is optimized for the current PBF setup:
-	//
-	//     smoothing radius = cell size
-	//
-	// Therefore a particle can only have neighbors in its
-	// own cell plus the surrounding 8 cells.
-	//
-	// We still perform the exact squared-distance test, so
-	// the returned neighbor set is unchanged.
-	// ============================================================
-
-	public int QueryPbf(
-		float posX,
-		float posY,
-		float radius,
-		float[] positionsX,
-		float[] positionsY,
-		int[] output,
-		int outputStart,
-		int maxResults)
-	{
-		if (maxResults <= 0)
-			return 0;
-
-		int capacity =
-			output.Length -
-			outputStart;
-
-		if (capacity <= 0)
-			return 0;
-
-		if (maxResults > capacity)
-			maxResults = capacity;
-
-		// --------------------------------------------------------
-		// Radius squared
-		// --------------------------------------------------------
-
-		float radiusSquared =
-			radius * radius;
-
-		// --------------------------------------------------------
-		// Particle's hash cell.
-		//
-		// We deliberately calculate the center cell only once.
-		// --------------------------------------------------------
-
-		int centerX =
-			(int)(posX * invCellSize);
-
-		int centerY =
-			(int)(posY * invCellSize);
-
-		// --------------------------------------------------------
-		// If the particle is outside the hash, there can be
-		// no valid neighbors.
-		// --------------------------------------------------------
-
-		if (
-			centerX < 0 ||
-			centerY < 0 ||
-			centerX >= width ||
-			centerY >= height)
-		{
-			return 0;
-		}
-
-		// --------------------------------------------------------
-		// Calculate query cell range.
-		//
-		// We keep this generic enough that radius may be slightly
-		// different from cellSize.
-		//
-		// For the current setup this normally becomes 3x3.
-		// --------------------------------------------------------
-
-		int minX =
-			(int)((posX - radius) * invCellSize);
-
-		int maxX =
-			(int)((posX + radius) * invCellSize);
-
-		int minY =
-			(int)((posY - radius) * invCellSize);
-
-		int maxY =
-			(int)((posY + radius) * invCellSize);
-
-		if (minX < 0)
-			minX = 0;
-
-		if (minY < 0)
-			minY = 0;
-
-		if (maxX >= width)
-			maxX = width - 1;
-
-		if (maxY >= height)
-			maxY = height - 1;
-
-		if (
-			minX > maxX ||
-			minY > maxY)
-		{
-			return 0;
-		}
-
-		// --------------------------------------------------------
-		// Local references.
-		//
-		// These reduce repeated field accesses inside the hot
-		// loops.
-		// --------------------------------------------------------
-
-		int[] localHead =
-			head;
-
-		int[] localNext =
-			next;
-
-		float[] localPosX =
-			positionsX;
-
-		float[] localPosY =
-			positionsY;
-
-		// --------------------------------------------------------
-		// Search.
-		// --------------------------------------------------------
-
-		int count = 0;
-
-		int writeIndex =
-			outputStart;
-
-		for (
-			int cellY = minY;
-			cellY <= maxY;
-			cellY++)
-		{
-			int cellIndex =
-				cellY * width +
-				minX;
-
-			for (
-				int cellX = minX;
-				cellX <= maxX;
-				cellX++,
-				cellIndex++)
-			{
-				int particle =
-					localHead[cellIndex];
-
-				while (particle != -1)
-				{
-					float dx =
-						posX -
-						localPosX[particle];
-
-					float dy =
-						posY -
-						localPosY[particle];
-
-					float distanceSquared =
-						dx * dx +
-						dy * dy;
-
-					if (
-						distanceSquared <
-						radiusSquared)
-					{
-						output[writeIndex++] =
-							particle;
-
-						count++;
-
-						if (count >= maxResults)
-							return count;
-					}
-
-					particle =
-						localNext[particle];
-				}
-			}
-		}
-
-		return count;
-	}
-
-	// ============================================================
-	// Standard PBF Query
-	//
-	// Kept for compatibility with existing code.
-	// ============================================================
-
-	public int Query(
-		float posX,
-		float posY,
-		float radius,
-		float[] positionsX,
-		float[] positionsY,
-		int[] output,
-		int outputStart,
-		int maxResults)
-	{
-		if (maxResults <= 0)
-			return 0;
-
-		int capacity =
-			output.Length -
-			outputStart;
-
-		if (capacity <= 0)
-			return 0;
-
-		if (maxResults > capacity)
-			maxResults = capacity;
-
-		float radiusSquared =
-			radius * radius;
-
-		int minCellX =
-			(int)((posX - radius) * invCellSize);
-
-		int maxCellX =
-			(int)((posX + radius) * invCellSize);
-
-		int minCellY =
-			(int)((posY - radius) * invCellSize);
-
-		int maxCellY =
-			(int)((posY + radius) * invCellSize);
-
-		if (minCellX < 0)
-			minCellX = 0;
-
-		if (minCellY < 0)
-			minCellY = 0;
-
-		if (maxCellX >= width)
-			maxCellX = width - 1;
-
-		if (maxCellY >= height)
-			maxCellY = height - 1;
-
-		if (
-			minCellX > maxCellX ||
-			minCellY > maxCellY)
-		{
-			return 0;
-		}
-
-		int count = 0;
-
-		int writeIndex =
-			outputStart;
-
-		for (
-			int cellY = minCellY;
-			cellY <= maxCellY;
-			cellY++)
-		{
-			int cellIndex =
-				cellY * width +
-				minCellX;
-
-			for (
-				int cellX = minCellX;
-				cellX <= maxCellX;
-				cellX++,
-				cellIndex++)
-			{
-				int particle =
-					head[cellIndex];
-
-				while (particle != -1)
-				{
-					float dx =
-						posX -
-						positionsX[particle];
-
-					float dy =
-						posY -
-						positionsY[particle];
-
-					float distanceSquared =
-						dx * dx +
-						dy * dy;
-
-					if (
-						distanceSquared <
-						radiusSquared)
-					{
-						output[writeIndex++] =
-							particle;
-
-						count++;
-
-						if (count >= maxResults)
-							return count;
-					}
-
-					particle =
-						next[particle];
-				}
-			}
-		}
-
-		return count;
-	}
-
-	// ============================================================
-	// Convenience PBF Query
-	// ============================================================
-
-	public int Query(
-		float posX,
-		float posY,
-		float radius,
-		float[] positionsX,
-		float[] positionsY,
-		int[] output)
-	{
-		return Query(
-			posX,
-			posY,
-			radius,
-			positionsX,
-			positionsY,
-			output,
-			0,
-			output.Length
+	int cellY =
+		FastFloorToInt(
+			(y - WorldMinY) *
+			InverseCellSize
 		);
-	}
 
-	// ============================================================
-	// Compatibility Query
-	//
-	// Older project code can continue using this API.
-	//
-	// It intentionally returns all particles in candidate cells
-	// without performing the actual distance test.
-	// ============================================================
-
-	public int Query(
-		Vector2 position,
-		float radius)
-	{
-		return Query(
-			position.X,
-			position.Y,
-			radius
+	int bucket =
+		HashCell(
+			cellX,
+			cellY
 		);
-	}
 
-	public int Query(
-		float posX,
-		float posY,
-		float radius)
+	next[particleIndex] =
+		heads[bucket];
+
+	heads[bucket] =
+		particleIndex;
+}
+
+// ============================================================
+// PBF query
+//
+// Finds particles within radius.
+//
+// IMPORTANT:
+//
+// This method intentionally does NOT allocate.
+//
+// The caller provides the output array and write offset.
+// ============================================================
+
+public int QueryPbf(
+	float px,
+	float py,
+	float radius,
+	float[] positionsX,
+	float[] positionsY,
+	int[] output,
+	int outputOffset,
+	int maxNeighbors)
+{
+	if (maxNeighbors <= 0)
+		return 0;
+
+	// --------------------------------------------------------
+	// Calculate center cell
+	// --------------------------------------------------------
+
+	int centerCellX =
+		FastFloorToInt(
+			(px - WorldMinX) *
+			InverseCellSize
+		);
+
+	int centerCellY =
+		FastFloorToInt(
+			(py - WorldMinY) *
+			InverseCellSize
+		);
+
+	// --------------------------------------------------------
+	// Because the cell size is equal to the smoothing radius,
+	// we only need:
+	//
+	//     X = -1, 0, +1
+	//     Y = -1, 0, +1
+	//
+	// --------------------------------------------------------
+
+	int minCellX =
+		centerCellX - 1;
+
+	int maxCellX =
+		centerCellX + 1;
+
+	int minCellY =
+		centerCellY - 1;
+
+	int maxCellY =
+		centerCellY + 1;
+
+	float radiusSquared =
+		radius * radius;
+
+	int count = 0;
+
+	// ========================================================
+	// 3x3 cell traversal
+	// ========================================================
+
+	for (
+		int cellY = minCellY;
+		cellY <= maxCellY;
+		cellY++)
 	{
-		compatibilityResultCount =
-			0;
-
-		int minCellX =
-			(int)((posX - radius) * invCellSize);
-
-		int maxCellX =
-			(int)((posX + radius) * invCellSize);
-
-		int minCellY =
-			(int)((posY - radius) * invCellSize);
-
-		int maxCellY =
-			(int)((posY + radius) * invCellSize);
-
-		if (minCellX < 0)
-			minCellX = 0;
-
-		if (minCellY < 0)
-			minCellY = 0;
-
-		if (maxCellX >= width)
-			maxCellX = width - 1;
-
-		if (maxCellY >= height)
-			maxCellY = height - 1;
-
-		if (
-			minCellX > maxCellX ||
-			minCellY > maxCellY)
-		{
-			return 0;
-		}
-
 		for (
-			int cellY = minCellY;
-			cellY <= maxCellY;
-			cellY++)
+			int cellX = minCellX;
+			cellX <= maxCellX;
+			cellX++)
 		{
-			int cellIndex =
-				cellY * width +
-				minCellX;
+			int bucket =
+				HashCell(
+					cellX,
+					cellY
+				);
 
-			for (
-				int cellX = minCellX;
-				cellX <= maxCellX;
-				cellX++,
-				cellIndex++)
+			int particle =
+				heads[bucket];
+
+			while (particle != -1)
 			{
-				int particle =
-					head[cellIndex];
+				// ------------------------------------------------
+				// Don't calculate the distance if the output
+				// buffer is already full.
+				// ------------------------------------------------
 
-				while (particle != -1)
+				if (count >= maxNeighbors)
+					return count;
+
+				float dx =
+					px -
+					positionsX[particle];
+
+				float dy =
+					py -
+					positionsY[particle];
+
+				float distanceSquared =
+					dx * dx +
+					dy * dy;
+
+				if (
+					distanceSquared <=
+					radiusSquared)
 				{
-					if (
-						compatibilityResultCount >=
-						compatibilityResults.Length)
-					{
-						int newSize =
-							compatibilityResults.Length * 2;
-
-						if (newSize < 1)
-							newSize = 1;
-
-						Array.Resize(
-							ref compatibilityResults,
-							newSize
-						);
-					}
-
-					compatibilityResults[
-						compatibilityResultCount++
+					output[
+						outputOffset +
+						count
 					] =
 						particle;
 
-					particle =
-						next[particle];
+					count++;
 				}
+
+				particle =
+					next[particle];
 			}
 		}
-
-		return compatibilityResultCount;
 	}
 
-	// ============================================================
-	// Compatibility result access
-	// ============================================================
+	return count;
+}
 
-	public int GetResult(
-		int index)
+// ============================================================
+// Optimized PBF query
+//
+// This overload avoids recalculating radiusSquared when the
+// caller already uses the standard PBF smoothing radius.
+//
+// Kept separate so the existing PbfSolver remains compatible.
+// ============================================================
+
+public int QueryPbf(
+	float px,
+	float py,
+	float[] positionsX,
+	float[] positionsY,
+	int[] output,
+	int outputOffset,
+	int maxNeighbors)
+{
+	const float radiusSquared =
+		12.0f * 12.0f;
+
+	int centerCellX =
+		FastFloorToInt(
+			px *
+			InverseCellSize
+		);
+
+	int centerCellY =
+		FastFloorToInt(
+			py *
+			InverseCellSize
+		);
+
+	int count = 0;
+
+	// ========================================================
+	// 3x3 cells
+	// ========================================================
+
+	for (
+		int cellY = centerCellY - 1;
+		cellY <= centerCellY + 1;
+		cellY++)
 	{
-		return compatibilityResults[index];
+		for (
+			int cellX = centerCellX - 1;
+			cellX <= centerCellX + 1;
+			cellX++)
+		{
+			int bucket =
+				HashCell(
+					cellX,
+					cellY
+				);
+
+			int particle =
+				heads[bucket];
+
+			while (particle != -1)
+			{
+				if (count >= maxNeighbors)
+					return count;
+
+				float dx =
+					px -
+					positionsX[particle];
+
+				float dy =
+					py -
+					positionsY[particle];
+
+				float distanceSquared =
+					dx * dx +
+					dy * dy;
+
+				if (
+					distanceSquared <=
+					radiusSquared)
+				{
+					output[
+						outputOffset +
+						count
+					] =
+						particle;
+
+					count++;
+				}
+
+				particle =
+					next[particle];
+			}
+		}
 	}
+
+	return count;
+}
+
+// ============================================================
+// Hash
+// ============================================================
+
+private static int HashCell(
+	int cellX,
+	int cellY)
+{
+	unchecked
+	{
+		// Two large odd constants.
+		//
+		// The final bit mask is extremely cheap and produces
+		// good distribution for the relatively small fluid
+		// world used by this simulation.
+
+		uint hash =
+			(uint)(
+				cellX *
+				73856093
+			);
+
+		hash ^=
+			(uint)(
+				cellY *
+				19349663
+			);
+
+		hash ^=
+			hash >> 13;
+
+		hash *=
+			0x5bd1e995u;
+
+		hash ^=
+			hash >> 15;
+
+		return (int)(
+			hash &
+			HashMask
+		);
+	}
+}
+
+// ============================================================
+// Fast floor
+//
+// Coordinates can be negative, so this intentionally handles
+// negative values correctly.
+// ============================================================
+
+private static int FastFloorToInt(
+	float value)
+{
+	int integer =
+		(int)value;
+
+	if (value < integer)
+		return integer - 1;
+
+	return integer;
+}
+
+
 }

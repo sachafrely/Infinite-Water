@@ -49,10 +49,6 @@ public partial class FluidSimulator : Node2D
 	// Spatial hash
 	// ------------------------------------------------------------
 
-	private const float SmoothingRadius = 12.0f;
-	private const float HashCellSize = SmoothingRadius;
-	private const int HashWidth = 60;
-	private const int HashHeight = 110;
 
 	// ------------------------------------------------------------
 	// Emitter
@@ -104,12 +100,9 @@ public partial class FluidSimulator : Node2D
 			);
 
 		hash =
-			new SpatialHash(
-				ParticleCount,
-				HashCellSize,
-				HashWidth,
-				HashHeight
-			);
+	new SpatialHash(
+		ParticleCount
+	);
 
 		solver =
 	new PbfSolver(hash);
