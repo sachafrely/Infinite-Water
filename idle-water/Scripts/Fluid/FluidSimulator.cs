@@ -6,12 +6,12 @@ public partial class FluidSimulator : Node2D
 	private SpatialHash hash;
 	private PbfSolver solver;
 	private FluidRenderer renderer;	
-	private const int ParticleCount = 2000;
+	private const int ParticleCount = 1000;
 	
 	private DensityField densityField;
 	private const int DensityWidth = 180;
 	private const int DensityHeight = 320;
-	private const float DensityCellSize = 4.0f;
+	private const float DensityCellSize = 16.0f;
 
 	// Simulation world (use viewport-sized coordinates).
 	private const float WorldWidth = 720.0f;
@@ -95,13 +95,8 @@ public override void _PhysicsProcess(double delta)
 	float dt = (float)delta;
 
 	solver.Solve(particles, dt);
-
-	solver.BuildDensityField(
-		particles,
-		densityField
-	);
-
-	renderer.UpdateParticles(particles);
+	solver.BuildDensityField(particles,densityField);
+	renderer.UpdateParticles(particles,solver.SurfaceParticles);
 	}
 
 }

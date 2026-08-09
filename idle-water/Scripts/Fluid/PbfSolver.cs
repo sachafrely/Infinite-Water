@@ -13,7 +13,7 @@ public class PbfSolver
 
 	private const float Gravity = 200f;
 	private const float SmoothingRadius = 12.0f;
-	private const float Viscosity = 0.1f;
+	private const float Viscosity = 0.4f;
 	private const float SurfaceTension = 18.0f;
 
 	// Minimum surface-normal strength before we consider
@@ -61,6 +61,8 @@ public class PbfSolver
 	
 	private float[] surfaceVelocityX;
 	private float[] surfaceVelocityY;
+	
+	public bool[] SurfaceParticles;
 	
 	private int[] neighborBuffer;
 	private int[] neighborOffsets;
@@ -734,11 +736,13 @@ for (int i = 0; i < count; i++)
 
 	if (normalLength < SurfaceThreshold)
 	{
+		SurfaceParticles[i] = false;
 		surfaceVelocityX[i] = 0.0f;
 		surfaceVelocityY[i] = 0.0f;
 		continue;
 	}
-
+	SurfaceParticles[i] = true;
+	
 	// Normalize the outward surface normal.
 	float surfaceNormalX =
 		normalX / normalLength;
@@ -907,7 +911,9 @@ for (int i = 0; i < count; i++)
 		
 		surfaceVelocityX = new float[count];
 		surfaceVelocityY = new float[count];
-
+		
+		SurfaceParticles = new bool[count];
+		
 		lambdas = new float[count];
 
 		deltaX = new float[count];
