@@ -30,7 +30,7 @@ public class PbfSolver
 
 	private const float LambdaEpsilon = 0.00001f;
 
-	private const int Iterations = 1;
+	private const int Iterations = 2;
 
 	private const float MaxCorrection = 1.5f;
 

@@ -12,7 +12,18 @@ public partial class FluidRenderer : Node2D
 	private int height;
 	private float cellSize;
 
-	private float surfaceThreshold = 0.28f;
+	private const float SurfaceThreshold = 0.28f;
+
+	// ============================================================
+	// RENDER UPDATE THROTTLE
+	//
+	// Simulation can continue every physics frame.
+	// The expensive mesh is rebuilt only every Nth update.
+	// ============================================================
+
+	private const int RenderEveryNFrames = 2;
+
+	private int renderFrameCounter = 0;
 
 	// ============================================================
 	// Render connectivity
@@ -22,13 +33,33 @@ public partial class FluidRenderer : Node2D
 	private bool[] renderWaterScratch;
 
 	// ============================================================
-	// Profiler
+	// Visual data
+	//
+	// R = depth
+	// G = surface influence
+	// B = edge lighting
+	// A = 1
 	// ============================================================
 
-	private int profilerFrameCount = 0;
+	private float[] visualDepth;
+	private float[] visualSurface;
+	private int[] visualGeneration;
 
-	private double profilerMeshTime = 0.0;
-	private double profilerTotalTime = 0.0;
+	private int visualGenerationId = 0;
+
+	// ============================================================
+	// Vertex cache generations
+	// ============================================================
+
+	private int[] cornerCacheGeneration;
+	private int[] horizontalCacheGeneration;
+	private int[] verticalCacheGeneration;
+
+	private int[] cornerIndices;
+	private int[] horizontalEdgeIndices;
+	private int[] verticalEdgeIndices;
+
+	private int cacheGeneration = 0;
 
 	// ============================================================
 	// Mesh buffers
@@ -40,30 +71,17 @@ public partial class FluidRenderer : Node2D
 	private readonly List<int> indices =
 		new List<int>(24576);
 
-	// R = depth
-	// G = surface influence
-	// B = edge lighting
-	// A = 1
 	private readonly List<Color> vertexColors =
 		new List<Color>(16384);
 
 	// ============================================================
-	// Vertex caches
+	// Profiler
 	// ============================================================
 
-	private int[] cornerIndices;
+	private int profilerFrameCount = 0;
 
-	private int[] horizontalEdgeIndices;
-
-	private int[] verticalEdgeIndices;
-
-	// ============================================================
-	// Local water-body information
-	// ============================================================
-
-	private float[] bodyTopY;
-	private float[] bodyBottomY;
-	private bool[] bodyValid;
+	private double profilerMeshTime = 0.0;
+	private double profilerTotalTime = 0.0;
 
 	// ============================================================
 	// Initialization
@@ -78,54 +96,78 @@ public partial class FluidRenderer : Node2D
 		height = densityHeight;
 		cellSize = densityCellSize;
 
-		waterMesh = new MeshInstance2D();
-		mesh = new ArrayMesh();
+		waterMesh =
+			new MeshInstance2D();
 
-		waterMesh.Mesh = mesh;
+		mesh =
+			new ArrayMesh();
+
+		waterMesh.Mesh =
+			mesh;
+
+		int gridSize =
+			width * height;
+
+		int cornerGridSize =
+			(width + 1) *
+			(height + 1);
+
+		int horizontalSize =
+			Mathf.Max(
+				1,
+				(width - 1) * height
+			);
+
+		int verticalSize =
+			Mathf.Max(
+				1,
+				width * (height - 1)
+			);
+
+		// --------------------------------------------------------
+		// Vertex caches
+		// --------------------------------------------------------
 
 		cornerIndices =
-			new int[width * height];
+			new int[cornerGridSize];
 
 		horizontalEdgeIndices =
-			new int[
-				Mathf.Max(
-					1,
-					(width - 1) * height
-				)
-			];
+			new int[horizontalSize];
 
 		verticalEdgeIndices =
-			new int[
-				Mathf.Max(
-					1,
-					width * (height - 1)
-				)
-			];
+			new int[verticalSize];
 
-		bodyTopY =
-			new float[
-				width * height
-			];
+		cornerCacheGeneration =
+			new int[cornerGridSize];
 
-		bodyBottomY =
-			new float[
-				width * height
-			];
+		horizontalCacheGeneration =
+			new int[horizontalSize];
 
-		bodyValid =
-			new bool[
-				width * height
-			];
+		verticalCacheGeneration =
+			new int[verticalSize];
+
+		// --------------------------------------------------------
+		// Render masks
+		// --------------------------------------------------------
 
 		renderWater =
-			new bool[
-				width * height
-			];
+			new bool[gridSize];
 
 		renderWaterScratch =
-			new bool[
-				width * height
-			];
+			new bool[gridSize];
+
+		// --------------------------------------------------------
+		// Visual data
+		// --------------------------------------------------------
+
+		visualDepth =
+			new float[gridSize];
+
+		visualSurface =
+			new float[gridSize];
+
+		visualGeneration =
+			new int[gridSize];
 
 		CreateWaterMaterial();
 
@@ -138,15 +180,12 @@ public partial class FluidRenderer : Node2D
 
 	private void CreateWaterMaterial()
 	{
-		Shader shader = new Shader();
+		Shader shader =
+			new Shader();
 
 		shader.Code = @"
 shader_type canvas_item;
 render_mode unshaded;
-
-// ------------------------------------------------------------
-// Water palette
-// ------------------------------------------------------------
 
 uniform vec3 deep_color : source_color =
 vec3(0.005, 0.16, 0.48);
@@ -160,53 +199,48 @@ vec3(0.01, 0.38, 0.78);
 uniform vec3 surface_color : source_color =
 vec3(0.55, 0.78, 0.95);
 
-// ------------------------------------------------------------
-// Alpha
-// ------------------------------------------------------------
-
 uniform float water_alpha = 0.5;
-
-// ------------------------------------------------------------
-// Surface glow
-// ------------------------------------------------------------
 
 uniform float surface_glow_strength = 0.5;
 
-// ------------------------------------------------------------
-// Edge lighting
-// ------------------------------------------------------------
-
 uniform float edge_light_strength = 0.33;
 
-// ------------------------------------------------------------
-// Shimmer
-// ------------------------------------------------------------
-
 uniform float shimmer_strength = 0.1;
-uniform float shimmer_speed = 0.2;
-uniform float shimmer_scale = 0.045;
 
-// ------------------------------------------------------------
-// Data passed from vertex color
-// ------------------------------------------------------------
+uniform float shimmer_speed = 0.2;
+
+uniform float shimmer_scale = 0.045;
 
 varying float water_depth;
 varying float surface_factor;
 varying float edge_factor;
-
 varying vec2 water_position;
 
 void vertex()
 {
-	// IMPORTANT:
-	// COLOR is ONLY used as a data container here.
-	// We never use it directly as the final water color.
+	water_depth =
+		clamp(
+			COLOR.r,
+			0.0,
+			1.0
+		);
 
-	water_depth = clamp(COLOR.r, 0.0, 1.0);
-	surface_factor = clamp(COLOR.g, 0.0, 1.0);
-	edge_factor = clamp(COLOR.b, 0.0, 1.0);
+	surface_factor =
+		clamp(
+			COLOR.g,
+			0.0,
+			1.0
+		);
 
-	water_position = VERTEX;
+	edge_factor =
+		clamp(
+			COLOR.b,
+			0.0,
+			1.0
+		);
+
+	water_position =
+		VERTEX;
 }
 
 void fragment()
@@ -231,14 +265,6 @@ void fragment()
 			0.0,
 			1.0
 		);
-
-	// --------------------------------------------------------
-	// Depth gradient
-	//
-	// IMPORTANT:
-	// This is the ONLY base water color.
-	// It cannot become red/green from vertex data.
-	// --------------------------------------------------------
 
 	vec3 water;
 
@@ -267,10 +293,6 @@ void fragment()
 			);
 	}
 
-	// --------------------------------------------------------
-	// Surface glow
-	// --------------------------------------------------------
-
 	float glow =
 		surface * surface;
 
@@ -286,16 +308,10 @@ void fragment()
 			glowAmount
 		);
 
-	// Subtle surface highlight.
-
 	water +=
 		surface_color *
 		glow *
 		0.035;
-
-	// --------------------------------------------------------
-	// Animated shimmer
-	// --------------------------------------------------------
 
 	float wave1 =
 		sin(
@@ -342,19 +358,12 @@ void fragment()
 		shimmer_strength *
 		shimmerMask;
 
-	// Neutral white shimmer.
-	// It cannot turn the water green.
-
 	water +=
 		vec3(
 			shimmer,
 			shimmer,
 			shimmer
 		);
-
-	// --------------------------------------------------------
-	// Edge lighting
-	// --------------------------------------------------------
 
 	float edgeGlow =
 		edge *
@@ -368,10 +377,6 @@ void fragment()
 			edgeGlow
 		);
 
-	// --------------------------------------------------------
-	// Final surface highlight
-	// --------------------------------------------------------
-
 	float highlight =
 		pow(
 			surface,
@@ -382,13 +387,6 @@ void fragment()
 		surface_color *
 		highlight *
 		0.10;
-
-	// --------------------------------------------------------
-	// FINAL OUTPUT
-	//
-	// Explicitly construct the displayed water color.
-	// Vertex COLOR is NEVER used directly.
-	// --------------------------------------------------------
 
 	water =
 		clamp(
@@ -423,6 +421,22 @@ void fragment()
 		ParticleData particles,
 		DensityField densityField)
 	{
+		renderFrameCounter++;
+
+		// --------------------------------------------------------
+		// Do not rebuild the expensive mesh every physics frame.
+		// --------------------------------------------------------
+
+		if (
+			renderFrameCounter <
+			RenderEveryNFrames
+		)
+		{
+			return;
+		}
+
+		renderFrameCounter = 0;
+
 		Stopwatch totalTimer =
 			Stopwatch.StartNew();
 
@@ -441,22 +455,18 @@ void fragment()
 		{
 			GD.Print(
 				"Marching Squares profiler " +
-				"(avg ms over 60 frames): " +
+				"(avg ms over 60 render updates): " +
 				"Particles=" +
 				particles.Count +
-				" " +
-				"Total=" +
+				" Total=" +
 				(profilerTotalTime / 60.0)
 					.ToString("F2") +
-				"ms " +
-				"Mesh=" +
+				"ms Mesh=" +
 				(profilerMeshTime / 60.0)
 					.ToString("F2") +
-				"ms " +
-				"Vertices=" +
+				"ms Vertices=" +
 				vertices.Count +
-				" " +
-				"Indices=" +
+				" Indices=" +
 				indices.Count
 			);
 
@@ -480,20 +490,30 @@ void fragment()
 		indices.Clear();
 		vertexColors.Clear();
 
-		System.Array.Fill(
-			cornerIndices,
-			-1
-		);
+		cacheGeneration++;
 
-		System.Array.Fill(
-			horizontalEdgeIndices,
-			-1
-		);
+		if (cacheGeneration == int.MaxValue)
+		{
+			System.Array.Clear(
+				cornerCacheGeneration,
+				0,
+				cornerCacheGeneration.Length
+			);
 
-		System.Array.Fill(
-			verticalEdgeIndices,
-			-1
-		);
+			System.Array.Clear(
+				horizontalCacheGeneration,
+				0,
+				horizontalCacheGeneration.Length
+			);
+
+			System.Array.Clear(
+				verticalCacheGeneration,
+				0,
+				verticalCacheGeneration.Length
+			);
+
+			cacheGeneration = 1;
+		}
 
 		if (!densityField.HasDensity)
 		{
@@ -501,12 +521,10 @@ void fragment()
 			return;
 		}
 
-		BuildRenderWaterMask(
-			values
-		);
+		BuildRenderWaterMask(values);
 
-		CalculateWaterBodyProfiles(
-			values
+		CalculateVisualData(
+			densityField
 		);
 
 		int minX =
@@ -533,31 +551,39 @@ void fragment()
 				densityField.ActiveMaxY + 1
 			);
 
-		for (int y = minY;
-			 y < maxY;
-			 y++)
+		for (
+			int y = minY;
+			y < maxY;
+			y++)
 		{
 			int row =
 				y * width;
 
 			int nextRow =
-				(y + 1) * width;
+				row + width;
 
-			for (int x = minX;
-				 x < maxX;
-				 x++)
+			float y0 =
+				y * cellSize;
+
+			float y1 =
+				y0 + cellSize;
+
+			for (
+				int x = minX;
+				x < maxX;
+				x++)
 			{
 				int indexA =
 					row + x;
 
 				int indexB =
-					row + x + 1;
-
-				int indexC =
-					nextRow + x + 1;
+					indexA + 1;
 
 				int indexD =
 					nextRow + x;
+
+				int indexC =
+					indexD + 1;
 
 				int caseIndex = 0;
 
@@ -591,14 +617,8 @@ void fragment()
 				float x0 =
 					x * cellSize;
 
-				float y0 =
-					y * cellSize;
-
 				float x1 =
-					(x + 1) * cellSize;
-
-				float y1 =
-					(y + 1) * cellSize;
+					x0 + cellSize;
 
 				int cornerA =
 					GetCornerVertex(
@@ -654,10 +674,7 @@ void fragment()
 						GetHorizontalEdgeVertex(
 							x,
 							y,
-							Interpolate(
-								a,
-								b
-							),
+							Interpolate(a, b),
 							x0,
 							x1,
 							y0
@@ -673,10 +690,7 @@ void fragment()
 						GetVerticalEdgeVertex(
 							x + 1,
 							y,
-							Interpolate(
-								b,
-								c
-							),
+							Interpolate(b, c),
 							x1,
 							y0,
 							y1
@@ -692,10 +706,7 @@ void fragment()
 						GetHorizontalEdgeVertex(
 							x,
 							y + 1,
-							Interpolate(
-								d,
-								c
-							),
+							Interpolate(d, c),
 							x0,
 							x1,
 							y1
@@ -711,10 +722,7 @@ void fragment()
 						GetVerticalEdgeVertex(
 							x,
 							y,
-							Interpolate(
-								d,
-								a
-							),
+							Interpolate(d, a),
 							x0,
 							y0,
 							y1
@@ -747,39 +755,43 @@ void fragment()
 	}
 
 	// ============================================================
-	// Render-only connectivity mask
+	// Render connectivity mask
 	// ============================================================
 
 	private void BuildRenderWaterMask(
 		float[] values)
 	{
-		for (int i = 0;
-			 i < renderWater.Length;
-			 i++)
+		int count =
+			renderWater.Length;
+
+		for (
+			int i = 0;
+			i < count;
+			i++)
 		{
 			renderWater[i] =
 				values[i] >=
-				surfaceThreshold;
+				SurfaceThreshold;
 		}
 
 		System.Array.Copy(
 			renderWater,
 			renderWaterScratch,
-			renderWater.Length
+			count
 		);
 
-		// Horizontal hole filling.
-
-		for (int y = 0;
-			 y < height;
-			 y++)
+		for (
+			int y = 0;
+			y < height;
+			y++)
 		{
 			int row =
 				y * width;
 
-			for (int x = 1;
-				 x < width - 1;
-				 x++)
+			for (
+				int x = 1;
+				x < width - 1;
+				x++)
 			{
 				int index =
 					row + x;
@@ -798,18 +810,18 @@ void fragment()
 			}
 		}
 
-		// Vertical hole filling.
-
-		for (int y = 1;
-			 y < height - 1;
-			 y++)
+		for (
+			int y = 1;
+			y < height - 1;
+			y++)
 		{
 			int row =
 				y * width;
 
-			for (int x = 0;
-				 x < width;
-				 x++)
+			for (
+				int x = 0;
+				x < width;
+				x++)
 			{
 				int index =
 					row + x;
@@ -837,39 +849,62 @@ void fragment()
 		System.Array.Copy(
 			renderWaterScratch,
 			renderWater,
-			renderWater.Length
+			count
 		);
 	}
 
 	// ============================================================
-	// Calculate independent vertical water bodies
+	// Calculate visual data
 	// ============================================================
 
-	private void CalculateWaterBodyProfiles(
-		float[] values)
+	private void CalculateVisualData(
+		DensityField densityField)
 	{
-		System.Array.Fill(
-			bodyTopY,
-			0.0f
-		);
+		visualGenerationId++;
 
-		System.Array.Fill(
-			bodyBottomY,
-			0.0f
-		);
-
-		System.Array.Fill(
-			bodyValid,
-			false
-		);
-
-		for (int x = 0;
-			 x < width;
-			 x++)
+		if (visualGenerationId == int.MaxValue)
 		{
-			int y = 0;
+			System.Array.Clear(
+				visualGeneration,
+				0,
+				visualGeneration.Length
+			);
 
-			while (y < height)
+			visualGenerationId = 1;
+		}
+
+		int minX =
+			Mathf.Max(
+				0,
+				densityField.ActiveMinX - 1
+			);
+
+		int maxX =
+			Mathf.Min(
+				width - 1,
+				densityField.ActiveMaxX + 1
+			);
+
+		int minY =
+			Mathf.Max(
+				0,
+				densityField.ActiveMinY - 1
+			);
+
+		int maxY =
+			Mathf.Min(
+				height - 1,
+				densityField.ActiveMaxY + 1
+			);
+
+		for (
+			int x = minX;
+			x <= maxX;
+			x++)
+		{
+			int y = minY;
+
+			while (y <= maxY)
 			{
 				int index =
 					y * width + x;
@@ -884,7 +919,7 @@ void fragment()
 					y;
 
 				while (
-					y + 1 < height &&
+					y < maxY &&
 					renderWater[
 						(y + 1) * width + x
 					]
@@ -902,21 +937,57 @@ void fragment()
 				float bottom =
 					(endY + 1) * cellSize;
 
-				for (int bodyY = startY;
-					 bodyY <= endY;
-					 bodyY++)
+				float bodyHeight =
+					bottom - top;
+
+				if (bodyHeight < 48.0f)
+					bodyHeight = 48.0f;
+
+				for (
+					int bodyY = startY;
+					bodyY <= endY;
+					bodyY++)
 				{
 					int bodyIndex =
 						bodyY * width + x;
 
-					bodyTopY[bodyIndex] =
-						top;
+					float worldY =
+						bodyY * cellSize;
 
-					bodyBottomY[bodyIndex] =
-						bottom;
+					float depth =
+						(worldY - top) /
+						bodyHeight;
 
-					bodyValid[bodyIndex] =
-						true;
+					depth =
+						Mathf.Clamp(
+							depth,
+							0.0f,
+							1.0f
+						);
+
+					float surfaceDistance =
+						Mathf.Abs(
+							worldY - top
+						);
+
+					float surface =
+						1.0f -
+						Mathf.Clamp(
+							surfaceDistance / 28.0f,
+							0.0f,
+							1.0f
+						);
+
+					surface *= surface;
+
+					visualDepth[bodyIndex] =
+						depth;
+
+					visualSurface[bodyIndex] =
+						surface;
+
+					visualGeneration[bodyIndex] =
+						visualGenerationId;
 				}
 
 				y++;
@@ -925,18 +996,13 @@ void fragment()
 	}
 
 	// ============================================================
-	// Find local water body
+	// Fast visual lookup
 	// ============================================================
 
-	private bool TryGetLocalWaterBody(
-		Vector2 position,
-		out float top,
-		out float bottom)
+	private Color GetVertexColor(
+		Vector2 position)
 	{
-		top = 0.0f;
-		bottom = 0.0f;
-
-		int centerX =
+		int x =
 			Mathf.Clamp(
 				Mathf.FloorToInt(
 					position.X / cellSize
@@ -945,7 +1011,7 @@ void fragment()
 				width - 1
 			);
 
-		int centerY =
+		int y =
 			Mathf.Clamp(
 				Mathf.FloorToInt(
 					position.Y / cellSize
@@ -954,165 +1020,60 @@ void fragment()
 				height - 1
 			);
 
-		float bestDistance =
-			float.MaxValue;
+		int index =
+			y * width + x;
 
-		bool found =
-			false;
-
-		const int SearchRadius = 3;
-
-		int minSampleX =
-			Mathf.Max(
-				0,
-				centerX - SearchRadius
-			);
-
-		int maxSampleX =
-			Mathf.Min(
-				width - 1,
-				centerX + SearchRadius
-			);
-
-		int minSampleY =
-			Mathf.Max(
-				0,
-				centerY - SearchRadius
-			);
-
-		int maxSampleY =
-			Mathf.Min(
-				height - 1,
-				centerY + SearchRadius
-			);
-
-		for (int sampleY = minSampleY;
-			 sampleY <= maxSampleY;
-			 sampleY++)
+		if (
+			visualGeneration[index] ==
+			visualGenerationId
+		)
 		{
-			for (int sampleX = minSampleX;
-				 sampleX <= maxSampleX;
-				 sampleX++)
+			return new Color(
+				visualDepth[index],
+				visualSurface[index],
+				0.0f,
+				1.0f
+			);
+		}
+
+		// --------------------------------------------------------
+		// Instead of searching neighboring cells, simply use the
+		// nearest valid vertical sample.
+		//
+		// This fallback is rarely used and is deliberately cheap.
+		// --------------------------------------------------------
+
+		for (
+			int offsetY = 1;
+			offsetY <= 2;
+			offsetY++)
+		{
+			int sampleY =
+				y - offsetY;
+
+			if (sampleY < 0)
+				break;
+
+			int sampleIndex =
+				sampleY * width + x;
+
+			if (
+				visualGeneration[sampleIndex] ==
+				visualGenerationId
+			)
 			{
-				int sampleIndex =
-					sampleY * width +
-					sampleX;
-
-				if (!bodyValid[sampleIndex])
-					continue;
-
-				float sampleWorldX =
-					sampleX * cellSize;
-
-				float sampleWorldY =
-					sampleY * cellSize;
-
-				float dx =
-					position.X -
-					sampleWorldX;
-
-				float dy =
-					position.Y -
-					sampleWorldY;
-
-				float distance =
-					dx * dx +
-					dy * dy;
-
-				if (distance <
-					bestDistance)
-				{
-					bestDistance =
-						distance;
-
-					top =
-						bodyTopY[
-							sampleIndex
-						];
-
-					bottom =
-						bodyBottomY[
-							sampleIndex
-						];
-
-					found =
-						true;
-				}
+				return new Color(
+					visualDepth[sampleIndex],
+					visualSurface[sampleIndex],
+					0.0f,
+					1.0f
+				);
 			}
 		}
 
-		return found;
-	}
-
-	// ============================================================
-	// Vertex visual information
-	// ============================================================
-
-	private Color GetVertexColor(
-		Vector2 position)
-	{
-		float top;
-		float bottom;
-
-		bool hasBody =
-			TryGetLocalWaterBody(
-				position,
-				out top,
-				out bottom
-			);
-
-		if (!hasBody)
-		{
-			// IMPORTANT:
-			// Never return green/red fallback data.
-			// Use neutral data instead.
-			return new Color(
-				0.0f,
-				0.0f,
-				0.0f,
-				1.0f
-			);
-		}
-
-		float bodyHeight =
-			bottom - top;
-
-		bodyHeight =
-			Mathf.Max(
-				bodyHeight,
-				48.0f
-			);
-
-		float depth =
-			(position.Y - top) /
-			bodyHeight;
-
-		depth =
-			Mathf.Clamp(
-				depth,
-				0.0f,
-				1.0f
-			);
-
-		float surfaceDistance =
-			Mathf.Abs(
-				position.Y - top
-			);
-
-		float surface =
-			1.0f -
-			Mathf.Clamp(
-				surfaceDistance / 28.0f,
-				0.0f,
-				1.0f
-			);
-
-		surface =
-			surface * surface;
-
 		return new Color(
-			depth,
-			surface,
+			0.0f,
+			0.0f,
 			0.0f,
 			1.0f
 		);
@@ -1128,13 +1089,16 @@ void fragment()
 		Vector2 position)
 	{
 		int cacheIndex =
-			y * width + x;
+			y * (width + 1) +
+			x;
 
-		int existing =
-			cornerIndices[cacheIndex];
-
-		if (existing >= 0)
-			return existing;
+		if (
+			cornerCacheGeneration[cacheIndex] ==
+			cacheGeneration
+		)
+		{
+			return cornerIndices[cacheIndex];
+		}
 
 		int index =
 			vertices.Count;
@@ -1144,13 +1108,14 @@ void fragment()
 		);
 
 		vertexColors.Add(
-			GetVertexColor(
-				position
-			)
+			GetVertexColor(position)
 		);
 
 		cornerIndices[cacheIndex] =
 			index;
+
+		cornerCacheGeneration[cacheIndex] =
+			cacheGeneration;
 
 		return index;
 	}
@@ -1171,13 +1136,13 @@ void fragment()
 			edgeY * (width - 1) +
 			edgeX;
 
-		int existing =
-			horizontalEdgeIndices[
-				edgeIndex
-			];
-
-		if (existing >= 0)
-			return existing;
+		if (
+			horizontalCacheGeneration[edgeIndex] ==
+			cacheGeneration
+		)
+		{
+			return horizontalEdgeIndices[edgeIndex];
+		}
 
 		Vector2 position =
 			new Vector2(
@@ -1194,21 +1159,19 @@ void fragment()
 		);
 
 		Color color =
-			GetVertexColor(
-				position
-			);
+			GetVertexColor(position);
 
-		color.B =
-			1.0f;
+		color.B = 1.0f;
 
 		vertexColors.Add(
 			color
 		);
 
-		horizontalEdgeIndices[
-			edgeIndex
-		] =
+		horizontalEdgeIndices[edgeIndex] =
 			index;
+
+		horizontalCacheGeneration[edgeIndex] =
+			cacheGeneration;
 
 		return index;
 	}
@@ -1229,13 +1192,13 @@ void fragment()
 			edgeY * width +
 			edgeX;
 
-		int existing =
-			verticalEdgeIndices[
-				edgeIndex
-			];
-
-		if (existing >= 0)
-			return existing;
+		if (
+			verticalCacheGeneration[edgeIndex] ==
+			cacheGeneration
+		)
+		{
+			return verticalEdgeIndices[edgeIndex];
+		}
 
 		Vector2 position =
 			new Vector2(
@@ -1252,21 +1215,19 @@ void fragment()
 		);
 
 		Color color =
-			GetVertexColor(
-				position
-			);
+			GetVertexColor(position);
 
-		color.B =
-			1.0f;
+		color.B = 1.0f;
 
 		vertexColors.Add(
 			color
 		);
 
-		verticalEdgeIndices[
-			edgeIndex
-		] =
+		verticalEdgeIndices[edgeIndex] =
 			index;
+
+		verticalCacheGeneration[edgeIndex] =
+			cacheGeneration;
 
 		return index;
 	}
@@ -1344,7 +1305,7 @@ void fragment()
 		}
 
 		float t =
-			(surfaceThreshold - valueA) /
+			(SurfaceThreshold - valueA) /
 			difference;
 
 		return Mathf.Clamp(
@@ -1372,148 +1333,65 @@ void fragment()
 		switch (caseIndex)
 		{
 			case 1:
-				AddTriangle(
-					a,
-					top,
-					left
-				);
+				AddTriangle(a, top, left);
 				break;
 
 			case 2:
-				AddTriangle(
-					b,
-					right,
-					top
-				);
+				AddTriangle(b, right, top);
 				break;
 
 			case 4:
-				AddTriangle(
-					c,
-					bottom,
-					right
-				);
+				AddTriangle(c, bottom, right);
 				break;
 
 			case 8:
-				AddTriangle(
-					d,
-					left,
-					bottom
-				);
+				AddTriangle(d, left, bottom);
 				break;
 
 			case 3:
-				AddQuad(
-					a,
-					b,
-					right,
-					left
-				);
+				AddQuad(a, b, right, left);
 				break;
 
 			case 6:
-				AddQuad(
-					b,
-					c,
-					bottom,
-					top
-				);
+				AddQuad(b, c, bottom, top);
 				break;
 
 			case 12:
-				AddQuad(
-					c,
-					d,
-					left,
-					right
-				);
+				AddQuad(c, d, left, right);
 				break;
 
 			case 5:
-				AddTriangle(
-					a,
-					top,
-					left
-				);
-
-				AddTriangle(
-					c,
-					right,
-					bottom
-				);
+				AddTriangle(a, top, left);
+				AddTriangle(c, right, bottom);
 				break;
 
 			case 10:
-				AddTriangle(
-					b,
-					right,
-					top
-				);
-
-				AddTriangle(
-					d,
-					left,
-					bottom
-				);
+				AddTriangle(b, right, top);
+				AddTriangle(d, left, bottom);
 				break;
 
 			case 7:
-				AddPolygon(
-					a,
-					b,
-					c,
-					bottom,
-					left
-				);
+				AddPolygon(a, b, c, bottom, left);
 				break;
 
 			case 11:
-				AddPolygon(
-					a,
-					b,
-					right,
-					bottom,
-					d
-				);
+				AddPolygon(a, b, right, bottom, d);
 				break;
 
 			case 13:
-				AddPolygon(
-					a,
-					top,
-					right,
-					c,
-					d
-				);
+				AddPolygon(a, top, right, c, d);
 				break;
 
 			case 14:
-				AddPolygon(
-					b,
-					c,
-					d,
-					left,
-					top
-				);
+				AddPolygon(b, c, d, left, top);
 				break;
 
 			case 9:
-				AddQuad(
-					a,
-					top,
-					bottom,
-					d
-				);
+				AddQuad(a, top, bottom, d);
 				break;
 
 			case 15:
-				AddQuad(
-					a,
-					b,
-					c,
-					d
-				);
+				AddQuad(a, b, c, d);
 				break;
 		}
 	}
@@ -1574,17 +1452,8 @@ void fragment()
 		int c,
 		int d)
 	{
-		AddTriangle(
-			a,
-			b,
-			c
-		);
-
-		AddTriangle(
-			a,
-			c,
-			d
-		);
+		AddTriangle(a, b, c);
+		AddTriangle(a, c, d);
 	}
 
 	// ============================================================
@@ -1598,22 +1467,8 @@ void fragment()
 		int d,
 		int e)
 	{
-		AddTriangle(
-			a,
-			b,
-			c
-		);
-
-		AddTriangle(
-			a,
-			c,
-			d
-		);
-
-		AddTriangle(
-			a,
-			d,
-			e
-		);
+		AddTriangle(a, b, c);
+		AddTriangle(a, c, d);
+		AddTriangle(a, d, e);
 	}
 }
