@@ -14,31 +14,25 @@ public partial class FluidRenderer : Node2D
 
 	private float surfaceThreshold = 0.28f;
 
-	// ------------------------------------------------------------
+	// ============================================================
 	// Render connectivity
-	// ------------------------------------------------------------
+	// ============================================================
 
-	// Small render-only mask.
-	//
-	// IMPORTANT:
-	// This does NOT modify DensityField.
-	// It is only used by the visual mesh.
 	private bool[] renderWater;
-
 	private bool[] renderWaterScratch;
 
-	// ------------------------------------------------------------
+	// ============================================================
 	// Profiler
-	// ------------------------------------------------------------
+	// ============================================================
 
 	private int profilerFrameCount = 0;
 
 	private double profilerMeshTime = 0.0;
 	private double profilerTotalTime = 0.0;
 
-	// ------------------------------------------------------------
+	// ============================================================
 	// Mesh buffers
-	// ------------------------------------------------------------
+	// ============================================================
 
 	private readonly List<Vector2> vertices =
 		new List<Vector2>(16384);
@@ -46,16 +40,16 @@ public partial class FluidRenderer : Node2D
 	private readonly List<int> indices =
 		new List<int>(24576);
 
-	// R = normalized depth
+	// R = depth
 	// G = surface influence
-	// B = unused
-	// A = alpha
+	// B = edge lighting
+	// A = 1
 	private readonly List<Color> vertexColors =
 		new List<Color>(16384);
 
-	// ------------------------------------------------------------
+	// ============================================================
 	// Vertex caches
-	// ------------------------------------------------------------
+	// ============================================================
 
 	private int[] cornerIndices;
 
@@ -63,19 +57,17 @@ public partial class FluidRenderer : Node2D
 
 	private int[] verticalEdgeIndices;
 
-	// ------------------------------------------------------------
+	// ============================================================
 	// Local water-body information
-	// ------------------------------------------------------------
+	// ============================================================
 
 	private float[] bodyTopY;
-
 	private float[] bodyBottomY;
-
 	private bool[] bodyValid;
 
-	// ------------------------------------------------------------
+	// ============================================================
 	// Initialization
-	// ------------------------------------------------------------
+	// ============================================================
 
 	public void Initialize(
 		int densityWidth,
@@ -86,19 +78,13 @@ public partial class FluidRenderer : Node2D
 		height = densityHeight;
 		cellSize = densityCellSize;
 
-		waterMesh =
-			new MeshInstance2D();
+		waterMesh = new MeshInstance2D();
+		mesh = new ArrayMesh();
 
-		mesh =
-			new ArrayMesh();
-
-		waterMesh.Mesh =
-			mesh;
+		waterMesh.Mesh = mesh;
 
 		cornerIndices =
-			new int[
-				width * height
-			];
+			new int[width * height];
 
 		horizontalEdgeIndices =
 			new int[
@@ -131,10 +117,6 @@ public partial class FluidRenderer : Node2D
 				width * height
 			];
 
-		// --------------------------------------------------------
-		// Render masks.
-		// --------------------------------------------------------
-
 		renderWater =
 			new bool[
 				width * height
@@ -156,70 +138,75 @@ public partial class FluidRenderer : Node2D
 
 	private void CreateWaterMaterial()
 	{
-		Shader shader =
-			new Shader();
+		Shader shader = new Shader();
 
 		shader.Code = @"
 shader_type canvas_item;
+render_mode unshaded;
 
 // ------------------------------------------------------------
-// Water colors
+// Water palette
 // ------------------------------------------------------------
 
 uniform vec3 deep_color : source_color =
-	vec3(0.005, 0.16, 0.48);
+vec3(0.005, 0.16, 0.48);
 
 uniform vec3 middle_color : source_color =
-	vec3(0.01, 0.38, 0.78);
+vec3(0.005, 0.16, 0.48);
 
 uniform vec3 shallow_color : source_color =
-	vec3(0.03, 0.45, 0.75);
+vec3(0.01, 0.38, 0.78);
 
 uniform vec3 surface_color : source_color =
-	vec3(0.8, 0.8, 1.0);
+vec3(0.55, 0.78, 0.95);
 
 // ------------------------------------------------------------
 // Alpha
 // ------------------------------------------------------------
 
-uniform float water_alpha = 0.76;
+uniform float water_alpha = 0.5;
 
 // ------------------------------------------------------------
 // Surface glow
 // ------------------------------------------------------------
 
-uniform float surface_glow_strength = 0.85;
+uniform float surface_glow_strength = 0.5;
+
+// ------------------------------------------------------------
+// Edge lighting
+// ------------------------------------------------------------
+
+uniform float edge_light_strength = 0.33;
 
 // ------------------------------------------------------------
 // Shimmer
 // ------------------------------------------------------------
 
-uniform float shimmer_strength = 0.055;
-
-uniform float shimmer_speed = 0.7;
-
+uniform float shimmer_strength = 0.1;
+uniform float shimmer_speed = 0.2;
 uniform float shimmer_scale = 0.045;
 
 // ------------------------------------------------------------
-// Varyings
+// Data passed from vertex color
 // ------------------------------------------------------------
 
 varying float water_depth;
-
 varying float surface_factor;
+varying float edge_factor;
 
 varying vec2 water_position;
 
 void vertex()
 {
-	water_depth =
-		COLOR.r;
+	// IMPORTANT:
+	// COLOR is ONLY used as a data container here.
+	// We never use it directly as the final water color.
 
-	surface_factor =
-		COLOR.g;
+	water_depth = clamp(COLOR.r, 0.0, 1.0);
+	surface_factor = clamp(COLOR.g, 0.0, 1.0);
+	edge_factor = clamp(COLOR.b, 0.0, 1.0);
 
-	water_position =
-		VERTEX;
+	water_position = VERTEX;
 }
 
 void fragment()
@@ -238,8 +225,19 @@ void fragment()
 			1.0
 		);
 
+	float edge =
+		clamp(
+			edge_factor,
+			0.0,
+			1.0
+		);
+
 	// --------------------------------------------------------
-	// Depth color
+	// Depth gradient
+	//
+	// IMPORTANT:
+	// This is the ONLY base water color.
+	// It cannot become red/green from vertex data.
 	// --------------------------------------------------------
 
 	vec3 water;
@@ -270,27 +268,30 @@ void fragment()
 	}
 
 	// --------------------------------------------------------
-// Surface glow
-//
-// Keep the surface brighter, but much more subtle.
-// --------------------------------------------------------
+	// Surface glow
+	// --------------------------------------------------------
 
-float glow =
-	surface * surface;
+	float glow =
+		surface * surface;
 
-// Very restrained surface highlight.
-water =
-	mix(
-		water,
-		surface_color,
-		glow * 0.65
-	);
+	float glowAmount =
+		glow *
+		surface_glow_strength *
+		0.45;
 
-// Small additional highlight.
-water +=
-	surface_color *
-	glow *
-	0.035;
+	water =
+		mix(
+			water,
+			surface_color,
+			glowAmount
+		);
+
+	// Subtle surface highlight.
+
+	water +=
+		surface_color *
+		glow *
+		0.035;
 
 	// --------------------------------------------------------
 	// Animated shimmer
@@ -299,32 +300,38 @@ water +=
 	float wave1 =
 		sin(
 			water_position.x *
-				shimmer_scale +
+			shimmer_scale +
+
 			water_position.y *
-				shimmer_scale *
-				0.35 +
+			shimmer_scale *
+			0.35 +
+
 			TIME *
-				shimmer_speed
+			shimmer_speed
 		);
 
 	float wave2 =
 		sin(
 			water_position.x *
-				shimmer_scale *
-				1.73 -
+			shimmer_scale *
+			1.73 -
+
 			water_position.y *
-				shimmer_scale *
-				0.55 -
+			shimmer_scale *
+			0.55 -
+
 			TIME *
-				shimmer_speed *
-				0.73
+			shimmer_speed *
+			0.73
 		);
 
 	float wave =
-		(wave1 + wave2) * 0.5;
+		(wave1 + wave2) *
+		0.5;
 
 	wave =
-		wave * 0.5 + 0.5;
+		wave * 0.5 +
+		0.5;
 
 	float shimmerMask =
 		0.25 +
@@ -335,6 +342,9 @@ water +=
 		shimmer_strength *
 		shimmerMask;
 
+	// Neutral white shimmer.
+	// It cannot turn the water green.
+
 	water +=
 		vec3(
 			shimmer,
@@ -343,7 +353,23 @@ water +=
 		);
 
 	// --------------------------------------------------------
-	// Final highlight
+	// Edge lighting
+	// --------------------------------------------------------
+
+	float edgeGlow =
+		edge *
+		edge *
+		edge_light_strength;
+
+	water =
+		mix(
+			water,
+			surface_color,
+			edgeGlow
+		);
+
+	// --------------------------------------------------------
+	// Final surface highlight
 	// --------------------------------------------------------
 
 	float highlight =
@@ -357,13 +383,23 @@ water +=
 		highlight *
 		0.10;
 
+	// --------------------------------------------------------
+	// FINAL OUTPUT
+	//
+	// Explicitly construct the displayed water color.
+	// Vertex COLOR is NEVER used directly.
+	// --------------------------------------------------------
+
+	water =
+		clamp(
+			water,
+			vec3(0.0),
+			vec3(1.0)
+		);
+
 	COLOR =
 		vec4(
-			clamp(
-				water,
-				0.0,
-				1.0
-			),
+			water,
 			water_alpha
 		);
 }
@@ -441,9 +477,7 @@ water +=
 			densityField.GetValues();
 
 		vertices.Clear();
-
 		indices.Clear();
-
 		vertexColors.Clear();
 
 		System.Array.Fill(
@@ -467,17 +501,9 @@ water +=
 			return;
 		}
 
-		// --------------------------------------------------------
-		// Build render-only connectivity mask.
-		// --------------------------------------------------------
-
 		BuildRenderWaterMask(
 			values
 		);
-
-		// --------------------------------------------------------
-		// Calculate local water bodies from the render mask.
-		// --------------------------------------------------------
 
 		CalculateWaterBodyProfiles(
 			values
@@ -506,10 +532,6 @@ water +=
 				height - 1,
 				densityField.ActiveMaxY + 1
 			);
-
-		// --------------------------------------------------------
-		// Marching Squares
-		// --------------------------------------------------------
 
 		for (int y = minY;
 			 y < maxY;
@@ -578,10 +600,6 @@ water +=
 				float y1 =
 					(y + 1) * cellSize;
 
-				// ------------------------------------------------
-				// Corner vertices
-				// ------------------------------------------------
-
 				int cornerA =
 					GetCornerVertex(
 						x,
@@ -623,23 +641,9 @@ water +=
 					);
 
 				int top = -1;
-
 				int right = -1;
-
 				int bottom = -1;
-
 				int left = -1;
-
-				// ------------------------------------------------
-				// IMPORTANT:
-				//
-				// Edge crossing is now based on renderWater,
-				// but interpolation still uses the ORIGINAL
-				// density values.
-				//
-				// This prevents the filled render cells from
-				// creating ugly square-shaped geometry.
-				// ------------------------------------------------
 
 				if (
 					renderWater[indexA] !=
@@ -731,10 +735,6 @@ water +=
 			}
 		}
 
-		// --------------------------------------------------------
-		// Upload
-		// --------------------------------------------------------
-
 		Stopwatch meshTimer =
 			Stopwatch.StartNew();
 
@@ -753,10 +753,6 @@ water +=
 	private void BuildRenderWaterMask(
 		float[] values)
 	{
-		// --------------------------------------------------------
-		// Start from the real density.
-		// --------------------------------------------------------
-
 		for (int i = 0;
 			 i < renderWater.Length;
 			 i++)
@@ -766,33 +762,13 @@ water +=
 				surfaceThreshold;
 		}
 
-		// --------------------------------------------------------
-		// Copy original mask into scratch.
-		// --------------------------------------------------------
-
 		System.Array.Copy(
 			renderWater,
 			renderWaterScratch,
 			renderWater.Length
 		);
 
-		// --------------------------------------------------------
-		// PASS 1:
-		//
-		// Fill a one-cell hole that has water on BOTH sides
-		// horizontally.
-		//
-		// Example:
-		//
-		// █ █
-		// █ █
-		//
-		// becomes:
-		//
-		// ███
-		// ███
-		//
-		// --------------------------------------------------------
+		// Horizontal hole filling.
 
 		for (int y = 0;
 			 y < height;
@@ -822,14 +798,7 @@ water +=
 			}
 		}
 
-		// --------------------------------------------------------
-		// PASS 2:
-		//
-		// Fill a one-cell hole vertically.
-		//
-		// This reconnects tiny gaps inside a water body without
-		// filling larger air spaces.
-		// --------------------------------------------------------
+		// Vertical hole filling.
 
 		for (int y = 1;
 			 y < height - 1;
@@ -864,10 +833,6 @@ water +=
 				}
 			}
 		}
-
-		// --------------------------------------------------------
-		// Final mask.
-		// --------------------------------------------------------
 
 		System.Array.Copy(
 			renderWaterScratch,
@@ -969,7 +934,6 @@ water +=
 		out float bottom)
 	{
 		top = 0.0f;
-
 		bottom = 0.0f;
 
 		int centerX =
@@ -996,32 +960,40 @@ water +=
 		bool found =
 			false;
 
-		for (int offsetX = -1;
-			 offsetX <= 1;
-			 offsetX++)
+		const int SearchRadius = 3;
+
+		int minSampleX =
+			Mathf.Max(
+				0,
+				centerX - SearchRadius
+			);
+
+		int maxSampleX =
+			Mathf.Min(
+				width - 1,
+				centerX + SearchRadius
+			);
+
+		int minSampleY =
+			Mathf.Max(
+				0,
+				centerY - SearchRadius
+			);
+
+		int maxSampleY =
+			Mathf.Min(
+				height - 1,
+				centerY + SearchRadius
+			);
+
+		for (int sampleY = minSampleY;
+			 sampleY <= maxSampleY;
+			 sampleY++)
 		{
-			int sampleX =
-				centerX + offsetX;
-
-			if (sampleX < 0 ||
-				sampleX >= width)
+			for (int sampleX = minSampleX;
+				 sampleX <= maxSampleX;
+				 sampleX++)
 			{
-				continue;
-			}
-
-			for (int offsetY = -1;
-				 offsetY <= 1;
-				 offsetY++)
-			{
-				int sampleY =
-					centerY + offsetY;
-
-				if (sampleY < 0 ||
-					sampleY >= height)
-				{
-					continue;
-				}
-
 				int sampleIndex =
 					sampleY * width +
 					sampleX;
@@ -1091,9 +1063,12 @@ water +=
 
 		if (!hasBody)
 		{
+			// IMPORTANT:
+			// Never return green/red fallback data.
+			// Use neutral data instead.
 			return new Color(
 				0.0f,
-				1.0f,
+				0.0f,
 				0.0f,
 				1.0f
 			);
@@ -1218,10 +1193,16 @@ water +=
 			position
 		);
 
-		vertexColors.Add(
+		Color color =
 			GetVertexColor(
 				position
-			)
+			);
+
+		color.B =
+			1.0f;
+
+		vertexColors.Add(
+			color
 		);
 
 		horizontalEdgeIndices[
@@ -1270,10 +1251,16 @@ water +=
 			position
 		);
 
-		vertexColors.Add(
+		Color color =
 			GetVertexColor(
 				position
-			)
+			);
+
+		color.B =
+			1.0f;
+
+		vertexColors.Add(
+			color
 		);
 
 		verticalEdgeIndices[
@@ -1292,8 +1279,10 @@ water +=
 	{
 		mesh.ClearSurfaces();
 
-		if (vertices.Count == 0 ||
-			indices.Count == 0)
+		if (
+			vertices.Count == 0 ||
+			indices.Count == 0
+		)
 		{
 			return;
 		}
@@ -1346,8 +1335,10 @@ water +=
 		float difference =
 			valueB - valueA;
 
-		if (Mathf.Abs(difference) <
-			0.0001f)
+		if (
+			Mathf.Abs(difference) <
+			0.0001f
+		)
 		{
 			return 0.5f;
 		}
@@ -1536,9 +1527,11 @@ water +=
 		int b,
 		int c)
 	{
-		if (a < 0 ||
+		if (
+			a < 0 ||
 			b < 0 ||
-			c < 0)
+			c < 0
+		)
 		{
 			return;
 		}
@@ -1558,8 +1551,10 @@ water +=
 			(vb.Y - va.Y) *
 			(vc.X - va.X);
 
-		if (Mathf.Abs(area) <
-			0.000001f)
+		if (
+			Mathf.Abs(area) <
+			0.000001f
+		)
 		{
 			return;
 		}
