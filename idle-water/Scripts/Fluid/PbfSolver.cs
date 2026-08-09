@@ -35,6 +35,44 @@ public class PbfSolver
 	private const float MaxCorrection = 1.5f;
 
 	// ============================================================
+	// Artificial pressure / tensile instability
+	//
+	// Standard PBF:
+	//
+	// s_corr = -k * (W(r) / W(qh))^n
+	//
+	// The artificial pressure is added to:
+	//
+	// lambda_i + lambda_j + s_corr
+	//
+	// This prevents tensile instability and particle clumping.
+	// ============================================================
+
+	private const float ArtificialPressureStrength = 0.01f;
+
+	private const float ArtificialPressureExponent = 4.0f;
+
+	// Reference distance = 0.1h.
+	//
+	// At r = 0.1h:
+	//
+	// q = 1 - 0.1 = 0.9
+	//
+	// W(q) = q^3 = 0.9^3
+	//
+	private const float ArtificialPressureReferenceDistance =
+		0.10f;
+
+	private const float ArtificialPressureReferenceQ =
+		1.0f -
+		ArtificialPressureReferenceDistance;
+
+	private static readonly float ArtificialPressureReferenceKernel =
+		ArtificialPressureReferenceQ *
+		ArtificialPressureReferenceQ *
+		ArtificialPressureReferenceQ;
+
+	// ============================================================
 	// Simulation boundaries
 	// ============================================================
 
@@ -99,6 +137,10 @@ public class PbfSolver
 	private double accumPhaseBMs;
 	private double accumTotalMs;
 
+	// ============================================================
+	// Constructor
+	// ============================================================
+
 	public PbfSolver(
 		SpatialHash spatialHash)
 	{
@@ -145,7 +187,7 @@ public class PbfSolver
 		}
 
 		// ========================================================
-		// 2. PBF
+		// 2. Position Based Fluids
 		// ========================================================
 
 		for (int iteration = 0;
@@ -197,11 +239,6 @@ public class PbfSolver
 				float py =
 					particles.PredY[i];
 
-				// ------------------------------------------------
-				// Ask SpatialHash for ONLY actual neighbors.
-				// Maximum is already enforced here.
-				// ------------------------------------------------
-
 				int neighborCount =
 					hash.Query(
 						px,
@@ -226,7 +263,7 @@ public class PbfSolver
 				);
 
 				// ------------------------------------------------
-				// Cache geometry.
+				// Cache neighbor geometry.
 				// ------------------------------------------------
 
 				for (int n = 0;
@@ -291,7 +328,7 @@ public class PbfSolver
 			// ====================================================
 			// Phase A
 			//
-			// Density + complete PBF gradient.
+			// Density + gradients + lambda
 			// ====================================================
 
 			long phaseAStart =
@@ -332,9 +369,20 @@ public class PbfSolver
 					float q =
 						neighborQ[index];
 
-					// Density.
+					// ------------------------------------------------
+					// Density kernel
+					//
+					// W(r) = q^3
+					// ------------------------------------------------
+
+					float q2 =
+						q * q;
+
+					float q3 =
+						q2 * q;
+
 					density +=
-						q * q * q;
+						q3;
 
 					if (j == i)
 						continue;
@@ -348,22 +396,28 @@ public class PbfSolver
 						continue;
 					}
 
+					// ------------------------------------------------
+					// Kernel gradient
+					//
+					// dW/dr = -3q²/h
+					// ------------------------------------------------
+
 					float gradientMagnitude =
 						-3.0f *
-						q * q /
+						q2 /
 						SmoothingRadius;
 
-					float invDistance =
+					float inverseDistance =
 						1.0f /
 						distance;
 
 					float nx =
 						neighborDx[index] *
-						invDistance;
+						inverseDistance;
 
 					float ny =
 						neighborDy[index] *
-						invDistance;
+						inverseDistance;
 
 					float gx =
 						gradientMagnitude *
@@ -389,10 +443,18 @@ public class PbfSolver
 				particleDensity[i] =
 					density;
 
+				// ------------------------------------------------
+				// Density constraint
+				// ------------------------------------------------
+
 				float constraint =
 					density /
 					RestDensity -
 					1.0f;
+
+				// ------------------------------------------------
+				// Lambda denominator
+				// ------------------------------------------------
 
 				float denominator =
 					gradSumX * gradSumX +
@@ -417,6 +479,12 @@ public class PbfSolver
 
 			// ====================================================
 			// Phase B
+			//
+			// Position correction:
+			//
+			// lambda_i
+			// + lambda_j
+			// + artificial pressure
 			// ====================================================
 
 			long phaseBStart =
@@ -437,6 +505,9 @@ public class PbfSolver
 
 				int offset =
 					neighborOffsets[i];
+
+				float lambdaI =
+					lambdas[i];
 
 				for (int n = 0;
 					 n < neighborCount;
@@ -463,47 +534,122 @@ public class PbfSolver
 					float q =
 						neighborQ[index];
 
+					// ------------------------------------------------
+					// Kernel gradient
+					// ------------------------------------------------
+
+					float q2 =
+						q * q;
+
 					float gradientMagnitude =
 						-3.0f *
-						q * q /
+						q2 /
 						SmoothingRadius;
 
-					float invDistance =
+					float inverseDistance =
 						1.0f /
 						distance;
 
-					float gradientX =
+					float gradientScale =
 						gradientMagnitude *
-						neighborDx[index] *
-						invDistance /
+						inverseDistance /
 						RestDensity;
+
+					float gradientX =
+						neighborDx[index] *
+						gradientScale;
 
 					float gradientY =
-						gradientMagnitude *
 						neighborDy[index] *
-						invDistance /
-						RestDensity;
+						gradientScale;
+
+					// ------------------------------------------------
+					// Normal PBF pressure
+					// ------------------------------------------------
 
 					float lambdaSum =
-						lambdas[i] +
+						lambdaI +
 						lambdas[j];
 
+					// ------------------------------------------------
+					// Artificial pressure
+					//
+					// W(r) = q³
+					//
+					// s_corr =
+					// -k * (W(r)/W(q_ref))^n
+					//
+					// The ratio is clamped to [0,1] so that
+					// extremely close particles cannot create
+					// excessive artificial pressure.
+					// ------------------------------------------------
+
+					float kernelValue =
+						q2 * q;
+
+					float kernelRatio =
+						kernelValue /
+						ArtificialPressureReferenceKernel;
+
+					kernelRatio =
+						Mathf.Clamp(
+							kernelRatio,
+							0.0f,
+							1.0f
+						);
+
+					// ------------------------------------------------
+					// Apply exponent without Mathf.Pow().
+					//
+					// This is significantly cheaper in the
+					// innermost neighbor loop.
+					//
+					// Current exponent = 4.
+					// ------------------------------------------------
+
+					float ratioSquared =
+						kernelRatio *
+						kernelRatio;
+
+					float ratioPower =
+						ratioSquared *
+						ratioSquared;
+
+					float artificialPressure =
+						-ArtificialPressureStrength *
+						ratioPower;
+
+					// ------------------------------------------------
+					// Combined pressure correction
+					// ------------------------------------------------
+
+					float pressureTerm =
+						lambdaSum +
+						artificialPressure;
+
 					correctionX +=
-						lambdaSum *
+						pressureTerm *
 						gradientX;
 
 					correctionY +=
-						lambdaSum *
+						pressureTerm *
 						gradientY;
 				}
+
+				// ------------------------------------------------
+				// Safety clamp
+				// ------------------------------------------------
 
 				float correctionLengthSquared =
 					correctionX * correctionX +
 					correctionY * correctionY;
 
-				if (correctionLengthSquared >
+				float maxCorrectionSquared =
 					MaxCorrection *
-					MaxCorrection)
+					MaxCorrection;
+
+				if (correctionLengthSquared >
+					maxCorrectionSquared)
 				{
 					float correctionLength =
 						Mathf.Sqrt(
@@ -528,9 +674,9 @@ public class PbfSolver
 					correctionY;
 			}
 
-			// ----------------------------------------------------
-			// Apply corrections.
-			// ----------------------------------------------------
+			// ====================================================
+			// Apply position corrections
+			// ====================================================
 
 			for (int i = 0;
 				 i < count;
@@ -559,7 +705,8 @@ public class PbfSolver
 		// ========================================================
 		// 3. Viscosity + surface normal
 		//
-		// One neighbor pass.
+		// Uses the final neighbor cache from the final PBF
+		// iteration.
 		// ========================================================
 
 		for (int i = 0;
@@ -633,25 +780,29 @@ public class PbfSolver
 					(
 						particles.PredX[j] -
 						particles.PosX[j]
-					) / dt;
+					) /
+					dt;
 
 				float neighborVelocityY =
 					(
 						particles.PredY[j] -
 						particles.PosY[j]
-					) / dt;
+					) /
+					dt;
 
 				viscosityCorrectionX +=
 					(
 						neighborVelocityX -
 						velocityX
-					) * q;
+					) *
+					q;
 
 				viscosityCorrectionY +=
 					(
 						neighborVelocityY -
 						velocityY
-					) * q;
+					) *
+					q;
 
 				// ------------------------------------------------
 				// Surface normal
@@ -660,23 +811,25 @@ public class PbfSolver
 				float weight =
 					q * q;
 
-				float invDistance =
+				float inverseDistance =
 					1.0f /
 					distance;
 
 				float nx =
 					neighborDx[index] *
-					invDistance;
+					inverseDistance;
 
 				float ny =
 					neighborDy[index] *
-					invDistance;
+					inverseDistance;
 
 				normalX +=
-					nx * weight;
+					nx *
+					weight;
 
 				normalY +=
-					ny * weight;
+					ny *
+					weight;
 			}
 
 			viscosityX[i] =
@@ -687,9 +840,9 @@ public class PbfSolver
 				viscosityCorrectionY *
 				Viscosity;
 
-			// ----------------------------------------------------
+			// ====================================================
 			// Surface tension
-			// ----------------------------------------------------
+			// ====================================================
 
 			float normalLengthSquared =
 				normalX * normalX +
@@ -743,9 +896,12 @@ public class PbfSolver
 				velocityChangeY *
 				velocityChangeY;
 
-			if (velocityChangeLengthSquared >
+			float maxSurfaceVelocitySquared =
 				MaxSurfaceVelocity *
-				MaxSurfaceVelocity)
+				MaxSurfaceVelocity;
+
+			if (velocityChangeLengthSquared >
+				maxSurfaceVelocitySquared)
 			{
 				float velocityChangeLength =
 					Mathf.Sqrt(
@@ -771,7 +927,7 @@ public class PbfSolver
 		}
 
 		// ========================================================
-		// 4. Update velocities
+		// 4. Update velocities and positions
 		// ========================================================
 
 		for (int i = 0;
@@ -869,12 +1025,20 @@ public class PbfSolver
 				$"(MaxNeighbors={MaxNeighbors})"
 			);
 
-			profilerFrames = 0;
+			profilerFrames =
+				0;
 
-			accumBuildMs = 0.0;
-			accumPhaseAMs = 0.0;
-			accumPhaseBMs = 0.0;
-			accumTotalMs = 0.0;
+			accumBuildMs =
+				0.0;
+
+			accumPhaseAMs =
+				0.0;
+
+			accumPhaseBMs =
+				0.0;
+
+			accumTotalMs =
+				0.0;
 		}
 	}
 
