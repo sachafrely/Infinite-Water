@@ -1,106 +1,81 @@
 
-using System.Collections.Generic;
 using System.Diagnostics;
 using Godot;
 
 public partial class FluidRenderer : Node2D
 {
-	private MeshInstance2D waterMesh;
-	private ArrayMesh mesh;
+	private Sprite2D waterSprite;
+	private Image waterImage;
+	private ImageTexture waterTexture;
+	private ShaderMaterial waterMaterial;
 
 	private int width;
 	private int height;
 	private float cellSize;
 
-	private const float SurfaceThreshold = 0.28f;
+	// ============================================================
+	// Pixel Art
+	// ============================================================
 
-	// ============================================================
-	// PIXEL ART
+	// DensityField cell = 4 screen pixels.
 	//
-	// The simulation still uses the original density resolution.
-	// The renderer groups several simulation cells into larger
-	// visual pixels.
-	//
-	// 2 = 8x8 pixels when DensityField cellSize = 4
-	// 3 = 12x12
-	// 4 = 16x16
-	// ============================================================
+	// 1 = 4x4 screen pixels
+	// 2 = 8x8 screen pixels
+	// 3 = 12x12 screen pixels
+	// 4 = 16x16 screen pixels
 
 	private const int PixelScale = 1;
 
-	private float PixelSize
-	{
-		get
-		{
-			return cellSize * PixelScale;
-		}
-	}
+	private int pixelWidth;
+	private int pixelHeight;
+
+	private float PixelSize => cellSize * PixelScale;
 
 	// ============================================================
-	// Render update throttle
+	// Density
+	// ============================================================
+
+	private const float SurfaceThreshold = 0.28f;
+
+	// ============================================================
+	// Surface Glow
+	// ============================================================
+
+	// Number of pixels into the water that the surface glow
+	// can extend.
+	private const int SurfaceGlowWidth = 8;
+
+	// ============================================================
+	// Render throttle
 	// ============================================================
 
 	private const int RenderEveryNFrames = 2;
 
-	private int renderFrameCounter = 0;
+	private int renderFrameCounter;
 
 	// ============================================================
-	// Render connectivity
+	// Pixel buffers
 	// ============================================================
 
-	private bool[] renderWater;
-	private bool[] renderWaterScratch;
+	private bool[] pixelWater;
+
+	private float[] pixelDepth;
+	private float[] pixelSurface;
+
+	// NEW:
+	// Actual glow strength for every water pixel.
+	private float[] pixelGlow;
+
+	private byte[] pixelBytes;
 
 	// ============================================================
-	// Visual data
-	//
-	// R = depth
-	// G = surface influence
-	// B = edge lighting
-	// A = 1
+	// Profiling
 	// ============================================================
 
-	private float[] visualDepth;
-	private float[] visualSurface;
-	private int[] visualGeneration;
+	private int profilerFrameCount;
 
-	private int visualGenerationId = 0;
-
-	// ============================================================
-	// Vertex cache generations
-	// ============================================================
-
-	private int[] cornerCacheGeneration;
-	private int[] horizontalCacheGeneration;
-	private int[] verticalCacheGeneration;
-
-	private int[] cornerIndices;
-	private int[] horizontalEdgeIndices;
-	private int[] verticalEdgeIndices;
-
-	private int cacheGeneration = 0;
-
-	// ============================================================
-	// Mesh buffers
-	// ============================================================
-
-	private readonly List<Vector2> vertices =
-		new List<Vector2>(16384);
-
-	private readonly List<int> indices =
-		new List<int>(24576);
-
-	private readonly List<Color> vertexColors =
-		new List<Color>(16384);
-
-	// ============================================================
-	// Profiler
-	// ============================================================
-
-	private int profilerFrameCount = 0;
-
-	private double profilerMeshTime = 0.0;
-	private double profilerTotalTime = 0.0;
+	private double profilerTotalMs;
+	private double profilerImageMs;
 
 	// ============================================================
 	// Initialization
@@ -115,74 +90,97 @@ public partial class FluidRenderer : Node2D
 		height = densityHeight;
 		cellSize = densityCellSize;
 
-		waterMesh =
-			new MeshInstance2D();
+		pixelWidth = Mathf.CeilToInt(
+			width / (float)PixelScale
+		);
 
-		mesh =
-			new ArrayMesh();
+		pixelHeight = Mathf.CeilToInt(
+			height / (float)PixelScale
+		);
 
-		waterMesh.Mesh =
-			mesh;
+		int pixelCount =
+			pixelWidth *
+			pixelHeight;
 
-		int gridSize =
-			width * height;
+		pixelWater =
+			new bool[pixelCount];
 
-		int cornerGridSize =
-			(width + 1) *
-			(height + 1);
+		pixelDepth =
+			new float[pixelCount];
 
-		int horizontalSize =
-			Mathf.Max(
-				1,
-				(width - 1) * height
+		pixelSurface =
+			new float[pixelCount];
+
+		pixelGlow =
+			new float[pixelCount];
+
+		pixelBytes =
+			new byte[pixelCount * 4];
+
+		// --------------------------------------------------------
+		// Image
+		// --------------------------------------------------------
+
+		waterImage =
+			Image.Create(
+				pixelWidth,
+				pixelHeight,
+				false,
+				Image.Format.Rgba8
 			);
 
-		int verticalSize =
-			Mathf.Max(
-				1,
-				width * (height - 1)
+		waterImage.Fill(
+			new Color(
+				0,
+				0,
+				0,
+				0
+			)
+		);
+
+		waterTexture =
+			ImageTexture.CreateFromImage(
+				waterImage
 			);
 
-		cornerIndices =
-			new int[cornerGridSize];
+		// --------------------------------------------------------
+		// Sprite
+		// --------------------------------------------------------
 
-		horizontalEdgeIndices =
-			new int[horizontalSize];
+		waterSprite =
+			new Sprite2D();
 
-		verticalEdgeIndices =
-			new int[verticalSize];
+		waterSprite.Texture =
+			waterTexture;
 
-		cornerCacheGeneration =
-			new int[cornerGridSize];
+		waterSprite.Scale =
+			new Vector2(
+				PixelSize,
+				PixelSize
+			);
 
-		horizontalCacheGeneration =
-			new int[horizontalSize];
+		waterSprite.TextureFilter =
+			CanvasItem.TextureFilterEnum.Nearest;
 
-		verticalCacheGeneration =
-			new int[verticalSize];
+		waterSprite.Centered =
+			false;
 
-		renderWater =
-			new bool[gridSize];
-
-		renderWaterScratch =
-			new bool[gridSize];
-
-		visualDepth =
-			new float[gridSize];
-
-		visualSurface =
-			new float[gridSize];
-
-		visualGeneration =
-			new int[gridSize];
+		// --------------------------------------------------------
+		// Shader
+		// --------------------------------------------------------
 
 		CreateWaterMaterial();
 
-		AddChild(waterMesh);
+		waterSprite.Material =
+			waterMaterial;
+
+		AddChild(
+			waterSprite
+		);
 	}
 
 	// ============================================================
-	// Water material
+	// Water shader
 	// ============================================================
 
 	private void CreateWaterMaterial()
@@ -193,6 +191,10 @@ public partial class FluidRenderer : Node2D
 		shader.Code = @"
 shader_type canvas_item;
 render_mode unshaded;
+
+// ============================================================
+// Water colors
+// ============================================================
 
 uniform vec3 deep_color : source_color =
 vec3(0.005, 0.16, 0.48);
@@ -206,72 +208,76 @@ vec3(0.01, 0.38, 0.78);
 uniform vec3 surface_color : source_color =
 vec3(0.55, 0.78, 0.95);
 
-uniform float water_alpha = 0.5;
+// ============================================================
+// Appearance
+// ============================================================
 
-uniform float surface_glow_strength = 0.5;
+uniform float water_alpha = 0.50;
 
-uniform float edge_light_strength = 0.33;
+// Main surface glow.
+uniform float surface_glow_strength = 0.25;
 
-uniform float shimmer_strength = 0.2;
+// Direct brightness.
+uniform float surface_brightness = 0.12;
 
-uniform float shimmer_speed = 0.2;
-
+// Shimmer.
+uniform float shimmer_strength = 0.20;
+uniform float shimmer_speed = 0.20;
 uniform float shimmer_scale = 0.045;
 
-varying float water_depth;
-varying float surface_factor;
-varying float edge_factor;
-varying vec2 water_position;
-
-void vertex()
-{
-	water_depth =
-		clamp(
-			COLOR.r,
-			0.0,
-			1.0
-		);
-
-	surface_factor =
-		clamp(
-			COLOR.g,
-			0.0,
-			1.0
-		);
-
-	edge_factor =
-		clamp(
-			COLOR.b,
-			0.0,
-			1.0
-		);
-
-	water_position =
-		VERTEX;
-}
+// ============================================================
+// Fragment
+// ============================================================
 
 void fragment()
 {
+	// --------------------------------------------------------
+	// Read texture.
+	//
+	// R = depth
+	// G = surface
+	// B = glow
+	// A = water mask
+	// --------------------------------------------------------
+
+	vec4 tex =
+		texture(
+			TEXTURE,
+			UV
+		);
+
+	// Empty pixels stay transparent.
+	if (tex.a < 0.01)
+	{
+		discard;
+	}
+
 	float depth =
 		clamp(
-			water_depth,
+			tex.r,
 			0.0,
 			1.0
 		);
 
 	float surface =
 		clamp(
-			surface_factor,
+			tex.g,
 			0.0,
 			1.0
 		);
 
-	float edge =
+	// NEW:
+	// Actual four-pixel glow generated by C#.
+	float glow =
 		clamp(
-			edge_factor,
+			tex.b,
 			0.0,
 			1.0
 		);
+
+	// ========================================================
+	// Depth color
+	// ========================================================
 
 	vec3 water;
 
@@ -300,32 +306,63 @@ void fragment()
 			);
 	}
 
-	float glow =
-		surface * surface;
+	// ========================================================
+	// SURFACE
+	// ========================================================
 
-	float glowAmount =
-		glow *
-		surface_glow_strength *
-		0.45;
+	float surfaceGlow =
+		smoothstep(
+			0.0,
+			0.75,
+			surface
+		);
 
 	water =
 		mix(
 			water,
 			surface_color,
-			glowAmount
+			surfaceGlow *
+			surface_glow_strength
+		);
+
+	water +=
+		surface_color *
+		surfaceGlow *
+		surface_brightness;
+
+	// ========================================================
+	// FOUR-PIXEL WIDE GLOW
+	// ========================================================
+
+	// This is the important part.
+	//
+	// glow is strongest at the surface and gradually fades
+	// as it travels into the water.
+
+	water =
+		mix(
+			water,
+			surface_color,
+			glow * 0.55
 		);
 
 	water +=
 		surface_color *
 		glow *
-		0.035;
+		0.20;
+
+	// ========================================================
+	// Shimmer
+	// ========================================================
 
 	float wave1 =
 		sin(
-			water_position.x *
+			UV.x *
+			300.0 *
 			shimmer_scale +
 
-			water_position.y *
+			UV.y *
+			300.0 *
 			shimmer_scale *
 			0.35 +
 
@@ -335,11 +372,13 @@ void fragment()
 
 	float wave2 =
 		sin(
-			water_position.x *
+			UV.x *
+			300.0 *
 			shimmer_scale *
 			1.73 -
 
-			water_position.y *
+			UV.y *
+			300.0 *
 			shimmer_scale *
 			0.55 -
 
@@ -353,12 +392,14 @@ void fragment()
 		0.5;
 
 	wave =
-		wave * 0.5 +
+		wave *
+		0.5 +
 		0.5;
 
 	float shimmerMask =
-		0.25 +
-		surface * 0.75;
+		0.20 +
+		surface *
+		0.80;
 
 	float shimmer =
 		wave *
@@ -372,28 +413,24 @@ void fragment()
 			shimmer
 		);
 
-	float edgeGlow =
-		edge *
-		edge *
-		edge_light_strength;
-
-	water =
-		mix(
-			water,
-			surface_color,
-			edgeGlow
-		);
+	// ========================================================
+	// Surface highlight
+	// ========================================================
 
 	float highlight =
 		pow(
 			surface,
-			5.0
+			3.0
 		);
 
 	water +=
 		surface_color *
 		highlight *
-		0.10;
+		0.18;
+
+	// ========================================================
+	// Final
+	// ========================================================
 
 	water =
 		clamp(
@@ -410,14 +447,11 @@ void fragment()
 }
 ";
 
-		ShaderMaterial material =
+		waterMaterial =
 			new ShaderMaterial();
 
-		material.Shader =
+		waterMaterial.Shader =
 			shader;
-
-		waterMesh.Material =
-			material;
 	}
 
 	// ============================================================
@@ -440,21 +474,30 @@ void fragment()
 
 		renderFrameCounter = 0;
 
+		if (!densityField.HasDensity)
+		{
+			ClearTexture();
+			return;
+		}
+
 		Stopwatch totalTimer =
 			Stopwatch.StartNew();
 
-		BuildPixelArtMesh(
+		BuildPixelTexture(
 			densityField
 		);
 
 		totalTimer.Stop();
 
-		profilerTotalTime +=
+		profilerTotalMs +=
 			totalTimer.Elapsed.TotalMilliseconds;
 
 		profilerFrameCount++;
 
-		if (profilerFrameCount >= 60)
+		if (
+			profilerFrameCount >=
+			60
+		)
 		{
 			GD.Print(
 				"Pixel Water profiler " +
@@ -462,690 +505,553 @@ void fragment()
 				"Particles=" +
 				particles.Count +
 				" Total=" +
-				(profilerTotalTime / 60.0)
+				(profilerTotalMs / 60.0)
 					.ToString("F2") +
-				"ms Mesh=" +
-				(profilerMeshTime / 60.0)
+				"ms Image=" +
+				(profilerImageMs / 60.0)
 					.ToString("F2") +
-				"ms Vertices=" +
-				vertices.Count +
-				" Indices=" +
-				indices.Count +
+				"ms PixelCount=" +
+				(pixelWidth * pixelHeight) +
 				" PixelSize=" +
 				PixelSize
 			);
 
-			profilerMeshTime = 0.0;
+			profilerTotalMs = 0.0;
+			profilerImageMs = 0.0;
 			profilerFrameCount = 0;
-			profilerTotalTime = 0.0;
 		}
 	}
 
 	// ============================================================
-	// Pixel-art mesh
+	// Build pixel texture
 	// ============================================================
 
-	private void BuildPixelArtMesh(
+	private void BuildPixelTexture(
 		DensityField densityField)
 	{
 		float[] values =
 			densityField.GetValues();
 
-		vertices.Clear();
-		indices.Clear();
-		vertexColors.Clear();
+		// --------------------------------------------------------
+		// Active density region
+		// --------------------------------------------------------
 
-		cacheGeneration++;
-
-		if (cacheGeneration == int.MaxValue)
-		{
-			System.Array.Clear(
-				cornerCacheGeneration,
+		int minX =
+			Mathf.Max(
 				0,
-				cornerCacheGeneration.Length
+				densityField.ActiveMinX
 			);
 
-			System.Array.Clear(
-				horizontalCacheGeneration,
-				0,
-				horizontalCacheGeneration.Length
+		int maxX =
+			Mathf.Min(
+				width - 1,
+				densityField.ActiveMaxX
 			);
 
-			System.Array.Clear(
-				verticalCacheGeneration,
+		int minY =
+			Mathf.Max(
 				0,
-				verticalCacheGeneration.Length
+				densityField.ActiveMinY
 			);
 
-			cacheGeneration = 1;
-		}
+		int maxY =
+			Mathf.Min(
+				height - 1,
+				densityField.ActiveMaxY
+			);
 
-		if (!densityField.HasDensity)
-		{
-			mesh.ClearSurfaces();
-			return;
-		}
+		// --------------------------------------------------------
+		// Clear previous frame
+		// --------------------------------------------------------
 
-		BuildRenderWaterMask(values);
+		System.Array.Clear(
+			pixelWater,
+			0,
+			pixelWater.Length
+		);
 
-		CalculateVisualData(
-			densityField
+		System.Array.Clear(
+			pixelDepth,
+			0,
+			pixelDepth.Length
+		);
+
+		System.Array.Clear(
+			pixelSurface,
+			0,
+			pixelSurface.Length
+		);
+
+		System.Array.Clear(
+			pixelGlow,
+			0,
+			pixelGlow.Length
 		);
 
 		// --------------------------------------------------------
-		// Instead of drawing every 4x4 density cell, we snap the
-		// rendered geometry to larger pixel-art blocks.
+		// Convert density cells to pixels
 		// --------------------------------------------------------
 
-		int pixelWidth =
-			Mathf.CeilToInt(
-				(width * cellSize) /
-				PixelSize
+		int firstPixelX =
+			Mathf.Clamp(
+				minX / PixelScale,
+				0,
+				pixelWidth - 1
 			);
 
-		int pixelHeight =
-			Mathf.CeilToInt(
-				(height * cellSize) /
-				PixelSize
+		int lastPixelX =
+			Mathf.Clamp(
+				maxX / PixelScale,
+				0,
+				pixelWidth - 1
+			);
+
+		int firstPixelY =
+			Mathf.Clamp(
+				minY / PixelScale,
+				0,
+				pixelHeight - 1
+			);
+
+		int lastPixelY =
+			Mathf.Clamp(
+				maxY / PixelScale,
+				0,
+				pixelHeight - 1
 			);
 
 		for (
-			int py = 0;
-			py < pixelHeight;
+			int py = firstPixelY;
+			py <= lastPixelY;
 			py++)
 		{
+			int sourceStartY =
+				py * PixelScale;
+
+			int sourceEndY =
+				Mathf.Min(
+					height - 1,
+					sourceStartY +
+					PixelScale -
+					1
+				);
+
+			int pixelRow =
+				py * pixelWidth;
+
 			for (
-				int px = 0;
-				px < pixelWidth;
+				int px = firstPixelX;
+				px <= lastPixelX;
 				px++)
 			{
-				float x0 =
-					px * PixelSize;
+				int sourceStartX =
+					px * PixelScale;
 
-				float y0 =
-					py * PixelSize;
+				int sourceEndX =
+					Mathf.Min(
+						width - 1,
+						sourceStartX +
+						PixelScale -
+						1
+					);
 
-				float x1 =
-					x0 + PixelSize;
+				float densitySum =
+					0.0f;
 
-				float y1 =
-					y0 + PixelSize;
+				float maximumDensity =
+					0.0f;
 
-				if (!PixelBlockContainsWater(
-					px,
-					py))
+				int samples =
+					0;
+
+				for (
+					int y = sourceStartY;
+					y <= sourceEndY;
+					y++)
+				{
+					int row =
+						y * width;
+
+					for (
+						int x = sourceStartX;
+						x <= sourceEndX;
+						x++)
+					{
+						float density =
+							values[row + x];
+
+						if (
+							density >=
+							SurfaceThreshold
+						)
+						{
+							if (
+								density >
+								maximumDensity
+							)
+							{
+								maximumDensity =
+									density;
+							}
+
+							densitySum +=
+								density;
+
+							samples++;
+						}
+					}
+				}
+
+				if (samples == 0)
 				{
 					continue;
 				}
 
-				AddPixelBlock(
-					x0,
-					y0,
-					x1,
-					y1
-				);
+				int pixelIndex =
+					pixelRow + px;
+
+				pixelWater[pixelIndex] =
+					true;
+
+				float averageDensity =
+					densitySum /
+					samples;
+
+				// ------------------------------------------------
+				// Depth
+				// ------------------------------------------------
+
+				float depth =
+					Mathf.Clamp(
+						averageDensity /
+						1.5f,
+						0.0f,
+						1.0f
+					);
+
+				// ------------------------------------------------
+				// Surface
+				// ------------------------------------------------
+
+				float surface =
+					Mathf.Clamp(
+						1.0f -
+						(
+							maximumDensity -
+							SurfaceThreshold
+						) /
+						0.45f,
+						0.0f,
+						1.0f
+					);
+
+				surface *= surface;
+
+				pixelDepth[pixelIndex] =
+					depth;
+
+				pixelSurface[pixelIndex] =
+					surface;
 			}
 		}
 
-		Stopwatch meshTimer =
+		// ========================================================
+		// Build 4-pixel surface glow
+		// ========================================================
+
+		BuildSurfaceGlow();
+
+		// --------------------------------------------------------
+		// Convert to RGBA8
+		// --------------------------------------------------------
+
+		Stopwatch imageTimer =
 			Stopwatch.StartNew();
 
-		BuildMesh();
+		FillPixelBytes();
 
-		meshTimer.Stop();
+		// --------------------------------------------------------
+		// Upload texture
+		// --------------------------------------------------------
 
-		profilerMeshTime +=
-			meshTimer.Elapsed.TotalMilliseconds;
+		waterImage.SetData(
+			pixelWidth,
+			pixelHeight,
+			false,
+			Image.Format.Rgba8,
+			pixelBytes
+		);
+
+		waterTexture.Update(
+			waterImage
+		);
+
+		imageTimer.Stop();
+
+		profilerImageMs +=
+			imageTimer.Elapsed.TotalMilliseconds;
 	}
 
 	// ============================================================
-	// Determine whether a large pixel contains water
+	// Build Surface Glow
 	// ============================================================
 
-	private bool PixelBlockContainsWater(
-		int pixelX,
-		int pixelY)
+	private void BuildSurfaceGlow()
 	{
-		int startX =
-			Mathf.FloorToInt(
-				(pixelX * PixelSize) /
-				cellSize
-			);
-
-		int startY =
-			Mathf.FloorToInt(
-				(pixelY * PixelSize) /
-				cellSize
-			);
-
-		int endX =
-			Mathf.Min(
-				width - 1,
-				Mathf.CeilToInt(
-					((pixelX + 1) * PixelSize) /
-					cellSize
-				)
-			);
-
-		int endY =
-			Mathf.Min(
-				height - 1,
-				Mathf.CeilToInt(
-					((pixelY + 1) * PixelSize) /
-					cellSize
-				)
-			);
+		// We search outward from every surface pixel.
+		//
+		// The glow is strongest at the surface:
+		//
+		// Distance 0 = 1.00
+		// Distance 1 = 0.80
+		// Distance 2 = 0.55
+		// Distance 3 = 0.30
+		// Distance 4 = 0.12
+		//
+		// This creates a visible 4-pixel bright band.
 
 		for (
-			int y = startY;
-			y <= endY;
+			int y = 0;
+			y < pixelHeight;
 			y++)
 		{
 			int row =
-				y * width;
+				y * pixelWidth;
 
 			for (
-				int x = startX;
-				x <= endX;
+				int x = 0;
+				x < pixelWidth;
 				x++)
 			{
-				if (
-					x >= 0 &&
-					x < width &&
-					y >= 0 &&
-					y < height &&
-					renderWater[row + x]
-				)
+				int index =
+					row + x;
+
+				if (!pixelWater[index])
 				{
-					return true;
+					continue;
+				}
+
+				float surface =
+					pixelSurface[index];
+
+				// Only meaningful surface pixels create
+				// the extended glow.
+				if (surface <= 0.05f)
+				{
+					continue;
+				}
+
+				// ------------------------------------------------
+				// Check the 4-pixel neighborhood.
+				// ------------------------------------------------
+
+				for (
+					int dy = -SurfaceGlowWidth;
+					dy <= SurfaceGlowWidth;
+					dy++)
+				{
+					int targetY =
+						y + dy;
+
+					if (
+						targetY < 0 ||
+						targetY >= pixelHeight
+					)
+					{
+						continue;
+					}
+
+					for (
+						int dx = -SurfaceGlowWidth;
+						dx <= SurfaceGlowWidth;
+						dx++)
+					{
+						int targetX =
+							x + dx;
+
+						if (
+							targetX < 0 ||
+							targetX >= pixelWidth
+						)
+						{
+							continue;
+						}
+
+						// Manhattan distance produces a
+						// pixel-art style glow.
+						int distance =
+							Mathf.Abs(dx) +
+							Mathf.Abs(dy);
+
+						if (
+							distance >
+							SurfaceGlowWidth
+						)
+						{
+							continue;
+						}
+
+						int targetIndex =
+							targetY *
+							pixelWidth +
+							targetX;
+
+						// Glow should only travel through
+						// actual water.
+						if (!pixelWater[targetIndex])
+						{
+							continue;
+						}
+
+						float strength;
+
+						if (distance == 0)
+						{
+							strength = 1.0f;
+						}
+						else if (distance == 1)
+						{
+							strength = 0.80f;
+						}
+						else if (distance == 2)
+						{
+							strength = 0.55f;
+						}
+						else if (distance == 3)
+						{
+							strength = 0.30f;
+						}
+						else
+						{
+							strength = 0.12f;
+						}
+
+						float glow =
+							surface *
+							strength;
+
+						if (
+							glow >
+							pixelGlow[targetIndex]
+						)
+						{
+							pixelGlow[targetIndex] =
+								glow;
+						}
+					}
 				}
 			}
 		}
-
-		return false;
 	}
 
 	// ============================================================
-	// Add one large pixel block
+	// RGBA8 conversion
 	// ============================================================
 
-	private void AddPixelBlock(
-		float x0,
-		float y0,
-		float x1,
-		float y1)
-	{
-		int baseIndex =
-			vertices.Count;
-
-		Vector2 a =
-			new Vector2(
-				x0,
-				y0
-			);
-
-		Vector2 b =
-			new Vector2(
-				x1,
-				y0
-			);
-
-		Vector2 c =
-			new Vector2(
-				x1,
-				y1
-			);
-
-		Vector2 d =
-			new Vector2(
-				x0,
-				y1
-			);
-
-		vertices.Add(a);
-		vertices.Add(b);
-		vertices.Add(c);
-		vertices.Add(d);
-
-		Color colorA =
-			GetPixelColor(
-				x0,
-				y0
-			);
-
-		Color colorB =
-			GetPixelColor(
-				x1,
-				y0
-			);
-
-		Color colorC =
-			GetPixelColor(
-				x1,
-				y1
-			);
-
-		Color colorD =
-			GetPixelColor(
-				x0,
-				y1
-			);
-
-		vertexColors.Add(colorA);
-		vertexColors.Add(colorB);
-		vertexColors.Add(colorC);
-		vertexColors.Add(colorD);
-
-		indices.Add(baseIndex);
-		indices.Add(baseIndex + 1);
-		indices.Add(baseIndex + 2);
-
-		indices.Add(baseIndex);
-		indices.Add(baseIndex + 2);
-		indices.Add(baseIndex + 3);
-	}
-
-	// ============================================================
-	// Pixel color
-	// ============================================================
-
-	private Color GetPixelColor(
-		float x,
-		float y)
-	{
-		// Sample the CENTER of the large pixel instead of its
-		// exact edge. This gives each pixel a consistent color.
-
-		float sampleX =
-			Mathf.Floor(
-				x / PixelSize
-			) *
-			PixelSize +
-			PixelSize * 0.5f;
-
-		float sampleY =
-			Mathf.Floor(
-				y / PixelSize
-			) *
-			PixelSize +
-			PixelSize * 0.5f;
-
-		return GetVertexColor(
-			new Vector2(
-				sampleX,
-				sampleY
-			)
-		);
-	}
-
-	// ============================================================
-	// Render connectivity mask
-	// ============================================================
-
-	private void BuildRenderWaterMask(
-		float[] values)
+	private void FillPixelBytes()
 	{
 		int count =
-			renderWater.Length;
+			pixelWater.Length;
 
 		for (
 			int i = 0;
 			i < count;
 			i++)
 		{
-			renderWater[i] =
-				values[i] >=
-				SurfaceThreshold;
-		}
+			int byteIndex =
+				i * 4;
 
-		System.Array.Copy(
-			renderWater,
-			renderWaterScratch,
-			count
-		);
+			// ----------------------------------------------------
+			// Empty pixel
+			// ----------------------------------------------------
 
-		for (
-			int y = 0;
-			y < height;
-			y++)
-		{
-			int row =
-				y * width;
-
-			for (
-				int x = 1;
-				x < width - 1;
-				x++)
+			if (!pixelWater[i])
 			{
-				int index =
-					row + x;
+				pixelBytes[byteIndex] = 0;
+				pixelBytes[byteIndex + 1] = 0;
 
-				if (renderWater[index])
-					continue;
+				// Blue = glow.
+				pixelBytes[byteIndex + 2] = 0;
 
-				if (
-					renderWater[index - 1] &&
-					renderWater[index + 1]
-				)
-				{
-					renderWaterScratch[index] =
-						true;
-				}
+				pixelBytes[byteIndex + 3] = 0;
+
+				continue;
 			}
-		}
 
-		for (
-			int y = 1;
-			y < height - 1;
-			y++)
-		{
-			int row =
-				y * width;
+			// ----------------------------------------------------
+			// Water pixel
+			// ----------------------------------------------------
 
-			for (
-				int x = 0;
-				x < width;
-				x++)
-			{
-				int index =
-					row + x;
-
-				if (renderWaterScratch[index])
-					continue;
-
-				int above =
-					index - width;
-
-				int below =
-					index + width;
-
-				if (
-					renderWater[above] &&
-					renderWater[below]
-				)
-				{
-					renderWaterScratch[index] =
-						true;
-				}
-			}
-		}
-
-		System.Array.Copy(
-			renderWaterScratch,
-			renderWater,
-			count
-		);
-	}
-
-	// ============================================================
-	// Calculate visual data
-	// ============================================================
-
-	private void CalculateVisualData(
-		DensityField densityField)
-	{
-		visualGenerationId++;
-
-		if (visualGenerationId == int.MaxValue)
-		{
-			System.Array.Clear(
-				visualGeneration,
-				0,
-				visualGeneration.Length
-			);
-
-			visualGenerationId = 1;
-		}
-
-		int minX =
-			Mathf.Max(
-				0,
-				densityField.ActiveMinX - 1
-			);
-
-		int maxX =
-			Mathf.Min(
-				width - 1,
-				densityField.ActiveMaxX + 1
-			);
-
-		int minY =
-			Mathf.Max(
-				0,
-				densityField.ActiveMinY - 1
-			);
-
-		int maxY =
-			Mathf.Min(
-				height - 1,
-				densityField.ActiveMaxY + 1
-			);
-
-		for (
-			int x = minX;
-			x <= maxX;
-			x++)
-		{
-			int y = minY;
-
-			while (y <= maxY)
-			{
-				int index =
-					y * width + x;
-
-				if (!renderWater[index])
-				{
-					y++;
-					continue;
-				}
-
-				int startY =
-					y;
-
-				while (
-					y < maxY &&
-					renderWater[
-						(y + 1) * width + x
-					]
-				)
-				{
-					y++;
-				}
-
-				int endY =
-					y;
-
-				float top =
-					startY * cellSize;
-
-				float bottom =
-					(endY + 1) * cellSize;
-
-				float bodyHeight =
-					bottom - top;
-
-				if (bodyHeight < 48.0f)
-					bodyHeight = 48.0f;
-
-				for (
-					int bodyY = startY;
-					bodyY <= endY;
-					bodyY++)
-				{
-					int bodyIndex =
-						bodyY * width + x;
-
-					float worldY =
-						bodyY * cellSize;
-
-					float depth =
-						(worldY - top) /
-						bodyHeight;
-
-					depth =
-						Mathf.Clamp(
-							depth,
-							0.0f,
-							1.0f
-						);
-
-					float surfaceDistance =
-						Mathf.Abs(
-							worldY - top
-						);
-
-					float surface =
-						1.0f -
-						Mathf.Clamp(
-							surfaceDistance / 28.0f,
-							0.0f,
-							1.0f
-						);
-
-					surface *= surface;
-
-					visualDepth[bodyIndex] =
-						depth;
-
-					visualSurface[bodyIndex] =
-						surface;
-
-					visualGeneration[bodyIndex] =
-						visualGenerationId;
-				}
-
-				y++;
-			}
-		}
-	}
-
-	// ============================================================
-	// Fast visual lookup
-	// ============================================================
-
-	private Color GetVertexColor(
-		Vector2 position)
-	{
-		int x =
-			Mathf.Clamp(
-				Mathf.FloorToInt(
-					position.X / cellSize
-				),
-				0,
-				width - 1
-			);
-
-		int y =
-			Mathf.Clamp(
-				Mathf.FloorToInt(
-					position.Y / cellSize
-				),
-				0,
-				height - 1
-			);
-
-		int index =
-			y * width + x;
-
-		if (
-			visualGeneration[index] ==
-			visualGenerationId
-		)
-		{
-			return new Color(
-				visualDepth[index],
-				visualSurface[index],
-				0.0f,
-				1.0f
-			);
-		}
-
-		for (
-			int offsetY = 1;
-			offsetY <= 2;
-			offsetY++)
-		{
-			int sampleY =
-				y - offsetY;
-
-			if (sampleY < 0)
-				break;
-
-			int sampleIndex =
-				sampleY * width + x;
-
-			if (
-				visualGeneration[sampleIndex] ==
-				visualGenerationId
-			)
-			{
-				return new Color(
-					visualDepth[sampleIndex],
-					visualSurface[sampleIndex],
+			float depth =
+				Mathf.Clamp(
+					pixelDepth[i],
 					0.0f,
 					1.0f
 				);
-			}
-		}
 
-		return new Color(
-			0.0f,
-			0.0f,
-			0.0f,
-			1.0f
-		);
+			float surface =
+				Mathf.Clamp(
+					pixelSurface[i],
+					0.0f,
+					1.0f
+				);
+
+			float glow =
+				Mathf.Clamp(
+					pixelGlow[i],
+					0.0f,
+					1.0f
+				);
+
+			// R = depth.
+			pixelBytes[byteIndex] =
+				(byte)(
+					depth *
+					255.0f
+				);
+
+			// G = surface.
+			pixelBytes[byteIndex + 1] =
+				(byte)(
+					surface *
+					255.0f
+				);
+
+			// B = four-pixel glow.
+			pixelBytes[byteIndex + 2] =
+				(byte)(
+					glow *
+					255.0f
+				);
+
+			// A = water.
+			pixelBytes[byteIndex + 3] =
+				255;
+		}
 	}
 
 	// ============================================================
-	// Build Godot mesh
+	// Clear
 	// ============================================================
 
-	private void BuildMesh()
+	private void ClearTexture()
 	{
-		mesh.ClearSurfaces();
-
-		if (
-			vertices.Count == 0 ||
-			indices.Count == 0
-		)
-		{
-			return;
-		}
-
-		Vector2[] vertexArray =
-			vertices.ToArray();
-
-		int[] indexArray =
-			indices.ToArray();
-
-		Color[] colorArray =
-			vertexColors.ToArray();
-
-		Godot.Collections.Array arrays =
-			new Godot.Collections.Array();
-
-		arrays.Resize(
-			(int)Mesh.ArrayType.Max
+		System.Array.Clear(
+			pixelBytes,
+			0,
+			pixelBytes.Length
 		);
 
-		arrays[
-			(int)Mesh.ArrayType.Vertex
-		] =
-			vertexArray;
+		waterImage.SetData(
+			pixelWidth,
+			pixelHeight,
+			false,
+			Image.Format.Rgba8,
+			pixelBytes
+		);
 
-		arrays[
-			(int)Mesh.ArrayType.Color
-		] =
-			colorArray;
-
-		arrays[
-			(int)Mesh.ArrayType.Index
-		] =
-			indexArray;
-
-		mesh.AddSurfaceFromArrays(
-			Mesh.PrimitiveType.Triangles,
-			arrays
+		waterTexture.Update(
+			waterImage
 		);
 	}
 }
