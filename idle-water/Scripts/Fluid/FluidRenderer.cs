@@ -205,7 +205,7 @@ uniform float surface_glow_strength = 0.5;
 
 uniform float edge_light_strength = 0.33;
 
-uniform float shimmer_strength = 0.1;
+uniform float shimmer_strength = 0.2;
 
 uniform float shimmer_speed = 0.2;
 
