@@ -1,3 +1,4 @@
+
 using Godot;
 using System;
 using System.Diagnostics;
@@ -23,6 +24,7 @@ public class PbfSolver
 	// ============================================================
 
 	private const float RestDensity = 1.15f;
+
 	private const float InverseRestDensity =
 		1.0f / RestDensity;
 
@@ -38,6 +40,7 @@ public class PbfSolver
 	private const float DensityErrorThreshold = 0.035f;
 
 	private const float MaxCorrection = 0.5f;
+
 	private const float MaxCorrectionSquared =
 		MaxCorrection * MaxCorrection;
 
@@ -136,8 +139,8 @@ public class PbfSolver
 	private double accumCorrectionMs;
 	private double accumPolygonMs;
 	private double accumBoundsMs;
-
 	private double accumVelocityMs;
+
 	private double accumTotalMs;
 
 	private int accumIterations;
@@ -222,7 +225,7 @@ public class PbfSolver
 			particles.PredY;
 
 		// ========================================================
-		// 1. Predict positions
+		// Predict positions
 		// ========================================================
 
 		long predictStart =
@@ -253,7 +256,7 @@ public class PbfSolver
 			Stopwatch.Frequency;
 
 		// ========================================================
-		// 2. PBF
+		// PBF
 		// ========================================================
 
 		int iterationsUsed = 0;
@@ -268,64 +271,116 @@ public class PbfSolver
 		{
 			iterationsUsed++;
 
-			// ----------------------------------------------------
-			// Spatial hash
-			// ----------------------------------------------------
+			// ====================================================
+			// Neighbor topology
+			//
+			// Iteration 1:
+			//     Build everything from the spatial hash.
+			//
+			// Iteration 2:
+			//     Reuse neighbor indices.
+			//     Only recalculate distances/kernel values.
+			//
+			// Iteration 3:
+			//     Rebuild the topology because enough position
+			//     corrections may have accumulated that particles
+			//     can enter/leave the smoothing radius.
+			// ====================================================
 
-			long buildStart =
-				Stopwatch.GetTimestamp();
+			bool rebuildNeighbors =
+				iteration == 0 ||
+				iteration == 2;
 
-			hash.Clear();
-
-			for (int i = 0; i < count; i++)
+			if (rebuildNeighbors)
 			{
-				hash.Insert(
-					i,
-					predX[i],
-					predY[i]
+				// ------------------------------------------------
+				// Spatial hash
+				// ------------------------------------------------
+
+				long buildStart =
+					Stopwatch.GetTimestamp();
+
+				hash.Clear();
+
+				for (int i = 0; i < count; i++)
+				{
+					hash.Insert(
+						i,
+						predX[i],
+						predY[i]
+					);
+				}
+
+				long buildEnd =
+					Stopwatch.GetTimestamp();
+
+				accumBuildMs +=
+					(buildEnd - buildStart) *
+					1000.0 /
+					Stopwatch.Frequency;
+
+				// ------------------------------------------------
+				// Full neighbor construction
+				// ------------------------------------------------
+
+				long neighborsStart =
+					Stopwatch.GetTimestamp();
+
+				BuildNeighborCache(
+					predX,
+					predY,
+					count
 				);
+
+				long neighborsEnd =
+					Stopwatch.GetTimestamp();
+
+				accumNeighborsMs +=
+					(neighborsEnd - neighborsStart) *
+					1000.0 /
+					Stopwatch.Frequency;
+			}
+			else
+			{
+				// ------------------------------------------------
+				// Fast neighbor update
+				//
+				// The topology is reused. This avoids:
+				//
+				// hash.Clear()
+				// hash.Insert(...)
+				// hash.Query(...)
+				//
+				// on the second iteration.
+				// ------------------------------------------------
+
+				long neighborsStart =
+					Stopwatch.GetTimestamp();
+
+				UpdateNeighborCache(
+					predX,
+					predY,
+					count
+				);
+
+				long neighborsEnd =
+					Stopwatch.GetTimestamp();
+
+				accumNeighborsMs +=
+					(neighborsEnd - neighborsStart) *
+					1000.0 /
+					Stopwatch.Frequency;
 			}
 
-			long buildEnd =
-				Stopwatch.GetTimestamp();
-
-			accumBuildMs +=
-				(buildEnd - buildStart) *
-				1000.0 /
-				Stopwatch.Frequency;
-
-			// ----------------------------------------------------
-			// Neighbor cache
-			// ----------------------------------------------------
-
-			long neighborsStart =
-				Stopwatch.GetTimestamp();
-
-			BuildNeighborCache(
-				predX,
-				predY,
-				count
-			);
-
-			long neighborsEnd =
-				Stopwatch.GetTimestamp();
-
-			accumNeighborsMs +=
-				(neighborsEnd - neighborsStart) *
-				1000.0 /
-				Stopwatch.Frequency;
-
-			// ----------------------------------------------------
+			// ====================================================
 			// Phase A
-			// ----------------------------------------------------
+			// ====================================================
 
 			long phaseAStart =
 				Stopwatch.GetTimestamp();
 
 			frameDensityError =
-				CalculateLambdas(
-					count
-				);
+				CalculateLambdas(count);
 
 			long phaseAEnd =
 				Stopwatch.GetTimestamp();
@@ -343,9 +398,9 @@ public class PbfSolver
 					frameDensityError;
 			}
 
-			// ----------------------------------------------------
+			// ====================================================
 			// Position correction
-			// ----------------------------------------------------
+			// ====================================================
 
 			long correctionStart =
 				Stopwatch.GetTimestamp();
@@ -364,9 +419,9 @@ public class PbfSolver
 				1000.0 /
 				Stopwatch.Frequency;
 
-			// ----------------------------------------------------
+			// ====================================================
 			// Polygon collision
-			// ----------------------------------------------------
+			// ====================================================
 
 			if (polygonColliders.Count > 0)
 			{
@@ -388,9 +443,9 @@ public class PbfSolver
 					Stopwatch.Frequency;
 			}
 
-			// ----------------------------------------------------
+			// ====================================================
 			// World bounds
-			// ----------------------------------------------------
+			// ====================================================
 
 			long boundsStart =
 				Stopwatch.GetTimestamp();
@@ -409,18 +464,21 @@ public class PbfSolver
 				1000.0 /
 				Stopwatch.Frequency;
 
-			// ----------------------------------------------------
+			// ====================================================
 			// Adaptive exit
 			//
-			// We always do two iterations.
-			// A third is only used if necessary.
-			// ----------------------------------------------------
+			// Always perform two iterations.
+			//
+			// If density is good enough after iteration two,
+			// stop there.
+			//
+			// Otherwise iteration three is performed.
+			// ====================================================
 
 			if (
 				iteration + 1 >= MinIterations &&
 				frameDensityError <=
-				DensityErrorThreshold
-			)
+				DensityErrorThreshold)
 			{
 				break;
 			}
@@ -430,7 +488,7 @@ public class PbfSolver
 			iterationsUsed;
 
 		// ========================================================
-		// 3. Velocity reconstruction
+		// Velocity reconstruction
 		// ========================================================
 
 		long velocityStart =
@@ -491,8 +549,7 @@ public class PbfSolver
 				{
 					if (
 						Mathf.Abs(finalVelocityX) <
-						BoundaryVelocityEpsilon
-					)
+						BoundaryVelocityEpsilon)
 					{
 						finalVelocityX = 0.0f;
 					}
@@ -513,8 +570,7 @@ public class PbfSolver
 				{
 					if (
 						Mathf.Abs(finalVelocityX) <
-						BoundaryVelocityEpsilon
-					)
+						BoundaryVelocityEpsilon)
 					{
 						finalVelocityX = 0.0f;
 					}
@@ -536,8 +592,7 @@ public class PbfSolver
 				{
 					if (
 						Mathf.Abs(finalVelocityY) <
-						BoundaryVelocityEpsilon
-					)
+						BoundaryVelocityEpsilon)
 					{
 						finalVelocityY = 0.0f;
 					}
@@ -558,8 +613,7 @@ public class PbfSolver
 				{
 					if (
 						Mathf.Abs(finalVelocityY) <
-						BoundaryVelocityEpsilon
-					)
+						BoundaryVelocityEpsilon)
 					{
 						finalVelocityY = 0.0f;
 					}
@@ -623,8 +677,7 @@ public class PbfSolver
 
 		if (
 			profilerFrames >=
-			ProfilerPrintInterval
-		)
+			ProfilerPrintInterval)
 		{
 			PrintProfiler();
 			ResetProfiler();
@@ -671,13 +724,17 @@ public class PbfSolver
 				float gradientScale =
 					neighborGradientScale[index];
 
+				float lambdaSum =
+					lambdaI +
+					lambdas[j];
+
 				correctionX +=
-					(lambdaI + lambdas[j]) *
+					lambdaSum *
 					neighborDx[index] *
 					gradientScale;
 
 				correctionY +=
-					(lambdaI + lambdas[j]) *
+					lambdaSum *
 					neighborDy[index] *
 					gradientScale;
 			}
@@ -688,8 +745,7 @@ public class PbfSolver
 
 			if (
 				correctionLengthSquared >
-				MaxCorrectionSquared
-			)
+				MaxCorrectionSquared)
 			{
 				float inverseLength =
 					1.0f /
@@ -705,13 +761,16 @@ public class PbfSolver
 				correctionY *= scale;
 			}
 
-			predX[i] += correctionX;
-			predY[i] += correctionY;
+			predX[i] +=
+				correctionX;
+
+			predY[i] +=
+				correctionY;
 		}
 	}
 
 	// ============================================================
-	// Neighbor cache
+	// Full neighbor cache construction
 	// ============================================================
 
 	private void BuildNeighborCache(
@@ -756,80 +815,162 @@ public class PbfSolver
 				bufferWritePosition +
 				neighborCount;
 
-			for (
-				int index = bufferWritePosition;
-				index < end;
-				index++)
-			{
-				int j =
-					neighborBuffer[index];
-
-				float dx =
-					px - predX[j];
-
-				float dy =
-					py - predY[j];
-
-				float distanceSquared =
-					dx * dx +
-					dy * dy;
-
-				neighborDx[index] =
-					dx;
-
-				neighborDy[index] =
-					dy;
-
-				if (
-					distanceSquared <=
-					0.000001f
-				)
-				{
-					neighborQ[index] =
-						1.0f;
-
-					neighborGradientScale[index] =
-						0.0f;
-
-					continue;
-				}
-
-				float inverseDistance =
-					1.0f /
-					Mathf.Sqrt(
-						distanceSquared
-					);
-
-				float distance =
-					distanceSquared *
-					inverseDistance;
-
-				float q =
-					1.0f -
-					distance /
-					SmoothingRadius;
-
-				if (q < 0.0f)
-					q = 0.0f;
-
-				neighborQ[index] =
-					q;
-
-				float q2 =
-					q * q;
-
-				neighborGradientScale[index] =
-					(
-						-3.0f *
-						q2 /
-						SmoothingRadius
-					) *
-					inverseDistance *
-					InverseRestDensity;
-			}
+			CalculateNeighborData(
+				predX,
+				predY,
+				px,
+				py,
+				bufferWritePosition,
+				end
+			);
 
 			bufferWritePosition =
 				end;
+		}
+	}
+
+	// ============================================================
+	// Fast neighbor cache update
+	//
+	// Reuses the neighbor indices from the previous iteration.
+	//
+	// This is much cheaper than rebuilding the spatial hash and
+	// running hash.Query() again.
+	// ============================================================
+
+	private void UpdateNeighborCache(
+		float[] predX,
+		float[] predY,
+		int count)
+	{
+		for (int i = 0; i < count; i++)
+		{
+			float px =
+				predX[i];
+
+			float py =
+				predY[i];
+
+			int offset =
+				neighborOffsets[i];
+
+			int neighborCount =
+				neighborCounts[i];
+
+			int end =
+				offset +
+				neighborCount;
+
+			CalculateNeighborData(
+				predX,
+				predY,
+				px,
+				py,
+				offset,
+				end
+			);
+		}
+	}
+
+	// ============================================================
+	// Neighbor kernel data
+	// ============================================================
+
+	private void CalculateNeighborData(
+		float[] predX,
+		float[] predY,
+		float px,
+		float py,
+		int start,
+		int end)
+	{
+		for (
+			int index = start;
+			index < end;
+			index++)
+		{
+			int j =
+				neighborBuffer[index];
+
+			float dx =
+				px -
+				predX[j];
+
+			float dy =
+				py -
+				predY[j];
+
+			float distanceSquared =
+				dx * dx +
+				dy * dy;
+
+			neighborDx[index] =
+				dx;
+
+			neighborDy[index] =
+				dy;
+
+			// ----------------------------------------------------
+			// Same position
+			// ----------------------------------------------------
+
+			if (
+				distanceSquared <=
+				0.000001f)
+			{
+				neighborQ[index] =
+					1.0f;
+
+				neighborGradientScale[index] =
+					0.0f;
+
+				continue;
+			}
+
+			// ----------------------------------------------------
+			// Distance
+			// ----------------------------------------------------
+
+			float inverseDistance =
+				1.0f /
+				Mathf.Sqrt(
+					distanceSquared
+				);
+
+			float distance =
+				distanceSquared *
+				inverseDistance;
+
+			// ----------------------------------------------------
+			// Kernel q
+			// ----------------------------------------------------
+
+			float q =
+				1.0f -
+				distance /
+				SmoothingRadius;
+
+			if (q < 0.0f)
+				q = 0.0f;
+
+			neighborQ[index] =
+				q;
+
+			// ----------------------------------------------------
+			// Gradient
+			// ----------------------------------------------------
+
+			float q2 =
+				q * q;
+
+			neighborGradientScale[index] =
+				(
+					-3.0f *
+					q2 /
+					SmoothingRadius
+				) *
+				inverseDistance *
+				InverseRestDensity;
 		}
 	}
 
@@ -852,19 +993,13 @@ public class PbfSolver
 				neighborCounts[i];
 
 			int end =
-				offset + neighborCount;
+				offset +
+				neighborCount;
 
-			float density =
-				0.0f;
-
-			float gradSumX =
-				0.0f;
-
-			float gradSumY =
-				0.0f;
-
-			float neighborGradientSquared =
-				0.0f;
+			float density = 0.0f;
+			float gradSumX = 0.0f;
+			float gradSumY = 0.0f;
+			float neighborGradientSquared = 0.0f;
 
 			for (
 				int index = offset;
@@ -918,8 +1053,7 @@ public class PbfSolver
 
 			if (
 				absoluteConstraint >
-				maximumDensityError
-			)
+				maximumDensityError)
 			{
 				maximumDensityError =
 					absoluteConstraint;
@@ -950,6 +1084,9 @@ public class PbfSolver
 		float[] predY,
 		int count)
 	{
+		int colliderCount =
+			polygonColliders.Count;
+
 		for (int i = 0; i < count; i++)
 		{
 			Vector2 position =
@@ -960,7 +1097,7 @@ public class PbfSolver
 
 			for (
 				int c = 0;
-				c < polygonColliders.Count;
+				c < colliderCount;
 				c++)
 			{
 				FluidPolygonCollider collider =
@@ -1009,8 +1146,7 @@ public class PbfSolver
 
 		if (
 			velocitySquared >=
-			WakeVelocityThresholdSquared
-		)
+			WakeVelocityThresholdSquared)
 		{
 			sleepProgress[i] = 0.0f;
 			sleeping[i] = false;
@@ -1019,11 +1155,11 @@ public class PbfSolver
 
 		if (
 			velocitySquared <
-			SleepVelocityThresholdSquared
-		)
+			SleepVelocityThresholdSquared)
 		{
 			sleepProgress[i] +=
-				dt / SleepTime;
+				dt /
+				SleepTime;
 
 			if (sleepProgress[i] > 1.0f)
 				sleepProgress[i] = 1.0f;
@@ -1052,7 +1188,8 @@ public class PbfSolver
 		}
 
 		sleepProgress[i] -=
-			dt / SleepTime;
+			dt /
+			SleepTime;
 
 		if (sleepProgress[i] < 0.0f)
 			sleepProgress[i] = 0.0f;
@@ -1099,8 +1236,11 @@ public class PbfSolver
 			else if (y > bottom)
 				y = bottom;
 
-			predX[i] = x;
-			predY[i] = y;
+			predX[i] =
+				x;
+
+			predY[i] =
+				y;
 		}
 	}
 
@@ -1113,8 +1253,7 @@ public class PbfSolver
 	{
 		if (
 			lambdas != null &&
-			lambdas.Length >= count
-		)
+			lambdas.Length >= count)
 		{
 			return;
 		}
@@ -1167,8 +1306,7 @@ public class PbfSolver
 	{
 		if (
 			neighborBuffer.Length >=
-			required
-		)
+			required)
 		{
 			return;
 		}
@@ -1238,34 +1376,44 @@ public class PbfSolver
 			profilerFrames;
 
 		double predict =
-			accumPredictMs / frames;
+			accumPredictMs /
+			frames;
 
 		double build =
-			accumBuildMs / frames;
+			accumBuildMs /
+			frames;
 
 		double neighbors =
-			accumNeighborsMs / frames;
+			accumNeighborsMs /
+			frames;
 
 		double phaseA =
-			accumPhaseAMs / frames;
+			accumPhaseAMs /
+			frames;
 
 		double correction =
-			accumCorrectionMs / frames;
+			accumCorrectionMs /
+			frames;
 
 		double polygon =
-			accumPolygonMs / frames;
+			accumPolygonMs /
+			frames;
 
 		double bounds =
-			accumBoundsMs / frames;
+			accumBoundsMs /
+			frames;
 
 		double velocity =
-			accumVelocityMs / frames;
+			accumVelocityMs /
+			frames;
 
 		double total =
-			accumTotalMs / frames;
+			accumTotalMs /
+			frames;
 
 		double iterations =
-			accumIterations / frames;
+			accumIterations /
+			frames;
 
 		GD.Print(
 			$"PBF profiler " +
@@ -1274,26 +1422,20 @@ public class PbfSolver
 			$"Particles={lastParticleCount} " +
 
 			$"Predict={predict:F2}ms " +
-
 			$"Build={build:F2}ms " +
-
 			$"Neighbors={neighbors:F2}ms " +
-
 			$"PhaseA={phaseA:F2}ms " +
-
 			$"Correction={correction:F2}ms " +
-
 			$"Polygon={polygon:F2}ms " +
-
 			$"Bounds={bounds:F2}ms " +
-
 			$"Velocity={velocity:F2}ms " +
 
 			$"Total={total:F2}ms " +
 
 			$"Iterations={iterations:F2} " +
 
-			$"MaxDensityError={maxObservedDensityError:F4} " +
+			$"MaxDensityError=" +
+			$"{maxObservedDensityError:F4} " +
 
 			$"MaxNeighbors={MaxNeighbors}"
 		);
@@ -1311,8 +1453,8 @@ public class PbfSolver
 		accumCorrectionMs = 0.0;
 		accumPolygonMs = 0.0;
 		accumBoundsMs = 0.0;
-
 		accumVelocityMs = 0.0;
+
 		accumTotalMs = 0.0;
 
 		accumIterations = 0;

@@ -1,374 +1,482 @@
-
 using Godot;
 using System;
 
 public class FluidPolygonCollider
 {
-	private readonly Vector2[] vertices;
-
-	// Small extra separation from the solid.
-	private const float CollisionMargin = 1.0f;
-
-	private const float Epsilon =
-		0.000001f;
-
-	// Polygon winding:
-	// positive = counter-clockwise
-	// negative = clockwise
-	private readonly bool counterClockwise;
+// ============================================================
+// Precomputed polygon data
+// ============================================================
 
 
-	public FluidPolygonCollider(
-		Vector2[] polygon)
+private readonly Vector2[] vertices;
+
+private readonly Vector2[] edges;
+private readonly Vector2[] edgeNormals;
+private readonly float[] edgeLengthSquared;
+
+private readonly bool counterClockwise;
+
+// ============================================================
+// Collision
+// ============================================================
+
+private const float CollisionMargin = 1.0f;
+
+private const float Epsilon =
+	0.000001f;
+
+// ============================================================
+// Polygon AABB
+//
+// Used as a very cheap broad-phase rejection.
+// ============================================================
+
+private float minX;
+private float maxX;
+private float minY;
+private float maxY;
+
+// ============================================================
+// Constructor
+// ============================================================
+
+public FluidPolygonCollider(
+	Vector2[] polygon)
+{
+	if (
+		polygon == null ||
+		polygon.Length < 3)
 	{
-		if (polygon == null ||
-			polygon.Length < 3)
-		{
-			throw new ArgumentException(
-				"Polygon collider requires at least 3 vertices."
-			);
-		}
-
-		vertices =
-			new Vector2[polygon.Length];
-
-		Array.Copy(
-			polygon,
-			vertices,
-			polygon.Length
+		throw new ArgumentException(
+            "Polygon collider requires at least 3 vertices."
 		);
-
-		counterClockwise =
-			CalculateSignedArea() > 0.0f;
 	}
 
+	int count =
+		polygon.Length;
 
-	// ============================================================
-	// Collision resolution
-	//
-	// Keeps the particle completely outside the polygon.
-	//
-	// Works for:
-	// - particles inside the polygon
-	// - particles touching an edge
-	// - particles touching a vertex
-	// - particles very close to the surface
-	// ============================================================
+	vertices =
+		new Vector2[count];
 
-	public bool ResolveCollision(
-		Vector2 position,
-		float particleRadius,
-		out Vector2 correctedPosition,
-		out Vector2 normal)
+	edges =
+		new Vector2[count];
+
+	edgeNormals =
+		new Vector2[count];
+
+	edgeLengthSquared =
+		new float[count];
+
+	Array.Copy(
+		polygon,
+		vertices,
+		count
+	);
+
+	counterClockwise =
+		CalculateSignedArea() > 0.0f;
+
+	// --------------------------------------------------------
+	// Calculate polygon bounds.
+	// --------------------------------------------------------
+
+	minX =
+		vertices[0].X;
+
+	maxX =
+		vertices[0].X;
+
+	minY =
+		vertices[0].Y;
+
+	maxY =
+		vertices[0].Y;
+
+	for (int i = 1; i < count; i++)
 	{
-		correctedPosition =
-			position;
+		Vector2 v =
+			vertices[i];
 
-		normal =
-			Vector2.Zero;
+		if (v.X < minX)
+			minX = v.X;
 
-		int vertexCount =
-			vertices.Length;
+		if (v.X > maxX)
+			maxX = v.X;
 
-		float closestDistanceSquared =
-			float.MaxValue;
+		if (v.Y < minY)
+			minY = v.Y;
 
-		Vector2 closestPoint =
-			Vector2.Zero;
+		if (v.Y > maxY)
+			maxY = v.Y;
+	}
 
-		Vector2 closestEdgeNormal =
-			Vector2.Zero;
+	// --------------------------------------------------------
+	// Precompute all edge information.
+	// --------------------------------------------------------
 
-		// --------------------------------------------------------
-		// Find closest edge.
-		// --------------------------------------------------------
+	for (int i = 0; i < count; i++)
+	{
+		Vector2 a =
+			vertices[i];
 
-		for (int i = 0;
-			 i < vertexCount;
-			 i++)
-		{
-			Vector2 a =
-				vertices[i];
+		Vector2 b =
+			vertices[
+				(i + 1) % count
+			];
 
-			Vector2 b =
-				vertices[
-					(i + 1) %
-					vertexCount
-				];
+		Vector2 edge =
+			b - a;
 
-			Vector2 edge =
-				b - a;
+		edges[i] =
+			edge;
 
-			float edgeLengthSquared =
-				edge.LengthSquared();
+		float lengthSquared =
+			edge.LengthSquared();
 
-			if (edgeLengthSquared <=
-				Epsilon)
-			{
-				continue;
-			}
+		edgeLengthSquared[i] =
+			lengthSquared;
 
-			float t =
-				(position - a)
-				.Dot(edge) /
-				edgeLengthSquared;
-
-			t =
-				Mathf.Clamp(
-					t,
-					0.0f,
-					1.0f
-				);
-
-			Vector2 point =
-				a +
-				edge * t;
-
-			Vector2 difference =
-				position -
-				point;
-
-			float distanceSquared =
-				difference.LengthSquared();
-
-			if (distanceSquared <
-				closestDistanceSquared)
-			{
-				closestDistanceSquared =
-					distanceSquared;
-
-				closestPoint =
-					point;
-
-				// ------------------------------------------------
-				// Calculate the ACTUAL outward normal of the edge.
-				//
-				// This does not depend on where the particle is.
-				// ------------------------------------------------
-
-				Vector2 edgeNormal;
-
-				if (counterClockwise)
-				{
-					// For CCW polygons, outward is right side.
-					edgeNormal =
-						new Vector2(
-							edge.Y,
-							-edge.X
-						);
-				}
-				else
-				{
-					// For CW polygons, outward is left side.
-					edgeNormal =
-						new Vector2(
-							-edge.Y,
-							edge.X
-						);
-				}
-
-				float normalLengthSquared =
-					edgeNormal.LengthSquared();
-
-				if (normalLengthSquared >
-					Epsilon)
-				{
-					closestEdgeNormal =
-						edgeNormal.Normalized();
-				}
-			}
-		}
-
-		// --------------------------------------------------------
-		// Safety check.
-		// --------------------------------------------------------
-
-		if (closestDistanceSquared ==
-			float.MaxValue)
-		{
-			return false;
-		}
-
-		// --------------------------------------------------------
-		// Is particle center inside polygon?
-		// --------------------------------------------------------
-
-		bool inside =
-			IsPointInside(position);
-
-		float particleRadiusWithMargin =
-			particleRadius +
-			CollisionMargin;
-
-		float collisionDistance =
-			Mathf.Sqrt(
-				Mathf.Max(
-					closestDistanceSquared,
-					0.0f
-				)
-			);
-
-		// --------------------------------------------------------
-		// If particle is outside and farther than its radius,
-		// there is no collision.
-		// --------------------------------------------------------
-
-		if (!inside &&
-			collisionDistance >
-			particleRadiusWithMargin)
-		{
-			return false;
-		}
-
-		// --------------------------------------------------------
-		// Use the actual polygon edge normal.
-		// --------------------------------------------------------
-
-		normal =
-			closestEdgeNormal;
-
-		if (normal.LengthSquared() <=
+		if (
+			lengthSquared <=
 			Epsilon)
 		{
+			edgeNormals[i] =
+				Vector2.Zero;
+
+			continue;
+		}
+
+		Vector2 normal;
+
+		if (counterClockwise)
+		{
+			// CCW polygon:
+			// outward is right side.
+			normal =
+				new Vector2(
+					edge.Y,
+					-edge.X
+				);
+		}
+		else
+		{
+			// CW polygon:
+			// outward is left side.
+			normal =
+				new Vector2(
+					-edge.Y,
+					edge.X
+				);
+		}
+
+		edgeNormals[i] =
+			normal.Normalized();
+	}
+}
+
+// ============================================================
+// Collision resolution
+// ============================================================
+
+public bool ResolveCollision(
+	Vector2 position,
+	float particleRadius,
+	out Vector2 correctedPosition,
+	out Vector2 normal)
+{
+	correctedPosition =
+		position;
+
+	normal =
+		Vector2.Zero;
+
+	float collisionRadius =
+		particleRadius +
+		CollisionMargin;
+
+	// ========================================================
+	// BROAD PHASE
+	//
+	// Most particles are nowhere near the polygon.
+	//
+	// This avoids:
+	//
+	// - edge loop
+	// - square roots
+	// - point-inside test
+	//
+	// for those particles.
+	// ========================================================
+
+	if (
+		position.X <
+		minX - collisionRadius ||
+
+		position.X >
+		maxX + collisionRadius ||
+
+		position.Y <
+		minY - collisionRadius ||
+
+		position.Y >
+		maxY + collisionRadius)
+	{
+		return false;
+	}
+
+	// ========================================================
+	// Find closest edge
+	// ========================================================
+
+	int vertexCount =
+		vertices.Length;
+
+	float closestDistanceSquared =
+		float.MaxValue;
+
+	Vector2 closestPoint =
+		Vector2.Zero;
+
+	Vector2 closestEdgeNormal =
+		Vector2.Zero;
+
+	for (int i = 0; i < vertexCount; i++)
+	{
+		Vector2 a =
+			vertices[i];
+
+		Vector2 edge =
+			edges[i];
+
+		float edgeLengthSq =
+			edgeLengthSquared[i];
+
+		if (
+			edgeLengthSq <=
+			Epsilon)
+		{
+			continue;
+		}
+
+		Vector2 toPoint =
+			position - a;
+
+		// IMPORTANT:
+		// Use the scalar for THIS edge.
+		float t =
+			toPoint.Dot(edge) /
+			edgeLengthSq;
+
+		if (t < 0.0f)
+			t = 0.0f;
+		else if (t > 1.0f)
+			t = 1.0f;
+
+		Vector2 point =
+			a +
+			edge * t;
+
+		float dx =
+			position.X -
+			point.X;
+
+		float dy =
+			position.Y -
+			point.Y;
+
+		float distanceSquared =
+			dx * dx +
+			dy * dy;
+
+		if (
+			distanceSquared <
+			closestDistanceSquared)
+		{
+			closestDistanceSquared =
+				distanceSquared;
+
+			closestPoint =
+				point;
+
+			closestEdgeNormal =
+				edgeNormals[i];
+		}
+	}
+
+	// ========================================================
+	// Safety
+	// ========================================================
+
+	if (
+		closestDistanceSquared ==
+		float.MaxValue)
+	{
+		return false;
+	}
+
+	if (
+		closestEdgeNormal.LengthSquared() <=
+		Epsilon)
+	{
+		return false;
+	}
+
+	// ========================================================
+	// Determine whether the particle is inside.
+	// ========================================================
+
+	bool inside =
+		IsPointInside(position);
+
+	// ========================================================
+	// Outside and too far away.
+	// ========================================================
+
+	float collisionDistanceSquared =
+		closestDistanceSquared;
+
+	float collisionRadiusSquared =
+		collisionRadius *
+		collisionRadius;
+
+	if (
+		!inside &&
+		collisionDistanceSquared >
+		collisionRadiusSquared)
+	{
+		return false;
+	}
+
+	normal =
+		closestEdgeNormal;
+
+	// ========================================================
+	// Particle inside polygon
+	// ========================================================
+
+	if (inside)
+	{
+		correctedPosition =
+			closestPoint +
+			normal *
+			collisionRadius;
+
+		return true;
+	}
+
+	// ========================================================
+	// Particle outside but intersecting polygon radius
+	// ========================================================
+
+	float collisionDistance =
+		Mathf.Sqrt(
+			collisionDistanceSquared
+		);
+
+	float penetration =
+		collisionRadius -
+		collisionDistance;
+
+	if (penetration > 0.0f)
+	{
+		correctedPosition =
+			position +
+			normal *
+			penetration;
+	}
+
+	return true;
+}
+
+// ============================================================
+// Signed polygon area
+// ============================================================
+
+private float CalculateSignedArea()
+{
+	float area =
+		0.0f;
+
+	int count =
+		vertices.Length;
+
+	for (int i = 0; i < count; i++)
+	{
+		Vector2 a =
+			vertices[i];
+
+		Vector2 b =
+			vertices[
+				(i + 1) % count
+			];
+
+		area +=
+			a.X * b.Y -
+			b.X * a.Y;
+	}
+
+	return area * 0.5f;
+}
+
+// ============================================================
+// Point inside convex polygon
+//
+// Works with either winding direction.
+// ============================================================
+
+private bool IsPointInside(
+	Vector2 point)
+{
+	bool hasPositive =
+		false;
+
+	bool hasNegative =
+		false;
+
+	int count =
+		vertices.Length;
+
+	for (int i = 0; i < count; i++)
+	{
+		Vector2 a =
+			vertices[i];
+
+		Vector2 edge =
+			edges[i];
+
+		Vector2 toPoint =
+			point - a;
+
+		float cross =
+			edge.X *
+			toPoint.Y -
+			edge.Y *
+			toPoint.X;
+
+		if (
+			cross >
+			Epsilon)
+		{
+			hasPositive =
+				true;
+		}
+		else if (
+			cross <
+			-Epsilon)
+		{
+			hasNegative =
+				true;
+		}
+
+		if (
+			hasPositive &&
+			hasNegative)
+		{
 			return false;
 		}
-
-		// ========================================================
-		// Particle is INSIDE the polygon.
-		//
-		// Push it completely through the nearest edge.
-		//
-		// This is the important fix for trapped particles.
-		// ========================================================
-
-		if (inside)
-		{
-			correctedPosition =
-				closestPoint +
-				normal *
-				particleRadiusWithMargin;
-
-			return true;
-		}
-
-		// ========================================================
-		// Particle is OUTSIDE but intersects the collision radius.
-		// ========================================================
-
-		float penetration =
-			particleRadiusWithMargin -
-			collisionDistance;
-
-		if (penetration > 0.0f)
-		{
-			correctedPosition =
-				position +
-				normal *
-				penetration;
-		}
-
-		return true;
 	}
 
+	return true;
+}
 
-	// ============================================================
-	// Calculate polygon signed area.
-	//
-	// Positive  = counter-clockwise
-	// Negative  = clockwise
-	// ============================================================
-
-	private float CalculateSignedArea()
-	{
-		float area =
-			0.0f;
-
-		int count =
-			vertices.Length;
-
-		for (int i = 0;
-			 i < count;
-			 i++)
-		{
-			Vector2 a =
-				vertices[i];
-
-			Vector2 b =
-				vertices[
-					(i + 1) %
-					count
-				];
-
-			area +=
-				a.X * b.Y -
-				b.X * a.Y;
-		}
-
-		return area * 0.5f;
-	}
-
-
-	// ============================================================
-	// Point inside convex polygon.
-	//
-	// Works regardless of winding direction.
-	// ============================================================
-
-	private bool IsPointInside(
-		Vector2 point)
-	{
-		bool hasPositive =
-			false;
-
-		bool hasNegative =
-			false;
-
-		int count =
-			vertices.Length;
-
-		for (int i = 0;
-			 i < count;
-			 i++)
-		{
-			Vector2 a =
-				vertices[i];
-
-			Vector2 b =
-				vertices[
-					(i + 1) %
-					count
-				];
-
-			Vector2 edge =
-				b - a;
-
-			Vector2 toPoint =
-				point - a;
-
-			float cross =
-				edge.X * toPoint.Y -
-				edge.Y * toPoint.X;
-
-			if (cross >
-				Epsilon)
-			{
-				hasPositive =
-					true;
-			}
-			else if (cross <
-					 -Epsilon)
-			{
-				hasNegative =
-					true;
-			}
-
-			if (hasPositive &&
-				hasNegative)
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
 }
