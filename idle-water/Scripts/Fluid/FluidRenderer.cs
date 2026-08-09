@@ -1,3 +1,4 @@
+
 using System.Collections.Generic;
 using System.Diagnostics;
 using Godot;
@@ -12,6 +13,19 @@ public partial class FluidRenderer : Node2D
 	private float cellSize;
 
 	private float surfaceThreshold = 0.28f;
+
+	// ------------------------------------------------------------
+	// Render connectivity
+	// ------------------------------------------------------------
+
+	// Small render-only mask.
+	//
+	// IMPORTANT:
+	// This does NOT modify DensityField.
+	// It is only used by the visual mesh.
+	private bool[] renderWater;
+
+	private bool[] renderWaterScratch;
 
 	// ------------------------------------------------------------
 	// Profiler
@@ -32,13 +46,10 @@ public partial class FluidRenderer : Node2D
 	private readonly List<int> indices =
 		new List<int>(24576);
 
-	// One color per vertex.
-	//
-	// R = normalized water depth
+	// R = normalized depth
 	// G = surface influence
 	// B = unused
-	// A = water alpha
-	//
+	// A = alpha
 	private readonly List<Color> vertexColors =
 		new List<Color>(16384);
 
@@ -53,13 +64,14 @@ public partial class FluidRenderer : Node2D
 	private int[] verticalEdgeIndices;
 
 	// ------------------------------------------------------------
-	// Surface information
-	//
-	// Stores the first/uppermost density position for every
-	// horizontal column.
+	// Local water-body information
 	// ------------------------------------------------------------
 
-	private float[] surfaceY;
+	private float[] bodyTopY;
+
+	private float[] bodyBottomY;
+
+	private bool[] bodyValid;
 
 	// ------------------------------------------------------------
 	// Initialization
@@ -83,10 +95,6 @@ public partial class FluidRenderer : Node2D
 		waterMesh.Mesh =
 			mesh;
 
-		// --------------------------------------------------------
-		// Allocate vertex caches.
-		// --------------------------------------------------------
-
 		cornerIndices =
 			new int[
 				width * height
@@ -108,9 +116,33 @@ public partial class FluidRenderer : Node2D
 				)
 			];
 
-		surfaceY =
+		bodyTopY =
 			new float[
-				width
+				width * height
+			];
+
+		bodyBottomY =
+			new float[
+				width * height
+			];
+
+		bodyValid =
+			new bool[
+				width * height
+			];
+
+		// --------------------------------------------------------
+		// Render masks.
+		// --------------------------------------------------------
+
+		renderWater =
+			new bool[
+				width * height
+			];
+
+		renderWaterScratch =
+			new bool[
+				width * height
 			];
 
 		CreateWaterMaterial();
@@ -123,11 +155,11 @@ public partial class FluidRenderer : Node2D
 	// ============================================================
 
 	private void CreateWaterMaterial()
-{
-	Shader shader =
-		new Shader();
+	{
+		Shader shader =
+			new Shader();
 
-	shader.Code = @"
+		shader.Code = @"
 shader_type canvas_item;
 
 // ------------------------------------------------------------
@@ -141,61 +173,57 @@ uniform vec3 middle_color : source_color =
 	vec3(0.01, 0.38, 0.78);
 
 uniform vec3 shallow_color : source_color =
-	vec3(0.04, 0.68, 0.95);
+	vec3(0.03, 0.45, 0.75);
 
 uniform vec3 surface_color : source_color =
-	vec3(0.72, 0.94, 1.0);
+	vec3(0.8, 0.8, 1.0);
 
 // ------------------------------------------------------------
-// Transparency
+// Alpha
 // ------------------------------------------------------------
 
 uniform float water_alpha = 0.76;
 
 // ------------------------------------------------------------
-// Surface
+// Surface glow
 // ------------------------------------------------------------
 
 uniform float surface_glow_strength = 0.85;
-uniform float surface_glow_width = 0.75;
 
 // ------------------------------------------------------------
 // Shimmer
 // ------------------------------------------------------------
 
 uniform float shimmer_strength = 0.055;
+
 uniform float shimmer_speed = 0.7;
+
 uniform float shimmer_scale = 0.045;
 
 // ------------------------------------------------------------
 // Varyings
-//
-// These are explicitly passed from the vertex color.
-// This avoids relying on COLOR in the fragment stage for
-// intermediate calculations.
 // ------------------------------------------------------------
 
 varying float water_depth;
+
 varying float surface_factor;
+
 varying vec2 water_position;
 
 void vertex()
 {
-	// R = actual depth from the CPU.
-	// G = actual distance from the water surface.
-	water_depth = COLOR.r;
-	surface_factor = COLOR.g;
+	water_depth =
+		COLOR.r;
 
-	// Position in the water mesh.
-	water_position = VERTEX;
+	surface_factor =
+		COLOR.g;
+
+	water_position =
+		VERTEX;
 }
 
 void fragment()
 {
-	// --------------------------------------------------------
-	// Read water information.
-	// --------------------------------------------------------
-
 	float depth =
 		clamp(
 			water_depth,
@@ -211,12 +239,7 @@ void fragment()
 		);
 
 	// --------------------------------------------------------
-	// DEPTH COLOR
-	//
-	// 0.0 = surface
-	// 1.0 = deep water
-	//
-	// This is completely independent of screen position.
+	// Depth color
 	// --------------------------------------------------------
 
 	vec3 water;
@@ -247,63 +270,71 @@ void fragment()
 	}
 
 	// --------------------------------------------------------
-	// SURFACE GLOW
-	//
-	// Only the upper portion of the water receives this.
+// Surface glow
+//
+// Keep the surface brighter, but much more subtle.
+// --------------------------------------------------------
+
+float glow =
+	surface * surface;
+
+// Very restrained surface highlight.
+water =
+	mix(
+		water,
+		surface_color,
+		glow * 0.65
+	);
+
+// Small additional highlight.
+water +=
+	surface_color *
+	glow *
+	0.035;
+
 	// --------------------------------------------------------
-
-	float glow =
-		pow(
-			surface,
-			2.5
-		);
-
-	water =
-		mix(
-			water,
-			surface_color,
-			glow * surface_glow_strength
-		);
-
-	// --------------------------------------------------------
-	// SUBTLE WATER SHIMMER
-	//
-	// Important:
-	// This is a brightness variation, NOT a green color.
+	// Animated shimmer
 	// --------------------------------------------------------
 
 	float wave1 =
 		sin(
-			water_position.x * shimmer_scale +
-			water_position.y * shimmer_scale * 0.35 +
-			TIME * shimmer_speed
+			water_position.x *
+				shimmer_scale +
+			water_position.y *
+				shimmer_scale *
+				0.35 +
+			TIME *
+				shimmer_speed
 		);
 
 	float wave2 =
 		sin(
-			water_position.x * shimmer_scale * 1.73 -
-			water_position.y * shimmer_scale * 0.55 -
-			TIME * shimmer_speed * 0.73
+			water_position.x *
+				shimmer_scale *
+				1.73 -
+			water_position.y *
+				shimmer_scale *
+				0.55 -
+			TIME *
+				shimmer_speed *
+				0.73
 		);
 
 	float wave =
 		(wave1 + wave2) * 0.5;
 
-	// Convert from [-1,1] to [0,1].
 	wave =
 		wave * 0.5 + 0.5;
 
-	// Shimmer is strongest near the surface.
-	float shimmer_mask =
+	float shimmerMask =
 		0.25 +
 		surface * 0.75;
 
 	float shimmer =
 		wave *
 		shimmer_strength *
-		shimmer_mask;
+		shimmerMask;
 
-	// Add neutral light instead of green.
 	water +=
 		vec3(
 			shimmer,
@@ -312,7 +343,7 @@ void fragment()
 		);
 
 	// --------------------------------------------------------
-	// Very subtle surface reflection.
+	// Final highlight
 	// --------------------------------------------------------
 
 	float highlight =
@@ -326,10 +357,6 @@ void fragment()
 		highlight *
 		0.10;
 
-	// --------------------------------------------------------
-	// Final output.
-	// --------------------------------------------------------
-
 	COLOR =
 		vec4(
 			clamp(
@@ -342,16 +369,15 @@ void fragment()
 }
 ";
 
-	ShaderMaterial material =
-		new ShaderMaterial();
+		ShaderMaterial material =
+			new ShaderMaterial();
 
-	material.Shader =
-		shader;
+		material.Shader =
+			shader;
 
-	waterMesh.Material =
-		material;
-}
-	
+		waterMesh.Material =
+			material;
+	}
 
 	// ============================================================
 	// Update
@@ -405,7 +431,7 @@ void fragment()
 	}
 
 	// ============================================================
-	// Marching Squares
+	// Build Marching Squares mesh
 	// ============================================================
 
 	private void BuildMarchingSquaresMesh(
@@ -415,7 +441,9 @@ void fragment()
 			densityField.GetValues();
 
 		vertices.Clear();
+
 		indices.Clear();
+
 		vertexColors.Clear();
 
 		System.Array.Fill(
@@ -440,13 +468,18 @@ void fragment()
 		}
 
 		// --------------------------------------------------------
-		// Calculate actual surface height for every X column.
-		//
-		// This is the important part:
-		// depth is measured from the water surface.
+		// Build render-only connectivity mask.
 		// --------------------------------------------------------
 
-		CalculateSurfaceProfile(
+		BuildRenderWaterMask(
+			values
+		);
+
+		// --------------------------------------------------------
+		// Calculate local water bodies from the render mask.
+		// --------------------------------------------------------
+
+		CalculateWaterBodyProfiles(
 			values
 		);
 
@@ -475,7 +508,7 @@ void fragment()
 			);
 
 		// --------------------------------------------------------
-		// Marching Squares.
+		// Marching Squares
 		// --------------------------------------------------------
 
 		for (int y = minY;
@@ -492,34 +525,46 @@ void fragment()
 				 x < maxX;
 				 x++)
 			{
-				float a =
-					values[row + x];
+				int indexA =
+					row + x;
 
-				float b =
-					values[row + x + 1];
+				int indexB =
+					row + x + 1;
 
-				float c =
-					values[nextRow + x + 1];
+				int indexC =
+					nextRow + x + 1;
 
-				float d =
-					values[nextRow + x];
+				int indexD =
+					nextRow + x;
 
 				int caseIndex = 0;
 
-				if (a >= surfaceThreshold)
+				if (renderWater[indexA])
 					caseIndex |= 1;
 
-				if (b >= surfaceThreshold)
+				if (renderWater[indexB])
 					caseIndex |= 2;
 
-				if (c >= surfaceThreshold)
+				if (renderWater[indexC])
 					caseIndex |= 4;
 
-				if (d >= surfaceThreshold)
+				if (renderWater[indexD])
 					caseIndex |= 8;
 
 				if (caseIndex == 0)
 					continue;
+
+				float a =
+					values[indexA];
+
+				float b =
+					values[indexB];
+
+				float c =
+					values[indexC];
+
+				float d =
+					values[indexD];
 
 				float x0 =
 					x * cellSize;
@@ -534,7 +579,7 @@ void fragment()
 					(y + 1) * cellSize;
 
 				// ------------------------------------------------
-				// Corner vertices.
+				// Corner vertices
 				// ------------------------------------------------
 
 				int cornerA =
@@ -577,18 +622,28 @@ void fragment()
 						)
 					);
 
-				// ------------------------------------------------
-				// Edge vertices.
-				// ------------------------------------------------
-
 				int top = -1;
+
 				int right = -1;
+
 				int bottom = -1;
+
 				int left = -1;
 
+				// ------------------------------------------------
+				// IMPORTANT:
+				//
+				// Edge crossing is now based on renderWater,
+				// but interpolation still uses the ORIGINAL
+				// density values.
+				//
+				// This prevents the filled render cells from
+				// creating ugly square-shaped geometry.
+				// ------------------------------------------------
+
 				if (
-					(a >= surfaceThreshold) !=
-					(b >= surfaceThreshold)
+					renderWater[indexA] !=
+					renderWater[indexB]
 				)
 				{
 					top =
@@ -606,8 +661,8 @@ void fragment()
 				}
 
 				if (
-					(b >= surfaceThreshold) !=
-					(c >= surfaceThreshold)
+					renderWater[indexB] !=
+					renderWater[indexC]
 				)
 				{
 					right =
@@ -625,8 +680,8 @@ void fragment()
 				}
 
 				if (
-					(d >= surfaceThreshold) !=
-					(c >= surfaceThreshold)
+					renderWater[indexD] !=
+					renderWater[indexC]
 				)
 				{
 					bottom =
@@ -644,8 +699,8 @@ void fragment()
 				}
 
 				if (
-					(d >= surfaceThreshold) !=
-					(a >= surfaceThreshold)
+					renderWater[indexD] !=
+					renderWater[indexA]
 				)
 				{
 					left =
@@ -677,7 +732,7 @@ void fragment()
 		}
 
 		// --------------------------------------------------------
-		// Upload geometry.
+		// Upload
 		// --------------------------------------------------------
 
 		Stopwatch meshTimer =
@@ -692,156 +747,370 @@ void fragment()
 	}
 
 	// ============================================================
-	// Calculate surface profile
+	// Render-only connectivity mask
 	// ============================================================
 
-	private void CalculateSurfaceProfile(
+	private void BuildRenderWaterMask(
 		float[] values)
 	{
-		for (int x = 0;
-			 x < width;
-			 x++)
+		// --------------------------------------------------------
+		// Start from the real density.
+		// --------------------------------------------------------
+
+		for (int i = 0;
+			 i < renderWater.Length;
+			 i++)
 		{
-			float foundY =
-				-1.0f;
+			renderWater[i] =
+				values[i] >=
+				surfaceThreshold;
+		}
 
-			for (int y = 0;
-				 y < height;
-				 y++)
+		// --------------------------------------------------------
+		// Copy original mask into scratch.
+		// --------------------------------------------------------
+
+		System.Array.Copy(
+			renderWater,
+			renderWaterScratch,
+			renderWater.Length
+		);
+
+		// --------------------------------------------------------
+		// PASS 1:
+		//
+		// Fill a one-cell hole that has water on BOTH sides
+		// horizontally.
+		//
+		// Example:
+		//
+		// █ █
+		// █ █
+		//
+		// becomes:
+		//
+		// ███
+		// ███
+		//
+		// --------------------------------------------------------
+
+		for (int y = 0;
+			 y < height;
+			 y++)
+		{
+			int row =
+				y * width;
+
+			for (int x = 1;
+				 x < width - 1;
+				 x++)
 			{
-				float value =
-					values[
-						y * width + x
-					];
+				int index =
+					row + x;
 
-				if (value >= surfaceThreshold)
+				if (renderWater[index])
+					continue;
+
+				if (
+					renderWater[index - 1] &&
+					renderWater[index + 1]
+				)
 				{
-					foundY =
-						y * cellSize;
-
-					break;
+					renderWaterScratch[index] =
+						true;
 				}
 			}
-
-			surfaceY[x] =
-				foundY;
 		}
 
 		// --------------------------------------------------------
-		// Fill gaps in the surface profile.
+		// PASS 2:
 		//
-		// This prevents isolated empty columns from producing
-		// incorrect depth values.
+		// Fill a one-cell hole vertically.
+		//
+		// This reconnects tiny gaps inside a water body without
+		// filling larger air spaces.
 		// --------------------------------------------------------
+
+		for (int y = 1;
+			 y < height - 1;
+			 y++)
+		{
+			int row =
+				y * width;
+
+			for (int x = 0;
+				 x < width;
+				 x++)
+			{
+				int index =
+					row + x;
+
+				if (renderWaterScratch[index])
+					continue;
+
+				int above =
+					index - width;
+
+				int below =
+					index + width;
+
+				if (
+					renderWater[above] &&
+					renderWater[below]
+				)
+				{
+					renderWaterScratch[index] =
+						true;
+				}
+			}
+		}
+
+		// --------------------------------------------------------
+		// Final mask.
+		// --------------------------------------------------------
+
+		System.Array.Copy(
+			renderWaterScratch,
+			renderWater,
+			renderWater.Length
+		);
+	}
+
+	// ============================================================
+	// Calculate independent vertical water bodies
+	// ============================================================
+
+	private void CalculateWaterBodyProfiles(
+		float[] values)
+	{
+		System.Array.Fill(
+			bodyTopY,
+			0.0f
+		);
+
+		System.Array.Fill(
+			bodyBottomY,
+			0.0f
+		);
+
+		System.Array.Fill(
+			bodyValid,
+			false
+		);
 
 		for (int x = 0;
 			 x < width;
 			 x++)
 		{
-			if (surfaceY[x] >= 0.0f)
-				continue;
+			int y = 0;
 
-			float left =
-				FindNearestSurface(
-					x,
-					-1
-				);
+			while (y < height)
+			{
+				int index =
+					y * width + x;
 
-			float right =
-				FindNearestSurface(
-					x,
-					1
-				);
+				if (!renderWater[index])
+				{
+					y++;
+					continue;
+				}
 
-			if (left >= 0.0f &&
-				right >= 0.0f)
-			{
-				surfaceY[x] =
-					(left + right) * 0.5f;
-			}
-			else if (left >= 0.0f)
-			{
-				surfaceY[x] =
-					left;
-			}
-			else if (right >= 0.0f)
-			{
-				surfaceY[x] =
-					right;
-			}
-			else
-			{
-				surfaceY[x] =
-					0.0f;
+				int startY =
+					y;
+
+				while (
+					y + 1 < height &&
+					renderWater[
+						(y + 1) * width + x
+					]
+				)
+				{
+					y++;
+				}
+
+				int endY =
+					y;
+
+				float top =
+					startY * cellSize;
+
+				float bottom =
+					(endY + 1) * cellSize;
+
+				for (int bodyY = startY;
+					 bodyY <= endY;
+					 bodyY++)
+				{
+					int bodyIndex =
+						bodyY * width + x;
+
+					bodyTopY[bodyIndex] =
+						top;
+
+					bodyBottomY[bodyIndex] =
+						bottom;
+
+					bodyValid[bodyIndex] =
+						true;
+				}
+
+				y++;
 			}
 		}
 	}
 
 	// ============================================================
-	// Find nearest valid surface
+	// Find local water body
 	// ============================================================
 
-	private float FindNearestSurface(
-		int startX,
-		int direction)
+	private bool TryGetLocalWaterBody(
+		Vector2 position,
+		out float top,
+		out float bottom)
 	{
-		int x =
-			startX + direction;
+		top = 0.0f;
 
-		while (x >= 0 &&
-			   x < width)
-		{
-			if (surfaceY[x] >= 0.0f)
-				return surfaceY[x];
+		bottom = 0.0f;
 
-			x += direction;
-		}
-
-		return -1.0f;
-	}
-
-	// ============================================================
-	// Calculate vertex visual information
-	// ============================================================
-
-	private Color GetVertexColor(
-		Vector2 position)
-	{
-		int column =
+		int centerX =
 			Mathf.Clamp(
-				Mathf.RoundToInt(
+				Mathf.FloorToInt(
 					position.X / cellSize
 				),
 				0,
 				width - 1
 			);
 
-		float top =
-			surfaceY[column];
+		int centerY =
+			Mathf.Clamp(
+				Mathf.FloorToInt(
+					position.Y / cellSize
+				),
+				0,
+				height - 1
+			);
 
-		if (top < 0.0f)
-			top = position.Y;
+		float bestDistance =
+			float.MaxValue;
 
-		// --------------------------------------------------------
-		// Approximate water depth.
-		//
-		// We use the active water height as normalization so
-		// deeper parts of the same body become progressively
-		// darker.
-		// --------------------------------------------------------
+		bool found =
+			false;
 
-		float bottom =
-			height * cellSize;
+		for (int offsetX = -1;
+			 offsetX <= 1;
+			 offsetX++)
+		{
+			int sampleX =
+				centerX + offsetX;
 
-		float totalDepth =
+			if (sampleX < 0 ||
+				sampleX >= width)
+			{
+				continue;
+			}
+
+			for (int offsetY = -1;
+				 offsetY <= 1;
+				 offsetY++)
+			{
+				int sampleY =
+					centerY + offsetY;
+
+				if (sampleY < 0 ||
+					sampleY >= height)
+				{
+					continue;
+				}
+
+				int sampleIndex =
+					sampleY * width +
+					sampleX;
+
+				if (!bodyValid[sampleIndex])
+					continue;
+
+				float sampleWorldX =
+					sampleX * cellSize;
+
+				float sampleWorldY =
+					sampleY * cellSize;
+
+				float dx =
+					position.X -
+					sampleWorldX;
+
+				float dy =
+					position.Y -
+					sampleWorldY;
+
+				float distance =
+					dx * dx +
+					dy * dy;
+
+				if (distance <
+					bestDistance)
+				{
+					bestDistance =
+						distance;
+
+					top =
+						bodyTopY[
+							sampleIndex
+						];
+
+					bottom =
+						bodyBottomY[
+							sampleIndex
+						];
+
+					found =
+						true;
+				}
+			}
+		}
+
+		return found;
+	}
+
+	// ============================================================
+	// Vertex visual information
+	// ============================================================
+
+	private Color GetVertexColor(
+		Vector2 position)
+	{
+		float top;
+		float bottom;
+
+		bool hasBody =
+			TryGetLocalWaterBody(
+				position,
+				out top,
+				out bottom
+			);
+
+		if (!hasBody)
+		{
+			return new Color(
+				0.0f,
+				1.0f,
+				0.0f,
+				1.0f
+			);
+		}
+
+		float bodyHeight =
+			bottom - top;
+
+		bodyHeight =
 			Mathf.Max(
-				32.0f,
-				bottom - top
+				bodyHeight,
+				48.0f
 			);
 
 		float depth =
 			(position.Y - top) /
-			totalDepth;
+			bodyHeight;
 
 		depth =
 			Mathf.Clamp(
@@ -849,13 +1118,6 @@ void fragment()
 				0.0f,
 				1.0f
 			);
-
-		// --------------------------------------------------------
-		// Surface glow.
-		//
-		// 1 at the surface.
-		// Quickly fades away underneath it.
-		// --------------------------------------------------------
 
 		float surfaceDistance =
 			Mathf.Abs(
@@ -931,10 +1193,13 @@ void fragment()
 		float worldY)
 	{
 		int edgeIndex =
-			edgeY * (width - 1) + edgeX;
+			edgeY * (width - 1) +
+			edgeX;
 
 		int existing =
-			horizontalEdgeIndices[edgeIndex];
+			horizontalEdgeIndices[
+				edgeIndex
+			];
 
 		if (existing >= 0)
 			return existing;
@@ -959,7 +1224,9 @@ void fragment()
 			)
 		);
 
-		horizontalEdgeIndices[edgeIndex] =
+		horizontalEdgeIndices[
+			edgeIndex
+		] =
 			index;
 
 		return index;
@@ -978,10 +1245,13 @@ void fragment()
 		float y1)
 	{
 		int edgeIndex =
-			edgeY * width + edgeX;
+			edgeY * width +
+			edgeX;
 
 		int existing =
-			verticalEdgeIndices[edgeIndex];
+			verticalEdgeIndices[
+				edgeIndex
+			];
 
 		if (existing >= 0)
 			return existing;
@@ -1006,7 +1276,9 @@ void fragment()
 			)
 		);
 
-		verticalEdgeIndices[edgeIndex] =
+		verticalEdgeIndices[
+			edgeIndex
+		] =
 			index;
 
 		return index;
