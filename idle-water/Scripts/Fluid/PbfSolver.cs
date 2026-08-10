@@ -1,6 +1,5 @@
 using Godot;
 using System;
-using System.Diagnostics;
 using System.Collections.Generic;
 
 public class PbfSolver
@@ -205,9 +204,7 @@ public class PbfSolver
 			dt <= 0.0f)
 		{
 			if (wheel != null)
-			{
 				wheel.Step(dt);
-			}
 
 			return;
 		}
@@ -251,7 +248,7 @@ public class PbfSolver
 		);
 
 		// --------------------------------------------------------
-		// Rotate wheel BEFORE collision detection.
+		// Rotate wheel before collision detection.
 		// --------------------------------------------------------
 
 		if (wheel != null)
@@ -689,10 +686,6 @@ public class PbfSolver
 					continue;
 				}
 
-				// ------------------------------------------------
-				// Wheel torque
-				// ------------------------------------------------
-
 				if (collider.IsWheel)
 				{
 					ApplyWheelTorque(
@@ -758,7 +751,7 @@ public class PbfSolver
 	}
 
 	// ============================================================
-	// Calculate wheel torque
+	// Wheel torque
 	// ============================================================
 
 	private void ApplyWheelTorque(
@@ -790,10 +783,6 @@ public class PbfSolver
 			particleVelocity -
 			wheelVelocity;
 
-		// --------------------------------------------------------
-		// Tangent along the wheel surface.
-		// --------------------------------------------------------
-
 		Vector2 tangent =
 			new Vector2(
 				-normal.Y,
@@ -804,10 +793,6 @@ public class PbfSolver
 			relativeVelocity.Dot(
 				tangent
 			);
-
-		// --------------------------------------------------------
-		// Only transfer meaningful tangential motion.
-		// --------------------------------------------------------
 
 		float impulse =
 			tangentialVelocity *

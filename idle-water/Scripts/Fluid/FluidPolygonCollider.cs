@@ -8,48 +8,83 @@ public class FluidWheelState
 	private float angle;
 	private float angularVelocity;
 
+	// ------------------------------------------------------------
+	// Wheel tuning
+	// ------------------------------------------------------------
+
 	private const float TorqueScale = 0.00045f;
 	private const float AngularDamping = 0.35f;
 	private const float MaxAngularVelocity = 4.0f;
 
 	private float accumulatedTorque;
 
-	public Vector2 Center => center;
-	public float Angle => angle;
-	public float AngularVelocity => angularVelocity;
+	public Vector2 Center =>
+		center;
 
-	public FluidWheelState(Vector2 wheelCenter)
+	public float Angle =>
+		angle;
+
+	public float AngularVelocity =>
+		angularVelocity;
+
+	public FluidWheelState(
+		Vector2 wheelCenter)
 	{
-		center = wheelCenter;
-		angle = 0.0f;
-		angularVelocity = 0.0f;
-		accumulatedTorque = 0.0f;
+		center =
+			wheelCenter;
+
+		angle =
+			0.0f;
+
+		angularVelocity =
+			0.0f;
+
+		accumulatedTorque =
+			0.0f;
 	}
 
-	public void AddTorque(float torque)
+	public void AddTorque(
+		float torque)
 	{
-		accumulatedTorque += torque;
+		accumulatedTorque +=
+			torque;
 	}
 
-	public void Step(float dt)
+	public void Step(
+		float dt)
 	{
-		// Convert accumulated water torque into angular acceleration.
+		if (dt <= 0.0f)
+			return;
+
+		// --------------------------------------------------------
+		// Convert water torque into angular acceleration.
+		// --------------------------------------------------------
+
 		angularVelocity +=
 			accumulatedTorque *
 			TorqueScale *
 			dt;
 
-		accumulatedTorque = 0.0f;
+		accumulatedTorque =
+			0.0f;
 
+		// --------------------------------------------------------
 		// Physical damping.
+		// --------------------------------------------------------
+
 		float damping =
 			Mathf.Exp(
-				-AngularDamping * dt
+				-AngularDamping *
+				dt
 			);
 
-		angularVelocity *= damping;
+		angularVelocity *=
+			damping;
 
-		// Prevent numerical runaway.
+		// --------------------------------------------------------
+		// Safety limit.
+		// --------------------------------------------------------
+
 		angularVelocity =
 			Mathf.Clamp(
 				angularVelocity,
@@ -57,11 +92,18 @@ public class FluidWheelState
 				MaxAngularVelocity
 			);
 
+		// --------------------------------------------------------
+		// Integrate angle.
+		// --------------------------------------------------------
+
 		angle +=
 			angularVelocity *
 			dt;
 
+		// --------------------------------------------------------
 		// Keep angle numerically small.
+		// --------------------------------------------------------
+
 		if (angle > Mathf.Tau)
 			angle -= Mathf.Tau;
 
@@ -73,26 +115,30 @@ public class FluidWheelState
 		Vector2 worldPosition)
 	{
 		Vector2 radius =
-			worldPosition - center;
+			worldPosition -
+			center;
 
-		// 2D angular velocity cross radius:
-		//
-		// v = (-w*y, w*x)
 		return new Vector2(
-			-angularVelocity * radius.Y,
-			angularVelocity * radius.X
+			-angularVelocity *
+			radius.Y,
+
+			angularVelocity *
+			radius.X
 		);
 	}
 }
 
+// ================================================================
+// Polygon collider
+// ================================================================
+
 public class FluidPolygonCollider
 {
-	// ============================================================
+	// ------------------------------------------------------------
 	// Polygon
-	// ============================================================
+	// ------------------------------------------------------------
 
 	private readonly Vector2[] localVertices;
-
 	private readonly Vector2[] vertices;
 
 	private readonly Vector2[] edges;
@@ -101,26 +147,25 @@ public class FluidPolygonCollider
 
 	private readonly bool counterClockwise;
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// Collision
-	// ============================================================
+	// ------------------------------------------------------------
 
 	private const float CollisionMargin = 1.0f;
-
 	private const float Epsilon = 0.000001f;
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// AABB
-	// ============================================================
+	// ------------------------------------------------------------
 
 	private float minX;
 	private float maxX;
 	private float minY;
 	private float maxY;
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// Wheel
-	// ============================================================
+	// ------------------------------------------------------------
 
 	private FluidWheelState wheel;
 
@@ -130,9 +175,9 @@ public class FluidPolygonCollider
 	public FluidWheelState Wheel =>
 		wheel;
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// Constructor
-	// ============================================================
+	// ------------------------------------------------------------
 
 	public FluidPolygonCollider(
 		Vector2[] polygon)
@@ -177,14 +222,15 @@ public class FluidPolygonCollider
 		);
 
 		counterClockwise =
-			CalculateSignedArea() > 0.0f;
+			CalculateSignedArea() >
+			0.0f;
 
 		RebuildGeometry();
 	}
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// Configure as wheel
-	// ============================================================
+	// ------------------------------------------------------------
 
 	public void ConfigureAsWheel(
 		FluidWheelState wheelState)
@@ -195,9 +241,9 @@ public class FluidPolygonCollider
 		UpdateWheelGeometry();
 	}
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// Rotate wheel geometry
-	// ============================================================
+	// ------------------------------------------------------------
 
 	public void UpdateWheelGeometry()
 	{
@@ -238,9 +284,9 @@ public class FluidPolygonCollider
 		RebuildGeometry();
 	}
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// Rebuild edge geometry
-	// ============================================================
+	// ------------------------------------------------------------
 
 	private void RebuildGeometry()
 	{
@@ -290,7 +336,8 @@ public class FluidPolygonCollider
 
 			Vector2 b =
 				vertices[
-					(i + 1) % count
+					(i + 1) %
+					count
 				];
 
 			Vector2 edge =
@@ -339,9 +386,9 @@ public class FluidPolygonCollider
 		}
 	}
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// Collision resolution
-	// ============================================================
+	// ------------------------------------------------------------
 
 	public bool ResolveCollision(
 		Vector2 position,
@@ -380,7 +427,7 @@ public class FluidPolygonCollider
 		}
 
 		// --------------------------------------------------------
-		// Closest edge
+		// Find closest edge.
 		// --------------------------------------------------------
 
 		int vertexCount =
@@ -417,7 +464,8 @@ public class FluidPolygonCollider
 			}
 
 			Vector2 toPoint =
-				position - a;
+				position -
+				a;
 
 			float t =
 				toPoint.Dot(edge) /
@@ -430,7 +478,8 @@ public class FluidPolygonCollider
 
 			Vector2 point =
 				a +
-				edge * t;
+				edge *
+				t;
 
 			float dx =
 				position.X -
@@ -474,7 +523,9 @@ public class FluidPolygonCollider
 		}
 
 		bool inside =
-			IsPointInside(position);
+			IsPointInside(
+				position
+			);
 
 		float collisionRadiusSquared =
 			collisionRadius *
@@ -492,7 +543,7 @@ public class FluidPolygonCollider
 			closestEdgeNormal;
 
 		// --------------------------------------------------------
-		// Particle inside polygon
+		// Particle inside polygon.
 		// --------------------------------------------------------
 
 		if (inside)
@@ -506,7 +557,7 @@ public class FluidPolygonCollider
 		}
 
 		// --------------------------------------------------------
-		// Particle intersecting polygon
+		// Particle intersecting polygon.
 		// --------------------------------------------------------
 
 		float collisionDistance =
@@ -531,9 +582,9 @@ public class FluidPolygonCollider
 		return false;
 	}
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// Signed area
-	// ============================================================
+	// ------------------------------------------------------------
 
 	private float CalculateSignedArea()
 	{
@@ -553,7 +604,8 @@ public class FluidPolygonCollider
 
 			Vector2 b =
 				localVertices[
-					(i + 1) % count
+					(i + 1) %
+					count
 				];
 
 			area +=
@@ -561,12 +613,13 @@ public class FluidPolygonCollider
 				b.X * a.Y;
 		}
 
-		return area * 0.5f;
+		return area *
+			0.5f;
 	}
 
-	// ============================================================
+	// ------------------------------------------------------------
 	// Point inside convex polygon
-	// ============================================================
+	// ------------------------------------------------------------
 
 	private bool IsPointInside(
 		Vector2 point)
@@ -592,7 +645,8 @@ public class FluidPolygonCollider
 				edges[i];
 
 			Vector2 toPoint =
-				point - a;
+				point -
+				a;
 
 			float cross =
 				edge.X *
