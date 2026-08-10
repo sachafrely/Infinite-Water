@@ -220,7 +220,7 @@ vec3(0.55, 0.78, 0.95);
 // Appearance
 // ============================================================
 
-uniform float water_alpha = 0.50;
+uniform float water_alpha = 0.80;
 
 // Main surface glow.
 uniform float surface_glow_strength = 0.35;
