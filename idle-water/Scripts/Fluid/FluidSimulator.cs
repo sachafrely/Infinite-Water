@@ -1,3 +1,4 @@
+
 using System.Diagnostics;
 using Godot;
 
@@ -8,7 +9,7 @@ public partial class FluidSimulator : Node2D
 	private PbfSolver solver;
 	private FluidRenderer renderer;
 	private DensityField densityField;
-	
+
 	// ------------------------------------------------------------
 	// Maximum number of particles
 	// ------------------------------------------------------------
@@ -46,11 +47,6 @@ public partial class FluidSimulator : Node2D
 	private const float ParticleRadius = 4.0f;
 
 	// ------------------------------------------------------------
-	// Spatial hash
-	// ------------------------------------------------------------
-
-
-	// ------------------------------------------------------------
 	// Emitter
 	// ------------------------------------------------------------
 
@@ -67,6 +63,33 @@ public partial class FluidSimulator : Node2D
 	};
 
 	private int emitterIndex = 0;
+
+	// ------------------------------------------------------------
+	// Water wheel
+	// ------------------------------------------------------------
+
+	private WaterWheelVisual waterWheel;
+
+	private const float WheelCenterX = 350.0f;
+	private const float WheelCenterY = 600.0f;
+
+	private const float WheelOuterRadius = 115.0f;
+	private const float WheelInnerRadius = 55.0f;
+
+	private const int WheelBladeCount = 10;
+
+	// ------------------------------------------------------------
+	// Pipes
+	// ------------------------------------------------------------
+
+	private WaterPipeVisual emitterPipe;
+	private WaterPipeVisual despawnerPipe;
+
+	private const float EmitterPipeX = 40.0f;
+	private const float EmitterPipeY = 8.0f;
+
+	private const float DespawnerPipeX = 350.0f;
+	private const float DespawnerPipeY = 1260.0f;
 
 	// ------------------------------------------------------------
 	// Full-frame profiler
@@ -100,38 +123,39 @@ public partial class FluidSimulator : Node2D
 			);
 
 		hash =
-	new SpatialHash(
-		ParticleCount
-	);
+			new SpatialHash(
+				ParticleCount
+			);
 
 		solver =
-	new PbfSolver(hash);
+			new PbfSolver(hash);
 
-// --------------------------------------------------------
-// Triangle obstacle
-// --------------------------------------------------------
+		// --------------------------------------------------------
+		// Create water wheel
+		// --------------------------------------------------------
 
-Vector2[] triangle =
-{
-	new Vector2(250, 700),
-	new Vector2(450, 700),
-	new Vector2(350, 500)
-};
+		CreateWaterWheel();
 
-FluidPolygonCollider obstacle =
-	new FluidPolygonCollider(triangle);
+		// --------------------------------------------------------
+		// Create pipes
+		// --------------------------------------------------------
 
-solver.AddPolygonCollider(obstacle);
-			
-			
-	
-		
+		CreatePipes();
+
+		// --------------------------------------------------------
+		// Density field
+		// --------------------------------------------------------
+
 		densityField =
 			new DensityField(
 				DensityWidth,
 				DensityHeight,
 				DensityCellSize
 			);
+
+		// --------------------------------------------------------
+		// Renderer
+		// --------------------------------------------------------
 
 		renderer =
 			new FluidRenderer();
@@ -145,7 +169,7 @@ solver.AddPolygonCollider(obstacle);
 		);
 
 		// --------------------------------------------------------
-		// Start with ZERO particles.
+		// Start with zero particles
 		// --------------------------------------------------------
 
 		BuildDensityField();
@@ -224,7 +248,7 @@ solver.AddPolygonCollider(obstacle);
 			densityTimer.Elapsed.TotalMilliseconds;
 
 		// --------------------------------------------------------
-		// Marching Squares / renderer
+		// Renderer
 		// --------------------------------------------------------
 
 		Stopwatch rendererTimer =
@@ -267,13 +291,212 @@ solver.AddPolygonCollider(obstacle);
 		// Print profiler
 		// --------------------------------------------------------
 
-		if (fullProfilerFrames >=
+		if (
+			fullProfilerFrames >=
 			FullProfilerInterval)
 		{
 			PrintFullProfiler();
 
 			ResetFullProfiler();
 		}
+	}
+
+	// ------------------------------------------------------------
+	// Water wheel creation
+	// ------------------------------------------------------------
+
+	private void CreateWaterWheel()
+	{
+		Vector2 center =
+			new Vector2(
+				WheelCenterX,
+				WheelCenterY
+			);
+
+		// --------------------------------------------------------
+		// Wheel blades
+		// --------------------------------------------------------
+
+		for (
+			int i = 0;
+			i < WheelBladeCount;
+			i++)
+		{
+			float angle =
+				Mathf.Tau *
+				i /
+				WheelBladeCount;
+
+			Vector2 direction =
+				new Vector2(
+					Mathf.Cos(angle),
+					Mathf.Sin(angle)
+				);
+
+			Vector2 tangent =
+				new Vector2(
+					-direction.Y,
+					direction.X
+				);
+
+			float bladeWidth =
+				18.0f;
+
+			Vector2 innerCenter =
+				center +
+				direction *
+				WheelInnerRadius;
+
+			Vector2 outerCenter =
+				center +
+				direction *
+				WheelOuterRadius;
+
+			Vector2[] blade =
+			{
+				innerCenter + tangent * bladeWidth,
+				outerCenter + tangent * bladeWidth,
+				outerCenter - tangent * bladeWidth,
+				innerCenter - tangent * bladeWidth
+			};
+
+			FluidPolygonCollider collider =
+				new FluidPolygonCollider(
+					blade
+				);
+
+			solver.AddPolygonCollider(
+				collider
+			);
+		}
+
+		// --------------------------------------------------------
+		// Central hub
+		// --------------------------------------------------------
+
+		const int hubSegments = 16;
+
+		Vector2[] hub =
+			new Vector2[hubSegments];
+
+		const float hubRadius =
+			55.0f;
+
+		for (
+			int i = 0;
+			i < hubSegments;
+			i++)
+		{
+			float angle =
+				Mathf.Tau *
+				i /
+				hubSegments;
+
+			hub[i] =
+				center +
+				new Vector2(
+					Mathf.Cos(angle),
+					Mathf.Sin(angle)
+				) *
+				hubRadius;
+		}
+
+		FluidPolygonCollider hubCollider =
+			new FluidPolygonCollider(
+				hub
+			);
+
+		solver.AddPolygonCollider(
+			hubCollider
+		);
+
+		// --------------------------------------------------------
+		// Visual wheel
+		// --------------------------------------------------------
+
+		waterWheel =
+			new WaterWheelVisual();
+
+		waterWheel.Position =
+			center;
+
+		waterWheel.OuterRadius =
+			WheelOuterRadius;
+
+		waterWheel.InnerRadius =
+			WheelInnerRadius;
+
+		waterWheel.BladeCount =
+			WheelBladeCount;
+
+		AddChild(
+			waterWheel
+		);
+	}
+
+	// ------------------------------------------------------------
+	// Pipe creation
+	// ------------------------------------------------------------
+
+	private void CreatePipes()
+	{
+		// ========================================================
+		// Emitter pipe
+		//
+		// Points downward into the simulation.
+		// ========================================================
+
+		emitterPipe =
+			new WaterPipeVisual();
+
+		emitterPipe.Width =
+			32.0f;
+
+		emitterPipe.Length =
+			48.0f;
+
+		emitterPipe.Position =
+			new Vector2(
+				EmitterPipeX,
+				EmitterPipeY
+			);
+
+		emitterPipe.SetPipeAngle(
+			90.0f
+		);
+
+		AddChild(
+			emitterPipe
+		);
+
+		// ========================================================
+		// Despawner pipe
+		//
+		// Points downward out of the simulation.
+		// ========================================================
+
+		despawnerPipe =
+			new WaterPipeVisual();
+
+		despawnerPipe.Width =
+			36.0f;
+
+		despawnerPipe.Length =
+			56.0f;
+
+		despawnerPipe.Position =
+			new Vector2(
+				DespawnerPipeX,
+				DespawnerPipeY
+			);
+
+		despawnerPipe.SetPipeAngle(
+			90.0f
+		);
+
+		AddChild(
+			despawnerPipe
+		);
 	}
 
 	// ------------------------------------------------------------
@@ -334,12 +557,9 @@ solver.AddPolygonCollider(obstacle);
 		if (otherMs < 0.0)
 			otherMs = 0.0;
 
-		// This is the actual rendered FPS.
 		double fps =
 			Engine.GetFramesPerSecond();
 
-		// Theoretical FPS based ONLY on our
-		// measured PhysicsProcess duration.
 		double physicsFps =
 			physicsMs > 0.001
 				? 1000.0 / physicsMs
@@ -456,6 +676,7 @@ solver.AddPolygonCollider(obstacle);
 		fullPbfTime = 0.0;
 		fullDensityTime = 0.0;
 		fullRendererTime = 0.0;
+
 		fullRendererBuildPixelsTime = 0.0;
 		fullRendererSurfaceGlowTime = 0.0;
 		fullRendererFillBytesTime = 0.0;
@@ -468,7 +689,8 @@ solver.AddPolygonCollider(obstacle);
 
 	private void SpawnParticle()
 	{
-		if (particles.Count >=
+		if (
+			particles.Count >=
 			particles.Capacity)
 		{
 			return;
@@ -490,7 +712,8 @@ solver.AddPolygonCollider(obstacle);
 
 		emitterIndex++;
 
-		if (emitterIndex >=
+		if (
+			emitterIndex >=
 			EmitterOffsets.Length)
 		{
 			emitterIndex = 0;
