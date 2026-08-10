@@ -4,3 +4,4 @@ res://Scripts/Fluid/WaterWheelVisual.cs
 res://Scripts/Fluid/WaterPipeVisual.cs
 res://Scripts/Fluid/FluidRenderer.cs
 res://Scripts/Fluid/RiverLine2D.cs
+res://Scripts/Fluid/PbfSolver.cs

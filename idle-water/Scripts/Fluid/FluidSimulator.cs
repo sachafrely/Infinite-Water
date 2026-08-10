@@ -45,7 +45,7 @@ public partial class FluidSimulator : Node2D
 
 	private const float EmitterSpacing = 8.0f;
 
-	private const float EmitterVelocityX = -2.0f;
+	private const float EmitterVelocityX = 0.0f;
 	private const float EmitterVelocityY = 0.0f;
 
 	private static readonly float[] EmitterOffsets =

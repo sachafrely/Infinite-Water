@@ -223,13 +223,13 @@ vec3(0.55, 0.78, 0.95);
 uniform float water_alpha = 0.50;
 
 // Main surface glow.
-uniform float surface_glow_strength = 0.25;
+uniform float surface_glow_strength = 0.35;
 
 // Direct brightness.
 uniform float surface_brightness = 0.12;
 
 // Shimmer.
-uniform float shimmer_strength = 0.20;
+uniform float shimmer_strength = 0.25;
 uniform float shimmer_speed = 0.20;
 uniform float shimmer_scale = 0.045;
 

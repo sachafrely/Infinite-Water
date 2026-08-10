@@ -13,9 +13,9 @@ public class PbfSolver
 	// Simulation
 	// ============================================================
 
-	private const float Gravity = 200.0f;
+	private const float Gravity = 300.0f;
 
-	private const float SmoothingRadius = 12.0f;
+	private const float SmoothingRadius = 8.0f;
 	private const float SmoothingRadiusSquared = 144.0f;
 	private const float InverseSmoothingRadius = 1.0f / 12.0f;
 
@@ -43,7 +43,7 @@ public class PbfSolver
 	// Stability
 	// ============================================================
 
-	private const float VelocityDamping = 0.993f;
+	private const float VelocityDamping = 0.996f;
 
 	// ============================================================
 	// Impact
@@ -91,7 +91,7 @@ public class PbfSolver
 	// Polygon
 	// ============================================================
 
-	private const float PolygonParticleRadius = 4.0f;
+	private const float PolygonParticleRadius = 2.5f;
 
 	// ============================================================
 	// Neighbors
