@@ -1,814 +1,919 @@
+
 using System.Diagnostics;
 using Godot;
 
 public partial class FluidSimulator : Node2D
 {
-private ParticleData particles;
-private SpatialHash hash;
-private PbfSolver solver;
-private FluidRenderer renderer;
-private DensityField densityField;
+	private ParticleData particles;
+	private SpatialHash hash;
+	private PbfSolver solver;
+	private FluidRenderer renderer;
+	private DensityField densityField;
 
+	// ------------------------------------------------------------
+	// Maximum number of particles
+	// ------------------------------------------------------------
 
-// ------------------------------------------------------------
-// Maximum number of particles
-// ------------------------------------------------------------
+	private const int ParticleCount = 4000;
 
-private const int ParticleCount = 4000;
+	// ------------------------------------------------------------
+	// Density rendering grid
+	// ------------------------------------------------------------
 
-// ------------------------------------------------------------
-// Density rendering grid
-// ------------------------------------------------------------
+	private const int DensityWidth = 180;
+	private const int DensityHeight = 320;
+	private const float DensityCellSize = 4.0f;
 
-private const int DensityWidth = 180;
-private const int DensityHeight = 320;
-private const float DensityCellSize = 4.0f;
+	// ------------------------------------------------------------
+	// Simulation world
+	// ------------------------------------------------------------
 
-// ------------------------------------------------------------
-// Simulation world
-// ------------------------------------------------------------
+	private const float WorldWidth = 720.0f;
+	private const float WorldHeight = 1280.0f;
 
-private const float WorldWidth = 720.0f;
-private const float WorldHeight = 1280.0f;
+	// ------------------------------------------------------------
+	// Walls
+	// ------------------------------------------------------------
 
-// ------------------------------------------------------------
-// Walls
-// ------------------------------------------------------------
+	private const float LeftBound = 20.0f;
+	private const float RightBound = 700.0f;
+	private const float TopBound = 20.0f;
+	private const float BottomBound = 1260.0f;
 
-private const float LeftBound = 20.0f;
-private const float RightBound = 700.0f;
-private const float TopBound = 20.0f;
-private const float BottomBound = 1260.0f;
+	// ------------------------------------------------------------
+	// Fluid parameters
+	// ------------------------------------------------------------
 
-// ------------------------------------------------------------
-// Fluid parameters
-// ------------------------------------------------------------
+	private const float ParticleRadius = 4.0f;
 
-private const float ParticleRadius = 4.0f;
+	// ------------------------------------------------------------
+	// Emitter pipe
+	// ------------------------------------------------------------
 
-// ------------------------------------------------------------
-// Emitter
-// ------------------------------------------------------------
+	private const float EmitterPipeX = 40.0f;
+	private const float EmitterPipeY = 128.0f;
+	private const float EmitterPipeLength = 144.0f;
 
-private const float EmitterCenterX = 76.0f;
-private const float EmitterY = 128.0f;
-private const float EmitterSpacing = 8.0f;
+	// Particles spawn from the right opening of the pipe.
+	private const float EmitterOpeningOffset = 4.0f;
 
-private const float EmitterVelocityX = 90.0f;
-private const float EmitterVelocityY = 0.0f;
+	// Small vertical stagger.
+	private const float EmitterSpacing = 8.0f;
 
-private static readonly float[] EmitterOffsets =
-{
-	-EmitterSpacing,
-	0.0f,
-	EmitterSpacing
-};
+	// Initial horizontal velocity.
+	private const float EmitterVelocityX = 120.0f;
+	private const float EmitterVelocityY = 0.0f;
 
-private int emitterIndex = 0;
+	private static readonly float[] EmitterOffsets =
+	{
+		-EmitterSpacing,
+		0.0f,
+		EmitterSpacing
+	};
 
-// ------------------------------------------------------------
-// Water wheel
-// ------------------------------------------------------------
+	private int emitterIndex = 0;
 
-private WaterWheelVisual waterWheel;
+	// ------------------------------------------------------------
+	// Drain pipe
+	// ------------------------------------------------------------
 
-private const float WheelCenterX = 350.0f;
-private const float WheelCenterY = 600.0f;
+	private const float DespawnerPipeX = 40.0f;
+	private const float DespawnerPipeY = 1096.0f;
+	private const float DespawnerPipeLength = 144.0f;
 
-private const float WheelOuterRadius = 115.0f;
-private const float WheelInnerRadius = 55.0f;
+	// The opening is on the RIGHT side.
+	private const float DespawnerOpeningX =
+		DespawnerPipeX + DespawnerPipeLength;
 
-private const int WheelBladeCount = 10;
-private const float WheelBladeWidth = 18.0f;
+	// Pipe width is 48, so this gives a generous opening area.
+	private const float DespawnerOpeningHalfHeight = 28.0f;
 
-// ------------------------------------------------------------
-// Pipes
-// ------------------------------------------------------------
+	// Small horizontal tolerance around the opening.
+	private const float DespawnerOpeningTolerance = 12.0f;
 
-private WaterPipeVisual emitterPipe;
-private WaterPipeVisual despawnerPipe;
+	// ------------------------------------------------------------
+	// Water wheel
+	// ------------------------------------------------------------
 
-private const float EmitterPipeX = -15.0f;
-private const float EmitterPipeY = 128.0f;
+	private WaterWheelVisual waterWheel;
 
-private const float DespawnerPipeX = -15.0f;
-private const float DespawnerPipeY = 1100.0f;
+	private const float WheelCenterX = 350.0f;
+	private const float WheelCenterY = 600.0f;
 
-private const float PipeWidth = 48.0f;
-private const float PipeLength = 96.0f;
+	private const float WheelOuterRadius = 115.0f;
+	private const float WheelInnerRadius = 55.0f;
 
-// ------------------------------------------------------------
-// Drain
-// ------------------------------------------------------------
+	private const int WheelBladeCount = 10;
+	private const float WheelBladeWidth = 18.0f;
 
-private const float DrainOpeningRadius =
-	18.0f;
+	// ------------------------------------------------------------
+	// Pipes
+	// ------------------------------------------------------------
 
-private const float DrainCenterX =
-	DespawnerPipeX + PipeLength;
+	private WaterPipeVisual emitterPipe;
+	private WaterPipeVisual despawnerPipe;
 
-private const float DrainCenterY =
-	DespawnerPipeY;
+	// High Z so pipes are always drawn over the water.
+	private const int PipeZIndex = 100;
 
-// ------------------------------------------------------------
-// Full-frame profiler
-// ------------------------------------------------------------
+	// ------------------------------------------------------------
+	// Full-frame profiler
+	// ------------------------------------------------------------
 
-private const int FullProfilerInterval = 60;
+	private const int FullProfilerInterval = 60;
 
-private int fullProfilerFrames = 0;
+	private int fullProfilerFrames = 0;
 
-private double fullPhysicsTime = 0.0;
+	private double fullPhysicsTime = 0.0;
 
-private double fullSpawnTime = 0.0;
-private double fullPbfTime = 0.0;
-private double fullDensityTime = 0.0;
-private double fullRendererTime = 0.0;
+	private double fullSpawnTime = 0.0;
+	private double fullPbfTime = 0.0;
+	private double fullDensityTime = 0.0;
+	private double fullRendererTime = 0.0;
 
-private double fullRendererBuildPixelsTime = 0.0;
-private double fullRendererSurfaceGlowTime = 0.0;
-private double fullRendererFillBytesTime = 0.0;
-private double fullRendererTextureUploadTime = 0.0;
+	private double fullRendererBuildPixelsTime = 0.0;
+	private double fullRendererSurfaceGlowTime = 0.0;
+	private double fullRendererFillBytesTime = 0.0;
+	private double fullRendererTextureUploadTime = 0.0;
 
-// ------------------------------------------------------------
-// Initialization
-// ------------------------------------------------------------
+	// ------------------------------------------------------------
+	// Initialization
+	// ------------------------------------------------------------
 
-public override void _Ready()
-{
-	particles =
-		new ParticleData(
-			ParticleCount
-		);
+	public override void _Ready()
+	{
+		particles =
+			new ParticleData(
+				ParticleCount
+			);
 
-	hash =
-		new SpatialHash(
-			ParticleCount
-		);
+		hash =
+			new SpatialHash(
+				ParticleCount
+			);
 
-	solver =
-		new PbfSolver(hash);
+		solver =
+			new PbfSolver(hash);
 
-	CreateWaterWheel();
+		CreateWaterWheel();
+		CreatePipes();
 
-	CreatePipes();
+		densityField =
+			new DensityField(
+				DensityWidth,
+				DensityHeight,
+				DensityCellSize
+			);
 
-	densityField =
-		new DensityField(
+		renderer =
+			new FluidRenderer();
+
+		AddChild(renderer);
+
+		renderer.Initialize(
 			DensityWidth,
 			DensityHeight,
 			DensityCellSize
 		);
 
-	renderer =
-		new FluidRenderer();
+		BuildDensityField();
 
-	AddChild(renderer);
-
-	renderer.Initialize(
-		DensityWidth,
-		DensityHeight,
-		DensityCellSize
-	);
-
-	BuildDensityField();
-
-	renderer.Update(
-		particles,
-		densityField
-	);
-
-	GD.Print(
-		"Fluid initialized with " +
-		particles.Count +
-		" particles."
-	);
-}
-
-// ------------------------------------------------------------
-// Physics
-// ------------------------------------------------------------
-
-public override void _PhysicsProcess(
-	double delta)
-{
-	Stopwatch physicsTimer =
-		Stopwatch.StartNew();
-
-	float dt =
-		(float)delta;
-
-	// --------------------------------------------------------
-	// Spawn
-	// --------------------------------------------------------
-
-	Stopwatch spawnTimer =
-		Stopwatch.StartNew();
-
-	SpawnParticle();
-
-	spawnTimer.Stop();
-
-	fullSpawnTime +=
-		spawnTimer.Elapsed.TotalMilliseconds;
-
-	// --------------------------------------------------------
-	// PBF
-	// --------------------------------------------------------
-
-	Stopwatch pbfTimer =
-		Stopwatch.StartNew();
-
-	if (particles.Count > 0)
-	{
-		solver.Solve(
+		renderer.Update(
 			particles,
-			dt
+			densityField
+		);
+
+		GD.Print(
+			"Fluid initialized with " +
+			particles.Count +
+			" particles."
 		);
 	}
 
-	pbfTimer.Stop();
+	// ------------------------------------------------------------
+	// Physics
+	// ------------------------------------------------------------
 
-	fullPbfTime +=
-		pbfTimer.Elapsed.TotalMilliseconds;
-
-	// --------------------------------------------------------
-	// Remove water at bottom pipe
-	// --------------------------------------------------------
-
-	RemoveDrainParticles();
-
-	// --------------------------------------------------------
-	// Update wheel visual
-	// --------------------------------------------------------
-
-	if (
-		waterWheel != null &&
-		solver.Wheel != null)
+	public override void _PhysicsProcess(
+		double delta)
 	{
-		waterWheel.SetWheelAngle(
-			solver.Wheel.Angle
-		);
-	}
+		Stopwatch physicsTimer =
+			Stopwatch.StartNew();
 
-	// --------------------------------------------------------
-	// Density field
-	// --------------------------------------------------------
+		float dt =
+			(float)delta;
 
-	Stopwatch densityTimer =
-		Stopwatch.StartNew();
+		// --------------------------------------------------------
+		// Spawn
+		// --------------------------------------------------------
 
-	BuildDensityField();
+		Stopwatch spawnTimer =
+			Stopwatch.StartNew();
 
-	densityTimer.Stop();
+		SpawnParticle();
 
-	fullDensityTime +=
-		densityTimer.Elapsed.TotalMilliseconds;
+		spawnTimer.Stop();
 
-	// --------------------------------------------------------
-	// Renderer
-	// --------------------------------------------------------
+		fullSpawnTime +=
+			spawnTimer.Elapsed.TotalMilliseconds;
 
-	Stopwatch rendererTimer =
-		Stopwatch.StartNew();
+		// --------------------------------------------------------
+		// PBF
+		// --------------------------------------------------------
 
-	renderer.Update(
-		particles,
-		densityField
-	);
+		Stopwatch pbfTimer =
+			Stopwatch.StartNew();
 
-	rendererTimer.Stop();
-
-	fullRendererTime +=
-		rendererTimer.Elapsed.TotalMilliseconds;
-
-	fullRendererBuildPixelsTime +=
-		renderer.LastBuildPixelsMs;
-
-	fullRendererSurfaceGlowTime +=
-		renderer.LastSurfaceGlowMs;
-
-	fullRendererFillBytesTime +=
-		renderer.LastFillBytesMs;
-
-	fullRendererTextureUploadTime +=
-		renderer.LastTextureUploadMs;
-
-	// --------------------------------------------------------
-	// Profiler
-	// --------------------------------------------------------
-
-	physicsTimer.Stop();
-
-	fullPhysicsTime +=
-		physicsTimer.Elapsed.TotalMilliseconds;
-
-	fullProfilerFrames++;
-
-	if (
-		fullProfilerFrames >=
-		FullProfilerInterval)
-	{
-		PrintFullProfiler();
-
-		ResetFullProfiler();
-	}
-}
-
-// ------------------------------------------------------------
-// Remove particles entering drain
-// ------------------------------------------------------------
-
-private void RemoveDrainParticles()
-{
-	int i = 0;
-
-	while (
-		i <
-		particles.Count)
-	{
-		float dx =
-			particles.PosX[i] -
-			DrainCenterX;
-
-		float dy =
-			particles.PosY[i] -
-			DrainCenterY;
-
-		float distanceSquared =
-			dx * dx +
-			dy * dy;
-
-		float removalRadius =
-			DrainOpeningRadius +
-			ParticleRadius;
-
-		if (
-			distanceSquared <=
-			removalRadius *
-			removalRadius)
+		if (particles.Count > 0)
 		{
-			particles.RemoveParticle(i);
-
-			// Do not increment i.
-			// A new particle was swapped into this slot.
-			continue;
+			solver.Solve(
+				particles,
+				dt
+			);
 		}
 
-		i++;
-	}
-}
+		pbfTimer.Stop();
 
-// ------------------------------------------------------------
-// Water wheel creation
-// ------------------------------------------------------------
+		fullPbfTime +=
+			pbfTimer.Elapsed.TotalMilliseconds;
 
-private void CreateWaterWheel()
-{
-	Vector2 center =
-		new Vector2(
-			WheelCenterX,
-			WheelCenterY
-		);
+		// --------------------------------------------------------
+		// Drain
+		//
+		// IMPORTANT:
+		// The drain opening is at the RIGHT end of the pipe.
+		//
+		// Pipe:
+		// X = 40
+		// Length = 144
+		// Opening = X 184
+		//
+		// Particles reaching that opening are recycled back
+		// to the emitter. This gives us an infinite water loop
+		// without increasing the particle count.
+		// --------------------------------------------------------
 
-	FluidWheelState wheelState =
-		solver.CreateWheel(
-			center
-		);
+		RecycleParticlesAtDrain();
 
-	for (
-		int i = 0;
-		i < WheelBladeCount;
-		i++)
-	{
-		float angle =
-			Mathf.Tau *
-			i /
-			WheelBladeCount;
+		// --------------------------------------------------------
+		// Update wheel visual
+		// --------------------------------------------------------
 
-		Vector2 direction =
-			new Vector2(
-				Mathf.Cos(angle),
-				Mathf.Sin(angle)
-			);
-
-		Vector2 tangent =
-			new Vector2(
-				-direction.Y,
-				direction.X
-			);
-
-		Vector2 innerCenter =
-			direction *
-			WheelInnerRadius;
-
-		Vector2 outerCenter =
-			direction *
-			WheelOuterRadius;
-
-		Vector2[] blade =
+		if (
+			waterWheel != null &&
+			solver.Wheel != null)
 		{
-			innerCenter +
-			tangent *
-			WheelBladeWidth,
+			waterWheel.SetWheelAngle(
+				solver.Wheel.Angle
+			);
+		}
 
-			outerCenter +
-			tangent *
-			WheelBladeWidth,
+		// --------------------------------------------------------
+		// Density field
+		// --------------------------------------------------------
 
-			outerCenter -
-			tangent *
-			WheelBladeWidth,
+		Stopwatch densityTimer =
+			Stopwatch.StartNew();
 
-			innerCenter -
-			tangent *
-			WheelBladeWidth
-		};
+		BuildDensityField();
 
-		FluidPolygonCollider collider =
-			new FluidPolygonCollider(
-				blade
+		densityTimer.Stop();
+
+		fullDensityTime +=
+			densityTimer.Elapsed.TotalMilliseconds;
+
+		// --------------------------------------------------------
+		// Renderer
+		// --------------------------------------------------------
+
+		Stopwatch rendererTimer =
+			Stopwatch.StartNew();
+
+		renderer.Update(
+			particles,
+			densityField
+		);
+
+		rendererTimer.Stop();
+
+		fullRendererTime +=
+			rendererTimer.Elapsed.TotalMilliseconds;
+
+		fullRendererBuildPixelsTime +=
+			renderer.LastBuildPixelsMs;
+
+		fullRendererSurfaceGlowTime +=
+			renderer.LastSurfaceGlowMs;
+
+		fullRendererFillBytesTime +=
+			renderer.LastFillBytesMs;
+
+		fullRendererTextureUploadTime +=
+			renderer.LastTextureUploadMs;
+
+		// --------------------------------------------------------
+		// Profiler
+		// --------------------------------------------------------
+
+		physicsTimer.Stop();
+
+		fullPhysicsTime +=
+			physicsTimer.Elapsed.TotalMilliseconds;
+
+		fullProfilerFrames++;
+
+		if (
+			fullProfilerFrames >=
+			FullProfilerInterval)
+		{
+			PrintFullProfiler();
+
+			ResetFullProfiler();
+		}
+	}
+
+	// ------------------------------------------------------------
+	// Water wheel creation
+	// ------------------------------------------------------------
+
+	private void CreateWaterWheel()
+	{
+		Vector2 center =
+			new Vector2(
+				WheelCenterX,
+				WheelCenterY
 			);
 
-		collider.ConfigureAsWheel(
-			wheelState
-		);
+		// --------------------------------------------------------
+		// Create ONE shared physics wheel state.
+		// --------------------------------------------------------
+
+		FluidWheelState wheelState =
+			solver.CreateWheel(
+				center
+			);
+
+		// --------------------------------------------------------
+		// Create wheel blade colliders.
+		// --------------------------------------------------------
+
+		for (
+			int i = 0;
+			i < WheelBladeCount;
+			i++)
+		{
+			float angle =
+				Mathf.Tau *
+				i /
+				WheelBladeCount;
+
+			Vector2 direction =
+				new Vector2(
+					Mathf.Cos(angle),
+					Mathf.Sin(angle)
+				);
+
+			Vector2 tangent =
+				new Vector2(
+					-direction.Y,
+					direction.X
+				);
+
+			Vector2 innerCenter =
+				direction *
+				WheelInnerRadius;
+
+			Vector2 outerCenter =
+				direction *
+				WheelOuterRadius;
+
+			Vector2[] blade =
+			{
+				innerCenter +
+				tangent *
+				WheelBladeWidth,
+
+				outerCenter +
+				tangent *
+				WheelBladeWidth,
+
+				outerCenter -
+				tangent *
+				WheelBladeWidth,
+
+				innerCenter -
+				tangent *
+				WheelBladeWidth
+			};
+
+			FluidPolygonCollider collider =
+				new FluidPolygonCollider(
+					blade
+				);
+
+			collider.ConfigureAsWheel(
+				wheelState
+			);
+
+			solver.AddPolygonCollider(
+				collider
+			);
+		}
+
+		// --------------------------------------------------------
+		// Central hub
+		// --------------------------------------------------------
+
+		const int hubSegments = 16;
+
+		Vector2[] hub =
+			new Vector2[hubSegments];
+
+		for (
+			int i = 0;
+			i < hubSegments;
+			i++)
+		{
+			float angle =
+				Mathf.Tau *
+				i /
+				hubSegments;
+
+			hub[i] =
+				new Vector2(
+					Mathf.Cos(angle),
+					Mathf.Sin(angle)
+				) *
+				WheelInnerRadius;
+		}
+
+		FluidPolygonCollider hubCollider =
+			new FluidPolygonCollider(
+				hub
+			);
 
 		solver.AddPolygonCollider(
-			collider
+			hubCollider
 		);
-	}
 
-	const int hubSegments = 16;
+		// --------------------------------------------------------
+		// Visual wheel
+		// --------------------------------------------------------
 
-	Vector2[] hub =
-		new Vector2[hubSegments];
+		waterWheel =
+			new WaterWheelVisual();
 
-	for (
-		int i = 0;
-		i < hubSegments;
-		i++)
-	{
-		float angle =
-			Mathf.Tau *
-			i /
-			hubSegments;
+		waterWheel.Position =
+			center;
 
-		hub[i] =
-			new Vector2(
-				Mathf.Cos(angle),
-				Mathf.Sin(angle)
-			) *
+		waterWheel.OuterRadius =
+			WheelOuterRadius;
+
+		waterWheel.InnerRadius =
 			WheelInnerRadius;
+
+		waterWheel.BladeCount =
+			WheelBladeCount;
+
+		waterWheel.BladeWidth =
+			WheelBladeWidth;
+
+		AddChild(
+			waterWheel
+		);
+
+		waterWheel.SetWheelAngle(
+			wheelState.Angle
+		);
 	}
 
-	FluidPolygonCollider hubCollider =
-		new FluidPolygonCollider(
-			hub
-		);
-
-	solver.AddPolygonCollider(
-		hubCollider
-	);
-
-	waterWheel =
-		new WaterWheelVisual();
-
-	waterWheel.Position =
-		center;
-
-	waterWheel.OuterRadius =
-		WheelOuterRadius;
-
-	waterWheel.InnerRadius =
-		WheelInnerRadius;
-
-	waterWheel.BladeCount =
-		WheelBladeCount;
-
-	waterWheel.BladeWidth =
-		WheelBladeWidth;
-
-	AddChild(
-		waterWheel
-	);
-
-	waterWheel.SetWheelAngle(
-		wheelState.Angle
-	);
-}
-
-// ------------------------------------------------------------
-// Pipe creation
-// ------------------------------------------------------------
-
-private void CreatePipes()
-{
-	// ========================================================
-	// Top emitter pipe
-	// ========================================================
-
-	emitterPipe =
-		new WaterPipeVisual();
-
-	emitterPipe.Width =
-		PipeWidth;
-
-	emitterPipe.Length =
-		PipeLength;
-
-	emitterPipe.Position =
-		new Vector2(
-			EmitterPipeX,
-			EmitterPipeY
-		);
-
-	emitterPipe.SetPipeAngle(
-		0.0f
-	);
-
-	AddChild(
-		emitterPipe
-	);
-
-	// ========================================================
-	// Bottom drain pipe
-	// ========================================================
-
-	despawnerPipe =
-		new WaterPipeVisual();
-
-	despawnerPipe.Width =
-		PipeWidth;
-
-	despawnerPipe.Length =
-		PipeLength;
-
-	despawnerPipe.Position =
-		new Vector2(
-			DespawnerPipeX,
-			DespawnerPipeY
-		);
-
-	despawnerPipe.SetPipeAngle(
-		0.0f
-	);
-
-	AddChild(
-		despawnerPipe
-	);
-
-	// ========================================================
-	// Make pipes render above the water.
-	// ========================================================
-
-	emitterPipe.ZIndex =
-		100;
-
-	despawnerPipe.ZIndex =
-		100;
-}
-
-// ------------------------------------------------------------
-// Full profiler output
-// ------------------------------------------------------------
-
-private void PrintFullProfiler()
-{
-	double frameCount =
-		fullProfilerFrames;
-
-	double physicsMs =
-		fullPhysicsTime /
-		frameCount;
-
-	double spawnMs =
-		fullSpawnTime /
-		frameCount;
-
-	double pbfMs =
-		fullPbfTime /
-		frameCount;
-
-	double densityMs =
-		fullDensityTime /
-		frameCount;
-
-	double rendererMs =
-		fullRendererTime /
-		frameCount;
-
-	double rendererBuildPixelsMs =
-		fullRendererBuildPixelsTime /
-		frameCount;
-
-	double rendererSurfaceGlowMs =
-		fullRendererSurfaceGlowTime /
-		frameCount;
-
-	double rendererFillBytesMs =
-		fullRendererFillBytesTime /
-		frameCount;
-
-	double rendererTextureUploadMs =
-		fullRendererTextureUploadTime /
-		frameCount;
-
-	double measuredWork =
-		spawnMs +
-		pbfMs +
-		densityMs +
-		rendererMs;
-
-	double otherMs =
-		physicsMs -
-		measuredWork;
-
-	if (otherMs < 0.0)
-		otherMs = 0.0;
-
-	double fps =
-		Engine.GetFramesPerSecond();
-
-	double physicsFps =
-		physicsMs > 0.001
-			? 1000.0 / physicsMs
-			: 0.0;
-
-	GD.Print(
-		"========================================"
-	);
-
-	GD.Print(
-		"FULL FRAME PROFILER " +
-		"(avg over " +
-		fullProfilerFrames +
-		" physics frames)"
-	);
-
-	GD.Print(
-		"Particles=" +
-		particles.Count
-	);
-
-	GD.Print(
-		"RenderedFPS=" +
-		fps.ToString("F1")
-	);
-
-	GD.Print(
-		"PhysicsFPS=" +
-		physicsFps.ToString("F1")
-	);
-
-	GD.Print(
-		"PhysicsProcess=" +
-		physicsMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  Spawn=" +
-		spawnMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  PBF=" +
-		pbfMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  Density=" +
-		densityMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  Renderer=" +
-		rendererMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"    BuildPixels=" +
-		rendererBuildPixelsMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"    SurfaceGlow=" +
-		rendererSurfaceGlowMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"    FillBytes=" +
-		rendererFillBytesMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"    TextureUpload=" +
-		rendererTextureUploadMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  Other=" +
-		otherMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"MeasuredWork=" +
-		measuredWork.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"========================================"
-	);
-}
-
-// ------------------------------------------------------------
-// Reset profiler
-// ------------------------------------------------------------
-
-private void ResetFullProfiler()
-{
-	fullProfilerFrames = 0;
-
-	fullPhysicsTime = 0.0;
-
-	fullSpawnTime = 0.0;
-	fullPbfTime = 0.0;
-	fullDensityTime = 0.0;
-	fullRendererTime = 0.0;
-
-	fullRendererBuildPixelsTime = 0.0;
-	fullRendererSurfaceGlowTime = 0.0;
-	fullRendererFillBytesTime = 0.0;
-	fullRendererTextureUploadTime = 0.0;
-}
-
-// ------------------------------------------------------------
-// Particle emitter
-// ------------------------------------------------------------
-
-private void SpawnParticle()
-{
-	if (
-		particles.Count >=
-		particles.Capacity)
+	// ------------------------------------------------------------
+	// Pipe creation
+	// ------------------------------------------------------------
+
+	private void CreatePipes()
 	{
-		return;
-	}
+		// ========================================================
+		// Emitter pipe
+		// ========================================================
 
-	float x =
-		EmitterCenterX +
-		EmitterOffsets[emitterIndex];
+		emitterPipe =
+			new WaterPipeVisual();
 
-	float y =
-		EmitterY;
+		emitterPipe.Width =
+			48.0f;
 
-	particles.AddParticle(
-		x,
-		y,
-		EmitterVelocityX,
-		EmitterVelocityY
-	);
+		emitterPipe.Length =
+			EmitterPipeLength;
 
-	emitterIndex++;
+		emitterPipe.Position =
+			new Vector2(
+				EmitterPipeX,
+				EmitterPipeY
+			);
 
-	if (
-		emitterIndex >=
-		EmitterOffsets.Length)
-	{
-		emitterIndex = 0;
-	}
-}
+		// Horizontal.
+		// Pipe extends from the LEFT toward the RIGHT.
+		emitterPipe.SetPipeAngle(
+			0.0f
+		);
 
-// ------------------------------------------------------------
-// Density field
-// ------------------------------------------------------------
+		// IMPORTANT:
+		// Draw above the fluid renderer.
+		emitterPipe.ZIndex =
+			PipeZIndex;
 
-private void BuildDensityField()
-{
-	densityField.Clear();
+		AddChild(
+			emitterPipe
+		);
 
-	for (
-		int i = 0;
-		i < particles.Count;
-		i++)
-	{
-		densityField.AddParticle(
-			particles.PosX[i],
-			particles.PosY[i]
+		// ========================================================
+		// Despawner pipe
+		// ========================================================
+
+		despawnerPipe =
+			new WaterPipeVisual();
+
+		despawnerPipe.Width =
+			48.0f;
+
+		despawnerPipe.Length =
+			DespawnerPipeLength;
+
+		despawnerPipe.Position =
+			new Vector2(
+				DespawnerPipeX,
+				DespawnerPipeY
+			);
+
+		// Horizontal.
+		// Opening is on the RIGHT.
+		despawnerPipe.SetPipeAngle(
+			0.0f
+		);
+
+		// IMPORTANT:
+		// Draw above the fluid renderer.
+		despawnerPipe.ZIndex =
+			PipeZIndex;
+
+		AddChild(
+			despawnerPipe
 		);
 	}
-}
 
+	// ------------------------------------------------------------
+	// Particle emitter
+	// ------------------------------------------------------------
 
+	private void SpawnParticle()
+	{
+		if (
+			particles.Count >=
+			particles.Capacity)
+		{
+			return;
+		}
+
+		// --------------------------------------------------------
+		// Spawn at the RIGHT opening of the emitter pipe.
+		//
+		// Pipe starts at X = 40.
+		// Pipe length = 144.
+		// Opening = X 184.
+		// --------------------------------------------------------
+
+		float x =
+			EmitterPipeX +
+			EmitterPipeLength +
+			EmitterOpeningOffset;
+
+		float y =
+			EmitterPipeY +
+			EmitterOffsets[emitterIndex];
+
+		// --------------------------------------------------------
+		// Initial horizontal velocity.
+		// --------------------------------------------------------
+
+		particles.AddParticle(
+			x,
+			y,
+			EmitterVelocityX,
+			EmitterVelocityY
+		);
+
+		emitterIndex++;
+
+		if (
+			emitterIndex >=
+			EmitterOffsets.Length)
+		{
+			emitterIndex = 0;
+		}
+	}
+
+	// ------------------------------------------------------------
+	// Drain
+	// ------------------------------------------------------------
+
+	private void RecycleParticlesAtDrain()
+	{
+		int count =
+			particles.Count;
+
+		float drainX =
+			DespawnerOpeningX;
+
+		float minX =
+			drainX -
+			DespawnerOpeningTolerance;
+
+		float maxX =
+			drainX +
+			DespawnerOpeningTolerance;
+
+		float minY =
+			DespawnerPipeY -
+			DespawnerOpeningHalfHeight;
+
+		float maxY =
+			DespawnerPipeY +
+			DespawnerOpeningHalfHeight;
+
+		for (
+			int i = 0;
+			i < count;
+			i++)
+		{
+			float x =
+				particles.PosX[i];
+
+			float y =
+				particles.PosY[i];
+
+			// ----------------------------------------------------
+			// Only remove/recycle water at the RIGHT opening.
+			// ----------------------------------------------------
+
+			if (
+				x >= minX &&
+				x <= maxX &&
+				y >= minY &&
+				y <= maxY)
+			{
+				RecycleParticle(
+					i
+				);
+			}
+		}
+	}
+
+	// ------------------------------------------------------------
+	// Recycle individual particle
+	// ------------------------------------------------------------
+
+	private void RecycleParticle(
+		int index)
+	{
+		float x =
+			EmitterPipeX +
+			EmitterPipeLength +
+			EmitterOpeningOffset;
+
+		float y =
+			EmitterPipeY +
+			EmitterOffsets[emitterIndex];
+
+		particles.PosX[index] =
+			x;
+
+		particles.PosY[index] =
+			y;
+
+		particles.PredX[index] =
+			x;
+
+		particles.PredY[index] =
+			y;
+
+		particles.VelX[index] =
+			EmitterVelocityX;
+
+		particles.VelY[index] =
+			EmitterVelocityY;
+
+		emitterIndex++;
+
+		if (
+			emitterIndex >=
+			EmitterOffsets.Length)
+		{
+			emitterIndex = 0;
+		}
+	}
+
+	// ------------------------------------------------------------
+	// Density field
+	// ------------------------------------------------------------
+
+	private void BuildDensityField()
+	{
+		densityField.Clear();
+
+		for (
+			int i = 0;
+			i < particles.Count;
+			i++)
+		{
+			densityField.AddParticle(
+				particles.PosX[i],
+				particles.PosY[i]
+			);
+		}
+	}
+
+	// ------------------------------------------------------------
+	// Full profiler output
+	// ------------------------------------------------------------
+
+	private void PrintFullProfiler()
+	{
+		double frameCount =
+			fullProfilerFrames;
+
+		double physicsMs =
+			fullPhysicsTime /
+			frameCount;
+
+		double spawnMs =
+			fullSpawnTime /
+			frameCount;
+
+		double pbfMs =
+			fullPbfTime /
+			frameCount;
+
+		double densityMs =
+			fullDensityTime /
+			frameCount;
+
+		double rendererMs =
+			fullRendererTime /
+			frameCount;
+
+		double rendererBuildPixelsMs =
+			fullRendererBuildPixelsTime /
+			frameCount;
+
+		double rendererSurfaceGlowMs =
+			fullRendererSurfaceGlowTime /
+			frameCount;
+
+		double rendererFillBytesMs =
+			fullRendererFillBytesTime /
+			frameCount;
+
+		double rendererTextureUploadMs =
+			fullRendererTextureUploadTime /
+			frameCount;
+
+		double measuredWork =
+			spawnMs +
+			pbfMs +
+			densityMs +
+			rendererMs;
+
+		double otherMs =
+			physicsMs -
+			measuredWork;
+
+		if (otherMs < 0.0)
+			otherMs = 0.0;
+
+		double fps =
+			Engine.GetFramesPerSecond();
+
+		double physicsFps =
+			physicsMs > 0.001
+				? 1000.0 / physicsMs
+				: 0.0;
+
+		GD.Print(
+			"========================================"
+		);
+
+		GD.Print(
+			"FULL FRAME PROFILER " +
+			"(avg over " +
+			fullProfilerFrames +
+			" physics frames)"
+		);
+
+		GD.Print(
+			"Particles=" +
+			particles.Count
+		);
+
+		GD.Print(
+			"RenderedFPS=" +
+			fps.ToString("F1")
+		);
+
+		GD.Print(
+			"PhysicsFPS=" +
+			physicsFps.ToString("F1")
+		);
+
+		GD.Print(
+			"PhysicsProcess=" +
+			physicsMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Spawn=" +
+			spawnMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  PBF=" +
+			pbfMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Density=" +
+			densityMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Renderer=" +
+			rendererMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    BuildPixels=" +
+			rendererBuildPixelsMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    SurfaceGlow=" +
+			rendererSurfaceGlowMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    FillBytes=" +
+			rendererFillBytesMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    TextureUpload=" +
+			rendererTextureUploadMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Other=" +
+			otherMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"MeasuredWork=" +
+			measuredWork.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"========================================"
+		);
+	}
+
+	// ------------------------------------------------------------
+	// Reset profiler
+	// ------------------------------------------------------------
+
+	private void ResetFullProfiler()
+	{
+		fullProfilerFrames = 0;
+
+		fullPhysicsTime = 0.0;
+
+		fullSpawnTime = 0.0;
+		fullPbfTime = 0.0;
+		fullDensityTime = 0.0;
+		fullRendererTime = 0.0;
+
+		fullRendererBuildPixelsTime = 0.0;
+		fullRendererSurfaceGlowTime = 0.0;
+		fullRendererFillBytesTime = 0.0;
+		fullRendererTextureUploadTime = 0.0;
+	}
 }
