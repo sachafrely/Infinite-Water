@@ -15,5 +15,3 @@ stretch_mode = 1
 
 [node name="FluidSimulation" type="Node2D" parent="." unique_id=2118507538]
 script = ExtResource("1_r150o")
-
-[node name="PolygonObject" type="Node2D" parent="FluidSimulation" unique_id=1708929083]
