@@ -2,16 +2,57 @@
 
 [ext_resource type="Script" uid="uid://ccmt13qtfb4xi" path="res://Scripts/Fluid/FluidSimulator.cs" id="1_r150o"]
 [ext_resource type="Texture2D" uid="uid://b0ywre54gv6i5" path="res://background.png" id="2_idj7w"]
+[ext_resource type="Script" uid="uid://dlj18scd35gg3" path="res://Scripts/Fluid/RiverLine2D.cs" id="3_kln2b"]
 
 [node name="Main" type="Node2D" unique_id=1086720320]
 
 [node name="Background" type="TextureRect" parent="." unique_id=1677817205]
-offset_left = -194.0
-offset_right = 1874.0
-offset_bottom = 2668.0
-scale = Vector2(0.5, 0.5)
+offset_right = 720.0
+offset_bottom = 1280.0
+mouse_filter = 2
 texture = ExtResource("2_idj7w")
 stretch_mode = 1
 
-[node name="FluidSimulation" type="Node2D" parent="." unique_id=2118507538]
+[node name="TopUI" type="Control" parent="." unique_id=1677817206]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 720.0
+offset_bottom = 280.0
+mouse_filter = 2
+
+[node name="GameView" type="SubViewportContainer" parent="." unique_id=1677817207]
+offset_top = 280.0
+offset_right = 720.0
+offset_bottom = 1000.0
+mouse_filter = 2
+stretch = true
+
+[node name="SimulationViewport" type="SubViewport" parent="GameView" unique_id=1677817208]
+handle_input_locally = false
+size = Vector2i(720, 720)
+render_target_update_mode = 4
+
+[node name="FluidSimulation" type="Node2D" parent="GameView/SimulationViewport" unique_id=2118507538]
 script = ExtResource("1_r150o")
+
+[node name="Camera2D" type="Camera2D" parent="GameView/SimulationViewport" unique_id=2118507539]
+position = Vector2(720, 360)
+
+[node name="RiverLine2D" type="Line2D" parent="GameView/SimulationViewport" unique_id=83286022]
+z_index = 50
+points = PackedVector2Array(-609, 45, -183, 109, 234, 121, 352, 155, 508, 208, 656, 227, 580, 303, 538, 383, 599, 538, 732, 641, 1009, 706, 1229, 728, 1385, 747)
+width = 20.0
+default_color = Color(0.16088128, 0.10524944, 0.05886948, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+script = ExtResource("3_kln2b")
+LineColor = Color(0.16088128, 0.10524944, 0.05886948, 1)
+
+[node name="BottomUI" type="Control" parent="." unique_id=1677817209]
+layout_mode = 3
+anchors_preset = 0
+offset_top = 1000.0
+offset_right = 720.0
+offset_bottom = 1280.0
+mouse_filter = 2

@@ -1,4 +1,3 @@
-
 using System.Diagnostics;
 using Godot;
 
@@ -18,50 +17,35 @@ public partial class FluidSimulator : Node2D
 
 	// ------------------------------------------------------------
 	// Density rendering grid
+	//
+	// Simulation = 1440 x 720
+	// Cell size = 4
 	// ------------------------------------------------------------
 
-	private const int DensityWidth = 180;
-	private const int DensityHeight = 320;
+	private const int DensityWidth = 360;
+	private const int DensityHeight = 180;
 	private const float DensityCellSize = 4.0f;
 
 	// ------------------------------------------------------------
 	// Simulation world
 	// ------------------------------------------------------------
 
-	private const float WorldWidth = 720.0f;
-	private const float WorldHeight = 1280.0f;
+	private const float WorldWidth = 1440.0f;
+	private const float WorldHeight = 720.0f;
 
 	// ------------------------------------------------------------
-	// Walls
+	// Emitter
+	//
+	// Water enters from the LEFT and flows RIGHT.
+	// There is deliberately no pipe.
 	// ------------------------------------------------------------
 
-	private const float LeftBound = 20.0f;
-	private const float RightBound = 700.0f;
-	private const float TopBound = 20.0f;
-	private const float BottomBound = 1260.0f;
+	private const float EmitterX = 24.0f;
+	private const float EmitterY = 24.0f;
 
-	// ------------------------------------------------------------
-	// Fluid parameters
-	// ------------------------------------------------------------
-
-	private const float ParticleRadius = 4.0f;
-
-	// ------------------------------------------------------------
-	// Emitter pipe
-	// ------------------------------------------------------------
-
-	private const float EmitterPipeX = 40.0f;
-	private const float EmitterPipeY = 128.0f;
-	private const float EmitterPipeLength = 144.0f;
-
-	// Particles spawn from the right opening of the pipe.
-	private const float EmitterOpeningOffset = 4.0f;
-
-	// Small vertical stagger.
 	private const float EmitterSpacing = 8.0f;
 
-	// Initial horizontal velocity.
-	private const float EmitterVelocityX = 120.0f;
+	private const float EmitterVelocityX = -2.0f;
 	private const float EmitterVelocityY = 0.0f;
 
 	private static readonly float[] EmitterOffsets =
@@ -74,22 +58,13 @@ public partial class FluidSimulator : Node2D
 	private int emitterIndex = 0;
 
 	// ------------------------------------------------------------
-	// Drain pipe
+	// Despawn
+	//
+	// Particles are recycled once they have completely left the
+	// right side of the 1440 px simulation.
 	// ------------------------------------------------------------
 
-	private const float DespawnerPipeX = 40.0f;
-	private const float DespawnerPipeY = 1096.0f;
-	private const float DespawnerPipeLength = 144.0f;
-
-	// The opening is on the RIGHT side.
-	private const float DespawnerOpeningX =
-		DespawnerPipeX + DespawnerPipeLength;
-
-	// Pipe width is 48, so this gives a generous opening area.
-	private const float DespawnerOpeningHalfHeight = 28.0f;
-
-	// Small horizontal tolerance around the opening.
-	private const float DespawnerOpeningTolerance = 12.0f;
+	private const float DespawnX = WorldWidth + 24.0f;
 
 	// ------------------------------------------------------------
 	// Water wheel
@@ -97,24 +72,14 @@ public partial class FluidSimulator : Node2D
 
 	private WaterWheelVisual waterWheel;
 
-	private const float WheelCenterX = 350.0f;
-	private const float WheelCenterY = 600.0f;
+	private const float WheelCenterX = 720.0f;
+	private const float WheelCenterY = 360.0f;
 
-	private const float WheelOuterRadius = 115.0f;
-	private const float WheelInnerRadius = 55.0f;
+	private const float WheelOuterRadius = 100.0f;
+	private const float WheelInnerRadius = 25.0f;
 
-	private const int WheelBladeCount = 10;
-	private const float WheelBladeWidth = 18.0f;
-
-	// ------------------------------------------------------------
-	// Pipes
-	// ------------------------------------------------------------
-
-	private WaterPipeVisual emitterPipe;
-	private WaterPipeVisual despawnerPipe;
-
-	// High Z so pipes are always drawn over the water.
-	private const int PipeZIndex = 100;
+	private const int WheelBladeCount = 8;
+	private const float WheelBladeWidth = 15.0f;
 
 	// ------------------------------------------------------------
 	// Full-frame profiler
@@ -156,7 +121,6 @@ public partial class FluidSimulator : Node2D
 			new PbfSolver(hash);
 
 		CreateWaterWheel();
-		CreatePipes();
 
 		densityField =
 			new DensityField(
@@ -184,9 +148,13 @@ public partial class FluidSimulator : Node2D
 		);
 
 		GD.Print(
-			"Fluid initialized with " +
-			particles.Count +
-			" particles."
+			"Fluid initialized. " +
+			"World=" +
+			WorldWidth +
+			"x" +
+			WorldHeight +
+			", Particles=" +
+			ParticleCount
 		);
 	}
 
@@ -238,22 +206,15 @@ public partial class FluidSimulator : Node2D
 			pbfTimer.Elapsed.TotalMilliseconds;
 
 		// --------------------------------------------------------
-		// Drain
+		// Despawn
 		//
-		// IMPORTANT:
-		// The drain opening is at the RIGHT end of the pipe.
+		// There is NO drain pipe.
 		//
-		// Pipe:
-		// X = 40
-		// Length = 144
-		// Opening = X 184
-		//
-		// Particles reaching that opening are recycled back
-		// to the emitter. This gives us an infinite water loop
-		// without increasing the particle count.
+		// Water simply leaves the right side of the world and is
+		// recycled back to the left emitter.
 		// --------------------------------------------------------
 
-		RecycleParticlesAtDrain();
+		RecycleParticlesPastRightEdge();
 
 		// --------------------------------------------------------
 		// Update wheel visual
@@ -488,81 +449,6 @@ public partial class FluidSimulator : Node2D
 	}
 
 	// ------------------------------------------------------------
-	// Pipe creation
-	// ------------------------------------------------------------
-
-	private void CreatePipes()
-	{
-		// ========================================================
-		// Emitter pipe
-		// ========================================================
-
-		emitterPipe =
-			new WaterPipeVisual();
-
-		emitterPipe.Width =
-			48.0f;
-
-		emitterPipe.Length =
-			EmitterPipeLength;
-
-		emitterPipe.Position =
-			new Vector2(
-				EmitterPipeX,
-				EmitterPipeY
-			);
-
-		// Horizontal.
-		// Pipe extends from the LEFT toward the RIGHT.
-		emitterPipe.SetPipeAngle(
-			0.0f
-		);
-
-		// IMPORTANT:
-		// Draw above the fluid renderer.
-		emitterPipe.ZIndex =
-			PipeZIndex;
-
-		AddChild(
-			emitterPipe
-		);
-
-		// ========================================================
-		// Despawner pipe
-		// ========================================================
-
-		despawnerPipe =
-			new WaterPipeVisual();
-
-		despawnerPipe.Width =
-			48.0f;
-
-		despawnerPipe.Length =
-			DespawnerPipeLength;
-
-		despawnerPipe.Position =
-			new Vector2(
-				DespawnerPipeX,
-				DespawnerPipeY
-			);
-
-		// Horizontal.
-		// Opening is on the RIGHT.
-		despawnerPipe.SetPipeAngle(
-			0.0f
-		);
-
-		// IMPORTANT:
-		// Draw above the fluid renderer.
-		despawnerPipe.ZIndex =
-			PipeZIndex;
-
-		AddChild(
-			despawnerPipe
-		);
-	}
-
-	// ------------------------------------------------------------
 	// Particle emitter
 	// ------------------------------------------------------------
 
@@ -575,26 +461,12 @@ public partial class FluidSimulator : Node2D
 			return;
 		}
 
-		// --------------------------------------------------------
-		// Spawn at the RIGHT opening of the emitter pipe.
-		//
-		// Pipe starts at X = 40.
-		// Pipe length = 144.
-		// Opening = X 184.
-		// --------------------------------------------------------
-
 		float x =
-			EmitterPipeX +
-			EmitterPipeLength +
-			EmitterOpeningOffset;
+			EmitterX;
 
 		float y =
-			EmitterPipeY +
+			EmitterY +
 			EmitterOffsets[emitterIndex];
-
-		// --------------------------------------------------------
-		// Initial horizontal velocity.
-		// --------------------------------------------------------
 
 		particles.AddParticle(
 			x,
@@ -614,57 +486,24 @@ public partial class FluidSimulator : Node2D
 	}
 
 	// ------------------------------------------------------------
-	// Drain
+	// Despawn / recycle
 	// ------------------------------------------------------------
 
-	private void RecycleParticlesAtDrain()
+	private void RecycleParticlesPastRightEdge()
 	{
 		int count =
 			particles.Count;
-
-		float drainX =
-			DespawnerOpeningX;
-
-		float minX =
-			drainX -
-			DespawnerOpeningTolerance;
-
-		float maxX =
-			drainX +
-			DespawnerOpeningTolerance;
-
-		float minY =
-			DespawnerPipeY -
-			DespawnerOpeningHalfHeight;
-
-		float maxY =
-			DespawnerPipeY +
-			DespawnerOpeningHalfHeight;
 
 		for (
 			int i = 0;
 			i < count;
 			i++)
 		{
-			float x =
-				particles.PosX[i];
-
-			float y =
-				particles.PosY[i];
-
-			// ----------------------------------------------------
-			// Only remove/recycle water at the RIGHT opening.
-			// ----------------------------------------------------
-
 			if (
-				x >= minX &&
-				x <= maxX &&
-				y >= minY &&
-				y <= maxY)
+				particles.PosX[i] >
+				DespawnX)
 			{
-				RecycleParticle(
-					i
-				);
+				RecycleParticle(i);
 			}
 		}
 	}
@@ -677,12 +516,10 @@ public partial class FluidSimulator : Node2D
 		int index)
 	{
 		float x =
-			EmitterPipeX +
-			EmitterPipeLength +
-			EmitterOpeningOffset;
+			EmitterX;
 
 		float y =
-			EmitterPipeY +
+			EmitterY +
 			EmitterOffsets[emitterIndex];
 
 		particles.PosX[index] =

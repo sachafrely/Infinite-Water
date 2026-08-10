@@ -75,10 +75,10 @@ public class PbfSolver
 	// ============================================================
 
 	private const float MinX = 24.0f;
-	private const float MaxX = 696.0f;
+	private const float MaxX = 1440.0f;
 
 	private const float MinY = 24.0f;
-	private const float MaxY = 1256.0f;
+	private const float MaxY = 696.0f;
 
 	private const float BoundarySkin = 0.5f;
 
@@ -387,9 +387,6 @@ public class PbfSolver
 		float boundaryLeft =
 			MinX + BoundarySkin;
 
-		float boundaryRight =
-			MaxX - BoundarySkin;
-
 		float boundaryTop =
 			MinY + BoundarySkin;
 
@@ -433,33 +430,6 @@ public class PbfSolver
 			{
 				if (
 					finalVelocityX < 0.0f)
-				{
-					if (
-						Mathf.Abs(
-							finalVelocityX
-						) <
-						BoundaryVelocityEpsilon)
-					{
-						finalVelocityX = 0.0f;
-					}
-					else
-					{
-						finalVelocityX =
-							-finalVelocityX *
-							BoundaryRestitution;
-					}
-				}
-
-				finalVelocityY *=
-					1.0f -
-					BoundaryFriction;
-			}
-			else if (
-				x >=
-				boundaryRight - 0.001f)
-			{
-				if (
-					finalVelocityX > 0.0f)
 				{
 					if (
 						Mathf.Abs(
@@ -862,9 +832,6 @@ public class PbfSolver
 		float left =
 			MinX + BoundarySkin;
 
-		float right =
-			MaxX - BoundarySkin;
-
 		float top =
 			MinY + BoundarySkin;
 
@@ -888,14 +855,6 @@ public class PbfSolver
 
 				impacted[i] = true;
 				impactNormalX[i] = 1.0f;
-				impactNormalY[i] = 0.0f;
-			}
-			else if (x > right)
-			{
-				x = right;
-
-				impacted[i] = true;
-				impactNormalX[i] = -1.0f;
 				impactNormalY[i] = 0.0f;
 			}
 
