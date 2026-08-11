@@ -298,6 +298,7 @@ tile_set = SubResource("TileSet_03j6f")
 [node name="TileMapPhysics" type="Node2D" parent="." unique_id=1135241783]
 script = ExtResource("2_kln2b")
 CollisionThickness = 4.0
+ShowDebugGeometry = true
 DebugColor = Color(1, 0.2, 0.1, 0.8)
 AlphaThreshold = 0.5
 

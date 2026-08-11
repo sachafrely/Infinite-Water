@@ -1,40 +1,22 @@
-
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Godot;
 
 /// <summary>
-/// Generates PBF collision geometry from the visual TileMapLayer.
+/// Generates collision geometry for the Environment TileMapLayer.
 ///
-/// Opaque atlas pixels are treated as solid.
-/// Transparent atlas pixels are treated as empty.
+/// The TileMap is converted into one global alpha mask.
+/// Exposed edges are extracted and merged into longer segments.
+/// Each segment becomes a thick convex polygon collider.
 ///
-/// Collision is generated from the actual alpha mask of every
-/// used tile. Exposed edges are merged and converted into thick
-/// polygon colliders.
+/// This avoids:
+///   - Tile-to-tile collision seams
+///   - Thousands of tiny colliders
+///   - Concave FluidPolygonCollider shapes
+///   - Triangulation problems
 ///
-/// The collision geometry is intentionally thicker than the
-/// visual edge. This prevents PBF particles from tunneling through
-/// thin tile boundaries between solver iterations.
-///
-/// Coordinate hierarchy:
-///
-/// Main viewport
-///     ├── Environment
-///     └── GameView
-///           └── SimulationViewport
-///                 └── FluidSimulation
-///
-/// Collision coordinates:
-///
-/// TileMap local
-///      ↓
-/// Main viewport/global
-///      ↓
-/// GameView local
-///      ↓
-/// Simulation world
+/// The generated collision exists in PBF simulation coordinates.
 /// </summary>
 [Tool]
 public partial class TileMapPhysics : Node2D
@@ -47,13 +29,6 @@ public partial class TileMapPhysics : Node2D
 	public NodePath EnvironmentPath { get; set; } =
 		new NodePath("../Environment");
 
-	/// <summary>
-	/// Thickness of the generated collision strips.
-	///
-	/// This is deliberately larger than the visible edge so that
-	/// particles cannot tunnel through the collider during a
-	/// single physics step.
-	/// </summary>
 	[Export]
 	public float CollisionThickness { get; set; } = 8.0f;
 
@@ -100,15 +75,23 @@ public partial class TileMapPhysics : Node2D
 	[Export]
 	public float AlphaThreshold { get; set; } = 0.01f;
 
-	// ============================================================
-	// Constants
-	// ============================================================
+	/// <summary>
+	/// Small dilation applied to the collision mask.
+	/// </summary>
+	[Export]
+	public int CollisionSealPixels { get; set; } = 1;
 
-	private static readonly Vector2 DefaultTileSize =
-		new Vector2(
-			16.0f,
-			16.0f
-		);
+	/// <summary>
+	/// Simplification tolerance in simulation pixels.
+	/// </summary>
+	[Export]
+	public float ContourSimplification { get; set; } = 1.5f;
+
+	/// <summary>
+	/// Ignore very small contour loops.
+	/// </summary>
+	[Export]
+	public float MinimumContourArea { get; set; } = 4.0f;
 
 	// ============================================================
 	// Runtime references
@@ -143,61 +126,12 @@ public partial class TileMapPhysics : Node2D
 	private bool generating;
 
 	// ============================================================
-	// Pixel edge
-	// ============================================================
-
-	private struct PixelEdge : IEquatable<PixelEdge>
-	{
-		public Vector2I Start;
-
-		public Vector2I End;
-
-		public PixelEdge(
-			Vector2I start,
-			Vector2I end)
-		{
-			Start = start;
-			End = end;
-		}
-
-		public bool Equals(
-			PixelEdge other)
-		{
-			return
-				Start == other.Start &&
-				End == other.End;
-		}
-
-		public override bool Equals(
-			object obj)
-		{
-			if (!(obj is PixelEdge))
-			{
-				return false;
-			}
-
-			return Equals(
-				(PixelEdge)obj
-			);
-		}
-
-		public override int GetHashCode()
-		{
-			return HashCode.Combine(
-				Start,
-				End
-			);
-		}
-	}
-
-	// ============================================================
 	// Debug edge
 	// ============================================================
 
 	private struct DebugEdge
 	{
 		public Vector2 A;
-
 		public Vector2 B;
 
 		public DebugEdge(
@@ -206,6 +140,46 @@ public partial class TileMapPhysics : Node2D
 		{
 			A = a;
 			B = b;
+		}
+	}
+
+	// ============================================================
+	// Grid edge
+	// ============================================================
+
+	private struct GridEdge : IEquatable<GridEdge>
+	{
+		public Vector2I A;
+		public Vector2I B;
+
+		public GridEdge(
+			Vector2I a,
+			Vector2I b)
+		{
+			A = a;
+			B = b;
+		}
+
+		public bool Equals(
+			GridEdge other)
+		{
+			return A == other.A &&
+				   B == other.B;
+		}
+
+		public override bool Equals(
+			object obj)
+		{
+			return obj is GridEdge &&
+				   Equals((GridEdge)obj);
+		}
+
+		public override int GetHashCode()
+		{
+			return HashCode.Combine(
+				A,
+				B
+			);
 		}
 	}
 
@@ -225,23 +199,13 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Initialization
+	// Initialize
 	// ============================================================
 
 	private void Initialize()
 	{
 		if (generating)
-		{
 			return;
-		}
-
-		GD.Print(
-			"TileMapPhysics: Initialize()"
-		);
-
-		// --------------------------------------------------------
-		// Environment
-		// --------------------------------------------------------
 
 		environment =
 			GetEnvironment();
@@ -255,10 +219,6 @@ public partial class TileMapPhysics : Node2D
 
 			return;
 		}
-
-		// --------------------------------------------------------
-		// Fluid simulator
-		// --------------------------------------------------------
 
 		simulator =
 			FindFluidSimulator(
@@ -274,10 +234,6 @@ public partial class TileMapPhysics : Node2D
 
 			return;
 		}
-
-		// --------------------------------------------------------
-		// Solver
-		// --------------------------------------------------------
 
 		solver =
 			GetSolver(
@@ -297,10 +253,6 @@ public partial class TileMapPhysics : Node2D
 			return;
 		}
 
-		// --------------------------------------------------------
-		// Viewport mapping
-		// --------------------------------------------------------
-
 		FindViewportMapping();
 
 		if (
@@ -310,15 +262,11 @@ public partial class TileMapPhysics : Node2D
 		{
 			GD.PushError(
 				"TileMapPhysics: Could not establish " +
-				"Environment -> SimulationViewport mapping."
+				"viewport mapping."
 			);
 
 			return;
 		}
-
-		// --------------------------------------------------------
-		// Generate
-		// --------------------------------------------------------
 
 		if (GenerateOnReady)
 		{
@@ -346,9 +294,7 @@ public partial class TileMapPhysics : Node2D
 	public override void _Draw()
 	{
 		if (!ShowDebugGeometry)
-		{
 			return;
-		}
 
 		if (
 			gameView == null ||
@@ -381,7 +327,7 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Find Environment
+	// Environment
 	// ============================================================
 
 	private TileMapLayer GetEnvironment()
@@ -406,10 +352,6 @@ public partial class TileMapPhysics : Node2D
 		);
 	}
 
-	// ============================================================
-	// Find TileMapLayer
-	// ============================================================
-
 	private static TileMapLayer FindTileMapLayer(
 		Node node)
 	{
@@ -433,16 +375,14 @@ public partial class TileMapPhysics : Node2D
 				);
 
 			if (result != null)
-			{
 				return result;
-			}
 		}
 
 		return null;
 	}
 
 	// ============================================================
-	// Find viewport mapping
+	// Viewport mapping
 	// ============================================================
 
 	private void FindViewportMapping()
@@ -577,18 +517,12 @@ public partial class TileMapPhysics : Node2D
 		}
 	}
 
-	// ============================================================
-	// Find node of type
-	// ============================================================
-
 	private static T FindNodeOfType<T>(
 		Node node)
 		where T : Node
 	{
 		if (node is T)
-		{
 			return (T)node;
-		}
 
 		foreach (
 			Node child in node.GetChildren())
@@ -599,16 +533,14 @@ public partial class TileMapPhysics : Node2D
 				);
 
 			if (result != null)
-			{
 				return result;
-			}
 		}
 
 		return null;
 	}
 
 	// ============================================================
-	// Get solver
+	// Solver
 	// ============================================================
 
 	private static PbfSolver GetSolver(
@@ -643,15 +575,10 @@ public partial class TileMapPhysics : Node2D
 	public void GenerateColliders()
 	{
 		if (generating)
-		{
 			return;
-		}
 
 		if (environment == null)
-		{
-			environment =
-				GetEnvironment();
-		}
+			environment = GetEnvironment();
 
 		if (simulator == null)
 		{
@@ -698,17 +625,15 @@ public partial class TileMapPhysics : Node2D
 		}
 
 		generating = true;
-
 		generated = false;
 
 		// --------------------------------------------------------
-		// Remove old colliders from solver.
+		// Remove old collision.
 		// --------------------------------------------------------
 
 		solver.ClearPolygonColliders();
 
 		generatedColliders.Clear();
-
 		debugEdges.Clear();
 
 		GD.Print(
@@ -716,133 +641,203 @@ public partial class TileMapPhysics : Node2D
 		);
 
 		// --------------------------------------------------------
-		// Build alpha edges.
+		// Build global solid mask.
 		// --------------------------------------------------------
 
-		HashSet<PixelEdge> pixelEdges =
-			BuildAlphaCollisionEdges();
+		HashSet<Vector2I> solidPixels =
+			BuildGlobalSolidMask();
 
-		if (pixelEdges.Count == 0)
+		if (solidPixels.Count == 0)
 		{
 			GD.PushWarning(
-				"TileMapPhysics: No opaque pixels were found."
+				"TileMapPhysics: No opaque pixels found."
 			);
 
 			generating = false;
-
 			return;
 		}
 
 		// --------------------------------------------------------
-		// Merge edges.
+		// Seal tiny gaps.
 		// --------------------------------------------------------
 
-		List<PixelEdge> mergedEdges =
-			MergePixelEdges(
-				pixelEdges
+		if (CollisionSealPixels > 0)
+		{
+			solidPixels =
+				DilateMask(
+					solidPixels,
+					CollisionSealPixels
+				);
+		}
+
+		// --------------------------------------------------------
+		// Extract global boundary.
+		// --------------------------------------------------------
+
+		List<List<Vector2I>> loops =
+			ExtractBoundaryLoops(
+				solidPixels
 			);
 
-		// --------------------------------------------------------
-		// Generate collision polygons.
-		// --------------------------------------------------------
-
-		for (
-			int i = 0;
-			i < mergedEdges.Count;
-			i++)
+		if (loops.Count == 0)
 		{
-			PixelEdge edge =
-				mergedEdges[i];
+			GD.PushWarning(
+				"TileMapPhysics: No boundary loops found."
+			);
 
-			Vector2 localA =
-				PixelCoordinateToTileMapLocal(
-					edge.Start
-				);
+			generating = false;
+			return;
+		}
 
-			Vector2 localB =
-				PixelCoordinateToTileMapLocal(
-					edge.End
-				);
+		int totalSegments = 0;
 
-			Vector2 simulationA =
-				ToSimulationSpace(
-					localA
-				);
+		// ========================================================
+		// Process every contour.
+		// ========================================================
 
-			Vector2 simulationB =
-				ToSimulationSpace(
-					localB
-				);
-
-			Vector2 difference =
-				simulationB -
-				simulationA;
-
-			float lengthSquared =
-				difference.X *
-				difference.X +
-				difference.Y *
-				difference.Y;
-
-			if (
-				lengthSquared <
-				0.0001f)
-			{
+		foreach (
+			List<Vector2I> loop in loops)
+		{
+			if (loop.Count < 3)
 				continue;
+
+			List<Vector2> contour =
+				new List<Vector2>(
+					loop.Count
+				);
+
+			foreach (
+				Vector2I point in loop)
+			{
+				contour.Add(
+					GridToTileMapLocal(
+						point
+					)
+				);
 			}
 
 			// ----------------------------------------------------
-			// Important:
-			//
-			// The collision strip is intentionally thick.
-			//
-			// A thin 1-2 pixel strip can be crossed by a PBF
-			// particle between solver iterations.
+			// Simplify the closed contour.
 			// ----------------------------------------------------
 
-			Vector2[] polygon =
-				BuildSegmentPolygon(
-					simulationA,
-					simulationB,
-					Mathf.Max(
-						CollisionThickness,
-						6.0f
+			contour =
+				SimplifyClosedPolygon(
+					contour,
+					ContourSimplification
+				);
+
+			if (contour.Count < 3)
+				continue;
+
+			float area =
+				Mathf.Abs(
+					PolygonArea(
+						contour
 					)
 				);
 
-			if (polygon.Length < 3)
+			if (
+				area <
+				MinimumContourArea)
 			{
 				continue;
 			}
 
-			FluidPolygonCollider collider =
-				new FluidPolygonCollider(
-					polygon
+			// ----------------------------------------------------
+			// IMPORTANT:
+			//
+			// We deliberately do NOT triangulate the contour.
+			//
+			// FluidPolygonCollider works extremely well with
+			// convex segment strips. Each boundary segment is
+			// converted into one thick quadrilateral.
+			// ----------------------------------------------------
+
+			for (
+				int i = 0;
+				i < contour.Count;
+				i++)
+			{
+				Vector2 localA =
+					contour[i];
+
+				Vector2 localB =
+					contour[
+						(i + 1) %
+						contour.Count
+					];
+
+				Vector2 simulationA =
+					ToSimulationSpace(
+						localA
+					);
+
+				Vector2 simulationB =
+					ToSimulationSpace(
+						localB
+					);
+
+				Vector2 difference =
+					simulationB -
+					simulationA;
+
+				float lengthSquared =
+					difference.LengthSquared();
+
+				if (
+					lengthSquared <
+					0.0001f)
+				{
+					continue;
+				}
+
+				// ------------------------------------------------
+				// Build thick convex collision strip.
+				// ------------------------------------------------
+
+				Vector2[] polygon =
+					BuildSegmentPolygon(
+						simulationA,
+						simulationB,
+						Mathf.Max(
+							CollisionThickness,
+							6.0f
+						)
+					);
+
+				if (polygon.Length < 4)
+					continue;
+
+				FluidPolygonCollider collider =
+					new FluidPolygonCollider(
+						polygon
+					);
+
+				solver.AddPolygonCollider(
+					collider
 				);
 
-			solver.AddPolygonCollider(
-				collider
-			);
+				generatedColliders.Add(
+					collider
+				);
 
-			generatedColliders.Add(
-				collider
-			);
+				totalSegments++;
 
-			debugEdges.Add(
-				new DebugEdge(
-					simulationA,
-					simulationB
-				)
-			);
+				// ------------------------------------------------
+				// Debug line.
+				// ------------------------------------------------
+
+				debugEdges.Add(
+					new DebugEdge(
+						simulationA,
+						simulationB
+					)
+				);
+			}
 		}
 
 		generated = true;
-
 		generating = false;
-
-		// --------------------------------------------------------
-		// Diagnostics
-		// --------------------------------------------------------
 
 		if (DebugOutput)
 		{
@@ -851,7 +846,7 @@ public partial class TileMapPhysics : Node2D
 			);
 
 			GD.Print(
-				"TileMapPhysics ALPHA COLLISION"
+				"TileMapPhysics GLOBAL ALPHA COLLISION"
 			);
 
 			GD.Print(
@@ -860,13 +855,18 @@ public partial class TileMapPhysics : Node2D
 			);
 
 			GD.Print(
-				"Alpha edges: " +
-				pixelEdges.Count
+				"Global solid pixels: " +
+				solidPixels.Count
 			);
 
 			GD.Print(
-				"Merged edges: " +
-				mergedEdges.Count
+				"Boundary loops: " +
+				loops.Count
+			);
+
+			GD.Print(
+				"Generated collision segments: " +
+				totalSegments
 			);
 
 			GD.Print(
@@ -877,6 +877,16 @@ public partial class TileMapPhysics : Node2D
 			GD.Print(
 				"Alpha threshold: " +
 				AlphaThreshold
+			);
+
+			GD.Print(
+				"Collision seal pixels: " +
+				CollisionSealPixels
+			);
+
+			GD.Print(
+				"Contour simplification: " +
+				ContourSimplification
 			);
 
 			GD.Print(
@@ -892,7 +902,6 @@ public partial class TileMapPhysics : Node2D
 				GetTileSize()
 			);
 
-
 			GD.Print(
 				"========================================"
 			);
@@ -902,36 +911,36 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Build alpha collision edges
+	// Build global solid mask
 	// ============================================================
 
-	private HashSet<PixelEdge>
-		BuildAlphaCollisionEdges()
+	private HashSet<Vector2I>
+		BuildGlobalSolidMask()
 	{
-		HashSet<PixelEdge> result =
-			new HashSet<PixelEdge>();
+		HashSet<Vector2I> solidPixels =
+			new HashSet<Vector2I>();
 
-		if (environment.TileSet == null)
+		if (
+			environment == null ||
+			environment.TileSet == null)
 		{
-			GD.PushError(
-				"TileMapPhysics: Environment has no TileSet."
-			);
-
-			return result;
+			return solidPixels;
 		}
 
 		TileSet tileSet =
 			environment.TileSet;
 
+		Vector2 tileSize =
+			GetTileSize();
+
 		Godot.Collections.Array<Vector2I> cells =
 			environment.GetUsedCells();
 
+		Dictionary<int, Image> imageCache =
+			new Dictionary<int, Image>();
+
 		int processedCells = 0;
-
 		int opaquePixels = 0;
-
-		Vector2 tileSize =
-			GetTileSize();
 
 		foreach (
 			Vector2I cell in cells)
@@ -942,9 +951,7 @@ public partial class TileMapPhysics : Node2D
 				);
 
 			if (sourceId < 0)
-			{
 				continue;
-			}
 
 			Vector2I atlasCoords =
 				environment.GetCellAtlasCoords(
@@ -964,41 +971,42 @@ public partial class TileMapPhysics : Node2D
 				);
 
 			if (!(source is TileSetAtlasSource))
-			{
 				continue;
-			}
 
 			TileSetAtlasSource atlas =
 				(TileSetAtlasSource)source;
 
+			if (!atlas.HasTile(atlasCoords))
+				continue;
+
+			Texture2D texture =
+				atlas.Texture;
+
+			if (texture == null)
+				continue;
+
+			Image image;
+
 			if (
-				!atlas.HasTile(
-					atlasCoords
+				!imageCache.TryGetValue(
+					sourceId,
+					out image
 				))
 			{
-				continue;
+				image =
+					texture.GetImage();
+
+				if (image == null)
+					continue;
+
+				imageCache[sourceId] =
+					image;
 			}
 
 			Rect2I region =
 				atlas.GetTileTextureRegion(
 					atlasCoords
 				);
-
-			Texture2D texture =
-				atlas.Texture;
-
-			if (texture == null)
-			{
-				continue;
-			}
-
-			Image image =
-				texture.GetImage();
-
-			if (image == null)
-			{
-				continue;
-			}
 
 			Rect2I textureRect =
 				new Rect2I(
@@ -1029,26 +1037,32 @@ public partial class TileMapPhysics : Node2D
 			float scaleX =
 				tileSize.X /
 				Mathf.Max(
-					1.0f,
+					1,
 					width
 				);
 
 			float scaleY =
 				tileSize.Y /
 				Mathf.Max(
-					1.0f,
+					1,
 					height
 				);
 
-			bool[,] solid =
-				new bool[
-					width,
-					height
-				];
+			// ----------------------------------------------------
+			// Actual TileMap cell center.
+			//
+			// This is important for TileMapLayer transforms and
+			// for the 32x32 tileset.
+			// ----------------------------------------------------
 
-			// ----------------------------------------------------
-			// Read alpha.
-			// ----------------------------------------------------
+			Vector2 cellCenter =
+				environment.MapToLocal(
+					cell
+				);
+
+			Vector2 tileTopLeft =
+				cellCenter -
+				tileSize * 0.5f;
 
 			for (
 				int y = 0;
@@ -1067,188 +1081,32 @@ public partial class TileMapPhysics : Node2D
 						);
 
 					if (
-						pixel.A >=
+						pixel.A <
 						AlphaThreshold)
-					{
-						solid[x, y] = true;
-
-						opaquePixels++;
-					}
-				}
-			}
-
-			// ----------------------------------------------------
-			// IMPORTANT:
-			//
-			// Use the actual TileMap cell position.
-			//
-			// Do not use texture coordinates for the tile
-			// position. The atlas texture can be completely
-			// different from the TileMap's world position.
-			// ----------------------------------------------------
-
-			int baseX =
-				Mathf.RoundToInt(
-					cell.X *
-					tileSize.X
-				);
-
-			int baseY =
-				Mathf.RoundToInt(
-					cell.Y *
-					tileSize.Y
-				);
-
-			// ----------------------------------------------------
-			// Extract exposed alpha edges.
-			// ----------------------------------------------------
-
-			for (
-				int y = 0;
-				y < height;
-				y++)
-			{
-				for (
-					int x = 0;
-					x < width;
-					x++)
-				{
-					if (!solid[x, y])
 					{
 						continue;
 					}
 
-					// ------------------------------------------------
-					// Top
-					// ------------------------------------------------
-
-					if (
-						y == 0 ||
-						!solid[x, y - 1])
-					{
-						AddPixelEdge(
-							result,
-							new Vector2I(
-								baseX +
-								Mathf.RoundToInt(
-									x * scaleX
-								),
-								baseY +
-								Mathf.RoundToInt(
-									y * scaleY
-								)
-							),
-							new Vector2I(
-								baseX +
-								Mathf.RoundToInt(
-									(x + 1) * scaleX
-								),
-								baseY +
-								Mathf.RoundToInt(
-									y * scaleY
-								)
-							)
+					int worldX =
+						Mathf.FloorToInt(
+							tileTopLeft.X +
+							x * scaleX
 						);
-					}
 
-					// ------------------------------------------------
-					// Right
-					// ------------------------------------------------
-
-					if (
-						x == width - 1 ||
-						!solid[x + 1, y])
-					{
-						AddPixelEdge(
-							result,
-							new Vector2I(
-								baseX +
-								Mathf.RoundToInt(
-									(x + 1) * scaleX
-								),
-								baseY +
-								Mathf.RoundToInt(
-									y * scaleY
-								)
-							),
-							new Vector2I(
-								baseX +
-								Mathf.RoundToInt(
-									(x + 1) * scaleX
-								),
-								baseY +
-								Mathf.RoundToInt(
-									(y + 1) * scaleY
-								)
-							)
+					int worldY =
+						Mathf.FloorToInt(
+							tileTopLeft.Y +
+							y * scaleY
 						);
-					}
 
-					// ------------------------------------------------
-					// Bottom
-					// ------------------------------------------------
+					solidPixels.Add(
+						new Vector2I(
+							worldX,
+							worldY
+						)
+					);
 
-					if (
-						y == height - 1 ||
-						!solid[x, y + 1])
-					{
-						AddPixelEdge(
-							result,
-							new Vector2I(
-								baseX +
-								Mathf.RoundToInt(
-									(x + 1) * scaleX
-								),
-								baseY +
-								Mathf.RoundToInt(
-									(y + 1) * scaleY
-								)
-							),
-							new Vector2I(
-								baseX +
-								Mathf.RoundToInt(
-									x * scaleX
-								),
-								baseY +
-								Mathf.RoundToInt(
-									(y + 1) * scaleY
-								)
-							)
-						);
-					}
-
-					// ------------------------------------------------
-					// Left
-					// ------------------------------------------------
-
-					if (
-						x == 0 ||
-						!solid[x - 1, y])
-					{
-						AddPixelEdge(
-							result,
-							new Vector2I(
-								baseX +
-								Mathf.RoundToInt(
-									x * scaleX
-								),
-								baseY +
-								Mathf.RoundToInt(
-									(y + 1) * scaleY
-								)
-							),
-							new Vector2I(
-								baseX +
-								Mathf.RoundToInt(
-									x * scaleX
-								),
-								baseY +
-								Mathf.RoundToInt(
-									y * scaleY
-								)
-							)
-						);
-					}
+					opaquePixels++;
 				}
 			}
 
@@ -1269,405 +1127,534 @@ public partial class TileMapPhysics : Node2D
 			);
 		}
 
+		return solidPixels;
+	}
+
+	// ============================================================
+	// Dilate mask
+	// ============================================================
+
+	private static HashSet<Vector2I>
+		DilateMask(
+			HashSet<Vector2I> source,
+			int radius)
+	{
+		if (
+			radius <= 0 ||
+			source.Count == 0)
+		{
+			return source;
+		}
+
+		HashSet<Vector2I> result =
+			new HashSet<Vector2I>(
+				source
+			);
+
+		foreach (
+			Vector2I p in source)
+		{
+			for (
+				int y = -radius;
+				y <= radius;
+				y++)
+			{
+				for (
+					int x = -radius;
+					x <= radius;
+					x++)
+				{
+					result.Add(
+						new Vector2I(
+							p.X + x,
+							p.Y + y
+						)
+					);
+				}
+			}
+		}
+
 		return result;
 	}
 
 	// ============================================================
-	// Add pixel edge
+	// Extract boundary loops
 	// ============================================================
 
-	private static void AddPixelEdge(
-		HashSet<PixelEdge> edges,
+	private List<List<Vector2I>>
+		ExtractBoundaryLoops(
+			HashSet<Vector2I> solid)
+	{
+		HashSet<GridEdge> edges =
+			new HashSet<GridEdge>();
+
+		foreach (
+			Vector2I p in solid)
+		{
+			int x = p.X;
+			int y = p.Y;
+
+			// ----------------------------------------------------
+			// Top
+			// ----------------------------------------------------
+
+			if (
+				!solid.Contains(
+					new Vector2I(
+						x,
+						y - 1
+					)
+				))
+			{
+				AddBoundaryEdge(
+					edges,
+					new Vector2I(
+						x,
+						y
+					),
+					new Vector2I(
+						x + 1,
+						y
+					)
+				);
+			}
+
+			// ----------------------------------------------------
+			// Right
+			// ----------------------------------------------------
+
+			if (
+				!solid.Contains(
+					new Vector2I(
+						x + 1,
+						y
+					)
+				))
+			{
+				AddBoundaryEdge(
+					edges,
+					new Vector2I(
+						x + 1,
+						y
+					),
+					new Vector2I(
+						x + 1,
+						y + 1
+					)
+				);
+			}
+
+			// ----------------------------------------------------
+			// Bottom
+			// ----------------------------------------------------
+
+			if (
+				!solid.Contains(
+					new Vector2I(
+						x,
+						y + 1
+					)
+				))
+			{
+				AddBoundaryEdge(
+					edges,
+					new Vector2I(
+						x + 1,
+						y + 1
+					),
+					new Vector2I(
+						x,
+						y + 1
+					)
+				);
+			}
+
+			// ----------------------------------------------------
+			// Left
+			// ----------------------------------------------------
+
+			if (
+				!solid.Contains(
+					new Vector2I(
+						x - 1,
+						y
+					)
+				))
+			{
+				AddBoundaryEdge(
+					edges,
+					new Vector2I(
+						x,
+						y + 1
+					),
+					new Vector2I(
+						x,
+						y
+					)
+				);
+			}
+		}
+
+		// --------------------------------------------------------
+		// Build adjacency.
+		// --------------------------------------------------------
+
+		Dictionary<Vector2I, List<Vector2I>>
+			nextMap =
+				new Dictionary<
+					Vector2I,
+					List<Vector2I>
+				>();
+
+		foreach (
+			GridEdge edge in edges)
+		{
+			List<Vector2I> list;
+
+			if (
+				!nextMap.TryGetValue(
+					edge.A,
+					out list
+				))
+			{
+				list =
+					new List<Vector2I>();
+
+				nextMap[edge.A] =
+					list;
+			}
+
+			list.Add(
+				edge.B
+			);
+		}
+
+		HashSet<GridEdge> remaining =
+			new HashSet<GridEdge>(
+				edges
+			);
+
+		List<List<Vector2I>> loops =
+			new List<List<Vector2I>>();
+
+		while (remaining.Count > 0)
+		{
+			GridEdge first =
+				default;
+
+			foreach (
+				GridEdge edge in remaining)
+			{
+				first = edge;
+				break;
+			}
+
+			List<Vector2I> loop =
+				new List<Vector2I>();
+
+			Vector2I start =
+				first.A;
+
+			Vector2I current =
+				first.A;
+
+			Vector2I next =
+				first.B;
+
+			RemoveEdge(
+				remaining,
+				current,
+				next
+			);
+
+			loop.Add(current);
+
+			int safety = 0;
+
+			while (
+				next != start &&
+				safety < 100000)
+			{
+				safety++;
+
+				loop.Add(next);
+
+				current =
+					next;
+
+				Vector2I candidate =
+					default;
+
+				bool found =
+					false;
+
+				List<Vector2I> candidates;
+
+				if (
+					nextMap.TryGetValue(
+						current,
+						out candidates
+					))
+				{
+					foreach (
+						Vector2I c in candidates)
+					{
+						GridEdge e =
+							new GridEdge(
+								current,
+								c
+							);
+
+						if (remaining.Contains(e))
+						{
+							candidate = c;
+							found = true;
+							break;
+						}
+					}
+				}
+
+				if (!found)
+					break;
+
+				next =
+					candidate;
+
+				RemoveEdge(
+					remaining,
+					current,
+					next
+				);
+			}
+
+			if (
+				loop.Count >= 3 &&
+				next == start)
+			{
+				loops.Add(
+					loop
+				);
+			}
+		}
+
+		return loops;
+	}
+
+	// ============================================================
+	// Boundary edge
+	// ============================================================
+
+	private static void AddBoundaryEdge(
+		HashSet<GridEdge> edges,
 		Vector2I a,
 		Vector2I b)
 	{
-		if (a == b)
-		{
-			return;
-		}
-
-		PixelEdge edge =
-			new PixelEdge(
+		GridEdge edge =
+			new GridEdge(
 				a,
 				b
 			);
 
-		PixelEdge reverse =
-			new PixelEdge(
+		GridEdge reverse =
+			new GridEdge(
 				b,
 				a
 			);
 
-		// --------------------------------------------------------
-		// If the opposite edge already exists, the edge is
-		// internal between two opaque pixels/tiles.
-		//
-		// Remove it so water cannot collide with an internal
-		// seam while the outside boundary remains solid.
-		// --------------------------------------------------------
-
 		if (edges.Contains(reverse))
 		{
 			edges.Remove(reverse);
-
 			return;
 		}
 
 		edges.Add(edge);
 	}
 
-	// ============================================================
-	// Merge pixel edges
-	// ============================================================
-
-	private List<PixelEdge> MergePixelEdges(
-		HashSet<PixelEdge> input)
+	private static void RemoveEdge(
+		HashSet<GridEdge> edges,
+		Vector2I a,
+		Vector2I b)
 	{
-		List<PixelEdge> horizontal =
-			new List<PixelEdge>();
-
-		List<PixelEdge> vertical =
-			new List<PixelEdge>();
-
-		foreach (
-			PixelEdge edge in input)
-		{
-			if (
-				edge.Start.Y ==
-				edge.End.Y)
-			{
-				horizontal.Add(
-					NormalizeHorizontal(
-						edge
-					)
-				);
-			}
-			else
-			{
-				vertical.Add(
-					NormalizeVertical(
-						edge
-					)
-				);
-			}
-		}
-
-		List<PixelEdge> result =
-			new List<PixelEdge>();
-
-		result.AddRange(
-			MergeHorizontalEdges(
-				horizontal
+		edges.Remove(
+			new GridEdge(
+				a,
+				b
 			)
 		);
-
-		result.AddRange(
-			MergeVerticalEdges(
-				vertical
-			)
-		);
-
-		return result;
 	}
 
 	// ============================================================
-	// Normalize horizontal
+	// Simplify closed polygon
 	// ============================================================
 
-	private static PixelEdge NormalizeHorizontal(
-		PixelEdge edge)
+	private static List<Vector2>
+		SimplifyClosedPolygon(
+			List<Vector2> polygon,
+			float tolerance)
 	{
 		if (
-			edge.Start.X <=
-			edge.End.X)
+			polygon.Count <= 3 ||
+			tolerance <= 0.0f)
 		{
-			return edge;
+			return polygon;
 		}
 
-		return new PixelEdge(
-			edge.End,
-			edge.Start
-		);
-	}
+		List<Vector2> result =
+			new List<Vector2>(
+				polygon
+			);
 
-	// ============================================================
-	// Normalize vertical
-	// ============================================================
+		bool changed = true;
 
-	private static PixelEdge NormalizeVertical(
-		PixelEdge edge)
-	{
-		if (
-			edge.Start.Y <=
-			edge.End.Y)
+		float toleranceSquared =
+			tolerance *
+			tolerance;
+
+		while (
+			changed &&
+			result.Count > 3)
 		{
-			return edge;
-		}
+			changed = false;
 
-		return new PixelEdge(
-			edge.End,
-			edge.Start
-		);
-	}
-
-	// ============================================================
-	// Merge horizontal
-	// ============================================================
-
-	private static List<PixelEdge>
-		MergeHorizontalEdges(
-			List<PixelEdge> edges)
-	{
-		List<PixelEdge> result =
-			new List<PixelEdge>();
-
-		edges.Sort(
-			(a, b) =>
+			for (
+				int i = 0;
+				i < result.Count;
+				i++)
 			{
-				int y =
-					a.Start.Y.CompareTo(
-						b.Start.Y
+				Vector2 previous =
+					result[
+						(i - 1 +
+						 result.Count) %
+						result.Count
+					];
+
+				Vector2 current =
+					result[i];
+
+				Vector2 next =
+					result[
+						(i + 1) %
+						result.Count
+					];
+
+				float distance =
+					DistancePointToSegmentSquared(
+						current,
+						previous,
+						next
 					);
 
-				if (y != 0)
+				if (
+					distance <=
+					toleranceSquared)
 				{
-					return y;
+					result.RemoveAt(i);
+					changed = true;
+					break;
 				}
-
-				return a.Start.X.CompareTo(
-					b.Start.X
-				);
-			}
-		);
-
-		foreach (
-			PixelEdge edge in edges)
-		{
-			if (result.Count == 0)
-			{
-				result.Add(edge);
-
-				continue;
-			}
-
-			int lastIndex =
-				result.Count - 1;
-
-			PixelEdge last =
-				result[lastIndex];
-
-			if (
-				last.Start.Y ==
-					edge.Start.Y &&
-				last.End.X ==
-					edge.Start.X)
-			{
-				result[lastIndex] =
-					new PixelEdge(
-						last.Start,
-						edge.End
-					);
-			}
-			else
-			{
-				result.Add(edge);
 			}
 		}
 
 		return result;
 	}
 
-	// ============================================================
-	// Merge vertical
-	// ============================================================
-
-	private static List<PixelEdge>
-		MergeVerticalEdges(
-			List<PixelEdge> edges)
+	private static float
+		DistancePointToSegmentSquared(
+			Vector2 p,
+			Vector2 a,
+			Vector2 b)
 	{
-		List<PixelEdge> result =
-			new List<PixelEdge>();
+		Vector2 ab =
+			b - a;
 
-		edges.Sort(
-			(a, b) =>
-			{
-				int x =
-					a.Start.X.CompareTo(
-						b.Start.X
-					);
+		float lengthSquared =
+			ab.LengthSquared();
 
-				if (x != 0)
-				{
-					return x;
-				}
-
-				return a.Start.Y.CompareTo(
-					b.Start.Y
-				);
-			}
-		);
-
-		foreach (
-			PixelEdge edge in edges)
+		if (lengthSquared <= 0.000001f)
 		{
-			if (result.Count == 0)
-			{
-				result.Add(edge);
-
-				continue;
-			}
-
-			int lastIndex =
-				result.Count - 1;
-
-			PixelEdge last =
-				result[lastIndex];
-
-			if (
-				last.Start.X ==
-					edge.Start.X &&
-				last.End.Y ==
-					edge.Start.Y)
-			{
-				result[lastIndex] =
-					new PixelEdge(
-						last.Start,
-						edge.End
-					);
-			}
-			else
-			{
-				result.Add(edge);
-			}
+			return p.DistanceSquaredTo(a);
 		}
 
-		return result;
+		float t =
+			(p - a).Dot(ab) /
+			lengthSquared;
+
+		t =
+			Mathf.Clamp(
+				t,
+				0.0f,
+				1.0f
+			);
+
+		Vector2 closest =
+			a +
+			ab * t;
+
+		return p.DistanceSquaredTo(
+			closest
+		);
 	}
 
 	// ============================================================
-	// Pixel coordinate -> TileMap local
+	// Polygon area
 	// ============================================================
 
-	private Vector2 PixelCoordinateToTileMapLocal(
-		Vector2I pixel)
+	private static float PolygonArea(
+		List<Vector2> polygon)
+	{
+		float area = 0.0f;
+
+		for (
+			int i = 0;
+			i < polygon.Count;
+			i++)
+		{
+			Vector2 a =
+				polygon[i];
+
+			Vector2 b =
+				polygon[
+					(i + 1) %
+					polygon.Count
+				];
+
+			area +=
+				a.X * b.Y -
+				b.X * a.Y;
+		}
+
+		return area * 0.5f;
+	}
+
+	// ============================================================
+	// Grid -> TileMap local
+	// ============================================================
+
+	private static Vector2
+		GridToTileMapLocal(
+			Vector2I point)
 	{
 		return new Vector2(
-			pixel.X,
-			pixel.Y
+			point.X,
+			point.Y
 		);
 	}
 
 	// ============================================================
-	// Get tile size
+	// Build thick convex segment polygon
 	// ============================================================
 
-	private Vector2 GetTileSize()
-	{
-		if (
-			environment != null &&
-			environment.TileSet != null)
-		{
-			Vector2I size =
-				environment.TileSet.TileSize;
-
-			if (
-				size.X > 0 &&
-				size.Y > 0)
-			{
-				return new Vector2(
-					size.X,
-					size.Y
-				);
-			}
-		}
-
-		return DefaultTileSize;
-	}
-
-	// ============================================================
-	// Environment -> Simulation
-	// ============================================================
-
-	private Vector2 ToSimulationSpace(
-		Vector2 tileMapLocal)
-	{
-		Vector2 mainViewportPoint =
-			environment.ToGlobal(
-				tileMapLocal
-			);
-
-		Vector2 viewportPoint =
-			mainViewportPoint -
-			gameView.GlobalPosition;
-
-		Vector2 viewportSize =
-			new Vector2(
-				simulationViewport.Size.X,
-				simulationViewport.Size.Y
-			);
-
-		Vector2 screenCenter =
-			viewportSize *
-			0.5f;
-
-		Vector2 cameraCenter =
-			simulationCamera.GetScreenCenterPosition();
-
-		return
-			cameraCenter +
-			(viewportPoint - screenCenter);
-	}
-
-	// ============================================================
-	// Simulation -> this node local
-	// ============================================================
-
-	private Vector2 SimulationToThisLocal(
-		Vector2 simulationPoint)
-	{
-		Vector2 viewportSize =
-			new Vector2(
-				simulationViewport.Size.X,
-				simulationViewport.Size.Y
-			);
-
-		Vector2 screenCenter =
-			viewportSize *
-			0.5f;
-
-		Vector2 cameraCenter =
-			simulationCamera.GetScreenCenterPosition();
-
-		Vector2 viewportPoint =
-			screenCenter +
-			(simulationPoint - cameraCenter);
-
-		Vector2 mainViewportPoint =
-			viewportPoint +
-			gameView.GlobalPosition;
-
-		return ToLocal(
-			mainViewportPoint
-		);
-	}
-
-	// ============================================================
-	// Build segment polygon
-	// ============================================================
-
-	private static Vector2[] BuildSegmentPolygon(
-		Vector2 a,
-		Vector2 b,
-		float thickness)
+	private static Vector2[]
+		BuildSegmentPolygon(
+			Vector2 a,
+			Vector2 b,
+			float thickness)
 	{
 		Vector2 direction =
 			b - a;
 
 		float lengthSquared =
-			direction.X *
-			direction.X +
-			direction.Y *
-			direction.Y;
+			direction.LengthSquared();
 
 		if (
 			lengthSquared <=
@@ -1694,8 +1681,7 @@ public partial class TileMapPhysics : Node2D
 		float halfThickness =
 			Mathf.Max(
 				3.0f,
-				thickness *
-				0.5f
+				thickness * 0.5f
 			);
 
 		Vector2 offset =
@@ -1712,7 +1698,112 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Find FluidSimulator
+	// Tile size
+	// ============================================================
+
+	private Vector2 GetTileSize()
+	{
+		if (
+			environment != null &&
+			environment.TileSet != null)
+		{
+			Vector2I size =
+				environment.TileSet.TileSize;
+
+			if (
+				size.X > 0 &&
+				size.Y > 0)
+			{
+				return new Vector2(
+					size.X,
+					size.Y
+				);
+			}
+		}
+
+		return new Vector2(
+			16.0f,
+			16.0f
+		);
+	}
+
+	// ============================================================
+	// TileMap -> Simulation
+	// ============================================================
+
+	private Vector2
+		ToSimulationSpace(
+			Vector2 tileMapLocal)
+	{
+		Vector2 mainViewportPoint =
+			environment.ToGlobal(
+				tileMapLocal
+			);
+
+		Vector2 viewportPoint =
+			mainViewportPoint -
+			gameView.GlobalPosition;
+
+		Vector2 viewportSize =
+			new Vector2(
+				simulationViewport.Size.X,
+				simulationViewport.Size.Y
+			);
+
+		Vector2 screenCenter =
+			viewportSize *
+			0.5f;
+
+		Vector2 cameraCenter =
+			simulationCamera.GetScreenCenterPosition();
+
+		return
+			cameraCenter +
+			(
+				viewportPoint -
+				screenCenter
+			);
+	}
+
+	// ============================================================
+	// Simulation -> this local
+	// ============================================================
+
+	private Vector2
+		SimulationToThisLocal(
+			Vector2 simulationPoint)
+	{
+		Vector2 viewportSize =
+			new Vector2(
+				simulationViewport.Size.X,
+				simulationViewport.Size.Y
+			);
+
+		Vector2 screenCenter =
+			viewportSize *
+			0.5f;
+
+		Vector2 cameraCenter =
+			simulationCamera.GetScreenCenterPosition();
+
+		Vector2 viewportPoint =
+			screenCenter +
+			(
+				simulationPoint -
+				cameraCenter
+			);
+
+		Vector2 mainViewportPoint =
+			viewportPoint +
+			gameView.GlobalPosition;
+
+		return ToLocal(
+			mainViewportPoint
+		);
+	}
+
+	// ============================================================
+	// Fluid simulator
 	// ============================================================
 
 	private static FluidSimulator
@@ -1733,24 +1824,20 @@ public partial class TileMapPhysics : Node2D
 				);
 
 			if (result != null)
-			{
 				return result;
-			}
 		}
 
 		return null;
 	}
 
 	// ============================================================
-	// Public rebuild
+	// Rebuild
 	// ============================================================
 
 	public void Rebuild()
 	{
 		if (generating)
-		{
 			return;
-		}
 
 		GenerateColliders();
 	}
@@ -1784,19 +1871,13 @@ public partial class TileMapPhysics : Node2D
 		generated = false;
 
 		generatedColliders.Clear();
-
 		debugEdges.Clear();
 
 		environment = null;
-
 		simulator = null;
-
 		solver = null;
-
 		gameView = null;
-
 		simulationViewport = null;
-
 		simulationCamera = null;
 	}
 }

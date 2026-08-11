@@ -16,8 +16,8 @@ public class PbfSolver
 	private const float Gravity = 300.0f;
 
 	private const float SmoothingRadius = 8.0f;
-	private const float SmoothingRadiusSquared = 144.0f;
-	private const float InverseSmoothingRadius = 1.0f / 12.0f;
+	private const float SmoothingRadiusSquared = 64.0f;
+	private const float InverseSmoothingRadius = 1.0f / 8.0f;
 
 	// ============================================================
 	// Density
