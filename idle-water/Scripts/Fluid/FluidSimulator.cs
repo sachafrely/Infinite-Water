@@ -86,10 +86,30 @@ public partial class FluidSimulator : Node2D
 	private const float WorldMaxY = 820.0f;
 
 	// ============================================================
-	// Rain
+	// Dynamic Rain
+	// ============================================================
+	// RainAmount = 100.0f represents 50% rain.
+	// Therefore 100% rain = 200 particles/sec.
+	// 10% = 20/sec, 20% = 40/sec, ... 100% = 200/sec.
+
+	private const float RainAmount = 200.0f;
+
+	private const int RainMinimumPercent = 10;
+	private const int RainMaximumPercent = 100;
+	private const int RainPercentStep = 10;
+
+	private const float RainMinimumDuration = 30.0f;
+	private const float RainMaximumDuration = 120.0f;
+
+	private int currentRainPercent;
+	private float rainPhaseTimer;
+
+	// ============================================================
+	// Rain HUD
 	// ============================================================
 
-	private const float RainAmount = 100.0f;
+	private CanvasLayer rainHudLayer;
+	private Label rainHudLabel;
 
 	private const float RainSpawnY =
 		WorldMinY;
@@ -180,6 +200,7 @@ public partial class FluidSimulator : Node2D
 	public override void _Ready()
 	{
 		rainRandom.Randomize();
+		InitializeDynamicRain();
 
 		energySystem =
 			new EnergySystem();
@@ -187,6 +208,7 @@ public partial class FluidSimulator : Node2D
 		SetupCurrentIndicator();
 
 		SetupStatisticsHud();
+		SetupRainHud();
 
 		particles =
 			new ParticleData(
@@ -237,6 +259,7 @@ public partial class FluidSimulator : Node2D
 		UpdateStatisticsHud(
 			0.0f
 		);
+		UpdateRainHud();
 
 		GD.Print(
 			"Fluid initialized. " +
@@ -249,7 +272,7 @@ public partial class FluidSimulator : Node2D
 			", ActiveParticles=" +
 			particles.Count +
 			", Rain=" +
-			RainAmount.ToString("F0") +
+			currentRainPercent.ToString("F0") +
 			"%, Wheels=" +
 			wheelStates.Count +
 			", Energy=" +
@@ -309,6 +332,8 @@ public partial class FluidSimulator : Node2D
 		SpawnRainParticle(
 			dt
 		);
+
+		UpdateRainHud();
 
 		spawnTimer.Stop();
 
@@ -457,6 +482,71 @@ public partial class FluidSimulator : Node2D
 
 			ResetFullProfiler();
 		}
+	}
+
+	// ============================================================
+	// Rain HUD setup
+	// ============================================================
+
+	private void SetupRainHud()
+	{
+		rainHudLayer =
+			new CanvasLayer();
+
+		rainHudLayer.Layer = 20;
+
+		rainHudLabel =
+			new Label();
+
+		rainHudLabel.Position =
+			new Vector2(20.0f, 20.0f);
+
+		rainHudLabel.AddThemeFontSizeOverride(
+			"font_size",
+			22
+		);
+
+		rainHudLabel.Text =
+			"RAIN  --%\nNEXT CHANGE --s";
+
+		rainHudLayer.AddChild(
+			rainHudLabel
+		);
+
+		AddChild(
+			rainHudLayer
+		);
+	}
+
+	// ============================================================
+	// Rain HUD update
+	// ============================================================
+
+	private void UpdateRainHud()
+	{
+		if (rainHudLabel == null)
+		{
+			return;
+		}
+
+		float remaining =
+			Mathf.Max(
+				rainPhaseTimer,
+				0.0f
+			);
+
+		float currentRainAmount =
+			RainAmount *
+			(currentRainPercent / 100.0f);
+
+		rainHudLabel.Text =
+			"RAIN  " +
+			currentRainPercent +
+			"%\nRATE  " +
+			currentRainAmount.ToString("F0") +
+			" / sec\nNEXT CHANGE  " +
+			remaining.ToString("F0") +
+			"s";
 	}
 
 	// ============================================================
@@ -1426,9 +1516,60 @@ void fragment()
 	// Rain
 	// ============================================================
 
+	private void InitializeDynamicRain()
+	{
+		SelectNewRainPhase();
+	}
+
+	private void SelectNewRainPhase()
+	{
+		int stepCount =
+			(RainMaximumPercent - RainMinimumPercent) /
+			RainPercentStep + 1;
+
+		int randomStep =
+			rainRandom.RandiRange(0, stepCount - 1);
+
+		currentRainPercent =
+			RainMinimumPercent +
+			randomStep * RainPercentStep;
+
+		rainPhaseTimer =
+			rainRandom.RandfRange(
+				RainMinimumDuration,
+				RainMaximumDuration
+			);
+
+		GD.Print(
+			"RAIN CHANGE -> " +
+			currentRainPercent +
+			"% for " +
+			rainPhaseTimer.ToString("F1") +
+			"s"
+		);
+	}
+
+	private void UpdateDynamicRain(float dt)
+	{
+		rainPhaseTimer -= dt;
+
+		if (rainPhaseTimer <= 0.0f)
+		{
+			SelectNewRainPhase();
+		}
+	}
+
 	private void SpawnRainParticle(
 		float dt)
 	{
+		UpdateDynamicRain(dt);
+
+		// RainAmount = 100.0f is 50% rain.
+		// Therefore: percentage / 50 gives the multiplier.
+		float currentRainAmount =
+			RainAmount *
+			(currentRainPercent / 50.0f);
+
 		if (
 			particles.Count >=
 			particles.Capacity)
@@ -1437,7 +1578,7 @@ void fragment()
 		}
 
 		rainSpawnAccumulator +=
-			RainAmount *
+			currentRainAmount *
 			dt;
 
 		int spawnCount =
@@ -1477,10 +1618,6 @@ void fragment()
 				RainVelocityY
 			);
 
-			// This is a genuine new particle.
-			//
-			// It is NOT incremented when another particle
-			// is removed.
 			totalRainSpawns++;
 		}
 	}
