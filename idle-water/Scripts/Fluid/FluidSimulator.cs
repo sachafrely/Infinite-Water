@@ -56,20 +56,31 @@ public partial class FluidSimulator : Node2D
 	//
 	// RainAmount:
 	//   0.0 = no rain
-	//   0.25 = 25% chance to spawn each physics frame
-	//   0.50 = 50% chance
-	//   1.0 = spawn one particle every physics frame
+	//   0.25 = 25% rain
+	//   0.50 = 50% rain
+	//   1.0 = maximum rain
 	//
-	// X position is randomized across the entire world width.
-	// Particles start at the top of the simulation buffer.
+	// Unlike the previous implementation, rain is NOT decided
+	// randomly every frame.
+	//
+	// Instead, a continuous spawn accumulator is used.
+	//
+	// Example:
+	//
+	//   25% -> 0.25 particles/frame
+	//        -> approximately 1 particle every 4 frames
+	//
+	// This produces much more consistent rain.
 	// ------------------------------------------------------------
 
-	private const float RainAmount = 1.0f;
+	private const float RainAmount = 0.25f;
 
 	private const float RainSpawnY = WorldMinY;
 
 	private const float RainVelocityX = 0.0f;
 	private const float RainVelocityY = 250.0f;
+
+	private float rainSpawnAccumulator = 0.0f;
 
 	private readonly RandomNumberGenerator rainRandom =
 		new RandomNumberGenerator();
@@ -487,15 +498,21 @@ public partial class FluidSimulator : Node2D
 
 	// ------------------------------------------------------------
 	// Rain emitter
+	//
+	// Uses an accumulator instead of a random spawn chance.
+	//
+	// This makes the average rain rate stable:
+	//
+	//   25% = 0.25 particles/frame
+	//   50% = 0.50 particles/frame
+	//   75% = 0.75 particles/frame
+	//  100% = 1.00 particle/frame
+	//
+	// X is still randomized across the complete world width.
 	// ------------------------------------------------------------
 
 	private void SpawnRainParticle()
 	{
-		// RainAmount is a probability from 0 to 1.
-		//
-		// At 25%, each physics frame has a 25% chance
-		// of creating one new rain particle.
-
 		if (
 			RainAmount <= 0.0f)
 		{
@@ -509,16 +526,26 @@ public partial class FluidSimulator : Node2D
 			return;
 		}
 
-		float spawnRoll =
-			rainRandom.Randf();
+		rainSpawnAccumulator +=
+			RainAmount;
 
-		if (
-			spawnRoll > RainAmount)
+		while (
+			rainSpawnAccumulator >= 1.0f &&
+			particles.Count < particles.Capacity)
 		{
-			return;
-		}
+			SpawnSingleRainParticle();
 
-		// Random X across the COMPLETE simulation width.
+			rainSpawnAccumulator -=
+				1.0f;
+		}
+	}
+
+	// ------------------------------------------------------------
+	// Spawn one rain particle
+	// ------------------------------------------------------------
+
+	private void SpawnSingleRainParticle()
+	{
 		float x =
 			rainRandom.RandfRange(
 				WorldMinX,
