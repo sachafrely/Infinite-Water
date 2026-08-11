@@ -387,19 +387,24 @@ public class PbfSolver
 			iteration < MaxIterations;
 			iteration++)
 		{
-			if (iteration > 0)
-			{
-				UpdateNeighborCache(
-					predX,
-					predY,
-					count
-				);
-			}
+			float densityError;
 
-			float densityError =
-				CalculateLambdas(
-					count
-				);
+			if (iteration == 0)
+			{
+				densityError =
+					CalculateLambdas(
+						count
+					);
+			}
+			else
+			{
+				densityError =
+					UpdateNeighborCacheAndCalculateLambdas(
+						predX,
+						predY,
+						count
+					);
+			}
 
 			ApplyPositionCorrections(
 				predX,
@@ -1194,11 +1199,38 @@ public class PbfSolver
 		}
 	}
 
-	private void UpdateNeighborCache(
+	private float UpdateNeighborCacheAndCalculateLambdas(
 		float[] predX,
 		float[] predY,
 		int count)
 	{
+		float maximumDensityError =
+			0.0f;
+
+		int[] localNeighbors =
+			neighborBuffer;
+		float[] localDx =
+			neighborDx;
+		float[] localDy =
+			neighborDy;
+		float[] localQ =
+			neighborQ;
+		float[] localGradient =
+			neighborGradientScale;
+		int[] localNeighborCounts =
+			neighborCounts;
+		float[] localParticleDensity =
+			particleDensity;
+		float[] localLambdas =
+			lambdas;
+
+		float inverseSmoothingRadius =
+			InverseSmoothingRadius;
+		float inverseRestDensity =
+			InverseRestDensity;
+		int stride =
+			neighborStride;
+
 		for (
 			int i = 0;
 			i < count;
@@ -1206,68 +1238,146 @@ public class PbfSolver
 		{
 			float px =
 				predX[i];
-
 			float py =
 				predY[i];
 
 			int start =
-				i * neighborStride;
-
+				i * stride;
 			int end =
 				start +
-				neighborCounts[i];
+				localNeighborCounts[i];
 
-			UpdateNeighborGeometryRange(
-				start,
-				end,
-				px,
-				py,
-				predX,
-				predY
-			);
-		}
-	}
+			float density =
+				0.0f;
+			float gradSumX =
+				0.0f;
+			float gradSumY =
+				0.0f;
+			float neighborGradientSquared =
+				0.0f;
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private void UpdateNeighborGeometryRange(
-		int start,
-		int end,
-		float px,
-		float py,
-		float[] predX,
-		float[] predY)
-	{
-		int[] localNeighbors = neighborBuffer;
-		float[] localDx = neighborDx;
-		float[] localDy = neighborDy;
-		float[] localQ = neighborQ;
-		float[] localGradient = neighborGradientScale;
-
-		for (int index = start; index < end; index++)
-		{
-			int j = localNeighbors[index];
-			float dx = px - predX[j];
-			float dy = py - predY[j];
-			float distanceSquared = dx * dx + dy * dy;
-
-			localDx[index] = dx;
-			localDy[index] = dy;
-
-			if (distanceSquared <= 0.000001f)
+			for (
+				int index = start;
+				index < end;
+				index++)
 			{
-				localQ[index] = 1.0f;
-				localGradient[index] = 0.0f;
-				continue;
+				int j =
+					localNeighbors[index];
+
+				float dx =
+					px -
+					predX[j];
+				float dy =
+					py -
+					predY[j];
+				float distanceSquared =
+					dx * dx +
+					dy * dy;
+
+				localDx[index] =
+					dx;
+				localDy[index] =
+					dy;
+
+				float q;
+				float scale;
+
+				if (
+					distanceSquared <=
+					0.000001f)
+				{
+					q =
+						1.0f;
+					scale =
+						0.0f;
+				}
+				else
+				{
+					float inverseDistance =
+						1.0f /
+						MathF.Sqrt(
+							distanceSquared
+						);
+
+					q =
+						1.0f -
+						(distanceSquared * inverseDistance) *
+						inverseSmoothingRadius;
+
+					float q2 =
+						q * q;
+
+					scale =
+						-3.0f *
+						q2 *
+						inverseSmoothingRadius *
+						inverseDistance *
+						inverseRestDensity;
+				}
+
+				localQ[index] =
+					q;
+				localGradient[index] =
+					scale;
+
+				float q2ForDensity =
+					q * q;
+
+				density +=
+					q2ForDensity * q;
+
+				float gx =
+					dx * scale;
+				float gy =
+					dy * scale;
+
+				gradSumX +=
+					gx;
+				gradSumY +=
+					gy;
+
+				neighborGradientSquared +=
+					gx * gx +
+					gy * gy;
 			}
 
-			float inverseDistance = 1.0f / MathF.Sqrt(distanceSquared);
-			float q = 1.0f - (distanceSquared * inverseDistance) * InverseSmoothingRadius;
-			float q2 = q * q;
-			localQ[index] = q;
-			localGradient[index] =
-				-3.0f * q2 * InverseSmoothingRadius * inverseDistance * InverseRestDensity;
+			localParticleDensity[i] =
+				density;
+
+			float constraint =
+				density *
+				inverseRestDensity -
+				1.0f;
+
+			float absoluteConstraint =
+				constraint < 0.0f
+					? -constraint
+					: constraint;
+
+			if (
+				absoluteConstraint >
+				maximumDensityError)
+			{
+				maximumDensityError =
+					absoluteConstraint;
+			}
+
+			float denominator =
+				gradSumX * gradSumX +
+				gradSumY * gradSumY +
+				neighborGradientSquared;
+
+			localLambdas[i] =
+				-constraint /
+				(
+					denominator +
+					LambdaEpsilon
+				);
 		}
+
+		return maximumDensityError;
 	}
+
 
 	// ============================================================
 	// Lambdas

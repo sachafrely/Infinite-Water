@@ -82,6 +82,10 @@ public partial class FluidRenderer : Node2D
 
 	private double profilerTotalMs;
 	private double profilerImageMs;
+	private double profilerBuildPixelsMs;
+	private double profilerSurfaceGlowMs;
+	private double profilerFillBytesMs;
+	private double profilerTextureUploadMs;
 
 	public double LastTotalMs { get; private set; }
 
@@ -534,6 +538,18 @@ void fragment()
 		profilerTotalMs +=
 			LastTotalMs;
 
+			profilerBuildPixelsMs +=
+				LastBuildPixelsMs;
+
+			profilerSurfaceGlowMs +=
+				LastSurfaceGlowMs;
+
+			profilerFillBytesMs +=
+				LastFillBytesMs;
+
+			profilerTextureUploadMs +=
+				LastTextureUploadMs;
+
 		profilerFrameCount++;
 
 		if (
@@ -541,17 +557,28 @@ void fragment()
 			600
 		)
 		{
+			const double profilerSamples = 600.0;
+
 			GD.Print(
 				"Pixel Water profiler " +
-				"(avg ms over 60 render updates): " +
+				"(avg ms over 600 render updates): " +
 				"Particles=" +
 				particles.Count +
-				" Total=" +
-				(profilerTotalMs / 60.0)
-					.ToString("F2") +
-				"ms Image=" +
-				(profilerImageMs / 60.0)
-					.ToString("F2") +
+				" BuildPixels=" +
+				(profilerBuildPixelsMs / profilerSamples)
+					.ToString("F3") +
+				"ms SurfaceGlow=" +
+				(profilerSurfaceGlowMs / profilerSamples)
+					.ToString("F3") +
+				"ms FillBytes=" +
+				(profilerFillBytesMs / profilerSamples)
+					.ToString("F3") +
+				"ms TextureUpload=" +
+				(profilerTextureUploadMs / profilerSamples)
+					.ToString("F3") +
+				"ms Total=" +
+				(profilerTotalMs / profilerSamples)
+					.ToString("F3") +
 				"ms PixelCount=" +
 				(pixelWidth * pixelHeight) +
 				" PixelSize=" +
@@ -560,6 +587,10 @@ void fragment()
 
 			profilerTotalMs = 0.0;
 			profilerImageMs = 0.0;
+			profilerBuildPixelsMs = 0.0;
+			profilerSurfaceGlowMs = 0.0;
+			profilerFillBytesMs = 0.0;
+			profilerTextureUploadMs = 0.0;
 			profilerFrameCount = 0;
 		}
 	}
