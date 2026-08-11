@@ -27,13 +27,13 @@ public partial class StatisticsGraph : Control
 
 	// Fixed FPS scale:
 	//
-	// 120 FPS = top
-	// 60 FPS  = middle
+	// 60 FPS = top
+	// 30 FPS  = middle
 	// 0 FPS   = bottom
 	//
 	// Keeping this fixed makes FPS visually meaningful and
 	// prevents the graph from constantly rescaling.
-	private const float FpsGraphMax = 120.0f;
+	private const float FpsGraphMax = 60.0f;
 
 	private readonly List<int> particleHistory =
 		new List<int>();

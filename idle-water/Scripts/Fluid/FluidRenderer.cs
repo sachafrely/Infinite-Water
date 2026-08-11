@@ -37,11 +37,6 @@ public partial class FluidRenderer : Node2D
 	// ============================================================
 
 	private const float SurfaceMaskThreshold = 0.05f;
-
-	// Increased from 0.75.
-	//
-	// This makes the exposed surface mask significantly stronger
-	// without propagating it into the water.
 	private const float SurfaceMaskStrength = 1.0f;
 
 	// ============================================================
@@ -57,12 +52,27 @@ public partial class FluidRenderer : Node2D
 	// ============================================================
 
 	private bool[] pixelWater;
-
 	private float[] pixelDepth;
 	private float[] pixelSurface;
 	private float[] pixelGlow;
 
 	private byte[] pixelBytes;
+
+	// ============================================================
+	// Active pixel region
+	// ============================================================
+
+	private int activePixelMinX;
+	private int activePixelMaxX;
+	private int activePixelMinY;
+	private int activePixelMaxY;
+
+	private int previousPixelMinX;
+	private int previousPixelMaxX;
+	private int previousPixelMinY;
+	private int previousPixelMaxY;
+
+	private bool hasPreviousPixelRegion;
 
 	// ============================================================
 	// Profiling
@@ -92,14 +102,9 @@ public partial class FluidRenderer : Node2D
 		int densityHeight,
 		float densityCellSize)
 	{
-		width =
-			densityWidth;
-
-		height =
-			densityHeight;
-
-		cellSize =
-			densityCellSize;
+		width = densityWidth;
+		height = densityHeight;
+		cellSize = densityCellSize;
 
 		pixelWidth =
 			Mathf.CeilToInt(
@@ -131,6 +136,8 @@ public partial class FluidRenderer : Node2D
 
 		pixelBytes =
 			new byte[pixelCount * 4];
+
+		hasPreviousPixelRegion = false;
 
 		// --------------------------------------------------------
 		// Image
@@ -229,23 +236,12 @@ vec3(0.55, 0.78, 0.95);
 
 uniform float water_alpha = 0.70;
 
-// Main surface contribution.
 uniform float surface_glow_strength = 0.40;
 
-// Direct surface brightness.
 uniform float surface_brightness = 0.14;
 
 // ============================================================
 // LOCAL SURFACE HIGHLIGHT
-// ============================================================
-//
-// These two values were increased so the exposed surface
-// is visibly thicker/brighter than the previous version.
-//
-// IMPORTANT:
-// This still only uses the exposed-surface mask from the
-// B channel. It does not create deep-water glow.
-//
 // ============================================================
 
 uniform float local_highlight_strength = 0.45;
@@ -266,219 +262,214 @@ uniform float shimmer_scale = 0.045;
 
 void fragment()
 {
-vec4 tex =
-	texture(
-		TEXTURE,
-		UV
-	);
+	vec4 tex =
+		texture(
+			TEXTURE,
+			UV
+		);
 
-if (tex.a < 0.01)
-{
-	discard;
-}
+	if (tex.a < 0.01)
+	{
+		discard;
+	}
 
-// ========================================================
-// Read channels
-// ========================================================
+	// ========================================================
+	// Read channels
+	// ========================================================
 
-// R = depth.
-float depth =
-	clamp(
-		tex.r,
-		0.0,
-		1.0
-	);
+	float depth =
+		clamp(
+			tex.r,
+			0.0,
+			1.0
+		);
 
-// G = density-derived surface.
-float surface =
-	clamp(
-		tex.g,
-		0.0,
-		1.0
-	);
+	float surface =
+		clamp(
+			tex.g,
+			0.0,
+			1.0
+		);
 
-// B = exposed surface mask.
-//
-// This is ONLY present on actual exposed top pixels.
-float glow =
-	clamp(
-		tex.b,
-		0.0,
-		1.0
-	);
+	float glow =
+		clamp(
+			tex.b,
+			0.0,
+			1.0
+		);
 
-// ========================================================
-// Depth color
-// ========================================================
+	// ========================================================
+	// Depth color
+	// ========================================================
 
-vec3 water;
+	vec3 water;
 
-if (depth < 0.5)
-{
-	float t =
-		depth / 0.5;
+	if (depth < 0.5)
+	{
+		float t =
+			depth / 0.5;
+
+		water =
+			mix(
+				shallow_color,
+				middle_color,
+				t
+			);
+	}
+	else
+	{
+		float t =
+			(depth - 0.5) / 0.5;
+
+		water =
+			mix(
+				middle_color,
+				deep_color,
+				t
+			);
+	}
+
+	// ========================================================
+	// SURFACE
+	// ========================================================
+
+	float surfaceGlow =
+		smoothstep(
+			0.0,
+			0.75,
+			surface
+		);
 
 	water =
 		mix(
-			shallow_color,
-			middle_color,
-			t
+			water,
+			surface_color,
+			surfaceGlow *
+			surface_glow_strength
 		);
-}
-else
-{
-	float t =
-		(depth - 0.5) / 0.5;
 
-	water =
-		mix(
-			middle_color,
-			deep_color,
-			t
-		);
-}
-
-// ========================================================
-// SURFACE
-// ========================================================
-
-float surfaceGlow =
-	smoothstep(
-		0.0,
-		0.75,
-		surface
-	);
-
-water =
-	mix(
-		water,
-		surface_color,
+	water +=
+		surface_color *
 		surfaceGlow *
-		surface_glow_strength
-	);
+		surface_brightness;
 
-water +=
-	surface_color *
-	surfaceGlow *
-	surface_brightness;
+	// ========================================================
+	// THICKER LOCAL SURFACE HIGHLIGHT
+	// ========================================================
 
-// ========================================================
-// THICKER LOCAL SURFACE HIGHLIGHT
-// ========================================================
+	float localHighlight =
+		smoothstep(
+			0.0,
+			1.0,
+			glow
+		);
 
-float localHighlight =
-	smoothstep(
-		0.0,
-		1.0,
-		glow
-	);
+	water =
+		mix(
+			water,
+			surface_color,
+			localHighlight *
+			local_highlight_strength
+		);
 
-water =
-	mix(
-		water,
-		surface_color,
+	water +=
+		surface_color *
 		localHighlight *
-		local_highlight_strength
-	);
+		local_highlight_brightness;
 
-water +=
-	surface_color *
-	localHighlight *
-	local_highlight_brightness;
+	// ========================================================
+	// Shimmer
+	// ========================================================
 
-// ========================================================
-// Shimmer
-// ========================================================
+	float wave1 =
+		sin(
+			UV.x *
+			300.0 *
+			shimmer_scale +
 
-float wave1 =
-	sin(
-		UV.x *
-		300.0 *
-		shimmer_scale +
+			UV.y *
+			300.0 *
+			shimmer_scale *
+			0.35 +
 
-		UV.y *
-		300.0 *
-		shimmer_scale *
-		0.35 +
+			TIME *
+			shimmer_speed
+		);
 
-		TIME *
-		shimmer_speed
-	);
+	float wave2 =
+		sin(
+			UV.x *
+			300.0 *
+			shimmer_scale *
+			1.73 -
 
-float wave2 =
-	sin(
-		UV.x *
-		300.0 *
-		shimmer_scale *
-		1.73 -
+			UV.y *
+			300.0 *
+			shimmer_scale *
+			0.55 -
 
-		UV.y *
-		300.0 *
-		shimmer_scale *
-		0.55 -
+			TIME *
+			shimmer_speed *
+			0.73
+		);
 
-		TIME *
-		shimmer_speed *
-		0.73
-	);
+	float wave =
+		(wave1 + wave2) *
+		0.5;
 
-float wave =
-	(wave1 + wave2) *
-	0.5;
+	wave =
+		wave *
+		0.5 +
+		0.5;
 
-wave =
-	wave *
-	0.5 +
-	0.5;
+	float shimmerMask =
+		0.20 +
+		surface *
+		0.80;
 
-float shimmerMask =
-	0.20 +
-	surface *
-	0.80;
+	float shimmer =
+		wave *
+		shimmer_strength *
+		shimmerMask;
 
-float shimmer =
-	wave *
-	shimmer_strength *
-	shimmerMask;
+	water +=
+		vec3(
+			shimmer,
+			shimmer,
+			shimmer
+		);
 
-water +=
-	vec3(
-		shimmer,
-		shimmer,
-		shimmer
-	);
+	// ========================================================
+	// Surface highlight
+	// ========================================================
 
-// ========================================================
-// Surface highlight
-// ========================================================
+	float highlight =
+		pow(
+			surface,
+			3.0
+		);
 
-float highlight =
-	pow(
-		surface,
-		3.0
-	);
+	water +=
+		surface_color *
+		highlight *
+		0.18;
 
-water +=
-	surface_color *
-	highlight *
-	0.18;
+	// ========================================================
+	// Final
+	// ========================================================
 
-// ========================================================
-// Final
-// ========================================================
+	water =
+		clamp(
+			water,
+			vec3(0.0),
+			vec3(1.0)
+		);
 
-water =
-	clamp(
-		water,
-		vec3(0.0),
-		vec3(1.0)
-	);
-
-COLOR =
-	vec4(
-		water,
-		water_alpha
-	);
+	COLOR =
+		vec4(
+			water,
+			water_alpha
+		);
 }
 ";
 
@@ -568,9 +559,7 @@ COLOR =
 			);
 
 			profilerTotalMs = 0.0;
-
 			profilerImageMs = 0.0;
-
 			profilerFrameCount = 0;
 		}
 	}
@@ -614,39 +603,8 @@ COLOR =
 			);
 
 		// --------------------------------------------------------
-		// Clear previous frame
+		// Convert to pixel coordinates
 		// --------------------------------------------------------
-
-		Array.Clear(
-			pixelWater,
-			0,
-			pixelWater.Length
-		);
-
-		Array.Clear(
-			pixelDepth,
-			0,
-			pixelDepth.Length
-		);
-
-		Array.Clear(
-			pixelSurface,
-			0,
-			pixelSurface.Length
-		);
-
-		Array.Clear(
-			pixelGlow,
-			0,
-			pixelGlow.Length
-		);
-
-		// --------------------------------------------------------
-		// Convert density cells to pixels
-		// --------------------------------------------------------
-
-		Stopwatch buildPixelsTimer =
-			Stopwatch.StartNew();
 
 		int firstPixelX =
 			Mathf.Clamp(
@@ -675,6 +633,34 @@ COLOR =
 				0,
 				pixelHeight - 1
 			);
+
+		activePixelMinX =
+			firstPixelX;
+
+		activePixelMaxX =
+			lastPixelX;
+
+		activePixelMinY =
+			firstPixelY;
+
+		activePixelMaxY =
+			lastPixelY;
+
+		// --------------------------------------------------------
+		// Clear previous active region only.
+		// --------------------------------------------------------
+
+		Stopwatch buildPixelsTimer =
+			Stopwatch.StartNew();
+
+		if (hasPreviousPixelRegion)
+		{
+			ClearPreviousPixelRegion();
+		}
+
+		// --------------------------------------------------------
+		// Convert density cells to pixels
+		// --------------------------------------------------------
 
 		for (
 			int py = firstPixelY;
@@ -709,7 +695,7 @@ COLOR =
 						sourceStartX +
 						PixelScale -
 						1
-				);
+					);
 
 				float densitySum =
 					0.0f;
@@ -801,7 +787,8 @@ COLOR =
 						1.0f
 					);
 
-				surface *= surface;
+				surface *=
+					surface;
 
 				pixelDepth[pixelIndex] =
 					depth;
@@ -810,6 +797,20 @@ COLOR =
 					surface;
 			}
 		}
+
+		previousPixelMinX =
+			firstPixelX;
+
+		previousPixelMaxX =
+			lastPixelX;
+
+		previousPixelMinY =
+			firstPixelY;
+
+		previousPixelMaxY =
+			lastPixelY;
+
+		hasPreviousPixelRegion = true;
 
 		buildPixelsTimer.Stop();
 
@@ -878,6 +879,81 @@ COLOR =
 	}
 
 	// ============================================================
+	// Clear Previous Active Region
+	// ============================================================
+
+	private void ClearPreviousPixelRegion()
+	{
+		int minX =
+			previousPixelMinX;
+
+		int maxX =
+			previousPixelMaxX;
+
+		int minY =
+			previousPixelMinY;
+
+		int maxY =
+			previousPixelMaxY;
+
+		if (
+			minX < 0 ||
+			maxX < minX ||
+			minY < 0 ||
+			maxY < minY
+		)
+		{
+			return;
+		}
+
+		int rowWidth =
+			maxX -
+			minX +
+			1;
+
+		for (
+			int y = minY;
+			y <= maxY;
+			y++
+		)
+		{
+			int index =
+				y * pixelWidth +
+				minX;
+
+			Array.Clear(
+				pixelWater,
+				index,
+				rowWidth
+			);
+
+			Array.Clear(
+				pixelDepth,
+				index,
+				rowWidth
+			);
+
+			Array.Clear(
+				pixelSurface,
+				index,
+				rowWidth
+			);
+
+			Array.Clear(
+				pixelGlow,
+				index,
+				rowWidth
+			);
+
+			Array.Clear(
+				pixelBytes,
+				index * 4,
+				rowWidth * 4
+			);
+		}
+	}
+
+	// ============================================================
 	// Local Surface Mask
 	// ============================================================
 
@@ -886,30 +962,42 @@ COLOR =
 		int w =
 			pixelWidth;
 
-		int h =
-			pixelHeight;
+		int minX =
+			activePixelMinX;
+
+		int maxX =
+			activePixelMaxX;
+
+		int minY =
+			activePixelMinY;
+
+		int maxY =
+			activePixelMaxY;
 
 		// --------------------------------------------------------
-		// NO propagation.
+		// Only scan the active region.
 		//
-		// NO neighborhood search.
+		// IMPORTANT:
+		// Glow logic is unchanged.
 		//
-		// NO bottom glow.
-		//
-		// Only exposed top-surface pixels receive the mask.
+		// It still:
+		// - only uses exposed top pixels
+		// - does not propagate downward
+		// - does not search neighborhoods
+		// - does not create bottom glow
 		// --------------------------------------------------------
 
 		for (
-			int y = 0;
-			y < h;
+			int y = minY;
+			y <= maxY;
 			y++)
 		{
 			int row =
 				y * w;
 
 			for (
-				int x = 0;
-				x < w;
+				int x = minX;
+				x <= maxX;
 				x++)
 			{
 				int index =
@@ -963,78 +1051,94 @@ COLOR =
 	}
 
 	// ============================================================
-	// RGBA8 conversion
+	// RGBA8 conversion - Phase 4C
 	// ============================================================
 
 	private void FillPixelBytes()
 	{
-		int count =
-			pixelWater.Length;
+		int minX =
+			activePixelMinX;
+
+		int maxX =
+			activePixelMaxX;
+
+		int minY =
+			activePixelMinY;
+
+		int maxY =
+			activePixelMaxY;
+
+		int w =
+			pixelWidth;
+
+		// --------------------------------------------------------
+		// Phase 4C optimization:
+		//
+		// Empty pixels are NOT rewritten here.
+		//
+		// Their RGBA bytes are already guaranteed to be zero:
+		//
+		// 1. Pixels from the previous active region are cleared
+		//    by ClearPreviousPixelRegion().
+		//
+		// 2. Pixels outside the previous active region have never
+		//    contained water and therefore already contain zero.
+		//
+		// This removes four byte writes plus the branch-dependent
+		// work for every empty pixel in the active region.
+		//
+		// Water values are also already normalized to 0..1 when
+		// generated, so the redundant clamps are removed.
+		// --------------------------------------------------------
 
 		for (
-			int i = 0;
-			i < count;
-			i++
-		)
+			int y = minY;
+			y <= maxY;
+			y++)
 		{
-			int byteIndex =
-				i * 4;
+			int index =
+				y * w +
+				minX;
 
-			if (!pixelWater[i])
+			int end =
+				y * w +
+				maxX;
+
+			for (; index <= end; index++)
 			{
-				pixelBytes[byteIndex] = 0;
-				pixelBytes[byteIndex + 1] = 0;
-				pixelBytes[byteIndex + 2] = 0;
-				pixelBytes[byteIndex + 3] = 0;
+				if (!pixelWater[index])
+				{
+					continue;
+				}
 
-				continue;
+				int byteIndex =
+					index * 4;
+
+				// R = depth.
+				pixelBytes[byteIndex] =
+					(byte)(
+						pixelDepth[index] *
+						255.0f
+					);
+
+				// G = surface.
+				pixelBytes[byteIndex + 1] =
+					(byte)(
+						pixelSurface[index] *
+						255.0f
+					);
+
+				// B = exposed surface mask.
+				pixelBytes[byteIndex + 2] =
+					(byte)(
+						pixelGlow[index] *
+						255.0f
+					);
+
+				// A = water.
+				pixelBytes[byteIndex + 3] =
+					255;
 			}
-
-			float depth =
-				Mathf.Clamp(
-					pixelDepth[i],
-					0.0f,
-					1.0f
-				);
-
-			float surface =
-				Mathf.Clamp(
-					pixelSurface[i],
-					0.0f,
-					1.0f
-				);
-
-			float glow =
-				Mathf.Clamp(
-					pixelGlow[i],
-					0.0f,
-					1.0f
-				);
-
-			// R = depth.
-			pixelBytes[byteIndex] =
-				(byte)(
-					depth *
-					255.0f
-				);
-
-			// G = surface.
-			pixelBytes[byteIndex + 1] =
-				(byte)(
-					surface *
-					255.0f
-				);
-
-			// B = exposed surface mask.
-			pixelBytes[byteIndex + 2] =
-				(byte)(
-					glow *
-					255.0f
-				);
-
-			// A = water.
-			pixelBytes[byteIndex + 3] =
-				255;
 		}
 	}
 
@@ -1049,6 +1153,32 @@ COLOR =
 			0,
 			pixelBytes.Length
 		);
+
+		Array.Clear(
+			pixelWater,
+			0,
+			pixelWater.Length
+		);
+
+		Array.Clear(
+			pixelDepth,
+			0,
+			pixelDepth.Length
+		);
+
+		Array.Clear(
+			pixelSurface,
+			0,
+			pixelSurface.Length
+		);
+
+		Array.Clear(
+			pixelGlow,
+			0,
+			pixelGlow.Length
+		);
+
+		hasPreviousPixelRegion = false;
 
 		waterImage.SetData(
 			pixelWidth,
