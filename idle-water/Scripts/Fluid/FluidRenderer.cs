@@ -1,3 +1,5 @@
+
+using System;
 using System.Diagnostics;
 using Godot;
 
@@ -16,19 +18,13 @@ public partial class FluidRenderer : Node2D
 	// Pixel Art
 	// ============================================================
 
-	// DensityField cell = 4 screen pixels.
-	//
-	// 1 = 4x4 screen pixels
-	// 2 = 8x8 screen pixels
-	// 3 = 12x12 screen pixels
-	// 4 = 16x16 screen pixels
-
 	private const int PixelScale = 1;
 
 	private int pixelWidth;
 	private int pixelHeight;
 
-	private float PixelSize => cellSize * PixelScale;
+	private float PixelSize =>
+		cellSize * PixelScale;
 
 	// ============================================================
 	// Density
@@ -37,12 +33,16 @@ public partial class FluidRenderer : Node2D
 	private const float SurfaceThreshold = 0.28f;
 
 	// ============================================================
-	// Surface Glow
+	// Surface Highlight
 	// ============================================================
 
-	// Number of pixels into the water that the surface glow
-	// can extend.
-	private const int SurfaceGlowWidth = 8;
+	private const float SurfaceMaskThreshold = 0.05f;
+
+	// Increased from 0.75.
+	//
+	// This makes the exposed surface mask significantly stronger
+	// without propagating it into the water.
+	private const float SurfaceMaskStrength = 1.0f;
 
 	// ============================================================
 	// Render throttle
@@ -60,9 +60,6 @@ public partial class FluidRenderer : Node2D
 
 	private float[] pixelDepth;
 	private float[] pixelSurface;
-
-	// NEW:
-	// Actual glow strength for every water pixel.
 	private float[] pixelGlow;
 
 	private byte[] pixelBytes;
@@ -76,13 +73,14 @@ public partial class FluidRenderer : Node2D
 	private double profilerTotalMs;
 	private double profilerImageMs;
 
-	// Last measured renderer stages.
-	// These are read by FluidSimulator so the full-frame profiler
-	// can show exactly where renderer time is going.
 	public double LastTotalMs { get; private set; }
+
 	public double LastBuildPixelsMs { get; private set; }
+
 	public double LastSurfaceGlowMs { get; private set; }
+
 	public double LastFillBytesMs { get; private set; }
+
 	public double LastTextureUploadMs { get; private set; }
 
 	// ============================================================
@@ -94,17 +92,26 @@ public partial class FluidRenderer : Node2D
 		int densityHeight,
 		float densityCellSize)
 	{
-		width = densityWidth;
-		height = densityHeight;
-		cellSize = densityCellSize;
+		width =
+			densityWidth;
 
-		pixelWidth = Mathf.CeilToInt(
-			width / (float)PixelScale
-		);
+		height =
+			densityHeight;
 
-		pixelHeight = Mathf.CeilToInt(
-			height / (float)PixelScale
-		);
+		cellSize =
+			densityCellSize;
+
+		pixelWidth =
+			Mathf.CeilToInt(
+				width /
+				(float)PixelScale
+			);
+
+		pixelHeight =
+			Mathf.CeilToInt(
+				height /
+				(float)PixelScale
+			);
 
 		int pixelCount =
 			pixelWidth *
@@ -211,7 +218,7 @@ uniform vec3 middle_color : source_color =
 vec3(0.005, 0.16, 0.48);
 
 uniform vec3 shallow_color : source_color =
-vec3(0.01, 0.38, 0.78);
+vec3(0.11, 0.48, 0.88);
 
 uniform vec3 surface_color : source_color =
 vec3(0.55, 0.78, 0.95);
@@ -220,15 +227,35 @@ vec3(0.55, 0.78, 0.95);
 // Appearance
 // ============================================================
 
-uniform float water_alpha = 0.80;
+uniform float water_alpha = 0.70;
 
-// Main surface glow.
-uniform float surface_glow_strength = 0.35;
+// Main surface contribution.
+uniform float surface_glow_strength = 0.40;
 
-// Direct brightness.
-uniform float surface_brightness = 0.12;
+// Direct surface brightness.
+uniform float surface_brightness = 0.14;
 
-// Shimmer.
+// ============================================================
+// LOCAL SURFACE HIGHLIGHT
+// ============================================================
+//
+// These two values were increased so the exposed surface
+// is visibly thicker/brighter than the previous version.
+//
+// IMPORTANT:
+// This still only uses the exposed-surface mask from the
+// B channel. It does not create deep-water glow.
+//
+// ============================================================
+
+uniform float local_highlight_strength = 0.45;
+
+uniform float local_highlight_brightness = 0.14;
+
+// ============================================================
+// Shimmer
+// ============================================================
+
 uniform float shimmer_strength = 0.25;
 uniform float shimmer_speed = 0.20;
 uniform float shimmer_scale = 0.045;
@@ -239,219 +266,219 @@ uniform float shimmer_scale = 0.045;
 
 void fragment()
 {
-	// --------------------------------------------------------
-	// Read texture.
-	//
-	// R = depth
-	// G = surface
-	// B = glow
-	// A = water mask
-	// --------------------------------------------------------
+vec4 tex =
+	texture(
+		TEXTURE,
+		UV
+	);
 
-	vec4 tex =
-		texture(
-			TEXTURE,
-			UV
-		);
+if (tex.a < 0.01)
+{
+	discard;
+}
 
-	// Empty pixels stay transparent.
-	if (tex.a < 0.01)
-	{
-		discard;
-	}
+// ========================================================
+// Read channels
+// ========================================================
 
-	float depth =
-		clamp(
-			tex.r,
-			0.0,
-			1.0
-		);
+// R = depth.
+float depth =
+	clamp(
+		tex.r,
+		0.0,
+		1.0
+	);
 
-	float surface =
-		clamp(
-			tex.g,
-			0.0,
-			1.0
-		);
+// G = density-derived surface.
+float surface =
+	clamp(
+		tex.g,
+		0.0,
+		1.0
+	);
 
-	// NEW:
-	// Actual four-pixel glow generated by C#.
-	float glow =
-		clamp(
-			tex.b,
-			0.0,
-			1.0
-		);
+// B = exposed surface mask.
+//
+// This is ONLY present on actual exposed top pixels.
+float glow =
+	clamp(
+		tex.b,
+		0.0,
+		1.0
+	);
 
-	// ========================================================
-	// Depth color
-	// ========================================================
+// ========================================================
+// Depth color
+// ========================================================
 
-	vec3 water;
+vec3 water;
 
-	if (depth < 0.5)
-	{
-		float t =
-			depth / 0.5;
-
-		water =
-			mix(
-				shallow_color,
-				middle_color,
-				t
-			);
-	}
-	else
-	{
-		float t =
-			(depth - 0.5) / 0.5;
-
-		water =
-			mix(
-				middle_color,
-				deep_color,
-				t
-			);
-	}
-
-	// ========================================================
-	// SURFACE
-	// ========================================================
-
-	float surfaceGlow =
-		smoothstep(
-			0.0,
-			0.75,
-			surface
-		);
+if (depth < 0.5)
+{
+	float t =
+		depth / 0.5;
 
 	water =
 		mix(
-			water,
-			surface_color,
-			surfaceGlow *
-			surface_glow_strength
+			shallow_color,
+			middle_color,
+			t
 		);
+}
+else
+{
+	float t =
+		(depth - 0.5) / 0.5;
 
-	water +=
-		surface_color *
+	water =
+		mix(
+			middle_color,
+			deep_color,
+			t
+		);
+}
+
+// ========================================================
+// SURFACE
+// ========================================================
+
+float surfaceGlow =
+	smoothstep(
+		0.0,
+		0.75,
+		surface
+	);
+
+water =
+	mix(
+		water,
+		surface_color,
 		surfaceGlow *
-		surface_brightness;
+		surface_glow_strength
+	);
 
-	// ========================================================
-	// FOUR-PIXEL WIDE GLOW
-	// ========================================================
+water +=
+	surface_color *
+	surfaceGlow *
+	surface_brightness;
 
-	// This is the important part.
-	//
-	// glow is strongest at the surface and gradually fades
-	// as it travels into the water.
+// ========================================================
+// THICKER LOCAL SURFACE HIGHLIGHT
+// ========================================================
 
-	water =
-		mix(
-			water,
-			surface_color,
-			glow * 0.55
-		);
+float localHighlight =
+	smoothstep(
+		0.0,
+		1.0,
+		glow
+	);
 
-	water +=
-		surface_color *
-		glow *
-		0.20;
+water =
+	mix(
+		water,
+		surface_color,
+		localHighlight *
+		local_highlight_strength
+	);
 
-	// ========================================================
-	// Shimmer
-	// ========================================================
+water +=
+	surface_color *
+	localHighlight *
+	local_highlight_brightness;
 
-	float wave1 =
-		sin(
-			UV.x *
-			300.0 *
-			shimmer_scale +
+// ========================================================
+// Shimmer
+// ========================================================
 
-			UV.y *
-			300.0 *
-			shimmer_scale *
-			0.35 +
+float wave1 =
+	sin(
+		UV.x *
+		300.0 *
+		shimmer_scale +
 
-			TIME *
-			shimmer_speed
-		);
+		UV.y *
+		300.0 *
+		shimmer_scale *
+		0.35 +
 
-	float wave2 =
-		sin(
-			UV.x *
-			300.0 *
-			shimmer_scale *
-			1.73 -
+		TIME *
+		shimmer_speed
+	);
 
-			UV.y *
-			300.0 *
-			shimmer_scale *
-			0.55 -
+float wave2 =
+	sin(
+		UV.x *
+		300.0 *
+		shimmer_scale *
+		1.73 -
 
-			TIME *
-			shimmer_speed *
-			0.73
-		);
+		UV.y *
+		300.0 *
+		shimmer_scale *
+		0.55 -
 
-	float wave =
-		(wave1 + wave2) *
-		0.5;
+		TIME *
+		shimmer_speed *
+		0.73
+	);
 
-	wave =
-		wave *
-		0.5 +
-		0.5;
+float wave =
+	(wave1 + wave2) *
+	0.5;
 
-	float shimmerMask =
-		0.20 +
-		surface *
-		0.80;
+wave =
+	wave *
+	0.5 +
+	0.5;
 
-	float shimmer =
-		wave *
-		shimmer_strength *
-		shimmerMask;
+float shimmerMask =
+	0.20 +
+	surface *
+	0.80;
 
-	water +=
-		vec3(
-			shimmer,
-			shimmer,
-			shimmer
-		);
+float shimmer =
+	wave *
+	shimmer_strength *
+	shimmerMask;
 
-	// ========================================================
-	// Surface highlight
-	// ========================================================
+water +=
+	vec3(
+		shimmer,
+		shimmer,
+		shimmer
+	);
 
-	float highlight =
-		pow(
-			surface,
-			3.0
-		);
+// ========================================================
+// Surface highlight
+// ========================================================
 
-	water +=
-		surface_color *
-		highlight *
-		0.18;
+float highlight =
+	pow(
+		surface,
+		3.0
+	);
 
-	// ========================================================
-	// Final
-	// ========================================================
+water +=
+	surface_color *
+	highlight *
+	0.18;
 
-	water =
-		clamp(
-			water,
-			vec3(0.0),
-			vec3(1.0)
-		);
+// ========================================================
+// Final
+// ========================================================
 
-	COLOR =
-		vec4(
-			water,
-			water_alpha
-		);
+water =
+	clamp(
+		water,
+		vec3(0.0),
+		vec3(1.0)
+	);
+
+COLOR =
+	vec4(
+		water,
+		water_alpha
+	);
 }
 ";
 
@@ -482,6 +509,7 @@ void fragment()
 			LastSurfaceGlowMs = 0.0;
 			LastFillBytesMs = 0.0;
 			LastTextureUploadMs = 0.0;
+
 			return;
 		}
 
@@ -496,6 +524,7 @@ void fragment()
 		if (!densityField.HasDensity)
 		{
 			ClearTexture();
+
 			return;
 		}
 
@@ -539,7 +568,9 @@ void fragment()
 			);
 
 			profilerTotalMs = 0.0;
+
 			profilerImageMs = 0.0;
+
 			profilerFrameCount = 0;
 		}
 	}
@@ -586,25 +617,25 @@ void fragment()
 		// Clear previous frame
 		// --------------------------------------------------------
 
-		System.Array.Clear(
+		Array.Clear(
 			pixelWater,
 			0,
 			pixelWater.Length
 		);
 
-		System.Array.Clear(
+		Array.Clear(
 			pixelDepth,
 			0,
 			pixelDepth.Length
 		);
 
-		System.Array.Clear(
+		Array.Clear(
 			pixelSurface,
 			0,
 			pixelSurface.Length
 		);
 
-		System.Array.Clear(
+		Array.Clear(
 			pixelGlow,
 			0,
 			pixelGlow.Length
@@ -678,7 +709,7 @@ void fragment()
 						sourceStartX +
 						PixelScale -
 						1
-					);
+				);
 
 				float densitySum =
 					0.0f;
@@ -781,11 +812,12 @@ void fragment()
 		}
 
 		buildPixelsTimer.Stop();
+
 		LastBuildPixelsMs =
 			buildPixelsTimer.Elapsed.TotalMilliseconds;
 
 		// ========================================================
-		// Build 4-pixel surface glow
+		// Local surface mask
 		// ========================================================
 
 		Stopwatch glowTimer =
@@ -794,6 +826,7 @@ void fragment()
 		BuildSurfaceGlow();
 
 		glowTimer.Stop();
+
 		LastSurfaceGlowMs =
 			glowTimer.Elapsed.TotalMilliseconds;
 
@@ -810,6 +843,7 @@ void fragment()
 		FillPixelBytes();
 
 		fillBytesTimer.Stop();
+
 		LastFillBytesMs =
 			fillBytesTimer.Elapsed.TotalMilliseconds;
 
@@ -833,6 +867,7 @@ void fragment()
 		);
 
 		uploadTimer.Stop();
+
 		LastTextureUploadMs =
 			uploadTimer.Elapsed.TotalMilliseconds;
 
@@ -843,34 +878,38 @@ void fragment()
 	}
 
 	// ============================================================
-	// Build Surface Glow
+	// Local Surface Mask
 	// ============================================================
 
 	private void BuildSurfaceGlow()
 	{
-		// We search outward from every surface pixel.
+		int w =
+			pixelWidth;
+
+		int h =
+			pixelHeight;
+
+		// --------------------------------------------------------
+		// NO propagation.
 		//
-		// The glow is strongest at the surface:
+		// NO neighborhood search.
 		//
-		// Distance 0 = 1.00
-		// Distance 1 = 0.80
-		// Distance 2 = 0.55
-		// Distance 3 = 0.30
-		// Distance 4 = 0.12
+		// NO bottom glow.
 		//
-		// This creates a visible 4-pixel bright band.
+		// Only exposed top-surface pixels receive the mask.
+		// --------------------------------------------------------
 
 		for (
 			int y = 0;
-			y < pixelHeight;
+			y < h;
 			y++)
 		{
 			int row =
-				y * pixelWidth;
+				y * w;
 
 			for (
 				int x = 0;
-				x < pixelWidth;
+				x < w;
 				x++)
 			{
 				int index =
@@ -884,112 +923,41 @@ void fragment()
 				float surface =
 					pixelSurface[index];
 
-				// Only meaningful surface pixels create
-				// the extended glow.
-				if (surface <= 0.05f)
+				if (
+					surface <=
+					SurfaceMaskThreshold
+				)
 				{
 					continue;
 				}
 
-				// ------------------------------------------------
-				// Check the 4-pixel neighborhood.
-				// ------------------------------------------------
+				bool exposedAbove;
 
-				for (
-					int dy = -SurfaceGlowWidth;
-					dy <= SurfaceGlowWidth;
-					dy++)
+				if (y == 0)
 				{
-					int targetY =
-						y + dy;
-
-					if (
-						targetY < 0 ||
-						targetY >= pixelHeight
-					)
-					{
-						continue;
-					}
-
-					for (
-						int dx = -SurfaceGlowWidth;
-						dx <= SurfaceGlowWidth;
-						dx++)
-					{
-						int targetX =
-							x + dx;
-
-						if (
-							targetX < 0 ||
-							targetX >= pixelWidth
-						)
-						{
-							continue;
-						}
-
-						// Manhattan distance produces a
-						// pixel-art style glow.
-						int distance =
-							Mathf.Abs(dx) +
-							Mathf.Abs(dy);
-
-						if (
-							distance >
-							SurfaceGlowWidth
-						)
-						{
-							continue;
-						}
-
-						int targetIndex =
-							targetY *
-							pixelWidth +
-							targetX;
-
-						// Glow should only travel through
-						// actual water.
-						if (!pixelWater[targetIndex])
-						{
-							continue;
-						}
-
-						float strength;
-
-						if (distance == 0)
-						{
-							strength = 1.0f;
-						}
-						else if (distance == 1)
-						{
-							strength = 0.80f;
-						}
-						else if (distance == 2)
-						{
-							strength = 0.55f;
-						}
-						else if (distance == 3)
-						{
-							strength = 0.30f;
-						}
-						else
-						{
-							strength = 0.12f;
-						}
-
-						float glow =
-							surface *
-							strength;
-
-						if (
-							glow >
-							pixelGlow[targetIndex]
-						)
-						{
-							pixelGlow[targetIndex] =
-								glow;
-						}
-					}
+					exposedAbove = true;
 				}
+				else
+				{
+					exposedAbove =
+						!pixelWater[index - w];
+				}
+
+				if (!exposedAbove)
+				{
+					continue;
+				}
+
+				float glow =
+					surface *
+					SurfaceMaskStrength;
+
+				pixelGlow[index] =
+					Mathf.Clamp(
+						glow,
+						0.0f,
+						1.0f
+					);
 			}
 		}
 	}
@@ -1006,31 +974,21 @@ void fragment()
 		for (
 			int i = 0;
 			i < count;
-			i++)
+			i++
+		)
 		{
 			int byteIndex =
 				i * 4;
-
-			// ----------------------------------------------------
-			// Empty pixel
-			// ----------------------------------------------------
 
 			if (!pixelWater[i])
 			{
 				pixelBytes[byteIndex] = 0;
 				pixelBytes[byteIndex + 1] = 0;
-
-				// Blue = glow.
 				pixelBytes[byteIndex + 2] = 0;
-
 				pixelBytes[byteIndex + 3] = 0;
 
 				continue;
 			}
-
-			// ----------------------------------------------------
-			// Water pixel
-			// ----------------------------------------------------
 
 			float depth =
 				Mathf.Clamp(
@@ -1067,7 +1025,7 @@ void fragment()
 					255.0f
 				);
 
-			// B = four-pixel glow.
+			// B = exposed surface mask.
 			pixelBytes[byteIndex + 2] =
 				(byte)(
 					glow *
@@ -1086,7 +1044,7 @@ void fragment()
 
 	private void ClearTexture()
 	{
-		System.Array.Clear(
+		Array.Clear(
 			pixelBytes,
 			0,
 			pixelBytes.Length
