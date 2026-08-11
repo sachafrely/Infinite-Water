@@ -5,1571 +5,1815 @@ using Godot;
 
 public partial class FluidSimulator : Node2D
 {
-private ParticleData particles;
-private SpatialHash hash;
-private PbfSolver solver;
-private FluidRenderer renderer;
-private DensityField densityField;
+	private ParticleData particles;
+	private SpatialHash hash;
+	private PbfSolver solver;
+	private FluidRenderer renderer;
+	private DensityField densityField;
 
+	// ============================================================
+	// Energy
+	// ============================================================
 
-// ============================================================
-// Energy
-// ============================================================
+	private EnergySystem energySystem;
 
-private EnergySystem energySystem;
+	// ============================================================
+	// Energy statistics graph
+	// ============================================================
 
-// ============================================================
-// Energy statistics graph
-// ============================================================
+	private StatisticsGraph statisticsGraph;
 
-private CanvasLayer statisticsCanvas;
-private StatisticsGraph statisticsGraph;
+	private double energyGeneratedThisFrame = 0.0;
 
-private double energyGeneratedThisFrame = 0.0;
+	// Last physics delta.
+	//
+	// Used by the profiler and other systems that need the
+	// actual physics timestep.
+	private float lastPhysicsDelta = 0.0f;
 
-// ============================================================
-// Current indicator
-// ============================================================
+	// ============================================================
+	// Current indicator
+	// ============================================================
 
-private Sprite2D currentIndicator;
-private ShaderMaterial currentIndicatorMaterial;
+	private Sprite2D currentIndicator;
+	private ShaderMaterial currentIndicatorMaterial;
 
-private const float CurrentGenerationThreshold = 0.0005f;
+	private const float CurrentGenerationThreshold = 0.0005f;
 
-// ============================================================
-// Maximum number of particles
-// ============================================================
+	// ============================================================
+	// Maximum number of particles
+	// ============================================================
 
-private const int ParticleCount = 4000;
+	private const int ParticleCount = 5000;
 
-// ============================================================
-// Density rendering grid
-// ============================================================
+	// ============================================================
+	// Particle statistics
+	// ============================================================
 
-private const int DensityWidth = 360;
-private const int DensityHeight = 180;
-private const float DensityCellSize = 4.0f;
+	// Number of particles that have been spawned/recycled into
+	// the simulation since startup.
+	//
+	// This is NOT the number of active particles.
+	// particles.Count is the current active particle count.
+	private long totalRainSpawns = 0;
 
-// ============================================================
-// Simulation world
-// ============================================================
+	// ============================================================
+	// Density rendering grid
+	// ============================================================
 
-private const float WorldWidth = 920.0f;
-private const float WorldHeight = 1020.0f;
+	private const int DensityWidth = 360;
+	private const int DensityHeight = 180;
+	private const float DensityCellSize = 4.0f;
 
-private const float WorldMinX = 260.0f;
-private const float WorldMaxX = 1180.0f;
+	// ============================================================
+	// Simulation world
+	// ============================================================
 
-private const float WorldMinY = -200.0f;
-private const float WorldMaxY = 820.0f;
+	private const float WorldWidth = 920.0f;
+	private const float WorldHeight = 1020.0f;
 
-// ============================================================
-// Rain
-// ============================================================
+	private const float WorldMinX = 260.0f;
+	private const float WorldMaxX = 1180.0f;
 
-private const float RainAmount = 20.0f;
+	private const float WorldMinY = -200.0f;
+	private const float WorldMaxY = 820.0f;
 
-private const float RainSpawnY =
-	WorldMinY;
+	// ============================================================
+	// Rain
+	// ============================================================
 
-private const float RainVelocityX =
-	0.0f;
+	private const float RainAmount = 20.0f;
 
-private const float RainVelocityY =
-	250.0f;
+	private const float RainSpawnY =
+		WorldMinY;
 
-private float rainSpawnAccumulator =
-	0.0f;
+	private const float RainVelocityX =
+		0.0f;
 
-private readonly RandomNumberGenerator rainRandom =
-	new RandomNumberGenerator();
+	private const float RainVelocityY =
+		250.0f;
 
-// ============================================================
-// Despawn
-// ============================================================
+	private float rainSpawnAccumulator =
+		0.0f;
 
-private const float DespawnLeftX =
-	WorldMinX + 8.0f;
+	private readonly RandomNumberGenerator rainRandom =
+		new RandomNumberGenerator();
 
-private const float DespawnRightX =
-	WorldMaxX - 8.0f;
+	// ============================================================
+	// Despawn
+	// ============================================================
 
-private const float DespawnBottomY =
-	WorldMaxY - 8.0f;
+	private const float DespawnLeftX =
+		WorldMinX + 8.0f;
 
-// ============================================================
-// Water wheels
-// ============================================================
+	private const float DespawnRightX =
+		WorldMaxX - 8.0f;
 
-private const int MaxWheelCount = 4;
+	private const float DespawnBottomY =
+		WorldMaxY - 8.0f;
 
-private const int WheelTileAtlasX = 4;
-private const int WheelTileAtlasY = 7;
+	// ============================================================
+	// Water wheels
+	// ============================================================
 
-private const float WheelOuterRadius = 50.0f;
-private const float WheelInnerRadius = 12.5f;
+	private const int MaxWheelCount = 4;
 
-private const int WheelBladeCount = 8;
-private const float WheelBladeWidth = 7.5f;
+	private const int WheelTileAtlasX = 4;
+	private const int WheelTileAtlasY = 7;
 
-private readonly List<FluidWheelState>
-	wheelStates =
-		new List<FluidWheelState>();
+	private const float WheelOuterRadius = 50.0f;
+	private const float WheelInnerRadius = 12.5f;
 
-private readonly List<WaterWheelVisual>
-	wheelVisuals =
-		new List<WaterWheelVisual>();
+	private const int WheelBladeCount = 8;
+	private const float WheelBladeWidth = 7.5f;
 
-// ============================================================
-// Wheel energy tracking
-// ============================================================
+	private readonly List<FluidWheelState>
+		wheelStates =
+			new List<FluidWheelState>();
 
-private float[] previousWheelAngles =
-	Array.Empty<float>();
+	private readonly List<WaterWheelVisual>
+		wheelVisuals =
+			new List<WaterWheelVisual>();
 
-// ============================================================
-// Full-frame profiler
-// ============================================================
+	// ============================================================
+	// Wheel energy tracking
+	// ============================================================
 
-private const int FullProfilerInterval = 60;
+	private float[] previousWheelAngles =
+		Array.Empty<float>();
 
-private int fullProfilerFrames = 0;
+	// Energy generated by each wheel during the current frame.
+	private double[] wheelEnergyGeneratedThisFrame =
+		Array.Empty<double>();
 
-private double fullPhysicsTime = 0.0;
+	// ============================================================
+	// Full-frame profiler
+	// ============================================================
 
-private double fullSpawnTime = 0.0;
-private double fullPbfTime = 0.0;
-private double fullDensityTime = 0.0;
-private double fullRendererTime = 0.0;
+	private const int FullProfilerInterval = 60;
 
-private double fullRendererBuildPixelsTime = 0.0;
-private double fullRendererSurfaceGlowTime = 0.0;
-private double fullRendererFillBytesTime = 0.0;
-private double fullRendererTextureUploadTime = 0.0;
+	private int fullProfilerFrames = 0;
 
-// ============================================================
-// Initialization
-// ============================================================
+	private double fullPhysicsTime = 0.0;
 
-public override void _Ready()
-{
-	rainRandom.Randomize();
+	private double fullSpawnTime = 0.0;
+	private double fullPbfTime = 0.0;
+	private double fullDensityTime = 0.0;
+	private double fullRendererTime = 0.0;
 
-	energySystem =
-		new EnergySystem();
+	private double fullRendererBuildPixelsTime = 0.0;
+	private double fullRendererSurfaceGlowTime = 0.0;
+	private double fullRendererFillBytesTime = 0.0;
+	private double fullRendererTextureUploadTime = 0.0;
 
-	SetupCurrentIndicator();
+	// ============================================================
+	// Initialization
+	// ============================================================
 
-	SetupStatisticsHud();
+	public override void _Ready()
+	{
+		rainRandom.Randomize();
 
-	particles =
-		new ParticleData(
-			ParticleCount
+		energySystem =
+			new EnergySystem();
+
+		SetupCurrentIndicator();
+
+		SetupStatisticsHud();
+
+		particles =
+			new ParticleData(
+				ParticleCount
+			);
+
+		hash =
+			new SpatialHash(
+				ParticleCount
+			);
+
+		solver =
+			new PbfSolver(
+				hash
+			);
+
+		CreateWaterWheelsFromEnvironment();
+
+		InitializeWheelEnergyTracking();
+
+		densityField =
+			new DensityField(
+				DensityWidth,
+				DensityHeight,
+				DensityCellSize
+			);
+
+		renderer =
+			new FluidRenderer();
+
+		AddChild(
+			renderer
 		);
 
-	hash =
-		new SpatialHash(
-			ParticleCount
-		);
-
-	solver =
-		new PbfSolver(
-			hash
-		);
-
-	CreateWaterWheelsFromEnvironment();
-
-	InitializeWheelEnergyTracking();
-
-	densityField =
-		new DensityField(
+		renderer.Initialize(
 			DensityWidth,
 			DensityHeight,
 			DensityCellSize
 		);
 
-	renderer =
-		new FluidRenderer();
+		BuildDensityField();
 
-	AddChild(
-		renderer
-	);
-
-	renderer.Initialize(
-		DensityWidth,
-		DensityHeight,
-		DensityCellSize
-	);
-
-	BuildDensityField();
-
-	renderer.Update(
-		particles,
-		densityField
-	);
-
-	UpdateStatisticsHud(
-		0.0f
-	);
-
-	GD.Print(
-		"Fluid initialized. " +
-		"World=" +
-		WorldWidth +
-		"x" +
-		WorldHeight +
-		", Particles=" +
-		ParticleCount +
-		", Rain=" +
-		RainAmount.ToString("F0") +
-		"%, Wheels=" +
-		wheelStates.Count +
-		", Energy=" +
-		energySystem.Energy.ToString("F2")
-	);
-}
-
-// ============================================================
-// Physics
-// ============================================================
-
-public override void _PhysicsProcess(
-	double delta)
-{
-	Stopwatch physicsTimer =
-		Stopwatch.StartNew();
-
-	float dt =
-		(float)delta;
-
-	// --------------------------------------------------------
-	// Reset per-frame energy counter
-	// --------------------------------------------------------
-
-	energyGeneratedThisFrame =
-		0.0;
-
-	// --------------------------------------------------------
-	// Rain
-	// --------------------------------------------------------
-
-	Stopwatch spawnTimer =
-		Stopwatch.StartNew();
-
-	SpawnRainParticle();
-
-	spawnTimer.Stop();
-
-	fullSpawnTime +=
-		spawnTimer.Elapsed.TotalMilliseconds;
-
-	// --------------------------------------------------------
-	// Additional wheel physics
-	// --------------------------------------------------------
-
-	StepAdditionalWheels(dt);
-
-	// --------------------------------------------------------
-	// PBF
-	// --------------------------------------------------------
-
-	Stopwatch pbfTimer =
-		Stopwatch.StartNew();
-
-	if (
-		particles.Count > 0)
-	{
-		solver.Solve(
+		renderer.Update(
 			particles,
+			densityField
+		);
+
+		UpdateStatisticsHud(
+			0.0f
+		);
+
+		GD.Print(
+			"Fluid initialized. " +
+			"World=" +
+			WorldWidth +
+			"x" +
+			WorldHeight +
+			", ParticleCapacity=" +
+			ParticleCount +
+			", ActiveParticles=" +
+			particles.Count +
+			", Rain=" +
+			RainAmount.ToString("F0") +
+			"%, Wheels=" +
+			wheelStates.Count +
+			", Energy=" +
+			energySystem.Energy.ToString("F2")
+		);
+	}
+
+	// ============================================================
+	// Physics
+	// ============================================================
+
+	public override void _PhysicsProcess(
+		double delta)
+	{
+		Stopwatch physicsTimer =
+			Stopwatch.StartNew();
+
+		float dt =
+			(float)delta;
+
+		lastPhysicsDelta =
+			dt;
+
+		// --------------------------------------------------------
+		// Reset per-frame energy counters
+		// --------------------------------------------------------
+
+		energyGeneratedThisFrame =
+			0.0;
+
+		if (
+			wheelEnergyGeneratedThisFrame.Length !=
+			wheelStates.Count)
+		{
+			wheelEnergyGeneratedThisFrame =
+				new double[
+					wheelStates.Count
+				];
+		}
+
+		for (
+			int i = 0;
+			i < wheelEnergyGeneratedThisFrame.Length;
+			i++)
+		{
+			wheelEnergyGeneratedThisFrame[i] =
+				0.0;
+		}
+
+		// --------------------------------------------------------
+		// Rain
+		// --------------------------------------------------------
+
+		Stopwatch spawnTimer =
+			Stopwatch.StartNew();
+
+		SpawnRainParticle(
 			dt
 		);
-	}
-	else
-	{
-		if (wheelStates.Count > 0)
+
+		spawnTimer.Stop();
+
+		fullSpawnTime +=
+			spawnTimer.Elapsed.TotalMilliseconds;
+
+		// --------------------------------------------------------
+		// Additional wheel physics
+		// --------------------------------------------------------
+
+		StepAdditionalWheels(
+			dt
+		);
+
+		// --------------------------------------------------------
+		// PBF
+		// --------------------------------------------------------
+
+		Stopwatch pbfTimer =
+			Stopwatch.StartNew();
+
+		if (
+			particles.Count > 0)
 		{
-			wheelStates[0].Step(dt);
+			solver.Solve(
+				particles,
+				dt
+			);
+		}
+		else
+		{
+			if (
+				wheelStates.Count > 0)
+			{
+				wheelStates[0].Step(
+					dt
+				);
+			}
+		}
+
+		pbfTimer.Stop();
+
+		fullPbfTime +=
+			pbfTimer.Elapsed.TotalMilliseconds;
+
+		// --------------------------------------------------------
+		// Energy + current indicator
+		// --------------------------------------------------------
+
+		bool currentGenerated =
+			UpdateEnergyFromWheelRotation();
+
+		UpdateCurrentIndicator(
+			currentGenerated
+		);
+
+		// --------------------------------------------------------
+		// Update statistics graph
+		// --------------------------------------------------------
+
+		UpdateStatisticsHud(
+			dt
+		);
+
+		// --------------------------------------------------------
+		// Despawn / recycle
+		// --------------------------------------------------------
+
+		RecycleParticlesAtOuterEdges();
+
+		// --------------------------------------------------------
+		// Wheel visuals
+		// --------------------------------------------------------
+
+		UpdateWheelVisuals();
+
+		// --------------------------------------------------------
+		// Density
+		// --------------------------------------------------------
+
+		Stopwatch densityTimer =
+			Stopwatch.StartNew();
+
+		BuildDensityField();
+
+		densityTimer.Stop();
+
+		fullDensityTime +=
+			densityTimer.Elapsed.TotalMilliseconds;
+
+		// --------------------------------------------------------
+		// Renderer
+		// --------------------------------------------------------
+
+		Stopwatch rendererTimer =
+			Stopwatch.StartNew();
+
+		renderer.Update(
+			particles,
+			densityField
+		);
+
+		rendererTimer.Stop();
+
+		fullRendererTime +=
+			rendererTimer.Elapsed.TotalMilliseconds;
+
+		fullRendererBuildPixelsTime +=
+			renderer.LastBuildPixelsMs;
+
+		fullRendererSurfaceGlowTime +=
+			renderer.LastSurfaceGlowMs;
+
+		fullRendererFillBytesTime +=
+			renderer.LastFillBytesMs;
+
+		fullRendererTextureUploadTime +=
+			renderer.LastTextureUploadMs;
+
+		// --------------------------------------------------------
+		// Profiler
+		// --------------------------------------------------------
+
+		physicsTimer.Stop();
+
+		fullPhysicsTime +=
+			physicsTimer.Elapsed.TotalMilliseconds;
+
+		fullProfilerFrames++;
+
+		if (
+			fullProfilerFrames >=
+			FullProfilerInterval)
+		{
+			PrintFullProfiler();
+
+			ResetFullProfiler();
 		}
 	}
 
-	pbfTimer.Stop();
+	// ============================================================
+	// Statistics graph setup
+	// ============================================================
 
-	fullPbfTime +=
-		pbfTimer.Elapsed.TotalMilliseconds;
-
-	// --------------------------------------------------------
-	// Energy + current indicator
-	// --------------------------------------------------------
-
-	bool currentGenerated =
-		UpdateEnergyFromWheelRotation();
-
-	UpdateCurrentIndicator(
-		currentGenerated
-	);
-
-	// --------------------------------------------------------
-	// Update statistics graph
-	// --------------------------------------------------------
-
-	UpdateStatisticsHud(
-		dt
-	);
-
-	// --------------------------------------------------------
-	// Despawn
-	// --------------------------------------------------------
-
-	RecycleParticlesAtOuterEdges();
-
-	// --------------------------------------------------------
-	// Wheel visuals
-	// --------------------------------------------------------
-
-	UpdateWheelVisuals();
-
-	// --------------------------------------------------------
-	// Density
-	// --------------------------------------------------------
-
-	Stopwatch densityTimer =
-		Stopwatch.StartNew();
-
-	BuildDensityField();
-
-	densityTimer.Stop();
-
-	fullDensityTime +=
-		densityTimer.Elapsed.TotalMilliseconds;
-
-	// --------------------------------------------------------
-	// Renderer
-	// --------------------------------------------------------
-
-	Stopwatch rendererTimer =
-		Stopwatch.StartNew();
-
-	renderer.Update(
-		particles,
-		densityField
-	);
-
-	rendererTimer.Stop();
-
-	fullRendererTime +=
-		rendererTimer.Elapsed.TotalMilliseconds;
-
-	fullRendererBuildPixelsTime +=
-		renderer.LastBuildPixelsMs;
-
-	fullRendererSurfaceGlowTime +=
-		renderer.LastSurfaceGlowMs;
-
-	fullRendererFillBytesTime +=
-		renderer.LastFillBytesMs;
-
-	fullRendererTextureUploadTime +=
-		renderer.LastTextureUploadMs;
-
-	// --------------------------------------------------------
-	// Profiler
-	// --------------------------------------------------------
-
-	physicsTimer.Stop();
-
-	fullPhysicsTime +=
-		physicsTimer.Elapsed.TotalMilliseconds;
-
-	fullProfilerFrames++;
-
-	if (
-		fullProfilerFrames >=
-		FullProfilerInterval)
+	private void SetupStatisticsHud()
 	{
-		PrintFullProfiler();
+		Node mainScene =
+			GetTree().CurrentScene;
 
-		ResetFullProfiler();
-	}
-}
+		if (
+			mainScene == null)
+		{
+			GD.PushWarning(
+				"FluidSimulator: CurrentScene could not be found. " +
+				"Statistics graph cannot be found."
+			);
 
-// ============================================================
-// Statistics graph setup
-// ============================================================
+			return;
+		}
 
-private void SetupStatisticsHud()
-{
-	statisticsCanvas =
-		new CanvasLayer();
+		// IMPORTANT:
+		//
+		// StatisticsGraph is now a node that already exists
+		// in the scene, underneath BottomUI.
+		//
+		// We must NOT create another StatisticsGraph here.
+		statisticsGraph =
+			FindNodeOfType<StatisticsGraph>(
+				mainScene
+			);
 
-	statisticsCanvas.Name =
-		"StatisticsCanvas";
+		if (
+			statisticsGraph == null)
+		{
+			GD.PushWarning(
+				"FluidSimulator: StatisticsGraph could not be found " +
+				"in the scene. Make sure the StatisticsGraph node " +
+				"is attached to the Control under BottomUI."
+			);
 
-	AddChild(
-		statisticsCanvas
-	);
+			return;
+			}
 
-	statisticsGraph =
-		new StatisticsGraph();
-
-	statisticsGraph.Name =
-		"StatisticsGraph";
-
-	statisticsGraph.Position =
-		new Vector2(
-			20.0f,
-			600.0f
+		GD.Print(
+			"FluidSimulator: Using existing StatisticsGraph: " +
+			statisticsGraph.GetPath()
 		);
-
-	statisticsCanvas.AddChild(
-		statisticsGraph
-	);
-}
-
-// ============================================================
-// Statistics graph update
-// ============================================================
-
-private void UpdateStatisticsHud(
-	float delta)
-{
-	if (
-		statisticsGraph == null)
-	{
-		return;
 	}
 
-	// Current energy production in energy units per second.
-	//
-	// energyGeneratedThisFrame is the amount generated
-	// during this physics frame, so dividing by delta
-	// converts it into a production rate.
+	// ============================================================
+	// Statistics graph update
+	// ============================================================
 
-	double energyPerSecond =
-		delta > 0.000001f
-			? energyGeneratedThisFrame / delta
-			: 0.0;
-
-	statisticsGraph.AddSample(
-		RainAmount,
-		energyPerSecond,
-		(float)Engine.GetFramesPerSecond(),
-		delta
-	);
-}
-
-// ============================================================
-// Initialize wheel energy tracking
-// ============================================================
-
-private void InitializeWheelEnergyTracking()
-{
-	previousWheelAngles =
-		new float[
-			wheelStates.Count
-		];
-
-	for (
-		int i = 0;
-		i < wheelStates.Count;
-		i++)
+	private void UpdateStatisticsHud(
+		float delta)
 	{
-		previousWheelAngles[i] =
-			wheelStates[i].Angle;
+		if (
+			statisticsGraph == null)
+		{
+			return;
+		}
+
+		// Current total energy production rate.
+		//
+		// energyGeneratedThisFrame is the amount generated
+		// during this physics frame.
+		double energyPerSecond =
+			delta > 0.000001f
+				? energyGeneratedThisFrame / delta
+				: 0.0;
+
+		double[] wheelEnergyPerSecond =
+			GetWheelEnergyPerSecondArray(
+				delta
+			);
+
+		statisticsGraph.AddSample(
+			RainAmount,
+			energyPerSecond,
+			(float)Engine.GetFramesPerSecond(),
+			delta,
+			wheelEnergyPerSecond
+		);
 	}
-}
 
-// ============================================================
-// Energy from wheel rotation
-// ============================================================
+	// ============================================================
+	// Wheel energy per second array
+	// ============================================================
 
-private bool UpdateEnergyFromWheelRotation()
-{
-	int wheelCount =
+	private double[] GetWheelEnergyPerSecondArray(
+		float delta)
+	{
+		double[] result =
+			new double[
+				wheelStates.Count
+			];
+
+		if (
+			delta <= 0.000001f)
+		{
+			return result;
+		}
+
+		for (
+			int i = 0;
+			i < wheelStates.Count;
+			i++)
+		{
+			result[i] =
+				GetWheelEnergyThisFrame(i) /
+				delta;
+		}
+
+		return result;
+	}
+
+	// ============================================================
+	// Initialize wheel energy tracking
+	// ============================================================
+
+	private void InitializeWheelEnergyTracking()
+	{
+		previousWheelAngles =
+			new float[
+				wheelStates.Count
+			];
+
+		wheelEnergyGeneratedThisFrame =
+			new double[
+				wheelStates.Count
+			];
+
+		for (
+			int i = 0;
+			i < wheelStates.Count;
+			i++)
+		{
+			previousWheelAngles[i] =
+				wheelStates[i].Angle;
+
+			wheelEnergyGeneratedThisFrame[i] =
+				0.0;
+		}
+	}
+
+	// ============================================================
+	// Energy from wheel rotation
+	// ============================================================
+
+	private bool UpdateEnergyFromWheelRotation()
+	{
+		int wheelCount =
+			wheelStates.Count;
+
+		if (
+			wheelCount <= 0)
+		{
+			return false;
+		}
+
+		if (
+			previousWheelAngles.Length !=
+			wheelCount)
+		{
+			InitializeWheelEnergyTracking();
+
+			return false;
+		}
+
+		if (
+			wheelEnergyGeneratedThisFrame.Length !=
+			wheelCount)
+		{
+			wheelEnergyGeneratedThisFrame =
+				new double[
+					wheelCount
+				];
+		}
+
+		bool currentGenerated =
+			false;
+
+		for (
+			int i = 0;
+			i < wheelCount;
+			i++)
+		{
+			float currentAngle =
+				wheelStates[i].Angle;
+
+			float previousAngle =
+				previousWheelAngles[i];
+
+			float angularMovement =
+				Mathf.Abs(
+					Mathf.AngleDifference(
+						previousAngle,
+						currentAngle
+					)
+				);
+
+			if (
+				angularMovement >
+				0.0f)
+			{
+				double frameEnergy =
+					angularMovement *
+					energySystem.EnergyPerRadian;
+
+				energySystem.AddEnergy(
+					frameEnergy
+				);
+
+				energyGeneratedThisFrame +=
+					frameEnergy;
+
+				wheelEnergyGeneratedThisFrame[i] +=
+					frameEnergy;
+			}
+
+			if (
+				angularMovement >
+				CurrentGenerationThreshold)
+			{
+				currentGenerated =
+					true;
+			}
+
+			previousWheelAngles[i] =
+				currentAngle;
+		}
+
+		return currentGenerated;
+	}
+
+	// ============================================================
+	// Public wheel energy access
+	// ============================================================
+
+	public int WheelCount =>
 		wheelStates.Count;
 
-	if (
-		wheelCount <= 0)
+	public double GetWheelEnergyThisFrame(
+		int wheelIndex)
 	{
-		return false;
-	}
-
-	if (
-		previousWheelAngles.Length !=
-		wheelCount)
-	{
-		InitializeWheelEnergyTracking();
-
-		return false;
-	}
-
-	bool currentGenerated =
-		false;
-
-	for (
-		int i = 0;
-		i < wheelCount;
-		i++)
-	{
-		float currentAngle =
-			wheelStates[i].Angle;
-
-		float previousAngle =
-			previousWheelAngles[i];
-
-		float angularMovement =
-			Mathf.Abs(
-				Mathf.AngleDifference(
-					previousAngle,
-					currentAngle
-				)
-			);
-
-		// ----------------------------------------------------
-		// Energy is proportional to ALL rotation.
-		// ----------------------------------------------------
-
 		if (
-			angularMovement >
-			0.0f)
+			wheelIndex < 0 ||
+			wheelIndex >=
+			wheelEnergyGeneratedThisFrame.Length)
 		{
-			double frameEnergy =
-				angularMovement *
-				energySystem.EnergyPerRadian;
-
-			energySystem.AddEnergy(
-				frameEnergy
-			);
-
-			energyGeneratedThisFrame +=
-				frameEnergy;
+			return 0.0;
 		}
 
-		// ----------------------------------------------------
-		// Current indicator uses a larger threshold.
-		// ----------------------------------------------------
+		return wheelEnergyGeneratedThisFrame[
+			wheelIndex
+		];
+	}
 
+	public double GetWheelEnergyPerSecond(
+		int wheelIndex,
+		float delta)
+	{
 		if (
-			angularMovement >
-			CurrentGenerationThreshold)
+			delta <= 0.000001f)
 		{
-			currentGenerated =
-				true;
+			return 0.0;
 		}
 
-		previousWheelAngles[i] =
-			currentAngle;
+		return
+			GetWheelEnergyThisFrame(
+				wheelIndex
+			) /
+			delta;
 	}
 
-	return currentGenerated;
-}
+	// ============================================================
+	// Current indicator setup
+	// ============================================================
 
-// ============================================================
-// Current indicator setup
-// ============================================================
-
-private void SetupCurrentIndicator()
-{
-	currentIndicator =
-		FindNodeByName<Sprite2D>(
-			GetTree().Root,
-			"CurrentIndicator"
-		);
-
-	if (
-		currentIndicator == null)
+	private void SetupCurrentIndicator()
 	{
-		GD.PushWarning(
-			"FluidSimulator: CurrentIndicator Sprite2D " +
-			"could not be found."
-		);
+		currentIndicator =
+			FindNodeByName<Sprite2D>(
+				GetTree().Root,
+				"CurrentIndicator"
+			);
 
-		return;
-	}
+		if (
+			currentIndicator == null)
+		{
+			GD.PushWarning(
+				"FluidSimulator: CurrentIndicator Sprite2D " +
+				"could not be found."
+			);
 
-	Shader shader =
-		new Shader();
+			return;
+		}
 
-	shader.Code = @"
-```
+		Shader shader =
+			new Shader();
 
+		shader.Code = @"
 shader_type canvas_item;
 
 uniform float grayscale_amount = 1.0;
 
 void fragment()
 {
-vec4 tex = texture(TEXTURE, UV);
+	vec4 tex = texture(TEXTURE, UV);
 
-```
-float gray =
-	dot(
-		tex.rgb,
-		vec3(
-			0.299,
-			0.587,
-			0.114
-		)
-	);
+	float gray =
+		dot(
+			tex.rgb,
+			vec3(
+				0.299,
+				0.587,
+				0.114
+			)
+		);
 
-vec3 result =
-	mix(
-		tex.rgb,
-		vec3(gray),
-		grayscale_amount
-	);
+	vec3 result =
+		mix(
+			tex.rgb,
+			vec3(gray),
+			grayscale_amount
+		);
 
-COLOR =
-	vec4(
-		result,
-		tex.a
-	);
-
-
+	COLOR =
+		vec4(
+			result,
+			tex.a
+		);
 }
 ";
 
+		currentIndicatorMaterial =
+			new ShaderMaterial();
 
-	currentIndicatorMaterial =
-		new ShaderMaterial();
+		currentIndicatorMaterial.Shader =
+			shader;
 
-	currentIndicatorMaterial.Shader =
-		shader;
+		currentIndicator.Material =
+			currentIndicatorMaterial;
 
-	currentIndicator.Material =
-		currentIndicatorMaterial;
-
-	SetCurrentIndicatorLit(
-		false
-	);
-}
-
-// ============================================================
-// Current indicator state
-// ============================================================
-
-private void UpdateCurrentIndicator(
-	bool currentGenerated)
-{
-	if (
-		currentIndicatorMaterial == null)
-	{
-		return;
+		SetCurrentIndicatorLit(
+			false
+		);
 	}
 
-	SetCurrentIndicatorLit(
-		currentGenerated
-	);
-}
+	// ============================================================
+	// Current indicator state
+	// ============================================================
 
-private void SetCurrentIndicatorLit(
-	bool lit)
-{
-	if (
-		currentIndicatorMaterial == null)
+	private void UpdateCurrentIndicator(
+		bool currentGenerated)
 	{
-		return;
-	}
-
-	currentIndicatorMaterial.SetShaderParameter(
-		"grayscale_amount",
-		lit
-			? 0.0f
-			: 1.0f
-	);
-}
-
-// ============================================================
-// Find node by name
-// ============================================================
-
-private static T FindNodeByName<T>(
-	Node node,
-	string nodeName)
-	where T : Node
-{
-	if (
-		node is T typedNode &&
-		typedNode.Name == nodeName)
-	{
-		return typedNode;
-	}
-
-	foreach (
-		Node child in
-		node.GetChildren())
-	{
-		T result =
-			FindNodeByName<T>(
-				child,
-				nodeName
-			);
-
 		if (
-			result != null)
+			currentIndicatorMaterial == null)
 		{
-			return result;
-		}
-	}
-
-	return null;
-}
-
-// ============================================================
-// Public energy access
-// ============================================================
-
-public EnergySystem Energy =>
-	energySystem;
-
-public double CurrentEnergy =>
-	energySystem != null
-		? energySystem.Energy
-		: 0.0;
-
-public double TotalEnergyGenerated =>
-	energySystem != null
-		? energySystem.TotalGenerated
-		: 0.0;
-
-// ============================================================
-// Find Environment
-// ============================================================
-
-private TileMapLayer FindEnvironment()
-{
-	TileMapLayer environment =
-		GetNodeOrNull<TileMapLayer>(
-			"../Environment"
-		);
-
-	if (
-		environment != null)
-	{
-		return environment;
-	}
-
-	return FindEnvironmentRecursive(
-		GetTree().Root
-	);
-}
-
-private static TileMapLayer FindEnvironmentRecursive(
-	Node node)
-{
-	if (
-		node is TileMapLayer &&
-		node.Name == "Environment")
-	{
-		return (TileMapLayer)node;
-	}
-
-	foreach (
-		Node child in
-		node.GetChildren())
-	{
-		TileMapLayer result =
-			FindEnvironmentRecursive(
-				child
-			);
-
-		if (
-			result != null)
-			return result;
-	}
-
-	return null;
-}
-
-// ============================================================
-// Create wheels from marker tiles
-// ============================================================
-
-private void CreateWaterWheelsFromEnvironment()
-{
-	TileMapLayer environment =
-		FindEnvironment();
-
-	if (
-		environment == null)
-	{
-		GD.PushWarning(
-			"FluidSimulator: Environment TileMapLayer " +
-			"could not be found. No wheels created."
-		);
-
-		return;
-	}
-
-	GameViewMapping mapping =
-		CreateGameViewMapping();
-
-	if (
-		!mapping.IsValid)
-	{
-		GD.PushWarning(
-			"FluidSimulator: Could not establish " +
-			"viewport mapping. No wheels created."
-		);
-
-		return;
-	}
-
-	IEnumerable<Vector2I> usedCells =
-		environment.GetUsedCells();
-
-	foreach (
-		Vector2I cell in
-		usedCells)
-	{
-		if (
-			wheelStates.Count >=
-			MaxWheelCount)
-		{
-			break;
+			return;
 		}
 
-		int sourceId =
-			environment.GetCellSourceId(
-				cell
-			);
+		SetCurrentIndicatorLit(
+			currentGenerated
+		);
+	}
 
+	private void SetCurrentIndicatorLit(
+		bool lit)
+	{
 		if (
-			sourceId < 0)
+			currentIndicatorMaterial == null)
 		{
-			continue;
+			return;
 		}
 
-		Vector2I atlasCoords =
-			environment.GetCellAtlasCoords(
-				cell
-			);
+		currentIndicatorMaterial.SetShaderParameter(
+			"grayscale_amount",
+			lit
+				? 0.0f
+				: 1.0f
+		);
+	}
 
+	// ============================================================
+	// Find node by name
+	// ============================================================
+
+	private static T FindNodeByName<T>(
+		Node node,
+		string nodeName)
+		where T : Node
+	{
 		if (
-			atlasCoords.X !=
-			WheelTileAtlasX ||
-			atlasCoords.Y !=
-			WheelTileAtlasY)
+			node is T typedNode &&
+			typedNode.Name == nodeName)
 		{
-			continue;
+			return typedNode;
 		}
 
-		Vector2 tileCenterLocal =
-			environment.MapToLocal(
-				cell
-			);
-
-		Vector2 tileCenterGlobal =
-			environment.ToGlobal(
-				tileCenterLocal
-			);
-
-		Vector2 simulationPosition =
-			mapping.ToSimulationSpace(
-				tileCenterGlobal
-			);
-
-		CreateWaterWheel(
-			simulationPosition
-		);
-
-		GD.Print(
-			"Water wheel placed on Environment tile " +
-			cell +
-			" atlas " +
-			atlasCoords +
-			" -> simulation " +
-			simulationPosition
-		);
-	}
-
-	GD.Print(
-		"Water wheels created from marker tiles: " +
-		wheelStates.Count +
-		"/" +
-		MaxWheelCount
-	);
-}
-
-// ============================================================
-// Viewport mapping
-// ============================================================
-
-private struct GameViewMapping
-{
-	public SubViewportContainer GameView;
-	public SubViewport SimulationViewport;
-	public Camera2D Camera;
-
-	public bool IsValid =>
-		GameView != null &&
-		SimulationViewport != null &&
-		Camera != null;
-
-	public Vector2 ToSimulationSpace(
-		Vector2 globalPosition)
-	{
-		Vector2 viewportPoint =
-			globalPosition -
-			GameView.GlobalPosition;
-
-		Vector2 viewportSize =
-			new Vector2(
-				SimulationViewport.Size.X,
-				SimulationViewport.Size.Y
-			);
-
-		Vector2 screenCenter =
-			viewportSize *
-			0.5f;
-
-		Vector2 cameraCenter =
-			Camera.GetScreenCenterPosition();
-
-		return
-			cameraCenter +
-			(
-				viewportPoint -
-				screenCenter
-			);
-	}
-}
-
-private GameViewMapping CreateGameViewMapping()
-{
-	GameViewMapping mapping =
-		new GameViewMapping();
-
-	mapping.GameView =
-		GetNodeOrNull<SubViewportContainer>(
-			"../GameView"
-		);
-
-	if (
-		mapping.GameView == null)
-	{
-		mapping.GameView =
-			FindNodeOfType<SubViewportContainer>(
-				GetTree().Root
-			);
-	}
-
-	if (
-		mapping.GameView != null)
-	{
-		mapping.SimulationViewport =
-			mapping.GameView.GetNodeOrNull<SubViewport>(
-				"SimulationViewport"
-			);
-
-		if (
-			mapping.SimulationViewport == null)
+		foreach (
+			Node child in
+			node.GetChildren())
 		{
-			foreach (
-				Node child in
-				mapping.GameView.GetChildren())
+			T result =
+				FindNodeByName<T>(
+					child,
+					nodeName
+				);
+
+			if (
+				result != null)
 			{
-				if (
-					child is SubViewport)
-				{
-					mapping.SimulationViewport =
-						(SubViewport)child;
-
-					break;
-				}
+				return result;
 			}
 		}
+
+		return null;
 	}
 
-	if (
-		mapping.SimulationViewport != null)
+	// ============================================================
+	// Find node by type
+	// ============================================================
+
+	private static T FindNodeOfType<T>(
+		Node node)
+		where T : Node
 	{
-		mapping.Camera =
-			mapping.SimulationViewport.GetNodeOrNull<Camera2D>(
-				"Camera2D"
+		if (
+			node is T typedNode)
+		{
+			return typedNode;
+		}
+
+		foreach (
+			Node child in
+			node.GetChildren())
+		{
+			T result =
+				FindNodeOfType<T>(
+					child
+				);
+
+			if (
+				result != null)
+			{
+				return result;
+			}
+		}
+
+		return null;
+	}
+
+	// ============================================================
+	// Public energy access
+	// ============================================================
+
+	public EnergySystem Energy =>
+		energySystem;
+
+	public double CurrentEnergy =>
+		energySystem != null
+			? energySystem.Energy
+			: 0.0;
+
+	public double TotalEnergyGenerated =>
+		energySystem != null
+			? energySystem.TotalGenerated
+			: 0.0;
+
+	// ============================================================
+	// Public particle statistics
+	// ============================================================
+
+	// Current number of active particles.
+	//
+	// This is the number of particle slots currently present
+	// in ParticleData.
+	public int ActiveParticleCount =>
+		particles != null
+			? particles.Count
+			: 0;
+
+	public int ParticleCapacity =>
+		ParticleCount;
+
+	// Number of rain spawn/recycle events since startup.
+	//
+	// This is cumulative and is intentionally different from
+	// ActiveParticleCount.
+	public long TotalRainSpawns =>
+		totalRainSpawns;
+
+	// ============================================================
+	// Find Environment
+	// ============================================================
+
+	private TileMapLayer FindEnvironment()
+	{
+		TileMapLayer environment =
+			GetNodeOrNull<TileMapLayer>(
+				"../Environment"
 			);
 
 		if (
-			mapping.Camera == null)
+			environment != null)
 		{
-			mapping.Camera =
-				FindNodeOfType<Camera2D>(
-					mapping.SimulationViewport
+			return environment;
+		}
+
+		return FindEnvironmentRecursive(
+			GetTree().Root
+		);
+	}
+
+	private static TileMapLayer FindEnvironmentRecursive(
+		Node node)
+	{
+		if (
+			node is TileMapLayer &&
+			node.Name == "Environment")
+		{
+			return (TileMapLayer)node;
+		}
+
+		foreach (
+			Node child in
+			node.GetChildren())
+		{
+			TileMapLayer result =
+				FindEnvironmentRecursive(
+					child
+				);
+
+			if (
+				result != null)
+			{
+				return result;
+			}
+		}
+
+		return null;
+	}
+
+	// ============================================================
+	// Create wheels from marker tiles
+	// ============================================================
+
+	private void CreateWaterWheelsFromEnvironment()
+	{
+		TileMapLayer environment =
+			FindEnvironment();
+
+		if (
+			environment == null)
+		{
+			GD.PushWarning(
+				"FluidSimulator: Environment TileMapLayer " +
+				"could not be found. No wheels created."
+			);
+
+			return;
+		}
+
+		GameViewMapping mapping =
+			CreateGameViewMapping();
+
+		if (
+			!mapping.IsValid)
+		{
+			GD.PushWarning(
+				"FluidSimulator: Could not establish " +
+				"viewport mapping. No wheels created."
+			);
+
+			return;
+		}
+
+		IEnumerable<Vector2I> usedCells =
+			environment.GetUsedCells();
+
+		foreach (
+			Vector2I cell in
+			usedCells)
+		{
+			if (
+				wheelStates.Count >=
+				MaxWheelCount)
+			{
+				break;
+			}
+
+			int sourceId =
+				environment.GetCellSourceId(
+					cell
+				);
+
+			if (
+				sourceId < 0)
+			{
+				continue;
+			}
+
+			Vector2I atlasCoords =
+				environment.GetCellAtlasCoords(
+					cell
+				);
+
+			if (
+				atlasCoords.X !=
+				WheelTileAtlasX ||
+				atlasCoords.Y !=
+				WheelTileAtlasY)
+			{
+				continue;
+			}
+
+			Vector2 tileCenterLocal =
+				environment.MapToLocal(
+					cell
+				);
+
+			Vector2 tileCenterGlobal =
+				environment.ToGlobal(
+					tileCenterLocal
+				);
+
+			Vector2 simulationPosition =
+				mapping.ToSimulationSpace(
+					tileCenterGlobal
+				);
+
+			CreateWaterWheel(
+				simulationPosition
+			);
+
+			GD.Print(
+				"Water wheel placed on Environment tile " +
+				cell +
+				" atlas " +
+				atlasCoords +
+				" -> simulation " +
+				simulationPosition
+			);
+		}
+
+		GD.Print(
+			"Water wheels created from marker tiles: " +
+			wheelStates.Count +
+			"/" +
+			MaxWheelCount
+		);
+	}
+
+	// ============================================================
+	// Viewport mapping
+	// ============================================================
+
+	private struct GameViewMapping
+	{
+		public SubViewportContainer GameView;
+		public SubViewport SimulationViewport;
+		public Camera2D Camera;
+
+		public bool IsValid =>
+			GameView != null &&
+			SimulationViewport != null &&
+			Camera != null;
+
+		public Vector2 ToSimulationSpace(
+			Vector2 globalPosition)
+		{
+			Vector2 viewportPoint =
+				globalPosition -
+				GameView.GlobalPosition;
+
+			Vector2 viewportSize =
+				new Vector2(
+					SimulationViewport.Size.X,
+					SimulationViewport.Size.Y
+				);
+
+			Vector2 screenCenter =
+				viewportSize *
+				0.5f;
+
+			Vector2 cameraCenter =
+				Camera.GetScreenCenterPosition();
+
+			return
+				cameraCenter +
+				(
+					viewportPoint -
+					screenCenter
 				);
 		}
 	}
 
-	return mapping;
-}
-
-private static T FindNodeOfType<T>(
-	Node node)
-	where T : Node
-{
-	if (
-		node is T)
+	private GameViewMapping CreateGameViewMapping()
 	{
-		return (T)node;
-	}
+		GameViewMapping mapping =
+			new GameViewMapping();
 
-	foreach (
-		Node child in
-		node.GetChildren())
-	{
-		T result =
-			FindNodeOfType<T>(
-				child
+		mapping.GameView =
+			GetNodeOrNull<SubViewportContainer>(
+				"../GameView"
 			);
 
 		if (
-			result != null)
+			mapping.GameView == null)
 		{
-			return result;
+			mapping.GameView =
+				FindNodeOfType<SubViewportContainer>(
+					GetTree().Root
+				);
 		}
-	}
 
-	return null;
-}
-
-// ============================================================
-// Create one wheel
-// ============================================================
-
-private void CreateWaterWheel(
-	Vector2 center)
-{
-	FluidWheelState wheelState;
-
-	if (
-		wheelStates.Count == 0)
-	{
-		wheelState =
-			solver.CreateWheel(
-				center
-			);
-	}
-	else
-	{
-		wheelState =
-			new FluidWheelState(
-				center
-			);
-	}
-
-	wheelStates.Add(
-		wheelState
-	);
-
-	for (
-		int i = 0;
-		i < WheelBladeCount;
-		i++)
-	{
-		float angle =
-			Mathf.Tau *
-			i /
-			WheelBladeCount;
-
-		Vector2 direction =
-			new Vector2(
-				Mathf.Cos(angle),
-				Mathf.Sin(angle)
-			);
-
-		Vector2 tangent =
-			new Vector2(
-				-direction.Y,
-				direction.X
-			);
-
-		Vector2 innerCenter =
-			direction *
-			WheelInnerRadius;
-
-		Vector2 outerCenter =
-			direction *
-			WheelOuterRadius;
-
-		Vector2[] blade =
+		if (
+			mapping.GameView != null)
 		{
-			innerCenter +
-			tangent *
-			WheelBladeWidth,
+			mapping.SimulationViewport =
+				mapping.GameView.GetNodeOrNull<SubViewport>(
+					"SimulationViewport"
+				);
 
-			outerCenter +
-			tangent *
-			WheelBladeWidth,
+			if (
+				mapping.SimulationViewport == null)
+			{
+				foreach (
+					Node child in
+					mapping.GameView.GetChildren())
+				{
+					if (
+						child is SubViewport)
+					{
+						mapping.SimulationViewport =
+							(SubViewport)child;
 
-			outerCenter -
-			tangent *
-			WheelBladeWidth,
+						break;
+					}
+				}
+			}
+		}
 
-			innerCenter -
-			tangent *
-			WheelBladeWidth
-		};
+		if (
+			mapping.SimulationViewport != null)
+		{
+			mapping.Camera =
+				mapping.SimulationViewport.GetNodeOrNull<Camera2D>(
+					"Camera2D"
+				);
 
-		FluidPolygonCollider collider =
-			new FluidPolygonCollider(
-				blade
-			);
+			if (
+				mapping.Camera == null)
+			{
+				mapping.Camera =
+					FindNodeOfType<Camera2D>(
+						mapping.SimulationViewport
+					);
+			}
+		}
 
-		collider.ConfigureAsWheel(
+		return mapping;
+	}
+
+	// ============================================================
+	// Create one wheel
+	// ============================================================
+
+	private void CreateWaterWheel(
+		Vector2 center)
+	{
+		FluidWheelState wheelState;
+
+		if (
+			wheelStates.Count == 0)
+		{
+			wheelState =
+				solver.CreateWheel(
+					center
+				);
+		}
+		else
+		{
+			wheelState =
+				new FluidWheelState(
+					center
+				);
+		}
+
+		wheelStates.Add(
 			wheelState
 		);
 
+		for (
+			int i = 0;
+			i < WheelBladeCount;
+			i++)
+		{
+			float angle =
+				Mathf.Tau *
+				i /
+				WheelBladeCount;
+
+			Vector2 direction =
+				new Vector2(
+					Mathf.Cos(angle),
+					Mathf.Sin(angle)
+				);
+
+			Vector2 tangent =
+				new Vector2(
+					-direction.Y,
+					direction.X
+				);
+
+			Vector2 innerCenter =
+				direction *
+				WheelInnerRadius;
+
+			Vector2 outerCenter =
+				direction *
+				WheelOuterRadius;
+
+			Vector2[] blade =
+			{
+				innerCenter +
+				tangent *
+				WheelBladeWidth,
+
+				outerCenter +
+				tangent *
+				WheelBladeWidth,
+
+				outerCenter -
+				tangent *
+				WheelBladeWidth,
+
+				innerCenter -
+				tangent *
+				WheelBladeWidth
+			};
+
+			FluidPolygonCollider collider =
+				new FluidPolygonCollider(
+					blade
+				);
+
+			collider.ConfigureAsWheel(
+				wheelState
+			);
+
+			solver.AddPolygonCollider(
+				collider
+			);
+		}
+
+		const int hubSegments = 16;
+
+		Vector2[] hub =
+			new Vector2[
+				hubSegments
+			];
+
+		for (
+			int i = 0;
+			i < hubSegments;
+			i++)
+		{
+			float angle =
+				Mathf.Tau *
+				i /
+				hubSegments;
+
+			hub[i] =
+				new Vector2(
+					Mathf.Cos(angle),
+					Mathf.Sin(angle)
+				) *
+				WheelInnerRadius;
+		}
+
+		FluidPolygonCollider hubCollider =
+			new FluidPolygonCollider(
+				hub
+			);
+
 		solver.AddPolygonCollider(
-			collider
+			hubCollider
 		);
-	}
 
-	const int hubSegments = 16;
+		WaterWheelVisual visual =
+			new WaterWheelVisual();
 
-	Vector2[] hub =
-		new Vector2[
-			hubSegments
-		];
+		visual.Position =
+			center;
 
-	for (
-		int i = 0;
-		i < hubSegments;
-		i++)
-	{
-		float angle =
-			Mathf.Tau *
-			i /
-			hubSegments;
+		visual.OuterRadius =
+			WheelOuterRadius;
 
-		hub[i] =
-			new Vector2(
-				Mathf.Cos(angle),
-				Mathf.Sin(angle)
-			) *
+		visual.InnerRadius =
 			WheelInnerRadius;
-	}
 
-	FluidPolygonCollider hubCollider =
-		new FluidPolygonCollider(
-			hub
+		visual.BladeCount =
+			WheelBladeCount;
+
+		visual.BladeWidth =
+			WheelBladeWidth;
+
+		AddChild(
+			visual
 		);
 
-	solver.AddPolygonCollider(
-		hubCollider
-	);
-
-	WaterWheelVisual visual =
-		new WaterWheelVisual();
-
-	visual.Position =
-		center;
-
-	visual.OuterRadius =
-		WheelOuterRadius;
-
-	visual.InnerRadius =
-		WheelInnerRadius;
-
-	visual.BladeCount =
-		WheelBladeCount;
-
-	visual.BladeWidth =
-		WheelBladeWidth;
-
-	AddChild(
-		visual
-	);
-
-	visual.SetWheelAngle(
-		wheelState.Angle
-	);
-
-	wheelVisuals.Add(
-		visual
-	);
-}
-
-// ============================================================
-// Additional wheel physics
-// ============================================================
-
-private void StepAdditionalWheels(
-	float dt)
-{
-	for (
-		int i = 1;
-		i < wheelStates.Count;
-		i++)
-	{
-		wheelStates[i].Step(dt);
-	}
-}
-
-// ============================================================
-// Update wheel visuals
-// ============================================================
-
-private void UpdateWheelVisuals()
-{
-	int count =
-		Math.Min(
-			wheelStates.Count,
-			wheelVisuals.Count
+		visual.SetWheelAngle(
+			wheelState.Angle
 		);
 
-	for (
-		int i = 0;
-		i < count;
-		i++)
-	{
-		wheelVisuals[i].SetWheelAngle(
-			wheelStates[i].Angle
+		wheelVisuals.Add(
+			visual
 		);
 	}
-}
 
-// ============================================================
-// Rain
-// ============================================================
+	// ============================================================
+	// Additional wheel physics
+	// ============================================================
 
-private void SpawnRainParticle()
-{
-	if (
-		particles.Count >=
-		particles.Capacity)
+	private void StepAdditionalWheels(
+		float dt)
 	{
-		return;
+		for (
+			int i = 1;
+			i < wheelStates.Count;
+			i++)
+		{
+			wheelStates[i].Step(
+				dt
+			);
+		}
 	}
 
-	float dt =
-		(float)GetPhysicsProcessDeltaTime();
+	// ============================================================
+	// Update wheel visuals
+	// ============================================================
 
-	rainSpawnAccumulator +=
-		RainAmount *
-		dt;
-
-	int spawnCount =
-		(int)rainSpawnAccumulator;
-
-	if (
-		spawnCount <= 0)
+	private void UpdateWheelVisuals()
 	{
-		return;
+		int count =
+			Math.Min(
+				wheelStates.Count,
+				wheelVisuals.Count
+			);
+
+		for (
+			int i = 0;
+			i < count;
+			i++)
+		{
+			wheelVisuals[i].SetWheelAngle(
+				wheelStates[i].Angle
+			);
+		}
 	}
 
-	rainSpawnAccumulator -=
-		spawnCount;
+	// ============================================================
+	// Rain
+	// ============================================================
 
-	for (
-		int i = 0;
-		i < spawnCount;
-		i++)
+	private void SpawnRainParticle(
+		float dt)
 	{
 		if (
 			particles.Count >=
 			particles.Capacity)
 		{
-			break;
+			return;
 		}
 
+		rainSpawnAccumulator +=
+			RainAmount *
+			dt;
+
+		int spawnCount =
+			(int)rainSpawnAccumulator;
+
+		if (
+			spawnCount <= 0)
+		{
+			return;
+		}
+
+		rainSpawnAccumulator -=
+			spawnCount;
+
+		for (
+			int i = 0;
+			i < spawnCount;
+			i++)
+		{
+			if (
+				particles.Count >=
+				particles.Capacity)
+			{
+				break;
+			}
+
+			float x =
+				rainRandom.RandfRange(
+					WorldMinX,
+					WorldMaxX
+				);
+
+			particles.AddParticle(
+				x,
+				RainSpawnY,
+				RainVelocityX,
+				RainVelocityY
+			);
+
+			totalRainSpawns++;
+		}
+	}
+
+	// ============================================================
+	// Despawn / recycle
+	// ============================================================
+
+	private void RecycleParticlesAtOuterEdges()
+	{
+		int count =
+			particles.Count;
+
+		for (
+			int i = 0;
+			i < count;
+			i++)
+		{
+			float x =
+				particles.PosX[i];
+
+			float y =
+				particles.PosY[i];
+
+			if (
+				x <= DespawnLeftX ||
+				x >= DespawnRightX ||
+				y >= DespawnBottomY)
+			{
+				RecycleParticleAtIndex(
+					i
+				);
+			}
+		}
+	}
+
+	// ============================================================
+	// Recycle individual particle
+	// ============================================================
+
+	private void RecycleParticleAtIndex(
+		int index)
+	{
 		float x =
 			rainRandom.RandfRange(
 				WorldMinX,
 				WorldMaxX
 			);
 
-		particles.AddParticle(
-			x,
-			RainSpawnY,
-			RainVelocityX,
-			RainVelocityY
-		);
+		particles.PosX[index] =
+			x;
+
+		particles.PosY[index] =
+			RainSpawnY;
+
+		particles.PredX[index] =
+			x;
+
+		particles.PredY[index] =
+			RainSpawnY;
+
+		particles.VelX[index] =
+			RainVelocityX;
+
+		particles.VelY[index] =
+			RainVelocityY;
+
+		// A recycled particle is still the same active
+		// particle slot, but it represents another rain
+		// spawn cycle for cumulative statistics.
+		totalRainSpawns++;
 	}
-}
 
-// ============================================================
-// Despawn / recycle
-// ============================================================
+	// ============================================================
+	// Density field
+	// ============================================================
 
-private void RecycleParticlesAtOuterEdges()
-{
-	int count =
-		particles.Count;
-
-	for (
-		int i = 0;
-		i < count;
-		i++)
+	private void BuildDensityField()
 	{
-		float x =
-			particles.PosX[i];
+		densityField.Clear();
 
-		float y =
-			particles.PosY[i];
-
-		if (
-			x <= DespawnLeftX ||
-			x >= DespawnRightX ||
-			y >= DespawnBottomY)
+		for (
+			int i = 0;
+			i < particles.Count;
+			i++)
 		{
-			RecycleParticleAtIndex(
-				i
+			densityField.AddParticle(
+				particles.PosX[i],
+				particles.PosY[i]
 			);
 		}
 	}
-}
 
-// ============================================================
-// Recycle individual particle
-// ============================================================
+	// ============================================================
+	// Full profiler output
+	// ============================================================
 
-private void RecycleParticleAtIndex(
-	int index)
-{
-	float x =
-		rainRandom.RandfRange(
-			WorldMinX,
-			WorldMaxX
+	private void PrintFullProfiler()
+	{
+		double frameCount =
+			fullProfilerFrames;
+
+		double physicsMs =
+			fullPhysicsTime /
+			frameCount;
+
+		double spawnMs =
+			fullSpawnTime /
+			frameCount;
+
+		double pbfMs =
+			fullPbfTime /
+			frameCount;
+
+		double densityMs =
+			fullDensityTime /
+			frameCount;
+
+		double rendererMs =
+			fullRendererTime /
+			frameCount;
+
+		double rendererBuildPixelsMs =
+			fullRendererBuildPixelsTime /
+			frameCount;
+
+		double rendererSurfaceGlowMs =
+			fullRendererSurfaceGlowTime /
+			frameCount;
+
+		double rendererFillBytesMs =
+			fullRendererFillBytesTime /
+			frameCount;
+
+		double rendererTextureUploadMs =
+			fullRendererTextureUploadTime /
+			frameCount;
+
+		double measuredWork =
+			spawnMs +
+			pbfMs +
+			densityMs +
+			rendererMs;
+
+		double otherMs =
+			physicsMs -
+			measuredWork;
+
+		if (
+			otherMs < 0.0)
+		{
+			otherMs = 0.0;
+		}
+
+		double fps =
+			Engine.GetFramesPerSecond();
+
+		double physicsFps =
+			physicsMs > 0.001
+				? 1000.0 / physicsMs
+				: 0.0;
+
+		GD.Print(
+			"========================================"
 		);
 
-	particles.PosX[index] =
-		x;
+		GD.Print(
+			"FULL FRAME PROFILER " +
+			"(avg over " +
+			fullProfilerFrames +
+			" physics frames)"
+		);
 
-	particles.PosY[index] =
-		RainSpawnY;
+		// --------------------------------------------------------
+		// Particle statistics
+		// --------------------------------------------------------
 
-	particles.PredX[index] =
-		x;
+		GD.Print(
+			"ActiveParticles=" +
+			particles.Count +
+			"/" +
+			particles.Capacity
+		);
 
-	particles.PredY[index] =
-		RainSpawnY;
+		GD.Print(
+			"ParticleCapacity=" +
+			ParticleCount
+		);
 
-	particles.VelX[index] =
-		RainVelocityX;
+		GD.Print(
+			"TotalRainSpawns=" +
+			totalRainSpawns
+		);
 
-	particles.VelY[index] =
-		RainVelocityY;
-}
+		GD.Print(
+			"RenderedFPS=" +
+			fps.ToString("F1")
+		);
 
-// ============================================================
-// Density field
-// ============================================================
+		GD.Print(
+			"PhysicsFPS=" +
+			physicsFps.ToString("F1")
+		);
 
-private void BuildDensityField()
-{
-	densityField.Clear();
+		GD.Print(
+			"PhysicsProcess=" +
+			physicsMs.ToString("F2") +
+			"ms"
+		);
 
-	for (
-		int i = 0;
-		i < particles.Count;
-		i++)
-	{
-		densityField.AddParticle(
-			particles.PosX[i],
-			particles.PosY[i]
+		GD.Print(
+			"  Spawn=" +
+			spawnMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  PBF=" +
+			pbfMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Density=" +
+			densityMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Renderer=" +
+			rendererMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    BuildPixels=" +
+			rendererBuildPixelsMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    SurfaceGlow=" +
+			rendererSurfaceGlowMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    FillBytes=" +
+			rendererFillBytesMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"    TextureUpload=" +
+			rendererTextureUploadMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"  Other=" +
+			otherMs.ToString("F2") +
+			"ms"
+		);
+
+		GD.Print(
+			"MeasuredWork=" +
+			measuredWork.ToString("F2") +
+			"ms"
+		);
+
+		// --------------------------------------------------------
+		// Energy statistics
+		// --------------------------------------------------------
+
+		GD.Print(
+			"Energy=" +
+			energySystem.Energy.ToString("F2")
+		);
+
+		GD.Print(
+			"EnergyThisFrame=" +
+			energyGeneratedThisFrame.ToString("F2")
+		);
+
+		double energyPerSecond =
+			lastPhysicsDelta > 0.000001f
+				? energyGeneratedThisFrame /
+					lastPhysicsDelta
+				: 0.0;
+
+		GD.Print(
+			"EnergyPerSecond=" +
+			energyPerSecond.ToString("F2")
+		);
+
+		GD.Print(
+			"TotalEnergyGenerated=" +
+			energySystem.TotalGenerated.ToString("F2")
+		);
+
+		// --------------------------------------------------------
+		// Individual wheel energy
+		// --------------------------------------------------------
+
+		for (
+			int i = 0;
+			i < wheelStates.Count;
+			i++)
+		{
+			double wheelEnergy =
+				i <
+				wheelEnergyGeneratedThisFrame.Length
+					? wheelEnergyGeneratedThisFrame[i]
+					: 0.0;
+
+			double wheelEnergyPerSecond =
+				lastPhysicsDelta > 0.000001f
+					? wheelEnergy /
+						lastPhysicsDelta
+					: 0.0;
+
+			GD.Print(
+				"Wheel " +
+				(i + 1) +
+				" EnergyThisFrame=" +
+				wheelEnergy.ToString("F4") +
+				" EnergyPerSecond=" +
+				wheelEnergyPerSecond.ToString("F4")
+			);
+		}
+
+		GD.Print(
+			"========================================"
 		);
 	}
-}
 
-// ============================================================
-// Full profiler output
-// ============================================================
+	// ============================================================
+	// Reset profiler
+	// ============================================================
 
-private void PrintFullProfiler()
-{
-	double frameCount =
-		fullProfilerFrames;
-
-	double physicsMs =
-		fullPhysicsTime /
-		frameCount;
-
-	double spawnMs =
-		fullSpawnTime /
-		frameCount;
-
-	double pbfMs =
-		fullPbfTime /
-		frameCount;
-
-	double densityMs =
-		fullDensityTime /
-		frameCount;
-
-	double rendererMs =
-		fullRendererTime /
-		frameCount;
-
-	double rendererBuildPixelsMs =
-		fullRendererBuildPixelsTime /
-		frameCount;
-
-	double rendererSurfaceGlowMs =
-		fullRendererSurfaceGlowTime /
-		frameCount;
-
-	double rendererFillBytesMs =
-		fullRendererFillBytesTime /
-		frameCount;
-
-	double rendererTextureUploadMs =
-		fullRendererTextureUploadTime /
-		frameCount;
-
-	double measuredWork =
-		spawnMs +
-		pbfMs +
-		densityMs +
-		rendererMs;
-
-	double otherMs =
-		physicsMs -
-		measuredWork;
-
-	if (
-		otherMs < 0.0)
+	private void ResetFullProfiler()
 	{
-		otherMs = 0.0;
+		fullProfilerFrames = 0;
+
+		fullPhysicsTime = 0.0;
+
+		fullSpawnTime = 0.0;
+		fullPbfTime = 0.0;
+		fullDensityTime = 0.0;
+		fullRendererTime = 0.0;
+
+		fullRendererBuildPixelsTime = 0.0;
+		fullRendererSurfaceGlowTime = 0.0;
+		fullRendererFillBytesTime = 0.0;
+		fullRendererTextureUploadTime = 0.0;
 	}
-
-	double fps =
-		Engine.GetFramesPerSecond();
-
-	double physicsFps =
-		physicsMs > 0.001
-			? 1000.0 / physicsMs
-			: 0.0;
-
-	GD.Print(
-		"========================================"
-	);
-
-	GD.Print(
-		"FULL FRAME PROFILER " +
-		"(avg over " +
-		fullProfilerFrames +
-		" physics frames)"
-	);
-
-	GD.Print(
-		"Particles=" +
-		particles.Count
-	);
-
-	GD.Print(
-		"RenderedFPS=" +
-		fps.ToString("F1")
-	);
-
-	GD.Print(
-		"PhysicsFPS=" +
-		physicsFps.ToString("F1")
-	);
-
-	GD.Print(
-		"PhysicsProcess=" +
-		physicsMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  Spawn=" +
-		spawnMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  PBF=" +
-		pbfMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  Density=" +
-		densityMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  Renderer=" +
-		rendererMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"    BuildPixels=" +
-		rendererBuildPixelsMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"    SurfaceGlow=" +
-		rendererSurfaceGlowMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"    FillBytes=" +
-		rendererFillBytesMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"    TextureUpload=" +
-		rendererTextureUploadMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"  Other=" +
-		otherMs.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"MeasuredWork=" +
-		measuredWork.ToString("F2") +
-		"ms"
-	);
-
-	GD.Print(
-		"Energy=" +
-		energySystem.Energy.ToString("F2")
-	);
-
-	GD.Print(
-		"EnergyThisFrame=" +
-		energyGeneratedThisFrame.ToString("F2")
-	);
-
-	GD.Print(
-		"TotalEnergyGenerated=" +
-		energySystem.TotalGenerated.ToString("F2")
-	);
-
-	GD.Print(
-		"========================================"
-	);
-}
-
-// ============================================================
-// Reset profiler
-// ============================================================
-
-private void ResetFullProfiler()
-{
-	fullProfilerFrames = 0;
-
-	fullPhysicsTime = 0.0;
-
-	fullSpawnTime = 0.0;
-	fullPbfTime = 0.0;
-	fullDensityTime = 0.0;
-	fullRendererTime = 0.0;
-
-	fullRendererBuildPixelsTime = 0.0;
-	fullRendererSurfaceGlowTime = 0.0;
-	fullRendererFillBytesTime = 0.0;
-	fullRendererTextureUploadTime = 0.0;
-}
-
-
-}
+	}
