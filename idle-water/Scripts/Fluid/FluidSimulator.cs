@@ -19,6 +19,30 @@ public partial class FluidSimulator : Node2D
 	private EnergySystem energySystem;
 
 	// ============================================================
+	// Energy statistics HUD
+	// ============================================================
+
+	private CanvasLayer statisticsCanvas;
+	private Label statisticsLabel;
+
+	private double energyGeneratedThisFrame = 0.0;
+
+	// ============================================================
+	// Current indicator
+	// ============================================================
+
+	private Sprite2D currentIndicator;
+	private ShaderMaterial currentIndicatorMaterial;
+
+	// Minimum angular movement per physics frame that counts
+	// as actual current generation.
+	//
+	// This prevents tiny floating-point / physics drift from
+	// keeping the indicator lit when the wheel has effectively
+	// stopped.
+	private const float CurrentGenerationThreshold = 0.0005f;
+
+	// ============================================================
 	// Maximum number of particles
 	// ============================================================
 
@@ -49,7 +73,8 @@ public partial class FluidSimulator : Node2D
 	// Rain
 	// ============================================================
 
-	private const float RainAmount = 2.25f;
+	// Keep rain at 100%.
+	private const float RainAmount = 100.0f;
 
 	private const float RainSpawnY =
 		WorldMinY;
@@ -81,11 +106,6 @@ public partial class FluidSimulator : Node2D
 
 	// ============================================================
 	// Water wheels
-	//
-	// Wheels are placed automatically on every Environment tile
-	// whose atlas coordinate is (4,7).
-	//
-	// Maximum = 4 wheels.
 	// ============================================================
 
 	private const int MaxWheelCount = 4;
@@ -145,6 +165,10 @@ public partial class FluidSimulator : Node2D
 		energySystem =
 			new EnergySystem();
 
+		SetupCurrentIndicator();
+
+		SetupStatisticsHud();
+
 		particles =
 			new ParticleData(
 				ParticleCount
@@ -191,6 +215,8 @@ public partial class FluidSimulator : Node2D
 			densityField
 		);
 
+		UpdateStatisticsHud();
+
 		GD.Print(
 			"Fluid initialized. " +
 			"World=" +
@@ -200,8 +226,7 @@ public partial class FluidSimulator : Node2D
 			", Particles=" +
 			ParticleCount +
 			", Rain=" +
-			(RainAmount * 100.0f)
-				.ToString("F0") +
+			RainAmount.ToString("F0") +
 			"%, Wheels=" +
 			wheelStates.Count +
 			", Energy=" +
@@ -223,6 +248,13 @@ public partial class FluidSimulator : Node2D
 			(float)delta;
 
 		// --------------------------------------------------------
+		// Reset per-frame energy counter
+		// --------------------------------------------------------
+
+		energyGeneratedThisFrame =
+			0.0;
+
+		// --------------------------------------------------------
 		// Rain
 		// --------------------------------------------------------
 
@@ -237,10 +269,7 @@ public partial class FluidSimulator : Node2D
 			spawnTimer.Elapsed.TotalMilliseconds;
 
 		// --------------------------------------------------------
-		// Additional wheel states
-		//
-		// PbfSolver owns and advances the first wheel through
-		// CreateWheel(). Additional wheels are advanced here.
+		// Additional wheel physics
 		// --------------------------------------------------------
 
 		StepAdditionalWheels(dt);
@@ -262,9 +291,9 @@ public partial class FluidSimulator : Node2D
 		}
 		else
 		{
-			// PbfSolver normally advances its own wheel only when
-			// Solve() is called, so keep the first wheel moving even
-			// when there are temporarily no particles.
+			// PbfSolver normally advances the first wheel when
+			// Solve() is called. If there are no particles,
+			// advance it manually.
 
 			if (wheelStates.Count > 0)
 			{
@@ -278,16 +307,21 @@ public partial class FluidSimulator : Node2D
 			pbfTimer.Elapsed.TotalMilliseconds;
 
 		// --------------------------------------------------------
-		// Energy
-		//
-		// Measure how far every wheel actually rotated during
-		// this physics frame.
-		//
-		// Absolute rotation is used so both directions produce
-		// energy.
+		// Energy + current indicator
 		// --------------------------------------------------------
 
-		UpdateEnergyFromWheelRotation();
+		bool currentGenerated =
+			UpdateEnergyFromWheelRotation();
+
+		UpdateCurrentIndicator(
+			currentGenerated
+		);
+
+		// --------------------------------------------------------
+		// Update statistics HUD
+		// --------------------------------------------------------
+
+		UpdateStatisticsHud();
 
 		// --------------------------------------------------------
 		// Despawn
@@ -296,7 +330,7 @@ public partial class FluidSimulator : Node2D
 		RecycleParticlesAtOuterEdges();
 
 		// --------------------------------------------------------
-		// Update wheel visuals
+		// Wheel visuals
 		// --------------------------------------------------------
 
 		UpdateWheelVisuals();
@@ -366,6 +400,99 @@ public partial class FluidSimulator : Node2D
 	}
 
 	// ============================================================
+	// Statistics HUD setup
+	// ============================================================
+
+	private void SetupStatisticsHud()
+	{
+		statisticsCanvas =
+			new CanvasLayer();
+
+		statisticsCanvas.Name =
+			"StatisticsCanvas";
+
+		AddChild(
+			statisticsCanvas
+		);
+
+		statisticsLabel =
+			new Label();
+
+		statisticsLabel.Name =
+			"StatisticsLabel";
+
+		statisticsLabel.Position =
+			new Vector2(
+				20.0f,
+				20.0f
+			);
+
+		statisticsLabel.Text =
+			"Rain Amount: 100%\n" +
+			"Energy / Frame: 0.00\n" +
+			"Energy Total: 0.00";
+
+		statisticsLabel.AddThemeFontSizeOverride(
+			"font_size",
+			20
+		);
+
+		statisticsLabel.AddThemeColorOverride(
+			"font_shadow_color",
+			new Color(
+				0.0f,
+				0.0f,
+				0.0f,
+				0.75f
+			)
+		);
+
+		statisticsLabel.AddThemeConstantOverride(
+			"shadow_offset_x",
+			2
+		);
+
+		statisticsLabel.AddThemeConstantOverride(
+			"shadow_offset_y",
+			2
+		);
+
+		statisticsCanvas.AddChild(
+			statisticsLabel
+		);
+	}
+
+	// ============================================================
+	// Statistics HUD update
+	// ============================================================
+
+	private void UpdateStatisticsHud()
+	{
+		if (
+			statisticsLabel == null)
+		{
+			return;
+		}
+
+		double totalEnergy =
+			energySystem != null
+				? energySystem.Energy
+				: 0.0;
+
+		statisticsLabel.Text =
+			"Rain Amount: " +
+			RainAmount.ToString("F0") +
+			"%\n" +
+
+			"Energy / Frame: " +
+			energyGeneratedThisFrame.ToString("F2") +
+			"\n" +
+
+			"Energy Total: " +
+			totalEnergy.ToString("F2");
+	}
+
+	// ============================================================
 	// Initialize wheel energy tracking
 	// ============================================================
 
@@ -390,7 +517,7 @@ public partial class FluidSimulator : Node2D
 	// Energy from wheel rotation
 	// ============================================================
 
-	private void UpdateEnergyFromWheelRotation()
+	private bool UpdateEnergyFromWheelRotation()
 	{
 		int wheelCount =
 			wheelStates.Count;
@@ -398,7 +525,7 @@ public partial class FluidSimulator : Node2D
 		if (
 			wheelCount <= 0)
 		{
-			return;
+			return false;
 		}
 
 		if (
@@ -407,8 +534,11 @@ public partial class FluidSimulator : Node2D
 		{
 			InitializeWheelEnergyTracking();
 
-			return;
+			return false;
 		}
+
+		bool currentGenerated =
+			false;
 
 		for (
 			int i = 0;
@@ -429,18 +559,189 @@ public partial class FluidSimulator : Node2D
 					)
 				);
 
+			// ----------------------------------------------------
+			// Energy is proportional to ALL rotation.
+			// ----------------------------------------------------
+
 			if (
-				angularMovement > 0.0f)
+				angularMovement >
+				0.0f)
 			{
-				energySystem.AddEnergy(
+				double frameEnergy =
 					angularMovement *
-					energySystem.EnergyPerRadian
+					energySystem.EnergyPerRadian;
+
+				energySystem.AddEnergy(
+					frameEnergy
 				);
+
+				energyGeneratedThisFrame +=
+					frameEnergy;
+			}
+
+			// ----------------------------------------------------
+			// Current indicator uses a larger threshold.
+			// ----------------------------------------------------
+
+			if (
+				angularMovement >
+				CurrentGenerationThreshold)
+			{
+				currentGenerated =
+					true;
 			}
 
 			previousWheelAngles[i] =
 				currentAngle;
 		}
+
+		return currentGenerated;
+	}
+
+	// ============================================================
+	// Current indicator setup
+	// ============================================================
+
+	private void SetupCurrentIndicator()
+	{
+		currentIndicator =
+			FindNodeByName<Sprite2D>(
+				GetTree().Root,
+				"CurrentIndicator"
+			);
+
+		if (
+			currentIndicator == null)
+		{
+			GD.PushWarning(
+				"FluidSimulator: CurrentIndicator Sprite2D " +
+				"could not be found."
+			);
+
+			return;
+		}
+
+		Shader shader =
+			new Shader();
+
+		shader.Code = @"
+shader_type canvas_item;
+
+uniform float grayscale_amount = 1.0;
+
+void fragment()
+{
+	vec4 tex = texture(TEXTURE, UV);
+
+	float gray =
+		dot(
+			tex.rgb,
+			vec3(
+				0.299,
+				0.587,
+				0.114
+			)
+		);
+
+	vec3 result =
+		mix(
+			tex.rgb,
+			vec3(gray),
+			grayscale_amount
+		);
+
+	COLOR =
+		vec4(
+			result,
+			tex.a
+		);
+}
+";
+
+		currentIndicatorMaterial =
+			new ShaderMaterial();
+
+		currentIndicatorMaterial.Shader =
+			shader;
+
+		currentIndicator.Material =
+			currentIndicatorMaterial;
+
+		// Start with no current.
+		SetCurrentIndicatorLit(
+			false
+		);
+	}
+
+	// ============================================================
+	// Current indicator state
+	// ============================================================
+
+	private void UpdateCurrentIndicator(
+		bool currentGenerated)
+	{
+		if (
+			currentIndicatorMaterial == null)
+		{
+			return;
+		}
+
+		SetCurrentIndicatorLit(
+			currentGenerated
+		);
+	}
+
+	private void SetCurrentIndicatorLit(
+		bool lit)
+	{
+		if (
+			currentIndicatorMaterial == null)
+		{
+			return;
+		}
+
+		currentIndicatorMaterial.SetShaderParameter(
+			"grayscale_amount",
+			lit
+				? 0.0f
+				: 1.0f
+		);
+	}
+
+	// ============================================================
+	// Find node by name
+	// ============================================================
+
+	private static T FindNodeByName<T>(
+		Node node,
+		string nodeName)
+		where T : Node
+	{
+		if (
+			node is T typedNode &&
+			typedNode.Name == nodeName)
+		{
+			return typedNode;
+		}
+
+		foreach (
+			Node child in
+			node.GetChildren())
+		{
+			T result =
+				FindNodeByName<T>(
+					child,
+					nodeName
+				);
+
+			if (
+				result != null)
+			{
+				return result;
+			}
+		}
+
+		return null;
 	}
 
 	// ============================================================
@@ -471,8 +772,11 @@ public partial class FluidSimulator : Node2D
 				"../Environment"
 			);
 
-		if (environment != null)
+		if (
+			environment != null)
+		{
 			return environment;
+		}
 
 		return FindEnvironmentRecursive(
 			GetTree().Root
@@ -490,15 +794,19 @@ public partial class FluidSimulator : Node2D
 		}
 
 		foreach (
-			Node child in node.GetChildren())
+			Node child in
+			node.GetChildren())
 		{
 			TileMapLayer result =
 				FindEnvironmentRecursive(
 					child
 				);
 
-			if (result != null)
+			if (
+				result != null)
+			{
 				return result;
+			}
 		}
 
 		return null;
@@ -513,7 +821,8 @@ public partial class FluidSimulator : Node2D
 		TileMapLayer environment =
 			FindEnvironment();
 
-		if (environment == null)
+		if (
+			environment == null)
 		{
 			GD.PushWarning(
 				"FluidSimulator: Environment TileMapLayer " +
@@ -526,7 +835,8 @@ public partial class FluidSimulator : Node2D
 		GameViewMapping mapping =
 			CreateGameViewMapping();
 
-		if (!mapping.IsValid)
+		if (
+			!mapping.IsValid)
 		{
 			GD.PushWarning(
 				"FluidSimulator: Could not establish " +
@@ -540,7 +850,8 @@ public partial class FluidSimulator : Node2D
 			environment.GetUsedCells();
 
 		foreach (
-			Vector2I cell in usedCells)
+			Vector2I cell in
+			usedCells)
 		{
 			if (
 				wheelStates.Count >=
@@ -554,8 +865,11 @@ public partial class FluidSimulator : Node2D
 					cell
 				);
 
-			if (sourceId < 0)
+			if (
+				sourceId < 0)
+			{
 				continue;
+			}
 
 			Vector2I atlasCoords =
 				environment.GetCellAtlasCoords(
@@ -662,7 +976,8 @@ public partial class FluidSimulator : Node2D
 				"../GameView"
 			);
 
-		if (mapping.GameView == null)
+		if (
+			mapping.GameView == null)
 		{
 			mapping.GameView =
 				FindNodeOfType<SubViewportContainer>(
@@ -670,7 +985,8 @@ public partial class FluidSimulator : Node2D
 				);
 		}
 
-		if (mapping.GameView != null)
+		if (
+			mapping.GameView != null)
 		{
 			mapping.SimulationViewport =
 				mapping.GameView.GetNodeOrNull<SubViewport>(
@@ -696,14 +1012,16 @@ public partial class FluidSimulator : Node2D
 			}
 		}
 
-		if (mapping.SimulationViewport != null)
+		if (
+			mapping.SimulationViewport != null)
 		{
 			mapping.Camera =
 				mapping.SimulationViewport.GetNodeOrNull<Camera2D>(
 					"Camera2D"
 				);
 
-			if (mapping.Camera == null)
+			if (
+				mapping.Camera == null)
 			{
 				mapping.Camera =
 					FindNodeOfType<Camera2D>(
@@ -719,19 +1037,26 @@ public partial class FluidSimulator : Node2D
 		Node node)
 		where T : Node
 	{
-		if (node is T)
+		if (
+			node is T)
+		{
 			return (T)node;
+		}
 
 		foreach (
-			Node child in node.GetChildren())
+			Node child in
+			node.GetChildren())
 		{
 			T result =
 				FindNodeOfType<T>(
 					child
 				);
 
-			if (result != null)
+			if (
+				result != null)
+			{
 				return result;
+			}
 		}
 
 		return null;
@@ -746,14 +1071,9 @@ public partial class FluidSimulator : Node2D
 	{
 		FluidWheelState wheelState;
 
-		// --------------------------------------------------------
-		// The first wheel is owned by PbfSolver.
-		//
-		// This preserves the existing working wheel physics.
-		// Additional wheels are manually stepped by this simulator.
-		// --------------------------------------------------------
-
-		if (wheelStates.Count == 0)
+		// First wheel is owned by PbfSolver.
+		if (
+			wheelStates.Count == 0)
 		{
 			wheelState =
 				solver.CreateWheel(
@@ -935,7 +1255,7 @@ public partial class FluidSimulator : Node2D
 	private void UpdateWheelVisuals()
 	{
 		int count =
-			Mathf.Min(
+			Math.Min(
 				wheelStates.Count,
 				wheelVisuals.Count
 			);
@@ -952,48 +1272,62 @@ public partial class FluidSimulator : Node2D
 	}
 
 	// ============================================================
-	// Rain emitter
+	// Rain
 	// ============================================================
 
 	private void SpawnRainParticle()
 	{
 		if (
-			RainAmount <= 0.0f ||
 			particles.Count >=
 			particles.Capacity)
 		{
 			return;
 		}
 
+		float dt =
+			(float)GetPhysicsProcessDeltaTime();
+
 		rainSpawnAccumulator +=
-			RainAmount;
+			RainAmount *
+			dt;
 
-		while (
-			rainSpawnAccumulator >= 1.0f &&
-			particles.Count <
-			particles.Capacity)
+		int spawnCount =
+			(int)rainSpawnAccumulator;
+
+		if (
+			spawnCount <= 0)
 		{
-			SpawnSingleRainParticle();
-
-			rainSpawnAccumulator -=
-				1.0f;
+			return;
 		}
-	}
 
-	private void SpawnSingleRainParticle()
-	{
-		float x =
-			rainRandom.RandfRange(
-				WorldMinX,
-				WorldMaxX
+		rainSpawnAccumulator -=
+			spawnCount;
+
+		for (
+			int i = 0;
+			i < spawnCount;
+			i++)
+		{
+			if (
+				particles.Count >=
+				particles.Capacity)
+			{
+				break;
+			}
+
+			float x =
+				rainRandom.RandfRange(
+					WorldMinX,
+					WorldMaxX
+				);
+
+			particles.AddParticle(
+				x,
+				RainSpawnY,
+				RainVelocityX,
+				RainVelocityY
 			);
-
-		particles.AddParticle(
-			x,
-			RainSpawnY,
-			RainVelocityX,
-			RainVelocityY
-		);
+		}
 	}
 
 	// ============================================================
@@ -1016,26 +1350,23 @@ public partial class FluidSimulator : Node2D
 			float y =
 				particles.PosY[i];
 
-			bool reachedLeft =
-				x <= DespawnLeftX;
-
-			bool reachedRight =
-				x >= DespawnRightX;
-
-			bool reachedBottom =
-				y >= DespawnBottomY;
-
 			if (
-				reachedLeft ||
-				reachedRight ||
-				reachedBottom)
+				x <= DespawnLeftX ||
+				x >= DespawnRightX ||
+				y >= DespawnBottomY)
 			{
-				RecycleParticle(i);
+				RecycleParticleAtIndex(
+					i
+				);
 			}
 		}
 	}
 
-	private void RecycleParticle(
+	// ============================================================
+	// Recycle individual particle
+	// ============================================================
+
+	private void RecycleParticleAtIndex(
 		int index)
 	{
 		float x =
@@ -1044,20 +1375,17 @@ public partial class FluidSimulator : Node2D
 				WorldMaxX
 			);
 
-		float y =
-			RainSpawnY;
-
 		particles.PosX[index] =
 			x;
 
 		particles.PosY[index] =
-			y;
+			RainSpawnY;
 
 		particles.PredX[index] =
 			x;
 
 		particles.PredY[index] =
-			y;
+			RainSpawnY;
 
 		particles.VelX[index] =
 			RainVelocityX;
@@ -1067,7 +1395,7 @@ public partial class FluidSimulator : Node2D
 	}
 
 	// ============================================================
-	// Density
+	// Density field
 	// ============================================================
 
 	private void BuildDensityField()
@@ -1087,7 +1415,7 @@ public partial class FluidSimulator : Node2D
 	}
 
 	// ============================================================
-	// Full profiler
+	// Full profiler output
 	// ============================================================
 
 	private void PrintFullProfiler()
@@ -1141,8 +1469,11 @@ public partial class FluidSimulator : Node2D
 			physicsMs -
 			measuredWork;
 
-		if (otherMs < 0.0)
+		if (
+			otherMs < 0.0)
+		{
 			otherMs = 0.0;
+		}
 
 		double fps =
 			Engine.GetFramesPerSecond();
@@ -1166,21 +1497,6 @@ public partial class FluidSimulator : Node2D
 		GD.Print(
 			"Particles=" +
 			particles.Count
-		);
-
-		GD.Print(
-			"Wheels=" +
-			wheelStates.Count
-		);
-
-		GD.Print(
-			"Energy=" +
-			energySystem.Energy.ToString("F2")
-		);
-
-		GD.Print(
-			"TotalEnergyGenerated=" +
-			energySystem.TotalGenerated.ToString("F2")
 		);
 
 		GD.Print(
@@ -1260,6 +1576,21 @@ public partial class FluidSimulator : Node2D
 		);
 
 		GD.Print(
+			"Energy=" +
+			energySystem.Energy.ToString("F2")
+		);
+
+		GD.Print(
+			"EnergyThisFrame=" +
+			energyGeneratedThisFrame.ToString("F2")
+		);
+
+		GD.Print(
+			"TotalEnergyGenerated=" +
+			energySystem.TotalGenerated.ToString("F2")
+		);
+
+		GD.Print(
 			"========================================"
 		);
 	}
@@ -1284,4 +1615,6 @@ public partial class FluidSimulator : Node2D
 		fullRendererFillBytesTime = 0.0;
 		fullRendererTextureUploadTime = 0.0;
 	}
+
+
 }

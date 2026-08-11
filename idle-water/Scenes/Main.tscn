@@ -297,8 +297,7 @@ tile_map_data = PackedByteArray("AAAIABkAAQABAAUAAAAHABkAAQAEAAQAAAAGABkAAQAEAAQ
 tile_set = SubResource("TileSet_03j6f")
 
 [node name="CurrentIndicator" type="Sprite2D" parent="." unique_id=406120257]
-position = Vector2(240, 310)
-scale = Vector2(1, 0.913)
+position = Vector2(140, 755)
 texture = ExtResource("4_v1gob")
 
 [node name="TileMapPhysics" type="Node2D" parent="." unique_id=1135241783]
