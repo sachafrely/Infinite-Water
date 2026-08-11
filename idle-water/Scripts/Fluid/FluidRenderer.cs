@@ -19,7 +19,6 @@ public partial class FluidRenderer : Node2D
 	// ============================================================
 
 	private const int PixelScale = 1;
-
 	private int pixelWidth;
 	private int pixelHeight;
 
@@ -79,7 +78,6 @@ public partial class FluidRenderer : Node2D
 	// ============================================================
 
 	private int profilerFrameCount;
-
 	private double profilerTotalMs;
 	private double profilerImageMs;
 	private double profilerBuildPixelsMs;
@@ -257,7 +255,9 @@ uniform float local_highlight_brightness = 0.14;
 // ============================================================
 
 uniform float shimmer_strength = 0.25;
+
 uniform float shimmer_speed = 0.20;
+
 uniform float shimmer_scale = 0.045;
 
 // ============================================================
@@ -519,7 +519,6 @@ void fragment()
 		if (!densityField.HasDensity)
 		{
 			ClearTexture();
-
 			return;
 		}
 
@@ -538,17 +537,17 @@ void fragment()
 		profilerTotalMs +=
 			LastTotalMs;
 
-			profilerBuildPixelsMs +=
-				LastBuildPixelsMs;
+		profilerBuildPixelsMs +=
+			LastBuildPixelsMs;
 
-			profilerSurfaceGlowMs +=
-				LastSurfaceGlowMs;
+		profilerSurfaceGlowMs +=
+			LastSurfaceGlowMs;
 
-			profilerFillBytesMs +=
-				LastFillBytesMs;
+		profilerFillBytesMs +=
+			LastFillBytesMs;
 
-			profilerTextureUploadMs +=
-				LastTextureUploadMs;
+		profilerTextureUploadMs +=
+			LastTextureUploadMs;
 
 		profilerFrameCount++;
 
@@ -597,6 +596,24 @@ void fragment()
 
 	// ============================================================
 	// Build pixel texture
+	//
+	// PHASE 5 OPTIMIZATION
+	//
+	// PixelScale is permanently 1.
+	//
+	// Therefore every output pixel maps to exactly one density
+	// cell. The previous implementation still performed:
+	//
+	// - sourceStartX/sourceEndX calculations
+	// - sourceStartY/sourceEndY calculations
+	// - nested X/Y sampling loops
+	// - Mathf.Min() calls per pixel
+	// - sample counting
+	//
+	// None of that is necessary with PixelScale = 1.
+	//
+	// This version performs exactly one density read per pixel.
+	// Visual calculations are unchanged.
 	// ============================================================
 
 	private void BuildPixelTexture(
@@ -610,60 +627,46 @@ void fragment()
 		// --------------------------------------------------------
 
 		int minX =
-			Mathf.Max(
-				0,
-				densityField.ActiveMinX
-			);
+			densityField.ActiveMinX;
+
+		if (minX < 0)
+			minX = 0;
 
 		int maxX =
-			Mathf.Min(
-				width - 1,
-				densityField.ActiveMaxX
-			);
+			densityField.ActiveMaxX;
+
+		if (maxX >= width)
+			maxX = width - 1;
 
 		int minY =
-			Mathf.Max(
-				0,
-				densityField.ActiveMinY
-			);
+			densityField.ActiveMinY;
+
+		if (minY < 0)
+			minY = 0;
 
 		int maxY =
-			Mathf.Min(
-				height - 1,
-				densityField.ActiveMaxY
-			);
+			densityField.ActiveMaxY;
+
+		if (maxY >= height)
+			maxY = height - 1;
 
 		// --------------------------------------------------------
-		// Convert to pixel coordinates
+		// PixelScale == 1
+		//
+		// Density coordinates and pixel coordinates are identical.
 		// --------------------------------------------------------
 
 		int firstPixelX =
-			Mathf.Clamp(
-				minX / PixelScale,
-				0,
-				pixelWidth - 1
-			);
+			minX;
 
 		int lastPixelX =
-			Mathf.Clamp(
-				maxX / PixelScale,
-				0,
-				pixelWidth - 1
-			);
+			maxX;
 
 		int firstPixelY =
-			Mathf.Clamp(
-				minY / PixelScale,
-				0,
-				pixelHeight - 1
-			);
+			minY;
 
 		int lastPixelY =
-			Mathf.Clamp(
-				maxY / PixelScale,
-				0,
-				pixelHeight - 1
-			);
+			maxY;
 
 		activePixelMinX =
 			firstPixelX;
@@ -678,7 +681,8 @@ void fragment()
 			lastPixelY;
 
 		// --------------------------------------------------------
-		// Clear previous active region only.
+		// Build timer starts before previous-region clearing,
+		// matching the previous profiler behavior.
 		// --------------------------------------------------------
 
 		Stopwatch buildPixelsTimer =
@@ -690,133 +694,95 @@ void fragment()
 		}
 
 		// --------------------------------------------------------
-		// Convert density cells to pixels
+		// Fast pixel conversion
 		// --------------------------------------------------------
+
+		int localWidth =
+			lastPixelX -
+			firstPixelX +
+			1;
 
 		for (
 			int py = firstPixelY;
 			py <= lastPixelY;
-			py++)
+			py++
+		)
 		{
-			int sourceStartY =
-				py * PixelScale;
+			int row =
+				py * width;
 
-			int sourceEndY =
-				Mathf.Min(
-					height - 1,
-					sourceStartY +
-					PixelScale -
-					1
-				);
+			int pixelIndex =
+				py * pixelWidth +
+				firstPixelX;
 
-			int pixelRow =
-				py * pixelWidth;
+			int sourceIndex =
+				row +
+				firstPixelX;
+
+			int endIndex =
+				pixelIndex +
+				localWidth;
 
 			for (
-				int px = firstPixelX;
-				px <= lastPixelX;
-				px++)
+				;
+				pixelIndex < endIndex;
+				pixelIndex++,
+				sourceIndex++
+			)
 			{
-				int sourceStartX =
-					px * PixelScale;
+				float density =
+					values[sourceIndex];
 
-				int sourceEndX =
-					Mathf.Min(
-						width - 1,
-						sourceStartX +
-						PixelScale -
-						1
-					);
-
-				float densitySum =
-					0.0f;
-
-				float maximumDensity =
-					0.0f;
-
-				int samples =
-					0;
-
-				for (
-					int y = sourceStartY;
-					y <= sourceEndY;
-					y++)
-				{
-					int row =
-						y * width;
-
-					for (
-						int x = sourceStartX;
-						x <= sourceEndX;
-						x++)
-					{
-						float density =
-							values[row + x];
-
-						if (
-							density >=
-							SurfaceThreshold
-						)
-						{
-							if (
-								density >
-								maximumDensity
-							)
-							{
-								maximumDensity =
-									density;
-							}
-
-							densitySum +=
-								density;
-
-							samples++;
-						}
-					}
-				}
-
-				if (samples == 0)
+				if (
+					density <
+					SurfaceThreshold
+				)
 				{
 					continue;
 				}
 
-				int pixelIndex =
-					pixelRow + px;
+				// ------------------------------------------------
+				// Water
+				// ------------------------------------------------
 
 				pixelWater[pixelIndex] =
 					true;
 
-				float averageDensity =
-					densitySum /
-					samples;
-
 				// ------------------------------------------------
-				// Depth
+				// PixelScale == 1 means:
+				//
+				// averageDensity = density
+				// maximumDensity = density
+				//
 				// ------------------------------------------------
 
 				float depth =
-					Mathf.Clamp(
-						averageDensity /
-						1.5f,
-						0.0f,
-						1.0f
-					);
+					density /
+					1.5f;
+
+				if (depth > 1.0f)
+					depth = 1.0f;
+
+				if (depth < 0.0f)
+					depth = 0.0f;
 
 				// ------------------------------------------------
 				// Surface
 				// ------------------------------------------------
 
 				float surface =
-					Mathf.Clamp(
-						1.0f -
-						(
-							maximumDensity -
-							SurfaceThreshold
-						) /
-						0.45f,
-						0.0f,
-						1.0f
-					);
+					1.0f -
+					(
+						density -
+						SurfaceThreshold
+					) /
+					0.45f;
+
+				if (surface > 1.0f)
+					surface = 1.0f;
+
+				if (surface < 0.0f)
+					surface = 0.0f;
 
 				surface *=
 					surface;
@@ -841,7 +807,8 @@ void fragment()
 		previousPixelMaxY =
 			lastPixelY;
 
-		hasPreviousPixelRegion = true;
+		hasPreviousPixelRegion =
+			true;
 
 		buildPixelsTimer.Stop();
 
@@ -862,9 +829,9 @@ void fragment()
 		LastSurfaceGlowMs =
 			glowTimer.Elapsed.TotalMilliseconds;
 
-		// --------------------------------------------------------
+		// ========================================================
 		// Convert to RGBA8
-		// --------------------------------------------------------
+		// ========================================================
 
 		Stopwatch imageTimer =
 			Stopwatch.StartNew();
@@ -879,9 +846,9 @@ void fragment()
 		LastFillBytesMs =
 			fillBytesTimer.Elapsed.TotalMilliseconds;
 
-		// --------------------------------------------------------
+		// ========================================================
 		// Upload texture
-		// --------------------------------------------------------
+		// ========================================================
 
 		Stopwatch uploadTimer =
 			Stopwatch.StartNew();
@@ -1021,7 +988,8 @@ void fragment()
 		for (
 			int y = minY;
 			y <= maxY;
-			y++)
+			y++
+		)
 		{
 			int row =
 				y * w;
@@ -1029,7 +997,8 @@ void fragment()
 			for (
 				int x = minX;
 				x <= maxX;
-				x++)
+				x++
+			)
 			{
 				int index =
 					row + x;
@@ -1054,7 +1023,8 @@ void fragment()
 
 				if (y == 0)
 				{
-					exposedAbove = true;
+					exposedAbove =
+						true;
 				}
 				else
 				{
@@ -1071,18 +1041,20 @@ void fragment()
 					surface *
 					SurfaceMaskStrength;
 
+				if (glow < 0.0f)
+					glow = 0.0f;
+
+				if (glow > 1.0f)
+					glow = 1.0f;
+
 				pixelGlow[index] =
-					Mathf.Clamp(
-						glow,
-						0.0f,
-						1.0f
-					);
+					glow;
 			}
 		}
 	}
 
 	// ============================================================
-	// RGBA8 conversion - Phase 4C
+	// RGBA8 conversion
 	// ============================================================
 
 	private void FillPixelBytes()
@@ -1103,29 +1075,17 @@ void fragment()
 			pixelWidth;
 
 		// --------------------------------------------------------
-		// Phase 4C optimization:
-		//
 		// Empty pixels are NOT rewritten here.
 		//
-		// Their RGBA bytes are already guaranteed to be zero:
-		//
-		// 1. Pixels from the previous active region are cleared
-		//    by ClearPreviousPixelRegion().
-		//
-		// 2. Pixels outside the previous active region have never
-		//    contained water and therefore already contain zero.
-		//
-		// This removes four byte writes plus the branch-dependent
-		// work for every empty pixel in the active region.
-		//
-		// Water values are also already normalized to 0..1 when
-		// generated, so the redundant clamps are removed.
+		// Their bytes are already zero because the previous active
+		// region is cleared before building the new region.
 		// --------------------------------------------------------
 
 		for (
 			int y = minY;
 			y <= maxY;
-			y++)
+			y++
+		)
 		{
 			int index =
 				y * w +
@@ -1135,7 +1095,11 @@ void fragment()
 				y * w +
 				maxX;
 
-			for (; index <= end; index++)
+			for (
+				;
+				index <= end;
+				index++
+			)
 			{
 				if (!pixelWater[index])
 				{
@@ -1209,7 +1173,8 @@ void fragment()
 			pixelGlow.Length
 		);
 
-		hasPreviousPixelRegion = false;
+		hasPreviousPixelRegion =
+			false;
 
 		waterImage.SetData(
 			pixelWidth,
