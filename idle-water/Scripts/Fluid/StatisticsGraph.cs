@@ -21,11 +21,28 @@ public partial class StatisticsGraph : Control
 
 	private const int MaxWheels = 4;
 
+	// ============================================================
+	// FPS graph
+	// ============================================================
+
+	// Fixed FPS scale:
+	//
+	// 120 FPS = top
+	// 60 FPS  = middle
+	// 0 FPS   = bottom
+	//
+	// Keeping this fixed makes FPS visually meaningful and
+	// prevents the graph from constantly rescaling.
+	private const float FpsGraphMax = 120.0f;
+
 	private readonly List<int> particleHistory =
 		new List<int>();
 
 	private readonly List<double> energyHistory =
 		new List<double>();
+
+	private readonly List<float> fpsHistory =
+		new List<float>();
 
 	private readonly List<double>[] wheelEnergyHistory =
 	{
@@ -145,6 +162,17 @@ public partial class StatisticsGraph : Control
 				16
 			);
 
+		// FPS text is black as well.
+		fpsLabel.AddThemeColorOverride(
+			"font_color",
+			new Color(
+				0.0f,
+				0.0f,
+				0.0f,
+				1.0f
+			)
+		);
+
 		QueueRedraw();
 	}
 
@@ -221,6 +249,10 @@ public partial class StatisticsGraph : Control
 		sampleFrameCounter -=
 			SampleFrames;
 
+		// --------------------------------------------------------
+		// Particles
+		// --------------------------------------------------------
+
 		particleHistory.Add(
 			Math.Max(
 				0,
@@ -228,12 +260,32 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
+		// --------------------------------------------------------
+		// Energy
+		// --------------------------------------------------------
+
 		energyHistory.Add(
 			Math.Max(
 				0.0,
 				totalEnergy
 			)
 		);
+
+		// --------------------------------------------------------
+		// FPS
+		// --------------------------------------------------------
+
+		fpsHistory.Add(
+			Mathf.Clamp(
+				fps,
+				0.0f,
+				FpsGraphMax
+			)
+		);
+
+		// --------------------------------------------------------
+		// Wheel energy
+		// --------------------------------------------------------
 
 		for (
 			int wheel = 0;
@@ -265,6 +317,10 @@ public partial class StatisticsGraph : Control
 			}
 		}
 
+		// --------------------------------------------------------
+		// Limit history
+		// --------------------------------------------------------
+
 		while (
 			particleHistory.Count >
 			MaxSamples)
@@ -277,6 +333,13 @@ public partial class StatisticsGraph : Control
 			MaxSamples)
 		{
 			energyHistory.RemoveAt(0);
+		}
+
+		while (
+			fpsHistory.Count >
+			MaxSamples)
+		{
+			fpsHistory.RemoveAt(0);
 		}
 
 		RecalculateEnergyScale();
@@ -692,6 +755,77 @@ public partial class StatisticsGraph : Control
 			3.0f,
 			true
 		);
+
+		// --------------------------------------------------------
+		// FPS
+		// --------------------------------------------------------
+		//
+		// Fixed 0-120 FPS scale:
+		//
+		// 120 FPS = top
+		//  60 FPS = middle
+		//   0 FPS = bottom
+		//
+		// Black line.
+		// --------------------------------------------------------
+
+		int fpsCount =
+			Math.Min(
+				count,
+				fpsHistory.Count
+			);
+
+		if (fpsCount >= 2)
+		{
+			Vector2[] fpsPoints =
+				new Vector2[fpsCount];
+
+			for (
+				int i = 0;
+				i < fpsCount;
+				i++)
+			{
+				float x =
+					PlotLeft +
+					plotWidth *
+					i /
+					Mathf.Max(
+						count - 1.0f,
+						1.0f
+					);
+
+				float normalized =
+					Mathf.Clamp(
+						fpsHistory[i] /
+						FpsGraphMax,
+						0.0f,
+						1.0f
+					);
+
+				float y =
+					PlotBottom -
+					normalized *
+					plotHeight;
+
+				fpsPoints[i] =
+					new Vector2(
+						x,
+						y
+					);
+			}
+
+			DrawPolyline(
+				fpsPoints,
+				new Color(
+					0.0f,
+					0.0f,
+					0.0f,
+					1.0f
+				),
+				3.0f,
+				true
+			);
+		}
 
 		// --------------------------------------------------------
 		// Individual wheels

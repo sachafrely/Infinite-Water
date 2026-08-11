@@ -547,7 +547,7 @@ COLOR =
 
 		if (
 			profilerFrameCount >=
-			60
+			600
 		)
 		{
 			GD.Print(

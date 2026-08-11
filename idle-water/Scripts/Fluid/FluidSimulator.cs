@@ -50,7 +50,7 @@ public partial class FluidSimulator : Node2D
 	// It is NOT the intended number of active particles.
 	//
 	// ActiveParticleCount is particles.Count.
-	private const int ParticleCount = 5000;
+	private const int ParticleCount = 4000;
 
 	// ============================================================
 	// Particle statistics
@@ -92,7 +92,7 @@ public partial class FluidSimulator : Node2D
 	// Therefore 100% rain = 200 particles/sec.
 	// 10% = 20/sec, 20% = 40/sec, ... 100% = 200/sec.
 
-	private const float RainAmount = 200.0f;
+	private const float RainAmount = 75.0f;
 
 	private const int RainMinimumPercent = 10;
 	private const int RainMaximumPercent = 100;
@@ -177,7 +177,7 @@ public partial class FluidSimulator : Node2D
 	// Full-frame profiler
 	// ============================================================
 
-	private const int FullProfilerInterval = 60;
+	private const int FullProfilerInterval = 600;
 
 	private int fullProfilerFrames = 0;
 
@@ -537,7 +537,7 @@ public partial class FluidSimulator : Node2D
 
 		float currentRainAmount =
 			RainAmount *
-			(currentRainPercent / 100.0f);
+			(currentRainPercent / 50.0f);
 
 		rainHudLabel.Text =
 			"RAIN  " +
