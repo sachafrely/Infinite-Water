@@ -155,7 +155,6 @@ public class PbfSolver
 	private float[] neighborDy;
 
 	private float[] neighborQ;
-	private float[] neighborQSquared;
 	private float[] neighborGradientScale;
 
 	// ============================================================
@@ -1183,7 +1182,6 @@ public class PbfSolver
 					neighborDx,
 					neighborDy,
 					neighborQ,
-					neighborQSquared,
 					neighborGradientScale,
 					start,
 					MaxNeighbors
@@ -1243,7 +1241,6 @@ public class PbfSolver
 		float[] localDx = neighborDx;
 		float[] localDy = neighborDy;
 		float[] localQ = neighborQ;
-		float[] localQ2 = neighborQSquared;
 		float[] localGradient = neighborGradientScale;
 
 		for (int index = start; index < end; index++)
@@ -1259,7 +1256,6 @@ public class PbfSolver
 			if (distanceSquared <= 0.000001f)
 			{
 				localQ[index] = 1.0f;
-				localQ2[index] = 1.0f;
 				localGradient[index] = 0.0f;
 				continue;
 			}
@@ -1268,7 +1264,6 @@ public class PbfSolver
 			float q = 1.0f - (distanceSquared * inverseDistance) * InverseSmoothingRadius;
 			float q2 = q * q;
 			localQ[index] = q;
-			localQ2[index] = q2;
 			localGradient[index] =
 				-3.0f * q2 * InverseSmoothingRadius * inverseDistance * InverseRestDensity;
 		}
@@ -1287,9 +1282,6 @@ public class PbfSolver
 		// Local references for the hot neighbor loop.
 		float[] localNeighborQ =
 			neighborQ;
-
-		float[] localNeighborQSquared =
-			neighborQSquared;
 
 		float[] localNeighborGradientScale =
 			neighborGradientScale;
@@ -1340,7 +1332,7 @@ public class PbfSolver
 					localNeighborQ[index];
 
 				float q2 =
-					localNeighborQSquared[index];
+					q * q;
 
 				density +=
 					q2 * q;
@@ -1465,8 +1457,6 @@ public class PbfSolver
 		neighborQ =
 			new float[capacity];
 
-		neighborQSquared =
-			new float[capacity];
 
 		neighborGradientScale =
 			new float[capacity];

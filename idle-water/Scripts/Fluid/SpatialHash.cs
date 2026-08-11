@@ -1,3 +1,4 @@
+
 using Godot;
 using System;
 using System.Runtime.CompilerServices;
@@ -284,7 +285,7 @@ public sealed class SpatialHash
 		float px, float py,
 		float[] positionsX, float[] positionsY,
 		int[] output, float[] outputDx, float[] outputDy,
-		float[] outputQ, float[] outputQSquared,
+		float[] outputQ,
 		float[] outputGradientScale,
 		int outputOffset, int maxNeighbors)
 	{
@@ -317,7 +318,6 @@ public sealed class SpatialHash
 						if (distanceSquared <= 0.000001f)
 						{
 							outputQ[index] = 1.0f;
-							outputQSquared[index] = 1.0f;
 							outputGradientScale[index] = 0.0f;
 						}
 						else
@@ -326,7 +326,6 @@ public sealed class SpatialHash
 							float q = 1.0f - (distanceSquared * inverseDistance) * (1.0f / 8.0f);
 							float q2 = q * q;
 							outputQ[index] = q;
-							outputQSquared[index] = q2;
 							outputGradientScale[index] = -3.0f * q2 * (1.0f / 8.0f) * inverseDistance * (1.0f / 1.15f);
 						}
 						count++;
