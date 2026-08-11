@@ -151,6 +151,7 @@ public class PbfSolver
 	private float[] neighborDy;
 
 	private float[] neighborQ;
+	private float[] neighborQSquared;
 	private float[] neighborGradientScale;
 
 	// ============================================================
@@ -1275,6 +1276,9 @@ public class PbfSolver
 			neighborQ[index] =
 				1.0f;
 
+			neighborQSquared[index] =
+				1.0f;
+
 			neighborGradientScale[index] =
 				0.0f;
 
@@ -1301,6 +1305,9 @@ public class PbfSolver
 			neighborQ[index] =
 				0.0f;
 
+			neighborQSquared[index] =
+				0.0f;
+
 			neighborGradientScale[index] =
 				0.0f;
 
@@ -1312,6 +1319,9 @@ public class PbfSolver
 
 		float q2 =
 			q * q;
+
+		neighborQSquared[index] =
+			q2;
 
 		neighborGradientScale[index] =
 			-3.0f *
@@ -1335,6 +1345,9 @@ public class PbfSolver
 		float[] localNeighborQ =
 			neighborQ;
 
+		float[] localNeighborQSquared =
+			neighborQSquared;
+
 		float[] localNeighborGradientScale =
 			neighborGradientScale;
 
@@ -1343,9 +1356,6 @@ public class PbfSolver
 
 		float[] localNeighborDy =
 			neighborDy;
-
-		int[] localNeighborBuffer =
-			neighborBuffer;
 
 		int[] localNeighborCounts =
 			neighborCounts;
@@ -1385,16 +1395,10 @@ public class PbfSolver
 					localNeighborQ[index];
 
 				float q2 =
-					q * q;
+					localNeighborQSquared[index];
 
 				density +=
 					q2 * q;
-
-				int j =
-					localNeighborBuffer[index];
-
-				if (j == i)
-					continue;
 
 				float scale =
 					localNeighborGradientScale[index];
@@ -1516,6 +1520,9 @@ public class PbfSolver
 			new float[capacity];
 
 		neighborQ =
+			new float[capacity];
+
+		neighborQSquared =
 			new float[capacity];
 
 		neighborGradientScale =
