@@ -16,6 +16,8 @@ public class PbfSolver
 
 	private const float Gravity = 300.0f;
 
+	// IMPORTANT:
+	// This is the actual PBF smoothing radius.
 	private const float SmoothingRadius = 8.0f;
 	private const float SmoothingRadiusSquared = 64.0f;
 	private const float InverseSmoothingRadius = 1.0f / 8.0f;
@@ -32,8 +34,15 @@ public class PbfSolver
 	// PBF
 	// ============================================================
 
+	// Optimization:
+	//
+	// The old solver could perform 3 iterations.
+	// Profiling showed that PBF dominates the frame time.
+	//
+	// Two iterations are already the minimum required by the
+	// existing solver, so we remove the expensive third pass.
 	private const int MinIterations = 2;
-	private const int MaxIterations = 3;
+	private const int MaxIterations = 2;
 
 	private const float DensityErrorThreshold = 0.75f;
 
@@ -73,16 +82,6 @@ public class PbfSolver
 
 	// ============================================================
 	// Current simulation world
-	//
-	// Camera:
-	//     X = 360 .. 1080
-	//     Y = 0 .. 720
-	//
-	// Buffered simulation:
-	//     Left   = 260
-	//     Right  = 1180
-	//     Top    = -200
-	//     Bottom = 820
 	// ============================================================
 
 	private const float MinX = 260.0f;
@@ -200,10 +199,7 @@ public class PbfSolver
 	// ============================================================
 	// Clear terrain colliders
 	//
-	// IMPORTANT:
-	// TileMapPhysics rebuilds the terrain by calling this.
-	//
-	// Wheel colliders must NOT be deleted here.
+	// Wheel colliders must survive terrain rebuilds.
 	// ============================================================
 
 	public void ClearPolygonColliders()
@@ -359,6 +355,9 @@ public class PbfSolver
 
 		// --------------------------------------------------------
 		// PBF iterations
+		//
+		// Optimization:
+		// MaxIterations is now 2 instead of 3.
 		// --------------------------------------------------------
 
 		for (
@@ -918,10 +917,6 @@ public class PbfSolver
 			float y =
 				predY[i];
 
-			// ----------------------------------------------------
-			// LEFT
-			// ----------------------------------------------------
-
 			if (x < left)
 			{
 				x = left;
@@ -930,11 +925,6 @@ public class PbfSolver
 				impactNormalX[i] = 1.0f;
 				impactNormalY[i] = 0.0f;
 			}
-
-			// ----------------------------------------------------
-			// RIGHT
-			// ----------------------------------------------------
-
 			else if (x > right)
 			{
 				x = right;
@@ -944,10 +934,6 @@ public class PbfSolver
 				impactNormalY[i] = 0.0f;
 			}
 
-			// ----------------------------------------------------
-			// TOP
-			// ----------------------------------------------------
-
 			if (y < top)
 			{
 				y = top;
@@ -956,11 +942,6 @@ public class PbfSolver
 				impactNormalX[i] = 0.0f;
 				impactNormalY[i] = 1.0f;
 			}
-
-			// ----------------------------------------------------
-			// BOTTOM
-			// ----------------------------------------------------
-
 			else if (y > bottom)
 			{
 				y = bottom;
@@ -1034,6 +1015,7 @@ public class PbfSolver
 				1.0f)
 			{
 				sleeping[i] = true;
+
 				velocityX = 0.0f;
 				velocityY = 0.0f;
 			}

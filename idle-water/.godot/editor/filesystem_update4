@@ -4,3 +4,5 @@ res://Scripts/Fluid/WaterPipeVisual.cs
 res://Scripts/Fluid/FluidRenderer.cs
 res://Scripts/Fluid/TileMapPhysics.cs
 res://Scripts/Fluid/FluidSimulator.cs
+res://Scripts/Fluid/PbfSolver.cs
+res://Scripts/Fluid/SpatialHash.cs

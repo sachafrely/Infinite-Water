@@ -8,18 +8,27 @@ public sealed class SpatialHash
 	// Configuration
 	// ============================================================
 
-	private const float CellSize = 12.0f;
+	// IMPORTANT:
+	// PbfSolver uses an 8px smoothing radius.
+	//
+	// The previous hash used 12px, which meant the hash was
+	// searching a larger neighborhood than the PBF solver could
+	// actually use.
+	//
+	// Matching the cell size to the PBF radius keeps the 3x3
+	// lookup tight.
+	private const float CellSize = 8.0f;
 	private const float InverseCellSize = 1.0f / CellSize;
 
-	// PBF smoothing radius = 12
-	private const float PbfRadiusSquared = 144.0f;
+	private const float PbfRadiusSquared = 64.0f;
 
 	// ============================================================
 	// Hash table
 	// ============================================================
 
 	private const int HashCapacity = 8192;
-	private const int HashMask = HashCapacity - 1;
+	private const int HashMask =
+		HashCapacity - 1;
 
 	// ============================================================
 	// World
@@ -39,13 +48,24 @@ public sealed class SpatialHash
 	// Constructor
 	// ============================================================
 
-	public SpatialHash(int particleCapacity)
+	public SpatialHash(
+		int particleCapacity)
 	{
-		if (particleCapacity < 1)
+		if (
+			particleCapacity < 1)
+		{
 			particleCapacity = 1;
+		}
 
-		heads = new int[HashCapacity];
-		next = new int[particleCapacity];
+		heads =
+			new int[
+				HashCapacity
+			];
+
+		next =
+			new int[
+				particleCapacity
+			];
 
 		Clear();
 	}
@@ -56,27 +76,47 @@ public sealed class SpatialHash
 
 	public void Clear()
 	{
-		Array.Fill(heads, -1);
+		Array.Fill(
+			heads,
+			-1
+		);
 	}
 
 	// ============================================================
 	// Ensure particle capacity
 	// ============================================================
 
-	private void EnsureParticleCapacity(int required)
+	private void EnsureParticleCapacity(
+		int required)
 	{
-		if (next.Length >= required)
+		if (
+			next.Length >=
+			required)
+		{
 			return;
+		}
 
-		int newCapacity = next.Length * 2;
+		int newCapacity =
+			next.Length * 2;
 
-		if (newCapacity < required)
-			newCapacity = required;
+		if (
+			newCapacity <
+			required)
+		{
+			newCapacity =
+				required;
+		}
 
-		if (newCapacity < 1)
+		if (
+			newCapacity < 1)
+		{
 			newCapacity = 1;
+		}
 
-		Array.Resize(ref next, newCapacity);
+		Array.Resize(
+			ref next,
+			newCapacity
+		);
 	}
 
 	// ============================================================
@@ -88,7 +128,9 @@ public sealed class SpatialHash
 		float x,
 		float y)
 	{
-		EnsureParticleCapacity(particleIndex + 1);
+		EnsureParticleCapacity(
+			particleIndex + 1
+		);
 
 		int cellX =
 			FastFloorToInt(
@@ -103,7 +145,10 @@ public sealed class SpatialHash
 			);
 
 		int bucket =
-			HashCell(cellX, cellY);
+			HashCell(
+				cellX,
+				cellY
+			);
 
 		next[particleIndex] =
 			heads[bucket];
@@ -115,11 +160,10 @@ public sealed class SpatialHash
 	// ============================================================
 	// Optimized PBF query
 	//
-	// Standard radius = 12.
+	// PBF radius = 8.
 	//
-	// IMPORTANT:
-	// The output capacity check happens BEFORE doing another
-	// distance calculation.
+	// With an 8px cell size, a 3x3 neighborhood is sufficient
+	// to cover the complete smoothing radius.
 	// ============================================================
 
 	public int QueryPbf(
@@ -131,36 +175,46 @@ public sealed class SpatialHash
 		int outputOffset,
 		int maxNeighbors)
 	{
-		if (maxNeighbors <= 0)
+		if (
+			maxNeighbors <= 0)
+		{
 			return 0;
+		}
 
 		int centerCellX =
 			FastFloorToInt(
-				px * InverseCellSize
+				(px - WorldMinX) *
+				InverseCellSize
 			);
 
 		int centerCellY =
 			FastFloorToInt(
-				py * InverseCellSize
+				(py - WorldMinY) *
+				InverseCellSize
 			);
 
 		int count = 0;
 
 		// --------------------------------------------------------
-		// Inline the 3x3 traversal.
-		//
-		// This avoids temporary values and keeps the hot loop
-		// as small as possible.
+		// 3x3 neighborhood
 		// --------------------------------------------------------
 
 		for (
-			int cellY = centerCellY - 1;
-			cellY <= centerCellY + 1;
+			int cellY =
+				centerCellY - 1;
+
+			cellY <=
+				centerCellY + 1;
+
 			cellY++)
 		{
 			for (
-				int cellX = centerCellX - 1;
-				cellX <= centerCellX + 1;
+				int cellX =
+					centerCellX - 1;
+
+				cellX <=
+					centerCellX + 1;
+
 				cellX++)
 			{
 				int bucket =
@@ -172,14 +226,20 @@ public sealed class SpatialHash
 				int particle =
 					heads[bucket];
 
-				while (particle != -1)
+				while (
+					particle != -1)
 				{
 					// ------------------------------------------------
-					// Stop immediately once the output is full.
+					// Stop immediately once the neighbor buffer is
+					// full.
 					// ------------------------------------------------
 
-					if (count >= maxNeighbors)
+					if (
+						count >=
+						maxNeighbors)
+					{
 						return count;
+					}
 
 					float dx =
 						px -
@@ -198,8 +258,10 @@ public sealed class SpatialHash
 						PbfRadiusSquared)
 					{
 						output[
-							outputOffset + count
-						] = particle;
+							outputOffset +
+							count
+						] =
+							particle;
 
 						count++;
 					}
@@ -216,7 +278,7 @@ public sealed class SpatialHash
 	// ============================================================
 	// Generic radius query
 	//
-	// Kept for compatibility with other code.
+	// Kept for compatibility with existing code.
 	// ============================================================
 
 	public int QueryPbf(
@@ -229,8 +291,11 @@ public sealed class SpatialHash
 		int outputOffset,
 		int maxNeighbors)
 	{
-		if (maxNeighbors <= 0)
+		if (
+			maxNeighbors <= 0)
+		{
 			return 0;
+		}
 
 		int centerCellX =
 			FastFloorToInt(
@@ -250,13 +315,21 @@ public sealed class SpatialHash
 		int count = 0;
 
 		for (
-			int cellY = centerCellY - 1;
-			cellY <= centerCellY + 1;
+			int cellY =
+				centerCellY - 1;
+
+			cellY <=
+				centerCellY + 1;
+
 			cellY++)
 		{
 			for (
-				int cellX = centerCellX - 1;
-				cellX <= centerCellX + 1;
+				int cellX =
+					centerCellX - 1;
+
+				cellX <=
+					centerCellX + 1;
+
 				cellX++)
 			{
 				int bucket =
@@ -268,14 +341,15 @@ public sealed class SpatialHash
 				int particle =
 					heads[bucket];
 
-				while (particle != -1)
+				while (
+					particle != -1)
 				{
-					// ------------------------------------------------
-					// Check capacity BEFORE distance calculation.
-					// ------------------------------------------------
-
-					if (count >= maxNeighbors)
+					if (
+						count >=
+						maxNeighbors)
+					{
 						return count;
+					}
 
 					float dx =
 						px -
@@ -294,8 +368,10 @@ public sealed class SpatialHash
 						radiusSquared)
 					{
 						output[
-							outputOffset + count
-						] = particle;
+							outputOffset +
+							count
+						] =
+							particle;
 
 						count++;
 					}
@@ -340,10 +416,11 @@ public sealed class SpatialHash
 			hash ^=
 				hash >> 15;
 
-			return (int)(
-				hash &
-				HashMask
-			);
+			return
+				(int)(
+					hash &
+					HashMask
+				);
 		}
 	}
 
@@ -357,8 +434,12 @@ public sealed class SpatialHash
 		int integer =
 			(int)value;
 
-		if (value < integer)
+		if (
+			value <
+			integer)
+		{
 			return integer - 1;
+		}
 
 		return integer;
 	}
