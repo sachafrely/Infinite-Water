@@ -6,17 +6,19 @@ using Godot;
 /// <summary>
 /// Generates collision geometry for the Environment TileMapLayer.
 ///
-/// The TileMap is converted into one global alpha mask.
-/// Exposed edges are extracted and merged into longer segments.
-/// Each segment becomes a thick convex polygon collider.
+/// The TileMap is converted into one global collision mask.
+/// The current tileset does NOT use transparency for its empty areas,
+/// therefore collision is determined using an empty/background color key.
 ///
-/// This avoids:
-///   - Tile-to-tile collision seams
-///   - Thousands of tiny colliders
-///   - Concave FluidPolygonCollider shapes
-///   - Triangulation problems
+/// The resulting mask is converted into boundary contours.
+/// Each boundary segment becomes a thick convex FluidPolygonCollider.
 ///
-/// The generated collision exists in PBF simulation coordinates.
+/// This gives us:
+///   - no tile-to-tile collision seams
+///   - correct irregular terrain shapes
+///   - empty parts of tiles remain empty
+///   - relatively few colliders
+///   - good PBF performance
 /// </summary>
 [Tool]
 public partial class TileMapPhysics : Node2D
@@ -69,27 +71,68 @@ public partial class TileMapPhysics : Node2D
 			"../GameView/SimulationViewport/Camera2D"
 		);
 
+	// ------------------------------------------------------------
+	// Alpha
+	// ------------------------------------------------------------
+
 	/// <summary>
-	/// Alpha >= this value is considered solid.
+	/// Pixels below this alpha are always considered empty.
 	/// </summary>
 	[Export]
 	public float AlphaThreshold { get; set; } = 0.01f;
 
+	// ------------------------------------------------------------
+	// Empty/background color
+	// ------------------------------------------------------------
+
 	/// <summary>
-	/// Small dilation applied to the collision mask.
+	/// The background/empty color used by the current Tileset.png.
+	///
+	/// The current tileset has an opaque dark-blue background instead
+	/// of transparent pixels.
+	///
+	/// RGB:
+	///   34, 42, 92
+	///
+	/// Therefore this color is treated as EMPTY.
 	/// </summary>
+	[Export]
+	public Color EmptyColor { get; set; } =
+		new Color(
+			34.0f / 255.0f,
+			42.0f / 255.0f,
+			92.0f / 255.0f,
+			1.0f
+		);
+
+	/// <summary>
+	/// Maximum RGB distance from EmptyColor that is still considered
+	/// background.
+	///
+	/// Lower = stricter.
+	/// Higher = removes more dark-blue background pixels.
+	///
+	/// 0.04 is approximately 10 RGB levels.
+	/// </summary>
+	[Export]
+	public float EmptyColorTolerance { get; set; } = 0.04f;
+
+	/// <summary>
+	/// When enabled, empty/background color is excluded from collision.
+	/// </summary>
+	[Export]
+	public bool UseEmptyColorKey { get; set; } = true;
+
+	// ------------------------------------------------------------
+	// Collision mask
+	// ------------------------------------------------------------
+
 	[Export]
 	public int CollisionSealPixels { get; set; } = 1;
 
-	/// <summary>
-	/// Simplification tolerance in simulation pixels.
-	/// </summary>
 	[Export]
 	public float ContourSimplification { get; set; } = 1.5f;
 
-	/// <summary>
-	/// Ignore very small contour loops.
-	/// </summary>
 	[Export]
 	public float MinimumContourArea { get; set; } = 4.0f;
 
@@ -628,7 +671,7 @@ public partial class TileMapPhysics : Node2D
 		generated = false;
 
 		// --------------------------------------------------------
-		// Remove old collision.
+		// Remove old terrain collision.
 		// --------------------------------------------------------
 
 		solver.ClearPolygonColliders();
@@ -641,7 +684,7 @@ public partial class TileMapPhysics : Node2D
 		);
 
 		// --------------------------------------------------------
-		// Build global solid mask.
+		// Build global collision mask.
 		// --------------------------------------------------------
 
 		HashSet<Vector2I> solidPixels =
@@ -650,7 +693,7 @@ public partial class TileMapPhysics : Node2D
 		if (solidPixels.Count == 0)
 		{
 			GD.PushWarning(
-				"TileMapPhysics: No opaque pixels found."
+				"TileMapPhysics: No collision pixels found."
 			);
 
 			generating = false;
@@ -691,9 +734,9 @@ public partial class TileMapPhysics : Node2D
 
 		int totalSegments = 0;
 
-		// ========================================================
-		// Process every contour.
-		// ========================================================
+		// --------------------------------------------------------
+		// Convert contours into thick convex segments.
+		// --------------------------------------------------------
 
 		foreach (
 			List<Vector2I> loop in loops)
@@ -717,7 +760,7 @@ public partial class TileMapPhysics : Node2D
 			}
 
 			// ----------------------------------------------------
-			// Simplify the closed contour.
+			// Simplify contour.
 			// ----------------------------------------------------
 
 			contour =
@@ -744,13 +787,7 @@ public partial class TileMapPhysics : Node2D
 			}
 
 			// ----------------------------------------------------
-			// IMPORTANT:
-			//
-			// We deliberately do NOT triangulate the contour.
-			//
-			// FluidPolygonCollider works extremely well with
-			// convex segment strips. Each boundary segment is
-			// converted into one thick quadrilateral.
+			// Every contour edge becomes one convex strip.
 			// ----------------------------------------------------
 
 			for (
@@ -781,19 +818,12 @@ public partial class TileMapPhysics : Node2D
 					simulationB -
 					simulationA;
 
-				float lengthSquared =
-					difference.LengthSquared();
-
 				if (
-					lengthSquared <
+					difference.LengthSquared() <
 					0.0001f)
 				{
 					continue;
 				}
-
-				// ------------------------------------------------
-				// Build thick convex collision strip.
-				// ------------------------------------------------
 
 				Vector2[] polygon =
 					BuildSegmentPolygon(
@@ -823,16 +853,15 @@ public partial class TileMapPhysics : Node2D
 
 				totalSegments++;
 
-				// ------------------------------------------------
-				// Debug line.
-				// ------------------------------------------------
-
-				debugEdges.Add(
-					new DebugEdge(
-						simulationA,
-						simulationB
-					)
-				);
+				if (ShowDebugGeometry)
+				{
+					debugEdges.Add(
+						new DebugEdge(
+							simulationA,
+							simulationB
+						)
+					);
+				}
 			}
 		}
 
@@ -846,7 +875,7 @@ public partial class TileMapPhysics : Node2D
 			);
 
 			GD.Print(
-				"TileMapPhysics GLOBAL ALPHA COLLISION"
+				"TileMapPhysics COLOR-KEYED COLLISION"
 			);
 
 			GD.Print(
@@ -855,7 +884,7 @@ public partial class TileMapPhysics : Node2D
 			);
 
 			GD.Print(
-				"Global solid pixels: " +
+				"Collision pixels: " +
 				solidPixels.Count
 			);
 
@@ -877,6 +906,21 @@ public partial class TileMapPhysics : Node2D
 			GD.Print(
 				"Alpha threshold: " +
 				AlphaThreshold
+			);
+
+			GD.Print(
+				"Use empty color key: " +
+				UseEmptyColorKey
+			);
+
+			GD.Print(
+				"Empty color: " +
+				EmptyColor
+			);
+
+			GD.Print(
+				"Empty color tolerance: " +
+				EmptyColorTolerance
 			);
 
 			GD.Print(
@@ -911,7 +955,7 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Build global solid mask
+	// Build global collision mask
 	// ============================================================
 
 	private HashSet<Vector2I>
@@ -940,7 +984,9 @@ public partial class TileMapPhysics : Node2D
 			new Dictionary<int, Image>();
 
 		int processedCells = 0;
-		int opaquePixels = 0;
+		int collisionPixels = 0;
+		int ignoredBackgroundPixels = 0;
+		int ignoredTransparentPixels = 0;
 
 		foreach (
 			Vector2I cell in cells)
@@ -1050,9 +1096,6 @@ public partial class TileMapPhysics : Node2D
 
 			// ----------------------------------------------------
 			// Actual TileMap cell center.
-			//
-			// This is important for TileMapLayer transforms and
-			// for the 32x32 tileset.
 			// ----------------------------------------------------
 
 			Vector2 cellCenter =
@@ -1063,6 +1106,10 @@ public partial class TileMapPhysics : Node2D
 			Vector2 tileTopLeft =
 				cellCenter -
 				tileSize * 0.5f;
+
+			// ----------------------------------------------------
+			// Sample the actual tile texture.
+			// ----------------------------------------------------
 
 			for (
 				int y = 0;
@@ -1080,10 +1127,28 @@ public partial class TileMapPhysics : Node2D
 							clipped.Position.Y + y
 						);
 
+					// --------------------------------------------
+					// Transparent pixels are always empty.
+					// --------------------------------------------
+
 					if (
 						pixel.A <
 						AlphaThreshold)
 					{
+						ignoredTransparentPixels++;
+						continue;
+					}
+
+					// --------------------------------------------
+					// The current tileset has an opaque blue
+					// background. Exclude it using the color key.
+					// --------------------------------------------
+
+					if (
+						UseEmptyColorKey &&
+						IsEmptyBackgroundPixel(pixel))
+					{
+						ignoredBackgroundPixels++;
 						continue;
 					}
 
@@ -1106,7 +1171,7 @@ public partial class TileMapPhysics : Node2D
 						)
 					);
 
-					opaquePixels++;
+					collisionPixels++;
 				}
 			}
 
@@ -1122,12 +1187,57 @@ public partial class TileMapPhysics : Node2D
 			);
 
 			GD.Print(
-				"TileMapPhysics: opaque pixels = " +
-				opaquePixels
+				"TileMapPhysics: collision pixels = " +
+				collisionPixels
+			);
+
+			GD.Print(
+				"TileMapPhysics: ignored background pixels = " +
+				ignoredBackgroundPixels
+			);
+
+			GD.Print(
+				"TileMapPhysics: ignored transparent pixels = " +
+				ignoredTransparentPixels
 			);
 		}
 
 		return solidPixels;
+	}
+
+	// ============================================================
+	// Empty background detection
+	// ============================================================
+
+	private bool IsEmptyBackgroundPixel(
+		Color pixel)
+	{
+		float dr =
+			pixel.R -
+			EmptyColor.R;
+
+		float dg =
+			pixel.G -
+			EmptyColor.G;
+
+		float db =
+			pixel.B -
+			EmptyColor.B;
+
+		float distanceSquared =
+			dr * dr +
+			dg * dg +
+			db * db;
+
+		float tolerance =
+			Mathf.Max(
+				0.0f,
+				EmptyColorTolerance
+			);
+
+		return
+			distanceSquared <=
+			tolerance * tolerance;
 	}
 
 	// ============================================================
@@ -1367,7 +1477,9 @@ public partial class TileMapPhysics : Node2D
 				next
 			);
 
-			loop.Add(current);
+			loop.Add(
+				current
+			);
 
 			int safety = 0;
 
@@ -1377,7 +1489,9 @@ public partial class TileMapPhysics : Node2D
 			{
 				safety++;
 
-				loop.Add(next);
+				loop.Add(
+					next
+				);
 
 				current =
 					next;
@@ -1399,13 +1513,16 @@ public partial class TileMapPhysics : Node2D
 					foreach (
 						Vector2I c in candidates)
 					{
-						GridEdge e =
+						GridEdge edge =
 							new GridEdge(
 								current,
 								c
 							);
 
-						if (remaining.Contains(e))
+						if (
+							remaining.Contains(
+								edge
+							))
 						{
 							candidate = c;
 							found = true;
@@ -1722,8 +1839,8 @@ public partial class TileMapPhysics : Node2D
 		}
 
 		return new Vector2(
-			16.0f,
-			16.0f
+			32.0f,
+			32.0f
 		);
 	}
 
