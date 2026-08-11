@@ -14,7 +14,7 @@ public class PbfSolver
 	// Simulation
 	// ============================================================
 
-	private const float Gravity = 200.0f;
+	private const float Gravity = 300.0f;
 
 	private const float SmoothingRadius = 8.0f;
 	private const float SmoothingRadiusSquared = 64.0f;
@@ -44,7 +44,7 @@ public class PbfSolver
 	// Stability
 	// ============================================================
 
-	private const float VelocityDamping = 0.995f;
+	private const float VelocityDamping = 0.996f;
 
 	// ============================================================
 	// Impact
@@ -72,7 +72,17 @@ public class PbfSolver
 		WakeVelocityThreshold;
 
 	// ============================================================
-	// World bounds
+	// Current simulation world
+	//
+	// Camera:
+	//     X = 360 .. 1080
+	//     Y = 0 .. 720
+	//
+	// Buffered simulation:
+	//     Left   = 260
+	//     Right  = 1180
+	//     Top    = -200
+	//     Bottom = 820
 	// ============================================================
 
 	private const float MinX = 260.0f;
@@ -93,15 +103,6 @@ public class PbfSolver
 	// ============================================================
 
 	private const float PolygonParticleRadius = 2.5f;
-
-	// ------------------------------------------------------------
-	// Extra wheel collision passes.
-	//
-	// Small wheel + fast rain needs more than one resolution pass.
-	// This does NOT change normal PBF iteration count.
-	// ------------------------------------------------------------
-
-	private const int WheelCollisionPasses = 2;
 
 	// ============================================================
 	// Neighbors
@@ -188,14 +189,40 @@ public class PbfSolver
 		if (collider == null)
 			return;
 
-		polygonColliders.Add(
-			collider
-		);
+		if (!polygonColliders.Contains(collider))
+		{
+			polygonColliders.Add(
+				collider
+			);
+		}
 	}
+
+	// ============================================================
+	// Clear terrain colliders
+	//
+	// IMPORTANT:
+	// TileMapPhysics rebuilds the terrain by calling this.
+	//
+	// Wheel colliders must NOT be deleted here.
+	// ============================================================
 
 	public void ClearPolygonColliders()
 	{
-		polygonColliders.Clear();
+		for (
+			int i = polygonColliders.Count - 1;
+			i >= 0;
+			i--)
+		{
+			FluidPolygonCollider collider =
+				polygonColliders[i];
+
+			if (
+				collider == null ||
+				!collider.IsWheel)
+			{
+				polygonColliders.RemoveAt(i);
+			}
+		}
 	}
 
 	// ============================================================
@@ -360,35 +387,25 @@ public class PbfSolver
 			);
 
 			// ----------------------------------------------------
-			// Polygon collision.
-			//
-			// Wheel colliders receive multiple passes because the
-			// wheel is small relative to the particle velocity.
+			// Polygon / wheel collision
 			// ----------------------------------------------------
 
 			if (
 				polygonColliders.Count > 0)
 			{
-				int collisionPasses =
-					HasWheelColliders()
-						? WheelCollisionPasses
-						: 1;
-
-				for (
-					int pass = 0;
-					pass < collisionPasses;
-					pass++)
-				{
-					ConstrainToPolygonColliders(
-						predX,
-						predY,
-						velX,
-						velY,
-						count,
-						dt
-					);
-				}
+				ConstrainToPolygonColliders(
+					predX,
+					predY,
+					velX,
+					velY,
+					count,
+					dt
+				);
 			}
+
+			// ----------------------------------------------------
+			// World bounds
+			// ----------------------------------------------------
 
 			ConstrainToBounds(
 				predX,
@@ -449,7 +466,7 @@ public class PbfSolver
 				predY[i];
 
 			// ----------------------------------------------------
-			// Boundary response
+			// Left boundary
 			// ----------------------------------------------------
 
 			if (
@@ -480,6 +497,10 @@ public class PbfSolver
 					BoundaryFriction;
 			}
 
+			// ----------------------------------------------------
+			// Top boundary
+			// ----------------------------------------------------
+
 			if (
 				y <=
 				boundaryTop + 0.001f)
@@ -496,6 +517,11 @@ public class PbfSolver
 					1.0f -
 					BoundaryFriction;
 			}
+
+			// ----------------------------------------------------
+			// Bottom boundary
+			// ----------------------------------------------------
+
 			else if (
 				y >=
 				boundaryBottom - 0.001f)
@@ -513,6 +539,10 @@ public class PbfSolver
 					BoundaryFriction;
 			}
 
+			// ----------------------------------------------------
+			// Impact damping
+			// ----------------------------------------------------
+
 			if (impacted[i])
 			{
 				ApplyImpactDamping(
@@ -521,6 +551,10 @@ public class PbfSolver
 					ref finalVelocityY
 				);
 			}
+
+			// ----------------------------------------------------
+			// Sleep
+			// ----------------------------------------------------
 
 			ApplySleepBehavior(
 				i,
@@ -541,31 +575,6 @@ public class PbfSolver
 			posY[i] =
 				predY[i];
 		}
-	}
-
-	// ============================================================
-	// Check for wheel colliders
-	// ============================================================
-
-	private bool HasWheelColliders()
-	{
-		for (
-			int i = 0;
-			i < polygonColliders.Count;
-			i++)
-		{
-			FluidPolygonCollider collider =
-				polygonColliders[i];
-
-			if (
-				collider != null &&
-				collider.IsWheel)
-			{
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 	// ============================================================
@@ -708,6 +717,10 @@ public class PbfSolver
 				{
 					continue;
 				}
+
+				// ------------------------------------------------
+				// Wheel interaction
+				// ------------------------------------------------
 
 				if (collider.IsWheel)
 				{
@@ -885,6 +898,9 @@ public class PbfSolver
 		float left =
 			MinX + BoundarySkin;
 
+		float right =
+			MaxX - BoundarySkin;
+
 		float top =
 			MinY + BoundarySkin;
 
@@ -902,6 +918,10 @@ public class PbfSolver
 			float y =
 				predY[i];
 
+			// ----------------------------------------------------
+			// LEFT
+			// ----------------------------------------------------
+
 			if (x < left)
 			{
 				x = left;
@@ -911,6 +931,23 @@ public class PbfSolver
 				impactNormalY[i] = 0.0f;
 			}
 
+			// ----------------------------------------------------
+			// RIGHT
+			// ----------------------------------------------------
+
+			else if (x > right)
+			{
+				x = right;
+
+				impacted[i] = true;
+				impactNormalX[i] = -1.0f;
+				impactNormalY[i] = 0.0f;
+			}
+
+			// ----------------------------------------------------
+			// TOP
+			// ----------------------------------------------------
+
 			if (y < top)
 			{
 				y = top;
@@ -919,6 +956,11 @@ public class PbfSolver
 				impactNormalX[i] = 0.0f;
 				impactNormalY[i] = 1.0f;
 			}
+
+			// ----------------------------------------------------
+			// BOTTOM
+			// ----------------------------------------------------
+
 			else if (y > bottom)
 			{
 				y = bottom;
@@ -1244,8 +1286,11 @@ public class PbfSolver
 					neighborDy[index] *
 					scale;
 
-				gradSumX += gx;
-				gradSumY += gy;
+				gradSumX +=
+					gx;
+
+				gradSumY +=
+					gy;
 
 				neighborGradientSquared +=
 					gx * gx +

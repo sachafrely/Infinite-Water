@@ -1,4 +1,3 @@
-
 using System;
 using Godot;
 
@@ -101,6 +100,10 @@ public class FluidWheelState
 			angularVelocity *
 			dt;
 
+		// --------------------------------------------------------
+		// Keep angle numerically small.
+		// --------------------------------------------------------
+
 		if (angle > Mathf.Tau)
 			angle -= Mathf.Tau;
 
@@ -147,17 +150,15 @@ public class FluidPolygonCollider
 	// Collision
 	// ------------------------------------------------------------
 
-	// Normal particle collision:
 	private const float CollisionMargin = 1.0f;
-
-	// Extra thickness specifically for wheel blades.
-	//
-	// This is intentionally larger than the visual outline.
-	// It prevents fast rain particles from tunnelling through
-	// the small wheel.
-	private const float WheelCollisionExtraMargin = 3.0f;
-
 	private const float Epsilon = 0.000001f;
+
+	// ------------------------------------------------------------
+	// Swept collision
+	// ------------------------------------------------------------
+
+	private const float SweptStep = 1.5f;
+	private const int MaxSweptSteps = 64;
 
 	// ------------------------------------------------------------
 	// AABB
@@ -391,9 +392,9 @@ public class FluidPolygonCollider
 		}
 	}
 
-	// ------------------------------------------------------------
-	// Collision resolution
-	// ------------------------------------------------------------
+	// ============================================================
+	// Standard collision
+	// ============================================================
 
 	public bool ResolveCollision(
 		Vector2 position,
@@ -410,12 +411,6 @@ public class FluidPolygonCollider
 		float collisionRadius =
 			particleRadius +
 			CollisionMargin;
-
-		if (IsWheel)
-		{
-			collisionRadius +=
-				WheelCollisionExtraMargin;
-		}
 
 		// --------------------------------------------------------
 		// Broad phase
@@ -492,12 +487,17 @@ public class FluidPolygonCollider
 				edge *
 				t;
 
-			Vector2 difference =
-				position -
-				point;
+			float dx =
+				position.X -
+				point.X;
+
+			float dy =
+				position.Y -
+				point.Y;
 
 			float distanceSquared =
-				difference.LengthSquared();
+				dx * dx +
+				dy * dy;
 
 			if (
 				distanceSquared <
@@ -537,10 +537,6 @@ public class FluidPolygonCollider
 			collisionRadius *
 			collisionRadius;
 
-		// --------------------------------------------------------
-		// Outside polygon.
-		// --------------------------------------------------------
-
 		if (
 			!inside &&
 			closestDistanceSquared >
@@ -554,8 +550,6 @@ public class FluidPolygonCollider
 
 		// --------------------------------------------------------
 		// Particle inside polygon.
-		//
-		// Push it completely outside.
 		// --------------------------------------------------------
 
 		if (inside)
@@ -589,6 +583,203 @@ public class FluidPolygonCollider
 				penetration;
 
 			return true;
+		}
+
+		return false;
+	}
+
+	// ============================================================
+	// Swept collision
+	//
+	// Tests the whole path from startPosition to endPosition.
+	//
+	// This is specifically important for the small wheel:
+	// a particle may be outside the blade at the beginning and
+	// outside the blade again at the end, while crossing directly
+	// through the blade in between.
+	// ============================================================
+
+	public bool ResolveSweptCollision(
+		Vector2 startPosition,
+		Vector2 endPosition,
+		float particleRadius,
+		out Vector2 correctedPosition,
+		out Vector2 normal,
+		out Vector2 contactPosition)
+	{
+		correctedPosition =
+			endPosition;
+
+		normal =
+			Vector2.Zero;
+
+		contactPosition =
+			endPosition;
+
+		Vector2 movement =
+			endPosition -
+			startPosition;
+
+		float distanceSquared =
+			movement.LengthSquared();
+
+		// --------------------------------------------------------
+		// First check the starting position.
+		//
+		// This handles a particle that was already touching the
+		// blade from the previous iteration.
+		// --------------------------------------------------------
+
+		if (
+			ResolveCollision(
+				startPosition,
+				particleRadius,
+				out Vector2 startCorrected,
+				out Vector2 startNormal
+			))
+		{
+			correctedPosition =
+				startCorrected;
+
+			normal =
+				startNormal;
+
+			contactPosition =
+				startPosition;
+
+			return true;
+		}
+
+		if (
+			distanceSquared <=
+			Epsilon)
+		{
+			if (
+				ResolveCollision(
+					endPosition,
+					particleRadius,
+					out correctedPosition,
+					out normal
+				))
+			{
+				contactPosition =
+					endPosition;
+
+				return true;
+			}
+
+			return false;
+		}
+
+		float distance =
+			Mathf.Sqrt(
+				distanceSquared
+			);
+
+		int steps =
+			(int)MathF.Ceiling(
+				distance /
+				SweptStep
+			);
+
+		if (steps < 1)
+			steps = 1;
+
+		if (steps > MaxSweptSteps)
+			steps = MaxSweptSteps;
+
+		// --------------------------------------------------------
+		// Walk along the particle path.
+		// --------------------------------------------------------
+
+		Vector2 previous =
+			startPosition;
+
+		for (
+			int step = 1;
+			step <= steps;
+			step++)
+		{
+			float t =
+				(float)step /
+				steps;
+
+			Vector2 current =
+				startPosition +
+				movement *
+				t;
+
+			if (
+				ResolveCollision(
+					current,
+					particleRadius,
+					out Vector2 currentCorrected,
+					out Vector2 currentNormal
+				))
+			{
+				// ------------------------------------------------
+				// The first sampled collision is the contact.
+				// ------------------------------------------------
+
+				// Refine the collision location between the last
+				// non-colliding point and the first colliding point.
+				Vector2 low =
+					previous;
+
+				Vector2 high =
+					current;
+
+				for (
+					int refinement = 0;
+					refinement < 4;
+					refinement++)
+				{
+					Vector2 middle =
+						(low + high) *
+						0.5f;
+
+					if (
+						ResolveCollision(
+							middle,
+							particleRadius,
+							out _,
+							out _
+						))
+					{
+						high =
+							middle;
+					}
+					else
+					{
+						low =
+							middle;
+					}
+				}
+
+				Vector2 hitPosition =
+					high;
+
+				ResolveCollision(
+					hitPosition,
+					particleRadius,
+					out Vector2 hitCorrected,
+					out Vector2 hitNormal
+				);
+
+				correctedPosition =
+					hitCorrected;
+
+				normal =
+					hitNormal;
+
+				contactPosition =
+					hitPosition;
+
+				return true;
+			}
+
+			previous =
+				current;
 		}
 
 		return false;
