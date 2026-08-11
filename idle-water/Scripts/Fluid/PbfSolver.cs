@@ -1,3 +1,4 @@
+
 using Godot;
 using System;
 using System.Collections.Generic;
@@ -43,7 +44,7 @@ public class PbfSolver
 	// Stability
 	// ============================================================
 
-	private const float VelocityDamping = 0.996f;
+	private const float VelocityDamping = 0.995f;
 
 	// ============================================================
 	// Impact
@@ -92,6 +93,15 @@ public class PbfSolver
 	// ============================================================
 
 	private const float PolygonParticleRadius = 2.5f;
+
+	// ------------------------------------------------------------
+	// Extra wheel collision passes.
+	//
+	// Small wheel + fast rain needs more than one resolution pass.
+	// This does NOT change normal PBF iteration count.
+	// ------------------------------------------------------------
+
+	private const int WheelCollisionPasses = 2;
 
 	// ============================================================
 	// Neighbors
@@ -349,17 +359,35 @@ public class PbfSolver
 				count
 			);
 
+			// ----------------------------------------------------
+			// Polygon collision.
+			//
+			// Wheel colliders receive multiple passes because the
+			// wheel is small relative to the particle velocity.
+			// ----------------------------------------------------
+
 			if (
 				polygonColliders.Count > 0)
 			{
-				ConstrainToPolygonColliders(
-					predX,
-					predY,
-					velX,
-					velY,
-					count,
-					dt
-				);
+				int collisionPasses =
+					HasWheelColliders()
+						? WheelCollisionPasses
+						: 1;
+
+				for (
+					int pass = 0;
+					pass < collisionPasses;
+					pass++)
+				{
+					ConstrainToPolygonColliders(
+						predX,
+						predY,
+						velX,
+						velY,
+						count,
+						dt
+					);
+				}
 			}
 
 			ConstrainToBounds(
@@ -513,6 +541,31 @@ public class PbfSolver
 			posY[i] =
 				predY[i];
 		}
+	}
+
+	// ============================================================
+	// Check for wheel colliders
+	// ============================================================
+
+	private bool HasWheelColliders()
+	{
+		for (
+			int i = 0;
+			i < polygonColliders.Count;
+			i++)
+		{
+			FluidPolygonCollider collider =
+				polygonColliders[i];
+
+			if (
+				collider != null &&
+				collider.IsWheel)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	// ============================================================
@@ -1110,8 +1163,12 @@ public class PbfSolver
 
 		if (q <= 0.0f)
 		{
-			neighborQ[index] = 0.0f;
-			neighborGradientScale[index] = 0.0f;
+			neighborQ[index] =
+				0.0f;
+
+			neighborGradientScale[index] =
+				0.0f;
+
 			return;
 		}
 

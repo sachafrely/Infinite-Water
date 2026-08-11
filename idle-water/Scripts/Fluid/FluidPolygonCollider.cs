@@ -1,3 +1,4 @@
+
 using System;
 using Godot;
 
@@ -100,10 +101,6 @@ public class FluidWheelState
 			angularVelocity *
 			dt;
 
-		// --------------------------------------------------------
-		// Keep angle numerically small.
-		// --------------------------------------------------------
-
 		if (angle > Mathf.Tau)
 			angle -= Mathf.Tau;
 
@@ -140,7 +137,6 @@ public class FluidPolygonCollider
 
 	private readonly Vector2[] localVertices;
 	private readonly Vector2[] vertices;
-
 	private readonly Vector2[] edges;
 	private readonly Vector2[] edgeNormals;
 	private readonly float[] edgeLengthSquared;
@@ -151,7 +147,16 @@ public class FluidPolygonCollider
 	// Collision
 	// ------------------------------------------------------------
 
+	// Normal particle collision:
 	private const float CollisionMargin = 1.0f;
+
+	// Extra thickness specifically for wheel blades.
+	//
+	// This is intentionally larger than the visual outline.
+	// It prevents fast rain particles from tunnelling through
+	// the small wheel.
+	private const float WheelCollisionExtraMargin = 3.0f;
+
 	private const float Epsilon = 0.000001f;
 
 	// ------------------------------------------------------------
@@ -406,6 +411,12 @@ public class FluidPolygonCollider
 			particleRadius +
 			CollisionMargin;
 
+		if (IsWheel)
+		{
+			collisionRadius +=
+				WheelCollisionExtraMargin;
+		}
+
 		// --------------------------------------------------------
 		// Broad phase
 		// --------------------------------------------------------
@@ -481,17 +492,12 @@ public class FluidPolygonCollider
 				edge *
 				t;
 
-			float dx =
-				position.X -
-				point.X;
-
-			float dy =
-				position.Y -
-				point.Y;
+			Vector2 difference =
+				position -
+				point;
 
 			float distanceSquared =
-				dx * dx +
-				dy * dy;
+				difference.LengthSquared();
 
 			if (
 				distanceSquared <
@@ -531,6 +537,10 @@ public class FluidPolygonCollider
 			collisionRadius *
 			collisionRadius;
 
+		// --------------------------------------------------------
+		// Outside polygon.
+		// --------------------------------------------------------
+
 		if (
 			!inside &&
 			closestDistanceSquared >
@@ -544,6 +554,8 @@ public class FluidPolygonCollider
 
 		// --------------------------------------------------------
 		// Particle inside polygon.
+		//
+		// Push it completely outside.
 		// --------------------------------------------------------
 
 		if (inside)

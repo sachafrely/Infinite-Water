@@ -21,8 +21,7 @@ public partial class FluidSimulator : Node2D
 	//
 	// Simulation world = 920 x 1020
 	// World bounds: X 260..1180, Y -200..820
-	// Density rendering remains 1440 x 720 so the visible
-	// camera coordinate space stays unchanged.
+	// Density rendering remains 1440 x 720.
 	// Cell size = 4
 	// ------------------------------------------------------------
 
@@ -37,13 +36,6 @@ public partial class FluidSimulator : Node2D
 	private const float WorldWidth = 920.0f;
 	private const float WorldHeight = 1020.0f;
 
-	// Camera: 720 x 720 centered at (720, 360).
-	//
-	// Simulation buffer:
-	//   left   = 100 px
-	//   right  = 100 px
-	//   top    = 200 px
-	//   bottom = 100 px
 	private const float WorldMinX = 260.0f;
 	private const float WorldMaxX = 1180.0f;
 	private const float WorldMinY = -200.0f;
@@ -51,50 +43,27 @@ public partial class FluidSimulator : Node2D
 
 	// ------------------------------------------------------------
 	// Rain
-	//
-	// Rain covers the COMPLETE width of the simulation world.
-	//
-	// RainAmount:
-	//   0.0 = no rain
-	//   0.25 = 25% rain
-	//   0.50 = 50% rain
-	//   1.0 = maximum rain
-	//
-	// Unlike the previous implementation, rain is NOT decided
-	// randomly every frame.
-	//
-	// Instead, a continuous spawn accumulator is used.
-	//
-	// Example:
-	//
-	//   25% -> 0.25 particles/frame
-	//        -> approximately 1 particle every 4 frames
-	//
-	// This produces much more consistent rain.
 	// ------------------------------------------------------------
 
 	private const float RainAmount = 0.25f;
 
-	private const float RainSpawnY = WorldMinY;
+	private const float RainSpawnY =
+		WorldMinY;
 
-	private const float RainVelocityX = 0.0f;
-	private const float RainVelocityY = 250.0f;
+	private const float RainVelocityX =
+		0.0f;
 
-	private float rainSpawnAccumulator = 0.0f;
+	private const float RainVelocityY =
+		250.0f;
+
+	private float rainSpawnAccumulator =
+		0.0f;
 
 	private readonly RandomNumberGenerator rainRandom =
 		new RandomNumberGenerator();
 
 	// ------------------------------------------------------------
 	// Despawn
-	//
-	// Particles are recycled when they reach the OUTER LEFT,
-	// OUTER RIGHT, or COMPLETE BOTTOM edge of the simulation.
-	//
-	// The TOP edge is intentionally NOT a despawn edge.
-	//
-	// We use an 8 px inset because the PBF solver constrains
-	// particles against the hard world boundaries.
 	// ------------------------------------------------------------
 
 	private const float DespawnLeftX =
@@ -108,38 +77,75 @@ public partial class FluidSimulator : Node2D
 
 	// ------------------------------------------------------------
 	// Water wheel
+	//
+	// HALF the previous size.
+	//
+	// Outer radius:
+	//   100 -> 50
+	//
+	// Inner radius:
+	//   25 -> 12.5
+	//
+	// Blade width:
+	//   15 -> 7.5
 	// ------------------------------------------------------------
 
 	private WaterWheelVisual waterWheel;
 
-	private const float WheelCenterX = 720.0f;
-	private const float WheelCenterY = 360.0f;
+	private const float WheelCenterX =
+		720.0f;
 
-	private const float WheelOuterRadius = 100.0f;
-	private const float WheelInnerRadius = 25.0f;
+	private const float WheelCenterY =
+		360.0f;
 
-	private const int WheelBladeCount = 8;
-	private const float WheelBladeWidth = 15.0f;
+	private const float WheelOuterRadius =
+		50.0f;
+
+	private const float WheelInnerRadius =
+		12.5f;
+
+	private const int WheelBladeCount =
+		8;
+
+	private const float WheelBladeWidth =
+		7.5f;
 
 	// ------------------------------------------------------------
 	// Full-frame profiler
 	// ------------------------------------------------------------
 
-	private const int FullProfilerInterval = 60;
+	private const int FullProfilerInterval =
+		60;
 
-	private int fullProfilerFrames = 0;
+	private int fullProfilerFrames =
+		0;
 
-	private double fullPhysicsTime = 0.0;
+	private double fullPhysicsTime =
+		0.0;
 
-	private double fullSpawnTime = 0.0;
-	private double fullPbfTime = 0.0;
-	private double fullDensityTime = 0.0;
-	private double fullRendererTime = 0.0;
+	private double fullSpawnTime =
+		0.0;
 
-	private double fullRendererBuildPixelsTime = 0.0;
-	private double fullRendererSurfaceGlowTime = 0.0;
-	private double fullRendererFillBytesTime = 0.0;
-	private double fullRendererTextureUploadTime = 0.0;
+	private double fullPbfTime =
+		0.0;
+
+	private double fullDensityTime =
+		0.0;
+
+	private double fullRendererTime =
+		0.0;
+
+	private double fullRendererBuildPixelsTime =
+		0.0;
+
+	private double fullRendererSurfaceGlowTime =
+		0.0;
+
+	private double fullRendererFillBytesTime =
+		0.0;
+
+	private double fullRendererTextureUploadTime =
+		0.0;
 
 	// ------------------------------------------------------------
 	// Initialization
@@ -160,7 +166,9 @@ public partial class FluidSimulator : Node2D
 			);
 
 		solver =
-			new PbfSolver(hash);
+			new PbfSolver(
+				hash
+			);
 
 		CreateWaterWheel();
 
@@ -174,7 +182,9 @@ public partial class FluidSimulator : Node2D
 		renderer =
 			new FluidRenderer();
 
-		AddChild(renderer);
+		AddChild(
+			renderer
+		);
 
 		renderer.Initialize(
 			DensityWidth,
@@ -198,7 +208,8 @@ public partial class FluidSimulator : Node2D
 			", Particles=" +
 			ParticleCount +
 			", Rain=" +
-			(RainAmount * 100.0f).ToString("F0") +
+			(RainAmount * 100.0f)
+				.ToString("F0") +
 			"%"
 		);
 	}
@@ -237,7 +248,8 @@ public partial class FluidSimulator : Node2D
 		Stopwatch pbfTimer =
 			Stopwatch.StartNew();
 
-		if (particles.Count > 0)
+		if (
+			particles.Count > 0)
 		{
 			solver.Solve(
 				particles,
@@ -252,14 +264,6 @@ public partial class FluidSimulator : Node2D
 
 		// --------------------------------------------------------
 		// Despawn
-		//
-		// Particles are recycled when they reach:
-		//
-		//   - the complete left edge
-		//   - the complete right edge
-		//   - the complete bottom edge
-		//
-		// The top edge does NOT despawn particles.
 		// --------------------------------------------------------
 
 		RecycleParticlesAtOuterEdges();
@@ -354,7 +358,7 @@ public partial class FluidSimulator : Node2D
 			);
 
 		// --------------------------------------------------------
-		// Create ONE shared physics wheel state.
+		// Shared wheel physics state.
 		// --------------------------------------------------------
 
 		FluidWheelState wheelState =
@@ -364,6 +368,10 @@ public partial class FluidSimulator : Node2D
 
 		// --------------------------------------------------------
 		// Create wheel blade colliders.
+		//
+		// Keep the original winding. FluidPolygonCollider
+		// automatically determines the winding and chooses the
+		// correct normal.
 		// --------------------------------------------------------
 
 		for (
@@ -433,10 +441,13 @@ public partial class FluidSimulator : Node2D
 		// Central hub
 		// --------------------------------------------------------
 
-		const int hubSegments = 16;
+		const int hubSegments =
+			16;
 
 		Vector2[] hub =
-			new Vector2[hubSegments];
+			new Vector2[
+				hubSegments
+			];
 
 		for (
 			int i = 0;
@@ -461,12 +472,16 @@ public partial class FluidSimulator : Node2D
 				hub
 			);
 
+		// The hub is intentionally NOT configured as a wheel.
+		// Only the blades transmit torque.
 		solver.AddPolygonCollider(
 			hubCollider
 		);
 
 		// --------------------------------------------------------
 		// Visual wheel
+		//
+		// The visual dimensions match the physical half-size.
 		// --------------------------------------------------------
 
 		waterWheel =
@@ -498,17 +513,6 @@ public partial class FluidSimulator : Node2D
 
 	// ------------------------------------------------------------
 	// Rain emitter
-	//
-	// Uses an accumulator instead of a random spawn chance.
-	//
-	// This makes the average rain rate stable:
-	//
-	//   25% = 0.25 particles/frame
-	//   50% = 0.50 particles/frame
-	//   75% = 0.75 particles/frame
-	//  100% = 1.00 particle/frame
-	//
-	// X is still randomized across the complete world width.
 	// ------------------------------------------------------------
 
 	private void SpawnRainParticle()
@@ -531,7 +535,8 @@ public partial class FluidSimulator : Node2D
 
 		while (
 			rainSpawnAccumulator >= 1.0f &&
-			particles.Count < particles.Capacity)
+			particles.Count <
+			particles.Capacity)
 		{
 			SpawnSingleRainParticle();
 
@@ -562,18 +567,6 @@ public partial class FluidSimulator : Node2D
 
 	// ------------------------------------------------------------
 	// Despawn / recycle
-	//
-	// LEFT:
-	//   Recycle particles that reach the left boundary.
-	//
-	// RIGHT:
-	//   Recycle particles that reach the right boundary.
-	//
-	// BOTTOM:
-	//   Recycle particles that reach the complete bottom edge.
-	//
-	// TOP:
-	//   No despawn.
 	// ------------------------------------------------------------
 
 	private void RecycleParticlesAtOuterEdges()
@@ -593,30 +586,31 @@ public partial class FluidSimulator : Node2D
 				particles.PosY[i];
 
 			bool reachedLeft =
-				x <= DespawnLeftX;
+				x <=
+				DespawnLeftX;
 
 			bool reachedRight =
-				x >= DespawnRightX;
+				x >=
+				DespawnRightX;
 
 			bool reachedBottom =
-				y >= DespawnBottomY;
+				y >=
+				DespawnBottomY;
 
 			if (
 				reachedLeft ||
 				reachedRight ||
 				reachedBottom)
 			{
-				RecycleParticle(i);
+				RecycleParticle(
+					i
+				);
 			}
 		}
 	}
 
 	// ------------------------------------------------------------
 	// Recycle individual particle
-	//
-	// Recycled particles become rain particles again.
-	// They are placed at a random X position along the
-	// complete top edge.
 	// ------------------------------------------------------------
 
 	private void RecycleParticle(
@@ -733,7 +727,8 @@ public partial class FluidSimulator : Node2D
 
 		double physicsFps =
 			physicsMs > 0.001
-				? 1000.0 / physicsMs
+				? 1000.0 /
+					physicsMs
 				: 0.0;
 
 		GD.Print(
@@ -839,18 +834,34 @@ public partial class FluidSimulator : Node2D
 
 	private void ResetFullProfiler()
 	{
-		fullProfilerFrames = 0;
+		fullProfilerFrames =
+			0;
 
-		fullPhysicsTime = 0.0;
+		fullPhysicsTime =
+			0.0;
 
-		fullSpawnTime = 0.0;
-		fullPbfTime = 0.0;
-		fullDensityTime = 0.0;
-		fullRendererTime = 0.0;
+		fullSpawnTime =
+			0.0;
 
-		fullRendererBuildPixelsTime = 0.0;
-		fullRendererSurfaceGlowTime = 0.0;
-		fullRendererFillBytesTime = 0.0;
-		fullRendererTextureUploadTime = 0.0;
+		fullPbfTime =
+			0.0;
+
+		fullDensityTime =
+			0.0;
+
+		fullRendererTime =
+			0.0;
+
+		fullRendererBuildPixelsTime =
+			0.0;
+
+		fullRendererSurfaceGlowTime =
+			0.0;
+
+		fullRendererFillBytesTime =
+			0.0;
+
+		fullRendererTextureUploadTime =
+			0.0;
 	}
 }
