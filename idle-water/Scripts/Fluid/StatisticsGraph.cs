@@ -9,7 +9,7 @@ public partial class StatisticsGraph : Control
 
 	private const float PlotLeft = 58.0f;
 	private const float PlotTop = 48.0f;
-	private const float PlotRight = 530.0f;
+	private const float PlotRight = 660.0f;
 	private const float PlotBottom = 278.0f;
 
 	// One graph sample every 60 physics frames.
