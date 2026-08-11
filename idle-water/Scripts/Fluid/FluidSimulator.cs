@@ -1,3 +1,4 @@
+
 using System.Diagnostics;
 using Godot;
 
@@ -18,7 +19,10 @@ public partial class FluidSimulator : Node2D
 	// ------------------------------------------------------------
 	// Density rendering grid
 	//
-	// Simulation = 1440 x 720
+	// Simulation world = 920 x 1020
+	// World bounds: X 260..1180, Y -200..820
+	// Density rendering remains 1440 x 720 so the visible
+	// camera coordinate space stays unchanged.
 	// Cell size = 4
 	// ------------------------------------------------------------
 
@@ -30,41 +34,66 @@ public partial class FluidSimulator : Node2D
 	// Simulation world
 	// ------------------------------------------------------------
 
-	private const float WorldWidth = 1440.0f;
-	private const float WorldHeight = 720.0f;
+	private const float WorldWidth = 920.0f;
+	private const float WorldHeight = 1020.0f;
 
-	// ------------------------------------------------------------
-	// Emitter
+	// Camera: 720 x 720 centered at (720, 360).
 	//
-	// Water enters from the LEFT and flows RIGHT.
-	// There is deliberately no pipe.
+	// Simulation buffer:
+	//   left   = 100 px
+	//   right  = 100 px
+	//   top    = 200 px
+	//   bottom = 100 px
+	private const float WorldMinX = 260.0f;
+	private const float WorldMaxX = 1180.0f;
+	private const float WorldMinY = -200.0f;
+	private const float WorldMaxY = 820.0f;
+
+	// ------------------------------------------------------------
+	// Rain
+	//
+	// Rain covers the COMPLETE width of the simulation world.
+	//
+	// RainAmount:
+	//   0.0 = no rain
+	//   0.25 = 25% chance to spawn each physics frame
+	//   0.50 = 50% chance
+	//   1.0 = spawn one particle every physics frame
+	//
+	// X position is randomized across the entire world width.
+	// Particles start at the top of the simulation buffer.
 	// ------------------------------------------------------------
 
-	private const float EmitterX = 24.0f;
-	private const float EmitterY = 24.0f;
+	private const float RainAmount = 1.0f;
 
-	private const float EmitterSpacing = 8.0f;
+	private const float RainSpawnY = WorldMinY;
 
-	private const float EmitterVelocityX = 400.0f;
-	private const float EmitterVelocityY = 0.0f;
+	private const float RainVelocityX = 0.0f;
+	private const float RainVelocityY = 250.0f;
 
-	private static readonly float[] EmitterOffsets =
-	{
-		-EmitterSpacing,
-		0.0f,
-		EmitterSpacing
-	};
-
-	private int emitterIndex = 0;
+	private readonly RandomNumberGenerator rainRandom =
+		new RandomNumberGenerator();
 
 	// ------------------------------------------------------------
 	// Despawn
 	//
-	// Particles are recycled once they have completely left the
-	// right side of the 1440 px simulation.
+	// Particles are recycled when they reach the OUTER LEFT,
+	// OUTER RIGHT, or COMPLETE BOTTOM edge of the simulation.
+	//
+	// The TOP edge is intentionally NOT a despawn edge.
+	//
+	// We use an 8 px inset because the PBF solver constrains
+	// particles against the hard world boundaries.
 	// ------------------------------------------------------------
 
-	private const float DespawnX = WorldWidth + 24.0f;
+	private const float DespawnLeftX =
+		WorldMinX + 8.0f;
+
+	private const float DespawnRightX =
+		WorldMaxX - 8.0f;
+
+	private const float DespawnBottomY =
+		WorldMaxY - 8.0f;
 
 	// ------------------------------------------------------------
 	// Water wheel
@@ -107,6 +136,8 @@ public partial class FluidSimulator : Node2D
 
 	public override void _Ready()
 	{
+		rainRandom.Randomize();
+
 		particles =
 			new ParticleData(
 				ParticleCount
@@ -154,7 +185,10 @@ public partial class FluidSimulator : Node2D
 			"x" +
 			WorldHeight +
 			", Particles=" +
-			ParticleCount
+			ParticleCount +
+			", Rain=" +
+			(RainAmount * 100.0f).ToString("F0") +
+			"%"
 		);
 	}
 
@@ -172,13 +206,13 @@ public partial class FluidSimulator : Node2D
 			(float)delta;
 
 		// --------------------------------------------------------
-		// Spawn
+		// Rain
 		// --------------------------------------------------------
 
 		Stopwatch spawnTimer =
 			Stopwatch.StartNew();
 
-		SpawnParticle();
+		SpawnRainParticle();
 
 		spawnTimer.Stop();
 
@@ -208,13 +242,16 @@ public partial class FluidSimulator : Node2D
 		// --------------------------------------------------------
 		// Despawn
 		//
-		// There is NO drain pipe.
+		// Particles are recycled when they reach:
 		//
-		// Water simply leaves the right side of the world and is
-		// recycled back to the left emitter.
+		//   - the complete left edge
+		//   - the complete right edge
+		//   - the complete bottom edge
+		//
+		// The top edge does NOT despawn particles.
 		// --------------------------------------------------------
 
-		RecycleParticlesPastRightEdge();
+		RecycleParticlesAtOuterEdges();
 
 		// --------------------------------------------------------
 		// Update wheel visual
@@ -449,11 +486,22 @@ public partial class FluidSimulator : Node2D
 	}
 
 	// ------------------------------------------------------------
-	// Particle emitter
+	// Rain emitter
 	// ------------------------------------------------------------
 
-	private void SpawnParticle()
+	private void SpawnRainParticle()
 	{
+		// RainAmount is a probability from 0 to 1.
+		//
+		// At 25%, each physics frame has a 25% chance
+		// of creating one new rain particle.
+
+		if (
+			RainAmount <= 0.0f)
+		{
+			return;
+		}
+
 		if (
 			particles.Count >=
 			particles.Capacity)
@@ -461,35 +509,47 @@ public partial class FluidSimulator : Node2D
 			return;
 		}
 
-		float x =
-			EmitterX;
+		float spawnRoll =
+			rainRandom.Randf();
 
-		float y =
-			EmitterY +
-			EmitterOffsets[emitterIndex];
+		if (
+			spawnRoll > RainAmount)
+		{
+			return;
+		}
+
+		// Random X across the COMPLETE simulation width.
+		float x =
+			rainRandom.RandfRange(
+				WorldMinX,
+				WorldMaxX
+			);
 
 		particles.AddParticle(
 			x,
-			y,
-			EmitterVelocityX,
-			EmitterVelocityY
+			RainSpawnY,
+			RainVelocityX,
+			RainVelocityY
 		);
-
-		emitterIndex++;
-
-		if (
-			emitterIndex >=
-			EmitterOffsets.Length)
-		{
-			emitterIndex = 0;
-		}
 	}
 
 	// ------------------------------------------------------------
 	// Despawn / recycle
+	//
+	// LEFT:
+	//   Recycle particles that reach the left boundary.
+	//
+	// RIGHT:
+	//   Recycle particles that reach the right boundary.
+	//
+	// BOTTOM:
+	//   Recycle particles that reach the complete bottom edge.
+	//
+	// TOP:
+	//   No despawn.
 	// ------------------------------------------------------------
 
-	private void RecycleParticlesPastRightEdge()
+	private void RecycleParticlesAtOuterEdges()
 	{
 		int count =
 			particles.Count;
@@ -499,9 +559,25 @@ public partial class FluidSimulator : Node2D
 			i < count;
 			i++)
 		{
+			float x =
+				particles.PosX[i];
+
+			float y =
+				particles.PosY[i];
+
+			bool reachedLeft =
+				x <= DespawnLeftX;
+
+			bool reachedRight =
+				x >= DespawnRightX;
+
+			bool reachedBottom =
+				y >= DespawnBottomY;
+
 			if (
-				particles.PosX[i] >
-				DespawnX)
+				reachedLeft ||
+				reachedRight ||
+				reachedBottom)
 			{
 				RecycleParticle(i);
 			}
@@ -510,17 +586,23 @@ public partial class FluidSimulator : Node2D
 
 	// ------------------------------------------------------------
 	// Recycle individual particle
+	//
+	// Recycled particles become rain particles again.
+	// They are placed at a random X position along the
+	// complete top edge.
 	// ------------------------------------------------------------
 
 	private void RecycleParticle(
 		int index)
 	{
 		float x =
-			EmitterX;
+			rainRandom.RandfRange(
+				WorldMinX,
+				WorldMaxX
+			);
 
 		float y =
-			EmitterY +
-			EmitterOffsets[emitterIndex];
+			RainSpawnY;
 
 		particles.PosX[index] =
 			x;
@@ -535,19 +617,10 @@ public partial class FluidSimulator : Node2D
 			y;
 
 		particles.VelX[index] =
-			EmitterVelocityX;
+			RainVelocityX;
 
 		particles.VelY[index] =
-			EmitterVelocityY;
-
-		emitterIndex++;
-
-		if (
-			emitterIndex >=
-			EmitterOffsets.Length)
-		{
-			emitterIndex = 0;
-		}
+			RainVelocityY;
 	}
 
 	// ------------------------------------------------------------

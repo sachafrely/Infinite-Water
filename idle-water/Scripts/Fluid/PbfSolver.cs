@@ -13,7 +13,7 @@ public class PbfSolver
 	// Simulation
 	// ============================================================
 
-	private const float Gravity = 300.0f;
+	private const float Gravity = 200.0f;
 
 	private const float SmoothingRadius = 8.0f;
 	private const float SmoothingRadiusSquared = 64.0f;
@@ -74,11 +74,11 @@ public class PbfSolver
 	// World bounds
 	// ============================================================
 
-	private const float MinX = 24.0f;
-	private const float MaxX = 1440.0f;
+	private const float MinX = 260.0f;
+	private const float MaxX = 1180.0f;
 
-	private const float MinY = 24.0f;
-	private const float MaxY = 696.0f;
+	private const float MinY = -200.0f;
+	private const float MaxY = 820.0f;
 
 	private const float BoundarySkin = 0.5f;
 
