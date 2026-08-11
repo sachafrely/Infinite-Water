@@ -46,7 +46,10 @@ public class PbfSolver
 	private const int MinIterations = 2;
 	private const int MaxIterations = 3;
 
-	private const float DensityErrorThreshold = 0.75f;
+	// Conservative adaptive convergence threshold.
+	// After the mandatory two PBF iterations, a third iteration is only
+	// needed when the remaining density error is significant.
+	private const float DensityErrorThreshold = 0.90f;
 
 	private const float MaxCorrection = 0.5f;
 	private const float MaxCorrectionSquared = 0.25f;
@@ -374,6 +377,11 @@ public class PbfSolver
 		// PBF iterations
 		// --------------------------------------------------------
 
+		// The first two iterations are mandatory for stability.
+		// The third iteration is adaptive: CalculateLambdas() reports the
+		// worst density error before correction, so after the mandatory
+		// second correction we can safely stop when the remaining error
+		// is already small enough.
 		for (
 			int iteration = 0;
 			iteration < MaxIterations;
@@ -647,9 +655,6 @@ public class PbfSolver
 			{
 				int j =
 					localNeighborBuffer[index];
-
-				if (j == i)
-					continue;
 
 				float scale =
 					(lambdaI + localLambdas[j]) *
@@ -1168,12 +1173,17 @@ public class PbfSolver
 				i * neighborStride;
 
 			int neighborCount =
-				hash.QueryPbf(
+				hash.QueryPbfWithGeometry(
 					px,
 					py,
 					predX,
 					predY,
 					neighborBuffer,
+					neighborDx,
+					neighborDy,
+					neighborQ,
+					neighborQSquared,
+					neighborGradientScale,
 					start,
 					MaxNeighbors
 				);
@@ -1181,23 +1191,7 @@ public class PbfSolver
 			neighborCounts[i] =
 				neighborCount;
 
-			int end =
-				start +
-				neighborCount;
 
-			for (
-				int index = start;
-				index < end;
-				index++)
-			{
-				UpdateNeighborGeometry(
-					index,
-					px,
-					py,
-					predX,
-					predY
-				);
-			}
 		}
 	}
 
@@ -1224,111 +1218,68 @@ public class PbfSolver
 				start +
 				neighborCounts[i];
 
-			for (
-				int index = start;
-				index < end;
-				index++)
-			{
-				UpdateNeighborGeometry(
-					index,
-					px,
-					py,
-					predX,
-					predY
-				);
-			}
+			UpdateNeighborGeometryRange(
+				start,
+				end,
+				px,
+				py,
+				predX,
+				predY
+			);
 		}
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private void UpdateNeighborGeometry(
-		int index,
+	private void UpdateNeighborGeometryRange(
+		int start,
+		int end,
 		float px,
 		float py,
 		float[] predX,
 		float[] predY)
 	{
-		int j =
-			neighborBuffer[index];
+		int[] localNeighbors = neighborBuffer;
+		float[] localDx = neighborDx;
+		float[] localDy = neighborDy;
+		float[] localQ = neighborQ;
+		float[] localQ2 = neighborQSquared;
+		float[] localGradient = neighborGradientScale;
 
-		float dx =
-			px -
-			predX[j];
-
-		float dy =
-			py -
-			predY[j];
-
-		float distanceSquared =
-			dx * dx +
-			dy * dy;
-
-		neighborDx[index] =
-			dx;
-
-		neighborDy[index] =
-			dy;
-
-		if (
-			distanceSquared <=
-			0.000001f)
+		for (int index = start; index < end; index++)
 		{
-			neighborQ[index] =
-				1.0f;
+			int j = localNeighbors[index];
+			float dx = px - predX[j];
+			float dy = py - predY[j];
+			float distanceSquared = dx * dx + dy * dy;
 
-			neighborQSquared[index] =
-				1.0f;
+			localDx[index] = dx;
+			localDy[index] = dy;
 
-			neighborGradientScale[index] =
-				0.0f;
+			if (distanceSquared <= 0.000001f)
+			{
+				localQ[index] = 1.0f;
+				localQ2[index] = 1.0f;
+				localGradient[index] = 0.0f;
+				continue;
+			}
 
-			return;
+			float inverseDistance = 1.0f / MathF.Sqrt(distanceSquared);
+			float q = 1.0f - (distanceSquared * inverseDistance) * InverseSmoothingRadius;
+
+			if (q <= 0.0f)
+			{
+				localQ[index] = 0.0f;
+				localQ2[index] = 0.0f;
+				localGradient[index] = 0.0f;
+				continue;
+			}
+
+			float q2 = q * q;
+			localQ[index] = q;
+			localQ2[index] = q2;
+			localGradient[index] =
+				-3.0f * q2 * InverseSmoothingRadius * inverseDistance * InverseRestDensity;
 		}
-
-		float inverseDistance =
-			1.0f /
-			MathF.Sqrt(
-				distanceSquared
-			);
-
-		float distance =
-			distanceSquared *
-			inverseDistance;
-
-		float q =
-			1.0f -
-			distance *
-			InverseSmoothingRadius;
-
-		if (q <= 0.0f)
-		{
-			neighborQ[index] =
-				0.0f;
-
-			neighborQSquared[index] =
-				0.0f;
-
-			neighborGradientScale[index] =
-				0.0f;
-
-			return;
-		}
-
-		neighborQ[index] =
-			q;
-
-		float q2 =
-			q * q;
-
-		neighborQSquared[index] =
-			q2;
-
-		neighborGradientScale[index] =
-			-3.0f *
-			q2 *
-			InverseSmoothingRadius *
-			inverseDistance *
-			InverseRestDensity;
 	}
 
 	// ============================================================
@@ -1365,6 +1316,8 @@ public class PbfSolver
 
 		float[] localLambdas =
 			lambdas;
+
+		float inverseRestDensity = InverseRestDensity;
 
 		int stride =
 			neighborStride;
@@ -1427,13 +1380,11 @@ public class PbfSolver
 
 			float constraint =
 				density *
-				InverseRestDensity -
+				inverseRestDensity -
 				1.0f;
 
 			float absoluteConstraint =
-				Mathf.Abs(
-					constraint
-				);
+				constraint < 0.0f ? -constraint : constraint;
 
 			if (
 				absoluteConstraint >

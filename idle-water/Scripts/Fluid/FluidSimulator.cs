@@ -74,7 +74,7 @@ public partial class FluidSimulator : Node2D
 	// ============================================================
 
 	// Keep rain at 100%.
-	private const float RainAmount = 100.0f;
+	private const float RainAmount = 50.0f;
 
 	private const float RainSpawnY =
 		WorldMinY;

@@ -276,6 +276,77 @@ public sealed class SpatialHash
 	}
 
 	// ============================================================
+	// Optimized PBF query with geometry output
+	// ============================================================
+	public int QueryPbfWithGeometry(
+		float px, float py,
+		float[] positionsX, float[] positionsY,
+		int[] output, float[] outputDx, float[] outputDy,
+		float[] outputQ, float[] outputQSquared,
+		float[] outputGradientScale,
+		int outputOffset, int maxNeighbors)
+	{
+		if (maxNeighbors <= 0) return 0;
+
+		int centerCellX = FastFloorToInt((px - WorldMinX) * InverseCellSize);
+		int centerCellY = FastFloorToInt((py - WorldMinY) * InverseCellSize);
+		int count = 0;
+
+		for (int cellY = centerCellY - 1; cellY <= centerCellY + 1; cellY++)
+		{
+			for (int cellX = centerCellX - 1; cellX <= centerCellX + 1; cellX++)
+			{
+				int particle = heads[HashCell(cellX, cellY)];
+				while (particle != -1)
+				{
+					if (count >= maxNeighbors) return count;
+
+					float dx = px - positionsX[particle];
+					float dy = py - positionsY[particle];
+					float distanceSquared = dx * dx + dy * dy;
+
+					if (distanceSquared <= PbfRadiusSquared)
+					{
+						int index = outputOffset + count;
+						output[index] = particle;
+						outputDx[index] = dx;
+						outputDy[index] = dy;
+
+						if (distanceSquared <= 0.000001f)
+						{
+							outputQ[index] = 1.0f;
+							outputQSquared[index] = 1.0f;
+							outputGradientScale[index] = 0.0f;
+						}
+						else
+						{
+							float inverseDistance = 1.0f / MathF.Sqrt(distanceSquared);
+							float q = 1.0f - (distanceSquared * inverseDistance) * (1.0f / 8.0f);
+							if (q > 0.0f)
+							{
+								float q2 = q * q;
+								outputQ[index] = q;
+								outputQSquared[index] = q2;
+								outputGradientScale[index] = -3.0f * q2 * (1.0f / 8.0f) * inverseDistance * (1.0f / 1.15f);
+							}
+							else
+							{
+								outputQ[index] = 0.0f;
+								outputQSquared[index] = 0.0f;
+								outputGradientScale[index] = 0.0f;
+							}
+						}
+						count++;
+					}
+
+					particle = next[particle];
+				}
+			}
+		}
+		return count;
+	}
+
+	// ============================================================
 	// Generic radius query
 	//
 	// Kept for compatibility with existing code.
