@@ -44,17 +44,24 @@ public partial class FluidSimulator : Node2D
 	// Maximum number of particles
 	// ============================================================
 
+	// IMPORTANT:
+	//
+	// This is the maximum allocated particle capacity.
+	// It is NOT the intended number of active particles.
+	//
+	// ActiveParticleCount is particles.Count.
 	private const int ParticleCount = 5000;
 
 	// ============================================================
 	// Particle statistics
 	// ============================================================
 
-	// Number of particles that have been spawned/recycled into
-	// the simulation since startup.
+	// Number of actual rain particles created since startup.
 	//
 	// This is NOT the number of active particles.
 	// particles.Count is the current active particle count.
+	//
+	// Removed particles are NOT counted again as spawns.
 	private long totalRainSpawns = 0;
 
 	// ============================================================
@@ -82,7 +89,7 @@ public partial class FluidSimulator : Node2D
 	// Rain
 	// ============================================================
 
-	private const float RainAmount = 20.0f;
+	private const float RainAmount = 100.0f;
 
 	private const float RainSpawnY =
 		WorldMinY;
@@ -359,18 +366,28 @@ public partial class FluidSimulator : Node2D
 		);
 
 		// --------------------------------------------------------
+		// Despawn particles
+		// --------------------------------------------------------
+		//
+		// IMPORTANT:
+		//
+		// Particles leaving the simulation are permanently removed.
+		// They are NOT recycled back to the rain spawn position.
+		//
+		// This must happen BEFORE the statistics graph is updated
+		// so ActiveParticleCount represents the actual current
+		// number of particles in the simulation.
+		// --------------------------------------------------------
+
+		RemoveParticlesAtOuterEdges();
+
+		// --------------------------------------------------------
 		// Update statistics graph
 		// --------------------------------------------------------
 
 		UpdateStatisticsHud(
 			dt
 		);
-
-		// --------------------------------------------------------
-		// Despawn / recycle
-		// --------------------------------------------------------
-
-		RecycleParticlesAtOuterEdges();
 
 		// --------------------------------------------------------
 		// Wheel visuals
@@ -483,7 +500,7 @@ public partial class FluidSimulator : Node2D
 			);
 
 			return;
-			}
+		}
 
 		GD.Print(
 			"FluidSimulator: Using existing StatisticsGraph: " +
@@ -925,13 +942,13 @@ void fragment()
 			? particles.Count
 			: 0;
 
+	// Maximum allocated particle capacity.
 	public int ParticleCapacity =>
 		ParticleCount;
 
-	// Number of rain spawn/recycle events since startup.
+	// Number of actual rain particles created since startup.
 	//
-	// This is cumulative and is intentionally different from
-	// ActiveParticleCount.
+	// Removed particles are NOT counted again.
 	public long TotalRainSpawns =>
 		totalRainSpawns;
 
@@ -1460,23 +1477,35 @@ void fragment()
 				RainVelocityY
 			);
 
+			// This is a genuine new particle.
+			//
+			// It is NOT incremented when another particle
+			// is removed.
 			totalRainSpawns++;
 		}
 	}
 
 	// ============================================================
-	// Despawn / recycle
+	// Despawn particles at outer edges
+	// ============================================================
+	//
+	// Particles are permanently removed from the active set.
+	//
+	// IMPORTANT:
+	//
+	// ParticleData.RemoveParticle(index) moves the last active
+	// particle into the removed slot and decreases Count.
+	//
+	// Therefore, after removing index i, we MUST NOT increment i.
+	// The new particle occupying index i has not been checked yet.
 	// ============================================================
 
-	private void RecycleParticlesAtOuterEdges()
+	private void RemoveParticlesAtOuterEdges()
 	{
-		int count =
-			particles.Count;
+		int i = 0;
 
-		for (
-			int i = 0;
-			i < count;
-			i++)
+		while (
+			i < particles.Count)
 		{
 			float x =
 				particles.PosX[i];
@@ -1484,53 +1513,27 @@ void fragment()
 			float y =
 				particles.PosY[i];
 
-			if (
+			bool outside =
 				x <= DespawnLeftX ||
 				x >= DespawnRightX ||
-				y >= DespawnBottomY)
+				y >= DespawnBottomY;
+
+			if (
+				outside)
 			{
-				RecycleParticleAtIndex(
+				particles.RemoveParticle(
 					i
 				);
+
+				// Do NOT increment i.
+				//
+				// RemoveParticle() moved the previous last
+				// active particle into this slot.
+				continue;
 			}
+
+			i++;
 		}
-	}
-
-	// ============================================================
-	// Recycle individual particle
-	// ============================================================
-
-	private void RecycleParticleAtIndex(
-		int index)
-	{
-		float x =
-			rainRandom.RandfRange(
-				WorldMinX,
-				WorldMaxX
-			);
-
-		particles.PosX[index] =
-			x;
-
-		particles.PosY[index] =
-			RainSpawnY;
-
-		particles.PredX[index] =
-			x;
-
-		particles.PredY[index] =
-			RainSpawnY;
-
-		particles.VelX[index] =
-			RainVelocityX;
-
-		particles.VelY[index] =
-			RainVelocityY;
-
-		// A recycled particle is still the same active
-		// particle slot, but it represents another rain
-		// spawn cycle for cumulative statistics.
-		totalRainSpawns++;
 	}
 
 	// ============================================================
@@ -1816,4 +1819,4 @@ void fragment()
 		fullRendererFillBytesTime = 0.0;
 		fullRendererTextureUploadTime = 0.0;
 	}
-	}
+}
