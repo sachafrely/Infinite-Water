@@ -519,7 +519,7 @@ public partial class FluidSimulator : Node2D
 			);
 
 		statisticsGraph.AddSample(
-			RainAmount,
+			ActiveParticleCount,
 			energyPerSecond,
 			(float)Engine.GetFramesPerSecond(),
 			delta,

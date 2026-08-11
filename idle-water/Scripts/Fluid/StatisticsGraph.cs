@@ -4,7 +4,7 @@ using Godot;
 
 public partial class StatisticsGraph : Control
 {
-	private const float GraphWidth = 560.0f;
+	private const float GraphWidth = 720.0f;
 	private const float GraphHeight = 330.0f;
 
 	private const float PlotLeft = 58.0f;
@@ -12,12 +12,17 @@ public partial class StatisticsGraph : Control
 	private const float PlotRight = 530.0f;
 	private const float PlotBottom = 278.0f;
 
-	private const float SampleInterval = 0.10f;
-	private const int MaxSamples = 1201;
+	// One graph sample every 60 physics frames.
+	private const int SampleFrames = 60;
+
+	// 601 samples = approximately 600 seconds
+	// when sampling once every 60 frames at 60 physics FPS.
+	private const int MaxSamples = 601;
+
 	private const int MaxWheels = 4;
 
-	private readonly List<float> rainHistory =
-		new List<float>();
+	private readonly List<int> particleHistory =
+		new List<int>();
 
 	private readonly List<double> energyHistory =
 		new List<double>();
@@ -30,11 +35,11 @@ public partial class StatisticsGraph : Control
 		new List<double>()
 	};
 
-	private float sampleAccumulator = 0.0f;
+	private int sampleFrameCounter = 0;
 	private double maxEnergy = 1.0;
 
 	private Label titleLabel;
-	private Label rainLabel;
+	private Label particleLabel;
 	private Label energyLabel;
 	private Label fpsLabel;
 
@@ -56,19 +61,19 @@ public partial class StatisticsGraph : Control
 
 		titleLabel =
 			CreateLabel(
-				"Rain & Energy",
+				"Particles & Energy",
 				new Vector2(16.0f, 8.0f),
 				22
 			);
 
-		rainLabel =
+		particleLabel =
 			CreateLabel(
-				"Rain  0%",
+				"Particles  0",
 				new Vector2(350.0f, 10.0f),
 				16
 			);
 
-		rainLabel.AddThemeColorOverride(
+		particleLabel.AddThemeColorOverride(
 			"font_color",
 			new Color(
 				0.35f,
@@ -132,7 +137,7 @@ public partial class StatisticsGraph : Control
 
 		fpsLabel =
 			CreateLabel(
-				"FPS  0    History 60s",
+				"FPS  0    History 600s",
 				new Vector2(
 					16.0f,
 					302.0f
@@ -191,40 +196,35 @@ public partial class StatisticsGraph : Control
 	}
 
 	public void AddSample(
-		float rainAmount,
+		int activeParticleCount,
 		double totalEnergy,
 		float fps,
 		float delta,
 		double[] wheelEnergyPerSecond)
 	{
-		sampleAccumulator +=
-			Mathf.Max(
-				delta,
-				0.0f
-			);
+		sampleFrameCounter++;
 
 		UpdateCurrentValues(
-			rainAmount,
+			activeParticleCount,
 			totalEnergy,
 			fps,
 			wheelEnergyPerSecond
 		);
 
 		if (
-			sampleAccumulator <
-			SampleInterval)
+			sampleFrameCounter <
+			SampleFrames)
 		{
 			return;
 		}
 
-		sampleAccumulator -=
-			SampleInterval;
+		sampleFrameCounter -=
+			SampleFrames;
 
-		rainHistory.Add(
-			Mathf.Clamp(
-				rainAmount,
-				0.0f,
-				100.0f
+		particleHistory.Add(
+			Math.Max(
+				0,
+				activeParticleCount
 			)
 		);
 
@@ -266,10 +266,10 @@ public partial class StatisticsGraph : Control
 		}
 
 		while (
-			rainHistory.Count >
+			particleHistory.Count >
 			MaxSamples)
 		{
-			rainHistory.RemoveAt(0);
+			particleHistory.RemoveAt(0);
 		}
 
 		while (
@@ -285,17 +285,16 @@ public partial class StatisticsGraph : Control
 	}
 
 	private void UpdateCurrentValues(
-		float rainAmount,
+		int activeParticleCount,
 		double totalEnergy,
 		float fps,
 		double[] wheelEnergyPerSecond)
 	{
-		if (rainLabel != null)
+		if (particleLabel != null)
 		{
-			rainLabel.Text =
-				"Rain  " +
-				rainAmount.ToString("F0") +
-				"%";
+			particleLabel.Text =
+				"Particles  " +
+				activeParticleCount.ToString();
 		}
 
 		if (energyLabel != null)
@@ -311,7 +310,7 @@ public partial class StatisticsGraph : Control
 			fpsLabel.Text =
 				"FPS  " +
 				fps.ToString("F0") +
-				"    History 60s";
+				"    History 600s";
 		}
 
 		for (
@@ -553,7 +552,7 @@ public partial class StatisticsGraph : Control
 	{
 		int count =
 			Math.Min(
-				rainHistory.Count,
+				particleHistory.Count,
 				energyHistory.Count
 			);
 
@@ -571,11 +570,27 @@ public partial class StatisticsGraph : Control
 			PlotTop;
 
 		// --------------------------------------------------------
-		// Rain
+		// Active particles
 		// --------------------------------------------------------
 
-		Vector2[] rainPoints =
+		Vector2[] particlePoints =
 			new Vector2[count];
+
+		int maxParticles = 1;
+
+		for (
+			int i = 0;
+			i < count;
+			i++)
+		{
+			if (
+				particleHistory[i] >
+				maxParticles)
+			{
+				maxParticles =
+					particleHistory[i];
+			}
+		}
 
 		for (
 			int i = 0;
@@ -593,8 +608,8 @@ public partial class StatisticsGraph : Control
 
 			float normalized =
 				Mathf.Clamp(
-					rainHistory[i] /
-					100.0f,
+					(float)particleHistory[i] /
+					maxParticles,
 					0.0f,
 					1.0f
 				);
@@ -604,7 +619,7 @@ public partial class StatisticsGraph : Control
 				normalized *
 				plotHeight;
 
-			rainPoints[i] =
+			particlePoints[i] =
 				new Vector2(
 					x,
 					y
@@ -612,7 +627,7 @@ public partial class StatisticsGraph : Control
 		}
 
 		DrawPolyline(
-			rainPoints,
+			particlePoints,
 			new Color(
 				0.35f,
 				0.75f,
