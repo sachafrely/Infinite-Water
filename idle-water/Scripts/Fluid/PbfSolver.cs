@@ -58,13 +58,13 @@ public class PbfSolver
 	// Stability
 	// ============================================================
 
-	private const float VelocityDamping = 0.996f;
+	private const float VelocityDamping = 0.998f;
 
 	// ============================================================
 	// Impact
 	// ============================================================
 
-	private const float ImpactDamping = 0.65f;
+	private const float ImpactDamping = 0.5f;
 	private const float ImpactNormalEpsilon = 0.0001f;
 
 	// ============================================================

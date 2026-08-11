@@ -1,9 +1,8 @@
 res://Scenes/Main.tscn
-res://Scripts/Fluid/PbfSolver.cs
 res://Scripts/Fluid/FluidPolygonCollider.cs
 res://Scripts/Fluid/WaterWheelVisual.cs
 res://Scripts/Fluid/WaterPipeVisual.cs
 res://Scripts/Fluid/FluidRenderer.cs
 res://Scripts/Fluid/TileMapPhysics.cs
 res://Scripts/Fluid/FluidSimulator.cs
-res://Scripts/Fluid/SpatialHash.cs
+res://Scripts/Fluid/PbfSolver.cs

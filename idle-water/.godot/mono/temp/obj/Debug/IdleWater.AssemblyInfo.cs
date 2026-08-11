@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IdleWater")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2f7a280bc606b2c78e60876a26a199a55c093de8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+da65b62e40ef27fdaab7d51c728fd580b6e3b4e7")]
 [assembly: System.Reflection.AssemblyProductAttribute("IdleWater")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IdleWater")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
