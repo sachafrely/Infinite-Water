@@ -2,6 +2,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 public class PbfSolver
 {
@@ -16,8 +17,6 @@ public class PbfSolver
 
 	private const float Gravity = 300.0f;
 
-	// IMPORTANT:
-	// This is the actual PBF smoothing radius.
 	private const float SmoothingRadius = 8.0f;
 	private const float SmoothingRadiusSquared = 64.0f;
 	private const float InverseSmoothingRadius = 1.0f / 8.0f;
@@ -34,15 +33,8 @@ public class PbfSolver
 	// PBF
 	// ============================================================
 
-	// Optimization:
-	//
-	// The old solver could perform 3 iterations.
-	// Profiling showed that PBF dominates the frame time.
-	//
-	// Two iterations are already the minimum required by the
-	// existing solver, so we remove the expensive third pass.
 	private const int MinIterations = 2;
-	private const int MaxIterations = 2;
+	private const int MaxIterations = 3;
 
 	private const float DensityErrorThreshold = 0.75f;
 
@@ -82,6 +74,16 @@ public class PbfSolver
 
 	// ============================================================
 	// Current simulation world
+	//
+	// Camera:
+	//     X = 360 .. 1080
+	//     Y = 0 .. 720
+	//
+	// Buffered simulation:
+	//     Left   = 260
+	//     Right  = 1180
+	//     Top    = -200
+	//     Bottom = 820
 	// ============================================================
 
 	private const float MinX = 260.0f;
@@ -199,7 +201,10 @@ public class PbfSolver
 	// ============================================================
 	// Clear terrain colliders
 	//
-	// Wheel colliders must survive terrain rebuilds.
+	// IMPORTANT:
+	// TileMapPhysics rebuilds the terrain by calling this.
+	//
+	// Wheel colliders must NOT be deleted here.
 	// ============================================================
 
 	public void ClearPolygonColliders()
@@ -355,9 +360,6 @@ public class PbfSolver
 
 		// --------------------------------------------------------
 		// PBF iterations
-		//
-		// Optimization:
-		// MaxIterations is now 2 instead of 3.
 		// --------------------------------------------------------
 
 		for (
@@ -585,6 +587,29 @@ public class PbfSolver
 		float[] predY,
 		int count)
 	{
+		// Local references keep the hot inner loop from repeatedly
+		// resolving instance fields. No physics behavior is changed.
+		float[] localLambdas =
+			lambdas;
+
+		int[] localNeighborBuffer =
+			neighborBuffer;
+
+		int[] localNeighborCounts =
+			neighborCounts;
+
+		float[] localGradientScale =
+			neighborGradientScale;
+
+		float[] localDx =
+			neighborDx;
+
+		float[] localDy =
+			neighborDy;
+
+		int stride =
+			neighborStride;
+
 		for (
 			int i = 0;
 			i < count;
@@ -594,14 +619,14 @@ public class PbfSolver
 			float correctionY = 0.0f;
 
 			int start =
-				i * neighborStride;
+				i * stride;
 
 			int end =
 				start +
-				neighborCounts[i];
+				localNeighborCounts[i];
 
 			float lambdaI =
-				lambdas[i];
+				localLambdas[i];
 
 			for (
 				int index = start;
@@ -609,26 +634,22 @@ public class PbfSolver
 				index++)
 			{
 				int j =
-					neighborBuffer[index];
+					localNeighborBuffer[index];
 
 				if (j == i)
 					continue;
 
-				float lambdaSum =
-					lambdaI +
-					lambdas[j];
-
 				float scale =
-					lambdaSum *
-					neighborGradientScale[index];
+					(lambdaI + localLambdas[j]) *
+					localGradientScale[index];
 
 				correctionX +=
 					scale *
-					neighborDx[index];
+					localDx[index];
 
 				correctionY +=
 					scale *
-					neighborDy[index];
+					localDy[index];
 			}
 
 			float lengthSquared =
@@ -917,6 +938,10 @@ public class PbfSolver
 			float y =
 				predY[i];
 
+			// ----------------------------------------------------
+			// LEFT
+			// ----------------------------------------------------
+
 			if (x < left)
 			{
 				x = left;
@@ -925,6 +950,11 @@ public class PbfSolver
 				impactNormalX[i] = 1.0f;
 				impactNormalY[i] = 0.0f;
 			}
+
+			// ----------------------------------------------------
+			// RIGHT
+			// ----------------------------------------------------
+
 			else if (x > right)
 			{
 				x = right;
@@ -934,6 +964,10 @@ public class PbfSolver
 				impactNormalY[i] = 0.0f;
 			}
 
+			// ----------------------------------------------------
+			// TOP
+			// ----------------------------------------------------
+
 			if (y < top)
 			{
 				y = top;
@@ -942,6 +976,11 @@ public class PbfSolver
 				impactNormalX[i] = 0.0f;
 				impactNormalY[i] = 1.0f;
 			}
+
+			// ----------------------------------------------------
+			// BOTTOM
+			// ----------------------------------------------------
+
 			else if (y > bottom)
 			{
 				y = bottom;
@@ -1015,7 +1054,6 @@ public class PbfSolver
 				1.0f)
 			{
 				sleeping[i] = true;
-
 				velocityX = 0.0f;
 				velocityY = 0.0f;
 			}
@@ -1129,6 +1167,7 @@ public class PbfSolver
 		}
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private void UpdateNeighborGeometry(
 		int index,
 		float px,
@@ -1220,17 +1259,45 @@ public class PbfSolver
 		float maximumDensityError =
 			0.0f;
 
+		// Local references for the hot neighbor loop.
+		float[] localNeighborQ =
+			neighborQ;
+
+		float[] localNeighborGradientScale =
+			neighborGradientScale;
+
+		float[] localNeighborDx =
+			neighborDx;
+
+		float[] localNeighborDy =
+			neighborDy;
+
+		int[] localNeighborBuffer =
+			neighborBuffer;
+
+		int[] localNeighborCounts =
+			neighborCounts;
+
+		float[] localParticleDensity =
+			particleDensity;
+
+		float[] localLambdas =
+			lambdas;
+
+		int stride =
+			neighborStride;
+
 		for (
 			int i = 0;
 			i < count;
 			i++)
 		{
 			int start =
-				i * neighborStride;
+				i * stride;
 
 			int end =
 				start +
-				neighborCounts[i];
+				localNeighborCounts[i];
 
 			float density = 0.0f;
 			float gradSumX = 0.0f;
@@ -1243,7 +1310,7 @@ public class PbfSolver
 				index++)
 			{
 				float q =
-					neighborQ[index];
+					localNeighborQ[index];
 
 				float q2 =
 					q * q;
@@ -1252,20 +1319,20 @@ public class PbfSolver
 					q2 * q;
 
 				int j =
-					neighborBuffer[index];
+					localNeighborBuffer[index];
 
 				if (j == i)
 					continue;
 
 				float scale =
-					neighborGradientScale[index];
+					localNeighborGradientScale[index];
 
 				float gx =
-					neighborDx[index] *
+					localNeighborDx[index] *
 					scale;
 
 				float gy =
-					neighborDy[index] *
+					localNeighborDy[index] *
 					scale;
 
 				gradSumX +=
@@ -1279,7 +1346,7 @@ public class PbfSolver
 					gy * gy;
 			}
 
-			particleDensity[i] =
+			localParticleDensity[i] =
 				density;
 
 			float constraint =
@@ -1305,7 +1372,7 @@ public class PbfSolver
 				gradSumY * gradSumY +
 				neighborGradientSquared;
 
-			lambdas[i] =
+			localLambdas[i] =
 				-constraint /
 				(
 					denominator +
