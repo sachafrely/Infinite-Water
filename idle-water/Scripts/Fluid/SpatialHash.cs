@@ -1,6 +1,6 @@
-
 using Godot;
 using System;
+using System.Runtime.CompilerServices;
 
 public sealed class SpatialHash
 {
@@ -123,6 +123,7 @@ public sealed class SpatialHash
 	// Insert
 	// ============================================================
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void Insert(
 		int particleIndex,
 		float x,
@@ -278,6 +279,7 @@ public sealed class SpatialHash
 	// ============================================================
 	// Optimized PBF query with geometry output
 	// ============================================================
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public int QueryPbfWithGeometry(
 		float px, float py,
 		float[] positionsX, float[] positionsY,
@@ -322,19 +324,10 @@ public sealed class SpatialHash
 						{
 							float inverseDistance = 1.0f / MathF.Sqrt(distanceSquared);
 							float q = 1.0f - (distanceSquared * inverseDistance) * (1.0f / 8.0f);
-							if (q > 0.0f)
-							{
-								float q2 = q * q;
-								outputQ[index] = q;
-								outputQSquared[index] = q2;
-								outputGradientScale[index] = -3.0f * q2 * (1.0f / 8.0f) * inverseDistance * (1.0f / 1.15f);
-							}
-							else
-							{
-								outputQ[index] = 0.0f;
-								outputQSquared[index] = 0.0f;
-								outputGradientScale[index] = 0.0f;
-							}
+							float q2 = q * q;
+							outputQ[index] = q;
+							outputQSquared[index] = q2;
+							outputGradientScale[index] = -3.0f * q2 * (1.0f / 8.0f) * inverseDistance * (1.0f / 1.15f);
 						}
 						count++;
 					}

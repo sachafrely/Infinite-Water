@@ -6,3 +6,4 @@ res://Scripts/Fluid/TileMapPhysics.cs
 res://Scripts/Fluid/FluidSimulator.cs
 res://Scenes/Main.tscn
 res://Scripts/Fluid/PbfSolver.cs
+res://Scripts/Fluid/SpatialHash.cs

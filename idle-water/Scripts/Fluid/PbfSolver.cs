@@ -1266,15 +1266,6 @@ public class PbfSolver
 
 			float inverseDistance = 1.0f / MathF.Sqrt(distanceSquared);
 			float q = 1.0f - (distanceSquared * inverseDistance) * InverseSmoothingRadius;
-
-			if (q <= 0.0f)
-			{
-				localQ[index] = 0.0f;
-				localQ2[index] = 0.0f;
-				localGradient[index] = 0.0f;
-				continue;
-			}
-
 			float q2 = q * q;
 			localQ[index] = q;
 			localQ2[index] = q2;
