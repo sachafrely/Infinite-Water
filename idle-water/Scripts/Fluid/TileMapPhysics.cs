@@ -15,12 +15,6 @@ using Godot;
 /// 5. Keep every collider convex.
 /// 6. Use overlapping/thickened segment colliders to prevent
 ///    high velocity particles from tunneling through corners.
-///
-/// IMPORTANT:
-/// The boundary extraction is based on the rasterized solid mask.
-/// Each exposed pixel edge is emitted with a fixed clockwise
-/// orientation. Boundary loops are then traced from those directed
-/// edges without trying to "cancel" or reinterpret edges.
 /// </summary>
 [Tool]
 public partial class TileMapPhysics : Node2D
@@ -33,9 +27,22 @@ public partial class TileMapPhysics : Node2D
 	public NodePath EnvironmentPath { get; set; } =
 		new NodePath("../Environment");
 
+	/// <summary>
+	/// Physical thickness of the collision wall.
+	///
+	/// 16 px is intentional. The visible debug line is still
+	/// only 2 px wide; this controls the actual PBF collision.
+	/// </summary>
 	[Export]
 	public float CollisionThickness { get; set; } = 16.0f;
 
+	/// <summary>
+	/// Extends every segment beyond its endpoints.
+	///
+	/// This makes neighboring segment colliders overlap at
+	/// corners and removes tiny gaps that high velocity particles
+	/// could otherwise cross.
+	/// </summary>
 	[Export]
 	public float CollisionEndExtension { get; set; } = 8.0f;
 
@@ -102,15 +109,35 @@ public partial class TileMapPhysics : Node2D
 	// Boundary processing
 	// ============================================================
 
+	/// <summary>
+	/// Small dilation closes single-pixel holes and microscopic
+	/// discontinuities in the source artwork.
+	/// </summary>
 	[Export]
 	public int CollisionSealPixels { get; set; } = 1;
 
+	/// <summary>
+	/// Distance used for removing redundant points.
+	///
+	/// IMPORTANT:
+	/// The simplifier below never removes actual direction
+	/// changes. Therefore this can be larger than 1 without
+	/// destroying terrain corners.
+	/// </summary>
 	[Export]
 	public float ContourSimplification { get; set; } = 2.0f;
 
+	/// <summary>
+	/// Minimum useful contour area.
+	/// </summary>
 	[Export]
 	public float MinimumContourArea { get; set; } = 4.0f;
 
+	/// <summary>
+	/// Maximum number of generated segment colliders.
+	///
+	/// This is a safety limit, not the normal target.
+	/// </summary>
 	[Export]
 	public int MaximumContourSegments { get; set; } = 2500;
 
@@ -788,10 +815,24 @@ public partial class TileMapPhysics : Node2D
 				continue;
 			}
 
+			// ----------------------------------------------------
+			// First remove ONLY redundant collinear points.
+			//
+			// This is the important difference from the previous
+			// simplifier: actual corners are never removed here.
+			// ----------------------------------------------------
+
 			contour =
 				RemoveCollinearPoints(
 					contour
 				);
+
+			// ----------------------------------------------------
+			// Second pass:
+			//
+			// Remove only tiny points that are genuinely
+			// redundant AND do not represent a meaningful turn.
+			// ----------------------------------------------------
 
 			if (ContourSimplification > 0.0f)
 			{
@@ -801,6 +842,10 @@ public partial class TileMapPhysics : Node2D
 						ContourSimplification
 					);
 			}
+
+			// ----------------------------------------------------
+			// Run collinear cleanup again.
+			// ----------------------------------------------------
 
 			contour =
 				RemoveCollinearPoints(
@@ -835,7 +880,10 @@ public partial class TileMapPhysics : Node2D
 				continue;
 			}
 
+			// ----------------------------------------------------
 			// Normalize clockwise.
+			// ----------------------------------------------------
+
 			if (area > 0.0f)
 			{
 				contour.Reverse();
@@ -896,6 +944,15 @@ public partial class TileMapPhysics : Node2D
 				{
 					continue;
 				}
+
+				// ------------------------------------------------
+				// The key anti-leak improvement:
+				//
+				// extend the segment at BOTH ends.
+				//
+				// Adjacent segments therefore overlap around
+				// every corner.
+				// ------------------------------------------------
 
 				Vector2 direction =
 					difference /
@@ -964,6 +1021,8 @@ public partial class TileMapPhysics : Node2D
 
 				if (ShowDebugGeometry)
 				{
+					// Draw the actual terrain line, not the
+					// extended collision strip.
 					debugEdges.Add(
 						new DebugEdge(
 							simulationA,
@@ -1386,21 +1445,6 @@ public partial class TileMapPhysics : Node2D
 		HashSet<GridEdge> edges =
 			new HashSet<GridEdge>();
 
-		// --------------------------------------------------------
-		// Every exposed side gets one directed edge.
-		//
-		// The orientation is always clockwise around the solid
-		// region:
-		//
-		// top    : left -> right
-		// right  : top -> bottom
-		// bottom : right -> left
-		// left   : bottom -> top
-		//
-		// We deliberately DO NOT cancel reverse edges here.
-		// Adjacent solid pixels never emit their shared edge.
-		// --------------------------------------------------------
-
 		foreach (
 			Vector2I p in solid)
 		{
@@ -1415,16 +1459,15 @@ public partial class TileMapPhysics : Node2D
 					)
 				))
 			{
-				edges.Add(
-					new GridEdge(
-						new Vector2I(
-							x,
-							y
-						),
-						new Vector2I(
-							x + 1,
-							y
-						)
+				AddBoundaryEdge(
+					edges,
+					new Vector2I(
+						x,
+						y
+					),
+					new Vector2I(
+						x + 1,
+						y
 					)
 				);
 			}
@@ -1437,16 +1480,15 @@ public partial class TileMapPhysics : Node2D
 					)
 				))
 			{
-				edges.Add(
-					new GridEdge(
-						new Vector2I(
-							x + 1,
-							y
-						),
-						new Vector2I(
-							x + 1,
-							y + 1
-						)
+				AddBoundaryEdge(
+					edges,
+					new Vector2I(
+						x + 1,
+						y
+					),
+					new Vector2I(
+						x + 1,
+						y + 1
 					)
 				);
 			}
@@ -1459,16 +1501,15 @@ public partial class TileMapPhysics : Node2D
 					)
 				))
 			{
-				edges.Add(
-					new GridEdge(
-						new Vector2I(
-							x + 1,
-							y + 1
-						),
-						new Vector2I(
-							x,
-							y + 1
-						)
+				AddBoundaryEdge(
+					edges,
+					new Vector2I(
+						x + 1,
+						y + 1
+					),
+					new Vector2I(
+						x,
+						y + 1
 					)
 				);
 			}
@@ -1481,85 +1522,85 @@ public partial class TileMapPhysics : Node2D
 					)
 				))
 			{
-				edges.Add(
-					new GridEdge(
-						new Vector2I(
-							x,
-							y + 1
-						),
-						new Vector2I(
-							x,
-							y
-						)
+				AddBoundaryEdge(
+					edges,
+					new Vector2I(
+						x,
+						y + 1
+					),
+					new Vector2I(
+						x,
+						y
 					)
 				);
 			}
 		}
 
-		Dictionary<Vector2I, List<GridEdge>>
-			outgoing =
+		Dictionary<Vector2I, List<Vector2I>>
+			nextMap =
 				new Dictionary<
 					Vector2I,
-					List<GridEdge>
+					List<Vector2I>
 				>();
 
 		foreach (
 			GridEdge edge in edges)
 		{
-			List<GridEdge> list;
+			List<Vector2I> list;
 
 			if (
-				!outgoing.TryGetValue(
+				!nextMap.TryGetValue(
 					edge.A,
 					out list
 				))
 			{
 				list =
-					new List<GridEdge>();
+					new List<Vector2I>();
 
-				outgoing[edge.A] =
+				nextMap[edge.A] =
 					list;
 			}
 
-			list.Add(edge);
+			list.Add(
+				edge.B
+			);
 		}
 
 		// Deterministic ordering.
 		foreach (
 			KeyValuePair<
 				Vector2I,
-				List<GridEdge>
-			> pair in outgoing)
+				List<Vector2I>
+			> pair in nextMap)
 		{
+			Vector2I origin =
+				pair.Key;
+
 			pair.Value.Sort(
 				(a, b) =>
 				{
-					int ay =
-						a.B.Y -
-						a.A.Y;
-
-					int ax =
-						a.B.X -
-						a.A.X;
-
-					int by =
-						b.B.Y -
-						b.A.Y;
-
-					int bx =
-						b.B.X -
-						b.A.X;
-
-					int aa =
-						DirectionOrder(
-							ax,
-							ay
+					Vector2 da =
+						new Vector2(
+							a.X - origin.X,
+							a.Y - origin.Y
 						);
 
-					int ab =
-						DirectionOrder(
-							bx,
-							by
+					Vector2 db =
+						new Vector2(
+							b.X - origin.X,
+							b.Y - origin.Y
+						);
+
+					float aa =
+						Mathf.Atan2(
+							da.Y,
+							da.X
+						);
+
+					float ab =
+						Mathf.Atan2(
+							db.Y,
+							db.X
 						);
 
 					return aa.CompareTo(ab);
@@ -1583,45 +1624,23 @@ public partial class TileMapPhysics : Node2D
 				);
 
 			List<Vector2I> loop =
-				TraceBoundaryRobust(
+				TraceSingleBoundary(
 					first,
 					remaining,
-					outgoing
+					nextMap
 				);
 
 			if (
 				loop != null &&
 				loop.Count >= 3)
 			{
-				loops.Add(loop);
+				loops.Add(
+					loop
+				);
 			}
 		}
 
 		return loops;
-	}
-
-	// ============================================================
-	// Direction ordering
-	// ============================================================
-
-	private static int DirectionOrder(
-		int x,
-		int y)
-	{
-		// clockwise order:
-		//
-		// right -> down -> left -> up
-		//
-		if (x > 0)
-			return 0;
-
-		if (y > 0)
-			return 1;
-
-		if (x < 0)
-			return 2;
-
-		return 3;
 	}
 
 	// ============================================================
@@ -1672,17 +1691,17 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Robust boundary tracing
+	// Trace boundary
 	// ============================================================
 
 	private static List<Vector2I>
-		TraceBoundaryRobust(
+		TraceSingleBoundary(
 			GridEdge first,
 			HashSet<GridEdge> remaining,
 			Dictionary<
 				Vector2I,
-				List<GridEdge>
-			> outgoing)
+				List<Vector2I>
+			> nextMap)
 	{
 		List<Vector2I> loop =
 			new List<Vector2I>();
@@ -1698,10 +1717,13 @@ public partial class TileMapPhysics : Node2D
 
 		RemoveEdge(
 			remaining,
-			first
+			first.A,
+			first.B
 		);
 
-		loop.Add(start);
+		loop.Add(
+			start
+		);
 
 		int safety =
 			Mathf.Max(
@@ -1719,12 +1741,14 @@ public partial class TileMapPhysics : Node2D
 				return loop;
 			}
 
-			loop.Add(current);
+			loop.Add(
+				current
+			);
 
-			List<GridEdge> candidates;
+			List<Vector2I> candidates;
 
 			if (
-				!outgoing.TryGetValue(
+				!nextMap.TryGetValue(
 					current,
 					out candidates
 				))
@@ -1738,45 +1762,79 @@ public partial class TileMapPhysics : Node2D
 					current.Y - previous.Y
 				);
 
-			GridEdge best =
+			Vector2I next =
 				default;
 
 			bool found =
 				false;
 
-			int bestTurn =
-				int.MaxValue;
+			float bestScore =
+				float.MaxValue;
 
 			foreach (
-				GridEdge candidate in candidates)
+				Vector2I candidate in candidates)
 			{
+				GridEdge edge =
+					new GridEdge(
+						current,
+						candidate
+					);
+
 				if (
 					!remaining.Contains(
-						candidate
+						edge
 					))
 				{
 					continue;
 				}
 
-				Vector2 outgoingDirection =
+				Vector2 outgoing =
 					new Vector2(
-						candidate.B.X - candidate.A.X,
-						candidate.B.Y - candidate.A.Y
+						candidate.X - current.X,
+						candidate.Y - current.Y
 					);
 
-				int turn =
-					GetClockwiseTurn(
-						incoming,
-						outgoingDirection
+				float cross =
+					incoming.X *
+					outgoing.Y -
+					incoming.Y *
+					outgoing.X;
+
+				float dot =
+					incoming.Dot(
+						outgoing
 					);
+
+				float score;
 
 				if (
-					!found ||
-					turn < bestTurn)
+					Mathf.Abs(cross) <
+					0.001f &&
+					dot > 0.0f)
 				{
+					score = 0.0f;
+				}
+				else if (cross < 0.0f)
+				{
+					score = 1.0f;
+				}
+				else
+				{
+					score = 2.0f;
+				}
+
+				score +=
+					Mathf.Atan2(
+						outgoing.Y,
+						outgoing.X
+					) *
+					0.0001f;
+
+				if (score < bestScore)
+				{
+					bestScore = score;
+					next = candidate;
 					found = true;
-					best = candidate;
-					bestTurn = turn;
 				}
 			}
 
@@ -1789,76 +1847,16 @@ public partial class TileMapPhysics : Node2D
 				current;
 
 			current =
-				best.B;
+				next;
 
 			RemoveEdge(
 				remaining,
-				best
+				previous,
+				current
 			);
 		}
 
 		return null;
-	}
-
-	// ============================================================
-	// Clockwise turn selection
-	// ============================================================
-
-	private static int GetClockwiseTurn(
-		Vector2 incoming,
-		Vector2 outgoing)
-	{
-		// For a clockwise-oriented raster boundary:
-		//
-		// straight      = 0
-		// right turn    = 1
-		// left turn     = 2
-		// reverse       = 3
-		//
-		// At ordinary boundary points only straight or right
-		// turns normally occur. The other cases are retained for
-		// robustness around touching/degenerate raster geometry.
-
-		int inX =
-			Mathf.RoundToInt(
-				incoming.X
-			);
-
-		int inY =
-			Mathf.RoundToInt(
-				incoming.Y
-			);
-
-		int outX =
-			Mathf.RoundToInt(
-				outgoing.X
-			);
-
-		int outY =
-			Mathf.RoundToInt(
-				outgoing.Y
-			);
-
-		int inDirection =
-			DirectionOrder(
-				inX,
-				inY
-			);
-
-		int outDirection =
-			DirectionOrder(
-				outX,
-				outY
-			);
-
-		int difference =
-			(
-				outDirection -
-				inDirection +
-				4
-			) % 4;
-
-		return difference;
 	}
 
 	// ============================================================
@@ -1870,19 +1868,38 @@ public partial class TileMapPhysics : Node2D
 		Vector2I a,
 		Vector2I b)
 	{
-		edges.Add(
+		GridEdge edge =
+			new GridEdge(
+				a,
+				b
+			);
+
+		GridEdge reverse =
+			new GridEdge(
+				b,
+				a
+			);
+
+		if (edges.Contains(reverse))
+		{
+			edges.Remove(reverse);
+			return;
+		}
+
+		edges.Add(edge);
+	}
+
+	private static void RemoveEdge(
+		HashSet<GridEdge> edges,
+		Vector2I a,
+		Vector2I b)
+	{
+		edges.Remove(
 			new GridEdge(
 				a,
 				b
 			)
 		);
-	}
-
-	private static void RemoveEdge(
-		HashSet<GridEdge> edges,
-		GridEdge edge)
-	{
-		edges.Remove(edge);
 	}
 
 	// ============================================================
@@ -1997,6 +2014,8 @@ public partial class TileMapPhysics : Node2D
 				float dot =
 					a.Dot(b);
 
+				// Only remove points sitting between the
+				// neighboring points.
 				if (dot < 0.0f)
 				{
 					continue;
@@ -2089,6 +2108,13 @@ public partial class TileMapPhysics : Node2D
 					outgoing.Y -
 					incoming.Y *
 					outgoing.X;
+
+				// ------------------------------------------------
+				// NEVER remove a meaningful corner.
+				//
+				// This is the important difference from a plain
+				// RDP-style simplifier.
+				// ------------------------------------------------
 
 				if (
 					Mathf.Abs(cross) >
@@ -2304,6 +2330,8 @@ public partial class TileMapPhysics : Node2D
 			b - offset
 		};
 
+		// FluidPolygonCollider expects its winding to define
+		// its collision normal direction.
 		if (
 			PolygonArea(polygon) >
 			0.0f)
