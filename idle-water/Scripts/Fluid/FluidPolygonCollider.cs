@@ -393,6 +393,21 @@ public class FluidPolygonCollider
 	}
 
 	// ============================================================
+	// AABB access for the solver broad phase
+	// ============================================================
+	public void GetBounds(
+		out float outMinX,
+		out float outMaxX,
+		out float outMinY,
+		out float outMaxY)
+	{
+		outMinX = minX;
+		outMaxX = maxX;
+		outMinY = minY;
+		outMaxY = maxY;
+	}
+
+	// ============================================================
 	// Standard collision
 	// ============================================================
 

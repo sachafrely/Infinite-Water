@@ -11,6 +11,16 @@ public class PbfSolver
 	private readonly List<FluidPolygonCollider>
 		polygonColliders;
 
+	private readonly List<FluidPolygonCollider>
+		wheelColliders;
+
+	private List<int>[] colliderGrid;
+	private int colliderGridWidth;
+	private int colliderGridHeight;
+	private bool colliderGridDirty = true;
+	private int[] colliderQueryStamp;
+	private int colliderQueryId;
+
 	// ============================================================
 	// Simulation
 	// ============================================================
@@ -104,6 +114,7 @@ public class PbfSolver
 	// ============================================================
 
 	private const float PolygonParticleRadius = 2.5f;
+	private const float ColliderGridCellSize = 64.0f;
 
 	// ============================================================
 	// Neighbors
@@ -163,6 +174,9 @@ public class PbfSolver
 
 		polygonColliders =
 			new List<FluidPolygonCollider>();
+
+		wheelColliders =
+			new List<FluidPolygonCollider>();
 	}
 
 	// ============================================================
@@ -195,6 +209,11 @@ public class PbfSolver
 			polygonColliders.Add(
 				collider
 			);
+
+			if (collider.IsWheel)
+				wheelColliders.Add(collider);
+
+			colliderGridDirty = true;
 		}
 	}
 
@@ -209,19 +228,14 @@ public class PbfSolver
 
 	public void ClearPolygonColliders()
 	{
-		for (
-			int i = polygonColliders.Count - 1;
-			i >= 0;
-			i--)
+		for (int i = polygonColliders.Count - 1; i >= 0; i--)
 		{
-			FluidPolygonCollider collider =
-				polygonColliders[i];
+			FluidPolygonCollider collider = polygonColliders[i];
 
-			if (
-				collider == null ||
-				!collider.IsWheel)
+			if (collider == null || !collider.IsWheel)
 			{
 				polygonColliders.RemoveAt(i);
+				colliderGridDirty = true;
 			}
 		}
 	}
@@ -293,22 +307,19 @@ public class PbfSolver
 		{
 			wheel.Step(dt);
 
-			for (
-				int i = 0;
-				i < polygonColliders.Count;
-				i++)
+			for (int i = 0; i < wheelColliders.Count; i++)
 			{
-				FluidPolygonCollider collider =
-					polygonColliders[i];
-
-				if (
-					collider != null &&
-					collider.IsWheel)
-				{
+				FluidPolygonCollider collider = wheelColliders[i];
+				if (collider != null)
 					collider.UpdateWheelGeometry();
-				}
 			}
 		}
+
+		// --------------------------------------------------------
+		// Prepare static terrain collider grid.
+		// --------------------------------------------------------
+		if (colliderGridDirty)
+			RebuildColliderGrid();
 
 		// --------------------------------------------------------
 		// Predict
@@ -690,7 +701,6 @@ public class PbfSolver
 	// ============================================================
 	// Polygon collision + wheel torque
 	// ============================================================
-
 	private void ConstrainToPolygonColliders(
 		float[] predX,
 		float[] predY,
@@ -699,111 +709,173 @@ public class PbfSolver
 		int count,
 		float dt)
 	{
-		for (
-			int i = 0;
-			i < count;
-			i++)
+		if (colliderGrid == null)
+			return;
+
+		if (colliderQueryId == int.MaxValue)
 		{
-			Vector2 position =
-				new Vector2(
-					predX[i],
-					predY[i]
-				);
+			Array.Clear(colliderQueryStamp, 0, colliderQueryStamp.Length);
+			colliderQueryId = 1;
+		}
 
-			Vector2 accumulatedNormal =
-				Vector2.Zero;
-
-			bool particleImpacted =
-				false;
-
-			for (
-				int c = 0;
-				c < polygonColliders.Count;
-				c++)
+		for (int i = 0; i < count; i++)
+		{
+			colliderQueryId++;
+			if (colliderQueryId == int.MaxValue)
 			{
-				FluidPolygonCollider collider =
-					polygonColliders[c];
+				Array.Clear(colliderQueryStamp, 0, colliderQueryStamp.Length);
+				colliderQueryId = 1;
+			}
 
+			Vector2 position = new Vector2(predX[i], predY[i]);
+			Vector2 accumulatedNormal = Vector2.Zero;
+			bool particleImpacted = false;
+
+			int baseCellX = GetColliderCellX(position.X);
+			int baseCellY = GetColliderCellY(position.Y);
+
+			// Query neighboring cells because the collision radius can cross a cell boundary.
+			for (int cy = baseCellY - 1; cy <= baseCellY + 1; cy++)
+			{
+				if (cy < 0 || cy >= colliderGridHeight)
+					continue;
+
+				for (int cx = baseCellX - 1; cx <= baseCellX + 1; cx++)
+				{
+					if (cx < 0 || cx >= colliderGridWidth)
+						continue;
+
+					List<int> cell = colliderGrid[cy * colliderGridWidth + cx];
+					if (cell == null)
+						continue;
+
+					for (int k = 0; k < cell.Count; k++)
+					{
+						int c = cell[k];
+						if (colliderQueryStamp[c] == colliderQueryId)
+							continue;
+						colliderQueryStamp[c] = colliderQueryId;
+
+						FluidPolygonCollider collider = polygonColliders[c];
+						if (collider == null || collider.IsWheel)
+							continue;
+
+						if (!collider.ResolveCollision(position, PolygonParticleRadius, out Vector2 correctedPosition, out Vector2 normal))
+							continue;
+
+						position = correctedPosition;
+
+						if (normal.LengthSquared() > ImpactNormalEpsilon)
+						{
+							accumulatedNormal += normal;
+							particleImpacted = true;
+						}
+					}
+				}
+			}
+
+			// Wheels remain in their own tiny list so the terrain grid never misses a moving wheel.
+			for (int w = 0; w < wheelColliders.Count; w++)
+			{
+				FluidPolygonCollider collider = wheelColliders[w];
 				if (collider == null)
 					continue;
 
-				if (
-					!collider.ResolveCollision(
-						position,
-						PolygonParticleRadius,
-						out Vector2 correctedPosition,
-						out Vector2 normal
-					))
-				{
+				if (!collider.ResolveCollision(position, PolygonParticleRadius, out Vector2 correctedPosition, out Vector2 normal))
 					continue;
-				}
 
-				// ------------------------------------------------
-				// Wheel interaction
-				// ------------------------------------------------
+				ApplyWheelTorque(collider, position, normal, velX[i], velY[i], dt);
+				position = correctedPosition;
 
-				if (collider.IsWheel)
+				if (normal.LengthSquared() > ImpactNormalEpsilon)
 				{
-					ApplyWheelTorque(
-						collider,
-						position,
-						normal,
-						velX[i],
-						velY[i],
-						dt
-					);
-				}
-
-				position =
-					correctedPosition;
-
-				if (
-					normal.LengthSquared() >
-					ImpactNormalEpsilon)
-				{
-					accumulatedNormal +=
-						normal;
-
-					particleImpacted =
-						true;
+					accumulatedNormal += normal;
+					particleImpacted = true;
 				}
 			}
 
-			predX[i] =
-				position.X;
-
-			predY[i] =
-				position.Y;
+			predX[i] = position.X;
+			predY[i] = position.Y;
 
 			if (particleImpacted)
 			{
-				float normalLengthSquared =
-					accumulatedNormal.LengthSquared();
-
-				if (
-					normalLengthSquared >
-					ImpactNormalEpsilon)
+				float normalLengthSquared = accumulatedNormal.LengthSquared();
+				if (normalLengthSquared > ImpactNormalEpsilon)
 				{
-					float inverseLength =
-						1.0f /
-						Mathf.Sqrt(
-							normalLengthSquared
-						);
-
-					accumulatedNormal *=
-						inverseLength;
-
-					impactNormalX[i] =
-						accumulatedNormal.X;
-
-					impactNormalY[i] =
-						accumulatedNormal.Y;
-
-					impacted[i] =
-						true;
+					float inverseLength = 1.0f / Mathf.Sqrt(normalLengthSquared);
+					accumulatedNormal *= inverseLength;
+					impactNormalX[i] = accumulatedNormal.X;
+					impactNormalY[i] = accumulatedNormal.Y;
+					impacted[i] = true;
 				}
 			}
 		}
+	}
+
+	// ============================================================
+	// Collider grid
+	// ============================================================
+	private void RebuildColliderGrid()
+	{
+		colliderGridWidth = Math.Max(1, (int)MathF.Ceiling((MaxX - MinX) / ColliderGridCellSize));
+		colliderGridHeight = Math.Max(1, (int)MathF.Ceiling((MaxY - MinY) / ColliderGridCellSize));
+
+		int cellCount = colliderGridWidth * colliderGridHeight;
+		if (colliderGrid == null || colliderGrid.Length != cellCount)
+		{
+			colliderGrid = new List<int>[cellCount];
+			for (int i = 0; i < cellCount; i++)
+				colliderGrid[i] = new List<int>(4);
+		}
+		else
+		{
+			for (int i = 0; i < cellCount; i++)
+				colliderGrid[i]?.Clear();
+		}
+
+		colliderQueryStamp = colliderQueryStamp == null || colliderQueryStamp.Length != polygonColliders.Count
+			? new int[polygonColliders.Count]
+			: colliderQueryStamp;
+
+		float expansion = PolygonParticleRadius + 1.0f;
+		for (int i = 0; i < polygonColliders.Count; i++)
+		{
+			FluidPolygonCollider collider = polygonColliders[i];
+			if (collider == null || collider.IsWheel)
+				continue;
+
+			collider.GetBounds(out float minX, out float maxX, out float minY, out float maxY);
+			int minCellX = GetColliderCellX(minX - expansion);
+			int maxCellX = GetColliderCellX(maxX + expansion);
+			int minCellY = GetColliderCellY(minY - expansion);
+			int maxCellY = GetColliderCellY(maxY + expansion);
+
+			for (int y = minCellY; y <= maxCellY; y++)
+			{
+				for (int x = minCellX; x <= maxCellX; x++)
+					colliderGrid[y * colliderGridWidth + x].Add(i);
+			}
+		}
+
+		colliderGridDirty = false;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private int GetColliderCellX(float x)
+	{
+		int cell = (int)MathF.Floor((x - MinX) / ColliderGridCellSize);
+		if (cell < 0) return 0;
+		if (cell >= colliderGridWidth) return colliderGridWidth - 1;
+		return cell;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private int GetColliderCellY(float y)
+	{
+		int cell = (int)MathF.Floor((y - MinY) / ColliderGridCellSize);
+		if (cell < 0) return 0;
+		if (cell >= colliderGridHeight) return colliderGridHeight - 1;
+		return cell;
 	}
 
 	// ============================================================
