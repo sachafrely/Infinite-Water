@@ -1,4 +1,5 @@
 res://Scenes/Main.tscn
+res://Scripts/Fluid/PbfSolver.cs
 res://Scripts/Fluid/WaterWheelVisual.cs
 res://Scripts/Fluid/FluidRenderer.cs
 res://Scripts/FrameProfiler.cs
