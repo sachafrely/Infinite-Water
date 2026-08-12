@@ -68,6 +68,10 @@ public class PbfSolver
 	private const float ImpactDamping = 0.5f;
 	private const float ImpactNormalEpsilon = 0.0001f;
 
+	// Ground contact forces.
+	private const float GroundDrag = 0.09f;
+	private const float GroundStick = 0.10f;
+
 	// ============================================================
 	// Sleeping
 	// ============================================================
@@ -968,20 +972,68 @@ public class PbfSolver
 			velocityY *
 			normalY;
 
-		if (normalVelocity <= 0.0f)
-			return;
+		// Remove velocity going into the surface.
+		if (normalVelocity > 0.0f)
+		{
+			float velocityChange =
+				normalVelocity *
+				ImpactDamping;
 
-		float velocityChange =
-			normalVelocity *
-			ImpactDamping;
+			velocityX -=
+				normalX *
+				velocityChange;
+
+			velocityY -=
+				normalY *
+				velocityChange;
+		}
+
+		// Ground sticking: reduce outward velocity so particles
+		// stay in contact with the terrain a little longer.
+		float separationVelocity =
+			velocityX *
+			normalX +
+			velocityY *
+			normalY;
+
+		if (separationVelocity < 0.0f)
+		{
+			float stickAmount =
+				-separationVelocity *
+				GroundStick;
+
+			velocityX +=
+				normalX *
+				stickAmount;
+
+			velocityY +=
+				normalY *
+				stickAmount;
+		}
+
+		// Ground drag: remove velocity along the surface while
+		// preserving the normal component.
+		float tangentX =
+			-normalY;
+
+		float tangentY =
+			normalX;
+
+		float tangentialVelocity =
+			velocityX *
+			tangentX +
+			velocityY *
+			tangentY;
 
 		velocityX -=
-			normalX *
-			velocityChange;
+			tangentX *
+			tangentialVelocity *
+			GroundDrag;
 
 		velocityY -=
-			normalY *
-			velocityChange;
+			tangentY *
+			tangentialVelocity *
+			GroundDrag;
 	}
 
 	// ============================================================
