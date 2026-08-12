@@ -19,8 +19,6 @@ public partial class StatisticsGraph : Control
 	// when sampling once every 60 frames at 60 physics FPS.
 	private const int MaxSamples = 601;
 
-	private const int MaxWheels = 4;
-
 	// ============================================================
 	// FPS graph
 	// ============================================================
@@ -44,14 +42,6 @@ public partial class StatisticsGraph : Control
 	private readonly List<float> fpsHistory =
 		new List<float>();
 
-	private readonly List<double>[] wheelEnergyHistory =
-	{
-		new List<double>(),
-		new List<double>(),
-		new List<double>(),
-		new List<double>()
-	};
-
 	private int sampleFrameCounter = 0;
 	private double maxEnergy = 1.0;
 
@@ -60,8 +50,6 @@ public partial class StatisticsGraph : Control
 	private Label energyLabel;
 	private Label fpsLabel;
 
-	private Label[] wheelLabels =
-		new Label[MaxWheels];
 
 	public override void _Ready()
 	{
@@ -117,40 +105,6 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		for (
-			int i = 0;
-			i < MaxWheels;
-			i++)
-		{
-			float y =
-				8.0f +
-				i * 20.0f;
-
-			wheelLabels[i] =
-				CreateLabel(
-					"Wheel " +
-					(i + 1) +
-					"  0.00/s",
-					new Vector2(
-						150.0f,
-						y
-					),
-					14
-				);
-
-			wheelLabels[i].Visible =
-				false;
-
-			wheelLabels[i].AddThemeColorOverride(
-				"font_color",
-				new Color(
-					1.0f,
-					1.0f,
-					1.0f,
-					1.0f
-				)
-			);
-		}
 
 		fpsLabel =
 			CreateLabel(
@@ -227,16 +181,14 @@ public partial class StatisticsGraph : Control
 		int activeParticleCount,
 		double totalEnergy,
 		float fps,
-		float delta,
-		double[] wheelEnergyPerSecond)
+		float delta)
 	{
 		sampleFrameCounter++;
 
 		UpdateCurrentValues(
 			activeParticleCount,
 			totalEnergy,
-			fps,
-			wheelEnergyPerSecond
+			fps
 		);
 
 		if (
@@ -284,40 +236,6 @@ public partial class StatisticsGraph : Control
 		);
 
 		// --------------------------------------------------------
-		// Wheel energy
-		// --------------------------------------------------------
-
-		for (
-			int wheel = 0;
-			wheel < MaxWheels;
-			wheel++)
-		{
-			double value = 0.0;
-
-			if (
-				wheelEnergyPerSecond != null &&
-				wheel < wheelEnergyPerSecond.Length)
-			{
-				value =
-					Math.Max(
-						0.0,
-						wheelEnergyPerSecond[wheel]
-					);
-			}
-
-			wheelEnergyHistory[wheel].Add(
-				value
-			);
-
-			while (
-				wheelEnergyHistory[wheel].Count >
-				MaxSamples)
-			{
-				wheelEnergyHistory[wheel].RemoveAt(0);
-			}
-		}
-
-		// --------------------------------------------------------
 		// Limit history
 		// --------------------------------------------------------
 
@@ -350,8 +268,7 @@ public partial class StatisticsGraph : Control
 	private void UpdateCurrentValues(
 		int activeParticleCount,
 		double totalEnergy,
-		float fps,
-		double[] wheelEnergyPerSecond)
+		float fps)
 	{
 		if (particleLabel != null)
 		{
@@ -376,33 +293,6 @@ public partial class StatisticsGraph : Control
 				"    History 600s";
 		}
 
-		for (
-			int i = 0;
-			i < MaxWheels;
-			i++)
-		{
-			if (wheelLabels[i] == null)
-			{
-				continue;
-			}
-
-			bool exists =
-				wheelEnergyPerSecond != null &&
-				i < wheelEnergyPerSecond.Length;
-
-			wheelLabels[i].Visible =
-				exists;
-
-			if (exists)
-			{
-				wheelLabels[i].Text =
-					"Wheel " +
-					(i + 1) +
-					"  " +
-					wheelEnergyPerSecond[i].ToString("F2") +
-					"/s";
-			}
-		}
 	}
 
 	private void RecalculateEnergyScale()
@@ -423,25 +313,6 @@ public partial class StatisticsGraph : Control
 			}
 		}
 
-		for (
-			int wheel = 0;
-			wheel < MaxWheels;
-			wheel++)
-		{
-			for (
-				int i = 0;
-				i < wheelEnergyHistory[wheel].Count;
-				i++)
-			{
-				if (
-					wheelEnergyHistory[wheel][i] >
-					highest)
-				{
-					highest =
-						wheelEnergyHistory[wheel][i];
-				}
-			}
-		}
 
 		maxEnergy =
 			highest * 1.10;
@@ -827,76 +698,5 @@ public partial class StatisticsGraph : Control
 			);
 		}
 
-		// --------------------------------------------------------
-		// Individual wheels
-		// --------------------------------------------------------
-
-		for (
-			int wheel = 0;
-			wheel < MaxWheels;
-			wheel++)
-		{
-			int wheelCount =
-				Math.Min(
-					count,
-					wheelEnergyHistory[wheel].Count
-				);
-
-			if (wheelCount < 2)
-			{
-				continue;
-			}
-
-			Vector2[] wheelPoints =
-				new Vector2[wheelCount];
-
-			for (
-				int i = 0;
-				i < wheelCount;
-				i++)
-			{
-				float x =
-					PlotLeft +
-					plotWidth *
-					i /
-					Mathf.Max(
-						count - 1.0f,
-						1.0f
-					);
-
-				float normalized =
-					Mathf.Clamp(
-						(float)(
-							wheelEnergyHistory[wheel][i] /
-							maxEnergy
-						),
-						0.0f,
-						1.0f
-					);
-
-				float y =
-					PlotBottom -
-					normalized *
-					plotHeight;
-
-				wheelPoints[i] =
-					new Vector2(
-						x,
-						y
-					);
-			}
-
-			DrawPolyline(
-				wheelPoints,
-				new Color(
-					1.0f,
-					1.0f,
-					1.0f,
-					0.85f
-				),
-				1.5f,
-				true
-			);
-		}
 	}
 }

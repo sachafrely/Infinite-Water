@@ -620,49 +620,12 @@ public partial class FluidSimulator : Node2D
 				? energyGeneratedThisFrame / delta
 				: 0.0;
 
-		double[] wheelEnergyPerSecond =
-			GetWheelEnergyPerSecondArray(
-				delta
-			);
-
 		statisticsGraph.AddSample(
 			ActiveParticleCount,
 			energyPerSecond,
 			(float)Engine.GetFramesPerSecond(),
-			delta,
-			wheelEnergyPerSecond
+			delta
 		);
-	}
-
-	// ============================================================
-	// Wheel energy per second array
-	// ============================================================
-
-	private double[] GetWheelEnergyPerSecondArray(
-		float delta)
-	{
-		double[] result =
-			new double[
-				wheelStates.Count
-			];
-
-		if (
-			delta <= 0.000001f)
-		{
-			return result;
-		}
-
-		for (
-			int i = 0;
-			i < wheelStates.Count;
-			i++)
-		{
-			result[i] =
-				GetWheelEnergyThisFrame(i) /
-				delta;
-		}
-
-		return result;
 	}
 
 	// ============================================================
