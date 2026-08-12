@@ -221,10 +221,10 @@ render_mode unshaded;
 // ============================================================
 
 uniform vec3 deep_color : source_color =
-vec3(0.015, 0.25, 0.68);
+vec3(0.025, 0.25, 0.68);
 
 uniform vec3 middle_color : source_color =
-vec3(0.015, 0.25, 0.68);
+vec3(0.035, 0.25, 0.68);
 
 uniform vec3 shallow_color : source_color =
 vec3(0.08, 0.58, 1.00);
@@ -236,7 +236,7 @@ vec3(0.65, 0.88, 1.00);
 // Appearance
 // ============================================================
 
-uniform float water_alpha = 0.60;
+uniform float water_alpha = 0.70;
 
 uniform float surface_glow_strength = 0.40;
 
@@ -972,19 +972,6 @@ void fragment()
 		int maxY =
 			activePixelMaxY;
 
-		// --------------------------------------------------------
-		// Only scan the active region.
-		//
-		// IMPORTANT:
-		// Glow logic is unchanged.
-		//
-		// It still:
-		// - only uses exposed top pixels
-		// - does not propagate downward
-		// - does not search neighborhoods
-		// - does not create bottom glow
-		// --------------------------------------------------------
-
 		for (
 			int y = minY;
 			y <= maxY;
@@ -994,15 +981,23 @@ void fragment()
 			int row =
 				y * w;
 
+			int index =
+				row + minX;
+
+			int aboveIndex =
+				index - w;
+
+			bool firstRow =
+				y == 0;
+
 			for (
 				int x = minX;
 				x <= maxX;
-				x++
+				x++,
+				index++,
+				aboveIndex++
 			)
 			{
-				int index =
-					row + x;
-
 				if (!pixelWater[index])
 				{
 					continue;
@@ -1021,7 +1016,7 @@ void fragment()
 
 				bool exposedAbove;
 
-				if (y == 0)
+				if (firstRow)
 				{
 					exposedAbove =
 						true;
@@ -1029,7 +1024,7 @@ void fragment()
 				else
 				{
 					exposedAbove =
-						!pixelWater[index - w];
+						!pixelWater[aboveIndex];
 				}
 
 				if (!exposedAbove)
