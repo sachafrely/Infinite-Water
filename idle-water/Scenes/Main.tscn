@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://k6081dvmnuws" path="res://20.png" id="4_v1gob"]
 [ext_resource type="Texture2D" uid="uid://c3fteex66k7hl" path="res://newtilesetbw.png" id="4_vy5pj"]
 [ext_resource type="Script" uid="uid://dxn2tnelhfpsr" path="res://Scripts/Fluid/StatisticsGraph.cs" id="7_jw32o"]
+[ext_resource type="Script" uid="uid://d31j1xvdj6522" path="res://Scripts/FrameProfiler.cs" id="9_vy5pj"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_bmxlf"]
 texture = ExtResource("3_50glp")
@@ -836,3 +837,6 @@ mouse_filter = 2
 [node name="StatisticsGraph" type="Control" parent="BottomUI" unique_id=1260497483]
 anchors_preset = 0
 script = ExtResource("7_jw32o")
+
+[node name="FrameProfiler" type="Node" parent="." unique_id=1715470360]
+script = ExtResource("9_vy5pj")
