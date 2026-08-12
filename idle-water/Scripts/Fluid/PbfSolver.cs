@@ -1,4 +1,3 @@
-
 using Godot;
 using System;
 using System.Collections.Generic;
@@ -14,18 +13,32 @@ public class PbfSolver
 	private readonly List<FluidPolygonCollider>
 		wheelColliders;
 
+	// ============================================================
+	// Collider grid
+	// ============================================================
+
 	private List<int>[] colliderGrid;
 	private int colliderGridWidth;
 	private int colliderGridHeight;
 	private bool colliderGridDirty = true;
+
 	private int[] colliderQueryStamp;
 	private int colliderQueryId;
 
+	// Cached terrain collider bounds.
+	//
+	// These are populated when the collider grid is rebuilt.
+	// Terrain colliders are static, so there is no reason to call
+	// GetBounds() for every particle collision test.
+	private float[] colliderMinX;
+	private float[] colliderMaxX;
+	private float[] colliderMinY;
+	private float[] colliderMaxY;
+
 	// ============================================================
 	// Simulation
-	//
 	// ============================================================
-	
+
 	private const float Gravity = 250.0f;
 
 	private const float SmoothingRadius = 8.0f;
@@ -47,9 +60,6 @@ public class PbfSolver
 	private const int MinIterations = 2;
 	private const int MaxIterations = 3;
 
-	// Conservative adaptive convergence threshold.
-	// After the mandatory two PBF iterations, a third iteration is only
-	// needed when the remaining density error is significant.
 	private const float DensityErrorThreshold = 0.90f;
 
 	private const float MaxCorrection = 0.5f;
@@ -68,7 +78,6 @@ public class PbfSolver
 	private const float ImpactDamping = 0.5f;
 	private const float ImpactNormalEpsilon = 0.0001f;
 
-	// Ground contact forces.
 	private const float GroundDrag = 0.09f;
 	private const float GroundStick = 0.10f;
 
@@ -122,7 +131,17 @@ public class PbfSolver
 	// ============================================================
 
 	private const float PolygonParticleRadius = 2.5f;
-	private const float ColliderGridCellSize = 64.0f;
+
+	// Reduced from 64 to 32.
+	//
+	// This gives the collider grid finer spatial separation, which
+	// is especially useful now that the new tileset generates more
+	// terrain rectangles.
+	private const float ColliderGridCellSize = 32.0f;
+
+	// Small extra margin used when putting collider AABBs into
+	// grid cells.
+	private const float ColliderGridExpansion = 1.0f;
 
 	// ============================================================
 	// Neighbors
@@ -219,7 +238,11 @@ public class PbfSolver
 			);
 
 			if (collider.IsWheel)
-				wheelColliders.Add(collider);
+			{
+				wheelColliders.Add(
+					collider
+				);
+			}
 
 			colliderGridDirty = true;
 		}
@@ -229,18 +252,22 @@ public class PbfSolver
 	// Clear terrain colliders
 	//
 	// IMPORTANT:
-	// TileMapPhysics rebuilds the terrain by calling this.
-	//
 	// Wheel colliders must NOT be deleted here.
 	// ============================================================
 
 	public void ClearPolygonColliders()
 	{
-		for (int i = polygonColliders.Count - 1; i >= 0; i--)
+		for (
+			int i = polygonColliders.Count - 1;
+			i >= 0;
+			i--)
 		{
-			FluidPolygonCollider collider = polygonColliders[i];
+			FluidPolygonCollider collider =
+				polygonColliders[i];
 
-			if (collider == null || !collider.IsWheel)
+			if (
+				collider == null ||
+				!collider.IsWheel)
 			{
 				polygonColliders.RemoveAt(i);
 				colliderGridDirty = true;
@@ -315,19 +342,29 @@ public class PbfSolver
 		{
 			wheel.Step(dt);
 
-			for (int i = 0; i < wheelColliders.Count; i++)
+			for (
+				int i = 0;
+				i < wheelColliders.Count;
+				i++)
 			{
-				FluidPolygonCollider collider = wheelColliders[i];
+				FluidPolygonCollider collider =
+					wheelColliders[i];
+
 				if (collider != null)
+				{
 					collider.UpdateWheelGeometry();
+				}
 			}
 		}
 
 		// --------------------------------------------------------
 		// Prepare static terrain collider grid.
 		// --------------------------------------------------------
+
 		if (colliderGridDirty)
+		{
 			RebuildColliderGrid();
+		}
 
 		// --------------------------------------------------------
 		// Predict
@@ -381,11 +418,6 @@ public class PbfSolver
 		// PBF iterations
 		// --------------------------------------------------------
 
-		// The first two iterations are mandatory for stability.
-		// The third iteration is adaptive: CalculateLambdas() reports the
-		// worst density error before correction, so after the mandatory
-		// second correction we can safely stop when the remaining error
-		// is already small enough.
 		for (
 			int iteration = 0;
 			iteration < MaxIterations;
@@ -611,8 +643,6 @@ public class PbfSolver
 		float[] predY,
 		int count)
 	{
-		// Local references keep the hot inner loop from repeatedly
-		// resolving instance fields. No physics behavior is changed.
 		float[] localLambdas =
 			lambdas;
 
@@ -711,6 +741,7 @@ public class PbfSolver
 	// ============================================================
 	// Polygon collision + wheel torque
 	// ============================================================
+
 	private void ConstrainToPolygonColliders(
 		float[] predX,
 		float[] predY,
@@ -724,167 +755,614 @@ public class PbfSolver
 
 		if (colliderQueryId == int.MaxValue)
 		{
-			Array.Clear(colliderQueryStamp, 0, colliderQueryStamp.Length);
+			Array.Clear(
+				colliderQueryStamp,
+				0,
+				colliderQueryStamp.Length
+			);
+
 			colliderQueryId = 1;
 		}
 
-		for (int i = 0; i < count; i++)
+		// Local references for the hot loop.
+		List<int>[] localGrid =
+			colliderGrid;
+
+		int localGridWidth =
+			colliderGridWidth;
+
+		int localGridHeight =
+			colliderGridHeight;
+
+		int[] localQueryStamp =
+			colliderQueryStamp;
+
+		List<FluidPolygonCollider> localColliders =
+			polygonColliders;
+
+		float[] localMinX =
+			colliderMinX;
+
+		float[] localMaxX =
+			colliderMaxX;
+
+		float[] localMinY =
+			colliderMinY;
+
+		float[] localMaxY =
+			colliderMaxY;
+
+		for (
+			int i = 0;
+			i < count;
+			i++)
 		{
 			colliderQueryId++;
-			if (colliderQueryId == int.MaxValue)
+
+			if (
+				colliderQueryId ==
+				int.MaxValue)
 			{
-				Array.Clear(colliderQueryStamp, 0, colliderQueryStamp.Length);
+				Array.Clear(
+					localQueryStamp,
+					0,
+					localQueryStamp.Length
+				);
+
 				colliderQueryId = 1;
 			}
 
-			Vector2 position = new Vector2(predX[i], predY[i]);
-			Vector2 accumulatedNormal = Vector2.Zero;
-			bool particleImpacted = false;
+			Vector2 position =
+				new Vector2(
+					predX[i],
+					predY[i]
+				);
 
-			int baseCellX = GetColliderCellX(position.X);
-			int baseCellY = GetColliderCellY(position.Y);
+			Vector2 accumulatedNormal =
+				Vector2.Zero;
 
-			// Query neighboring cells because the collision radius can cross a cell boundary.
-			for (int cy = baseCellY - 1; cy <= baseCellY + 1; cy++)
+			bool particleImpacted =
+				false;
+
+			int baseCellX =
+				GetColliderCellX(
+					position.X
+				);
+
+			int baseCellY =
+				GetColliderCellY(
+					position.Y
+				);
+
+			// ----------------------------------------------------
+			// Terrain collider grid.
+			//
+			// We still check the 3x3 neighborhood because the
+			// particle collision radius can cross a grid boundary.
+			// ----------------------------------------------------
+
+			for (
+				int cy = baseCellY - 1;
+				cy <= baseCellY + 1;
+				cy++)
 			{
-				if (cy < 0 || cy >= colliderGridHeight)
-					continue;
-
-				for (int cx = baseCellX - 1; cx <= baseCellX + 1; cx++)
+				if (
+					cy < 0 ||
+					cy >= localGridHeight)
 				{
-					if (cx < 0 || cx >= colliderGridWidth)
-						continue;
+					continue;
+				}
 
-					List<int> cell = colliderGrid[cy * colliderGridWidth + cx];
+				for (
+					int cx = baseCellX - 1;
+					cx <= baseCellX + 1;
+					cx++)
+				{
+					if (
+						cx < 0 ||
+						cx >= localGridWidth)
+					{
+						continue;
+					}
+
+					List<int> cell =
+						localGrid[
+							cy *
+							localGridWidth +
+							cx
+						];
+
 					if (cell == null)
 						continue;
 
-					for (int k = 0; k < cell.Count; k++)
+					for (
+						int k = 0;
+						k < cell.Count;
+						k++)
 					{
-						int c = cell[k];
-						if (colliderQueryStamp[c] == colliderQueryId)
-							continue;
-						colliderQueryStamp[c] = colliderQueryId;
+						int c =
+							cell[k];
 
-						FluidPolygonCollider collider = polygonColliders[c];
-						if (collider == null || collider.IsWheel)
-							continue;
-
-						if (!collider.ResolveCollision(position, PolygonParticleRadius, out Vector2 correctedPosition, out Vector2 normal))
-							continue;
-
-						position = correctedPosition;
-
-						if (normal.LengthSquared() > ImpactNormalEpsilon)
+						if (
+							localQueryStamp[c] ==
+							colliderQueryId)
 						{
-							accumulatedNormal += normal;
-							particleImpacted = true;
+							continue;
+						}
+
+						localQueryStamp[c] =
+							colliderQueryId;
+
+						FluidPolygonCollider collider =
+							localColliders[c];
+
+						if (
+							collider == null ||
+							collider.IsWheel)
+						{
+							continue;
+						}
+
+						// ------------------------------------------------
+						// FAST AABB REJECTION
+						//
+						// This is deliberately before ResolveCollision().
+						//
+						// Most colliders in nearby grid cells will not
+						// actually touch this particle. Avoiding the
+						// polygon calculation for those colliders is the
+						// main optimization added here.
+						// ------------------------------------------------
+
+						if (
+							!ParticleOverlapsBounds(
+								position.X,
+								position.Y,
+								localMinX[c],
+								localMaxX[c],
+								localMinY[c],
+								localMaxY[c]
+							))
+						{
+							continue;
+						}
+
+						// ------------------------------------------------
+						// Actual polygon collision.
+						// ------------------------------------------------
+
+						if (
+							!collider.ResolveCollision(
+								position,
+								PolygonParticleRadius,
+								out Vector2 correctedPosition,
+								out Vector2 normal
+							))
+						{
+							continue;
+						}
+
+						position =
+							correctedPosition;
+
+						if (
+							normal.LengthSquared() >
+							ImpactNormalEpsilon)
+						{
+							accumulatedNormal +=
+								normal;
+
+							particleImpacted =
+								true;
 						}
 					}
 				}
 			}
 
-			// Wheels remain in their own tiny list so the terrain grid never misses a moving wheel.
-			for (int w = 0; w < wheelColliders.Count; w++)
+			// ----------------------------------------------------
+			// Wheels remain separate.
+			//
+			// This intentionally does not use the terrain grid
+			// because wheel geometry moves every frame.
+			// ----------------------------------------------------
+
+			for (
+				int w = 0;
+				w < wheelColliders.Count;
+				w++)
 			{
-				FluidPolygonCollider collider = wheelColliders[w];
+				FluidPolygonCollider collider =
+					wheelColliders[w];
+
 				if (collider == null)
 					continue;
 
-				if (!collider.ResolveCollision(position, PolygonParticleRadius, out Vector2 correctedPosition, out Vector2 normal))
-					continue;
-
-				ApplyWheelTorque(collider, position, normal, velX[i], velY[i], dt);
-				position = correctedPosition;
-
-				if (normal.LengthSquared() > ImpactNormalEpsilon)
+				if (
+					!collider.ResolveCollision(
+						position,
+						PolygonParticleRadius,
+						out Vector2 correctedPosition,
+						out Vector2 normal
+					))
 				{
-					accumulatedNormal += normal;
-					particleImpacted = true;
+					continue;
+				}
+
+				ApplyWheelTorque(
+					collider,
+					position,
+					normal,
+					velX[i],
+					velY[i],
+					dt
+				);
+
+				position =
+					correctedPosition;
+
+				if (
+					normal.LengthSquared() >
+					ImpactNormalEpsilon)
+				{
+					accumulatedNormal +=
+						normal;
+
+					particleImpacted =
+						true;
 				}
 			}
 
-			predX[i] = position.X;
-			predY[i] = position.Y;
+			predX[i] =
+				position.X;
+
+			predY[i] =
+				position.Y;
 
 			if (particleImpacted)
 			{
-				float normalLengthSquared = accumulatedNormal.LengthSquared();
-				if (normalLengthSquared > ImpactNormalEpsilon)
+				float normalLengthSquared =
+					accumulatedNormal.LengthSquared();
+
+				if (
+					normalLengthSquared >
+					ImpactNormalEpsilon)
 				{
-					float inverseLength = 1.0f / Mathf.Sqrt(normalLengthSquared);
-					accumulatedNormal *= inverseLength;
-					impactNormalX[i] = accumulatedNormal.X;
-					impactNormalY[i] = accumulatedNormal.Y;
-					impacted[i] = true;
+					float inverseLength =
+						1.0f /
+						Mathf.Sqrt(
+							normalLengthSquared
+						);
+
+					accumulatedNormal *=
+						inverseLength;
+
+					impactNormalX[i] =
+						accumulatedNormal.X;
+
+					impactNormalY[i] =
+						accumulatedNormal.Y;
+
+					impacted[i] =
+						true;
 				}
 			}
 		}
+	}
+
+	// ============================================================
+	// Fast particle / AABB overlap
+	// ============================================================
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static bool ParticleOverlapsBounds(
+		float particleX,
+		float particleY,
+		float minX,
+		float maxX,
+		float minY,
+		float maxY)
+	{
+		// Find squared distance from the particle to the AABB.
+		//
+		// If the particle center is outside the box, this gives the
+		// shortest distance to the box.
+		//
+		// If it is inside the box, distanceSquared becomes zero.
+		float dx = 0.0f;
+
+		if (particleX < minX)
+		{
+			dx =
+				minX -
+				particleX;
+		}
+		else if (particleX > maxX)
+		{
+			dx =
+				particleX -
+				maxX;
+		}
+
+		float dy = 0.0f;
+
+		if (particleY < minY)
+		{
+			dy =
+				minY -
+				particleY;
+		}
+		else if (particleY > maxY)
+		{
+			dy =
+				particleY -
+				maxY;
+		}
+
+		float distanceSquared =
+			dx * dx +
+			dy * dy;
+
+		return
+			distanceSquared <=
+			PolygonParticleRadius *
+			PolygonParticleRadius;
 	}
 
 	// ============================================================
 	// Collider grid
 	// ============================================================
+
 	private void RebuildColliderGrid()
 	{
-		colliderGridWidth = Math.Max(1, (int)MathF.Ceiling((MaxX - MinX) / ColliderGridCellSize));
-		colliderGridHeight = Math.Max(1, (int)MathF.Ceiling((MaxY - MinY) / ColliderGridCellSize));
+		colliderGridWidth =
+			Math.Max(
+				1,
+				(int)MathF.Ceiling(
+					(MaxX - MinX) /
+					ColliderGridCellSize
+				)
+			);
 
-		int cellCount = colliderGridWidth * colliderGridHeight;
-		if (colliderGrid == null || colliderGrid.Length != cellCount)
+		colliderGridHeight =
+			Math.Max(
+				1,
+				(int)MathF.Ceiling(
+					(MaxY - MinY) /
+					ColliderGridCellSize
+				)
+			);
+
+		int cellCount =
+			colliderGridWidth *
+			colliderGridHeight;
+
+		// --------------------------------------------------------
+		// Allocate / clear grid.
+		// --------------------------------------------------------
+
+		if (
+			colliderGrid == null ||
+			colliderGrid.Length != cellCount)
 		{
-			colliderGrid = new List<int>[cellCount];
-			for (int i = 0; i < cellCount; i++)
-				colliderGrid[i] = new List<int>(4);
+			colliderGrid =
+				new List<int>[cellCount];
+
+			for (
+				int i = 0;
+				i < cellCount;
+				i++)
+			{
+				colliderGrid[i] =
+					new List<int>(4);
+			}
 		}
 		else
 		{
-			for (int i = 0; i < cellCount; i++)
-				colliderGrid[i]?.Clear();
-		}
-
-		colliderQueryStamp = colliderQueryStamp == null || colliderQueryStamp.Length != polygonColliders.Count
-			? new int[polygonColliders.Count]
-			: colliderQueryStamp;
-
-		float expansion = PolygonParticleRadius + 1.0f;
-		for (int i = 0; i < polygonColliders.Count; i++)
-		{
-			FluidPolygonCollider collider = polygonColliders[i];
-			if (collider == null || collider.IsWheel)
-				continue;
-
-			collider.GetBounds(out float minX, out float maxX, out float minY, out float maxY);
-			int minCellX = GetColliderCellX(minX - expansion);
-			int maxCellX = GetColliderCellX(maxX + expansion);
-			int minCellY = GetColliderCellY(minY - expansion);
-			int maxCellY = GetColliderCellY(maxY + expansion);
-
-			for (int y = minCellY; y <= maxCellY; y++)
+			for (
+				int i = 0;
+				i < cellCount;
+				i++)
 			{
-				for (int x = minCellX; x <= maxCellX; x++)
-					colliderGrid[y * colliderGridWidth + x].Add(i);
+				colliderGrid[i]?.Clear();
 			}
 		}
 
-		colliderGridDirty = false;
+		// --------------------------------------------------------
+		// Query stamps.
+		// --------------------------------------------------------
+
+		if (
+			colliderQueryStamp == null ||
+			colliderQueryStamp.Length !=
+			polygonColliders.Count)
+		{
+			colliderQueryStamp =
+				new int[
+					polygonColliders.Count
+				];
+
+			colliderQueryId =
+				1;
+		}
+
+		// --------------------------------------------------------
+		// Bounds caches.
+		// --------------------------------------------------------
+
+		int colliderCount =
+			polygonColliders.Count;
+
+		if (
+			colliderMinX == null ||
+			colliderMinX.Length != colliderCount)
+		{
+			colliderMinX =
+				new float[colliderCount];
+
+			colliderMaxX =
+				new float[colliderCount];
+
+			colliderMinY =
+				new float[colliderCount];
+
+			colliderMaxY =
+				new float[colliderCount];
+		}
+
+		// --------------------------------------------------------
+		// Put each static terrain collider into the grid.
+		// --------------------------------------------------------
+
+		float expansion =
+			PolygonParticleRadius +
+			ColliderGridExpansion;
+
+		for (
+			int i = 0;
+			i < colliderCount;
+			i++)
+		{
+			FluidPolygonCollider collider =
+				polygonColliders[i];
+
+			if (
+				collider == null ||
+				collider.IsWheel)
+			{
+				// Give invalid entries harmless bounds.
+				colliderMinX[i] =
+					0.0f;
+
+				colliderMaxX[i] =
+					0.0f;
+
+				colliderMinY[i] =
+					0.0f;
+
+				colliderMaxY[i] =
+					0.0f;
+
+				continue;
+			}
+
+			collider.GetBounds(
+				out float minX,
+				out float maxX,
+				out float minY,
+				out float maxY
+			);
+
+			// Cache the exact collider bounds.
+			colliderMinX[i] =
+				minX;
+
+			colliderMaxX[i] =
+				maxX;
+
+			colliderMinY[i] =
+				minY;
+
+			colliderMaxY[i] =
+				maxY;
+
+			int minCellX =
+				GetColliderCellX(
+					minX -
+					expansion
+				);
+
+			int maxCellX =
+				GetColliderCellX(
+					maxX +
+					expansion
+				);
+
+			int minCellY =
+				GetColliderCellY(
+					minY -
+					expansion
+				);
+
+			int maxCellY =
+				GetColliderCellY(
+					maxY +
+					expansion
+				);
+
+			for (
+				int y = minCellY;
+				y <= maxCellY;
+				y++)
+			{
+				for (
+					int x = minCellX;
+					x <= maxCellX;
+					x++)
+				{
+					colliderGrid[
+						y *
+						colliderGridWidth +
+						x
+					].Add(i);
+				}
+			}
+		}
+
+		colliderGridDirty =
+			false;
 	}
 
+	// ============================================================
+	// Collider grid X
+	// ============================================================
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private int GetColliderCellX(float x)
+	private int GetColliderCellX(
+		float x)
 	{
-		int cell = (int)MathF.Floor((x - MinX) / ColliderGridCellSize);
-		if (cell < 0) return 0;
-		if (cell >= colliderGridWidth) return colliderGridWidth - 1;
+		int cell =
+			(int)MathF.Floor(
+				(x - MinX) /
+				ColliderGridCellSize
+			);
+
+		if (cell < 0)
+			return 0;
+
+		if (
+			cell >=
+			colliderGridWidth)
+		{
+			return colliderGridWidth - 1;
+		}
+
 		return cell;
 	}
 
+	// ============================================================
+	// Collider grid Y
+	// ============================================================
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private int GetColliderCellY(float y)
+	private int GetColliderCellY(
+		float y)
 	{
-		int cell = (int)MathF.Floor((y - MinY) / ColliderGridCellSize);
-		if (cell < 0) return 0;
-		if (cell >= colliderGridHeight) return colliderGridHeight - 1;
+		int cell =
+			(int)MathF.Floor(
+				(y - MinY) /
+				ColliderGridCellSize
+			);
+
+		if (cell < 0)
+			return 0;
+
+		if (
+			cell >=
+			colliderGridHeight)
+		{
+			return colliderGridHeight - 1;
+		}
+
 		return cell;
 	}
 
@@ -972,7 +1450,6 @@ public class PbfSolver
 			velocityY *
 			normalY;
 
-		// Remove velocity going into the surface.
 		if (normalVelocity > 0.0f)
 		{
 			float velocityChange =
@@ -988,8 +1465,6 @@ public class PbfSolver
 				velocityChange;
 		}
 
-		// Ground sticking: reduce outward velocity so particles
-		// stay in contact with the terrain a little longer.
 		float separationVelocity =
 			velocityX *
 			normalX +
@@ -1011,8 +1486,6 @@ public class PbfSolver
 				stickAmount;
 		}
 
-		// Ground drag: remove velocity along the surface while
-		// preserving the normal component.
 		float tangentX =
 			-normalY;
 
@@ -1068,9 +1541,7 @@ public class PbfSolver
 			float y =
 				predY[i];
 
-			// ----------------------------------------------------
 			// LEFT
-			// ----------------------------------------------------
 
 			if (x < left)
 			{
@@ -1081,9 +1552,7 @@ public class PbfSolver
 				impactNormalY[i] = 0.0f;
 			}
 
-			// ----------------------------------------------------
 			// RIGHT
-			// ----------------------------------------------------
 
 			else if (x > right)
 			{
@@ -1094,9 +1563,7 @@ public class PbfSolver
 				impactNormalY[i] = 0.0f;
 			}
 
-			// ----------------------------------------------------
 			// TOP
-			// ----------------------------------------------------
 
 			if (y < top)
 			{
@@ -1107,9 +1574,7 @@ public class PbfSolver
 				impactNormalY[i] = 1.0f;
 			}
 
-			// ----------------------------------------------------
 			// BOTTOM
-			// ----------------------------------------------------
 
 			else if (y > bottom)
 			{
@@ -1148,8 +1613,12 @@ public class PbfSolver
 			velocitySquared >=
 			WakeVelocityThresholdSquared)
 		{
-			sleepProgress[i] = 0.0f;
-			sleeping[i] = false;
+			sleepProgress[i] =
+				0.0f;
+
+			sleeping[i] =
+				false;
+
 			return;
 		}
 
@@ -1161,8 +1630,13 @@ public class PbfSolver
 				dt /
 				SleepTime;
 
-			if (sleepProgress[i] > 1.0f)
-				sleepProgress[i] = 1.0f;
+			if (
+				sleepProgress[i] >
+				1.0f)
+			{
+				sleepProgress[i] =
+					1.0f;
+			}
 
 			float damping =
 				1.0f -
@@ -1183,9 +1657,14 @@ public class PbfSolver
 				sleepProgress[i] >=
 				1.0f)
 			{
-				sleeping[i] = true;
-				velocityX = 0.0f;
-				velocityY = 0.0f;
+				sleeping[i] =
+					true;
+
+				velocityX =
+					0.0f;
+
+				velocityY =
+					0.0f;
 			}
 
 			return;
@@ -1195,10 +1674,16 @@ public class PbfSolver
 			dt /
 			SleepTime;
 
-		if (sleepProgress[i] < 0.0f)
-			sleepProgress[i] = 0.0f;
+		if (
+			sleepProgress[i] <
+			0.0f)
+		{
+			sleepProgress[i] =
+				0.0f;
+		}
 
-		sleeping[i] = false;
+		sleeping[i] =
+			false;
 	}
 
 	// ============================================================
@@ -1222,7 +1707,8 @@ public class PbfSolver
 				predY[i];
 
 			int start =
-				i * neighborStride;
+				i *
+				neighborStride;
 
 			int neighborCount =
 				hash.QueryPbfWithGeometry(
@@ -1241,8 +1727,6 @@ public class PbfSolver
 
 			neighborCounts[i] =
 				neighborCount;
-
-
 		}
 	}
 
@@ -1263,7 +1747,8 @@ public class PbfSolver
 				predY[i];
 
 			int start =
-				i * neighborStride;
+				i *
+				neighborStride;
 
 			int end =
 				start +
@@ -1280,6 +1765,10 @@ public class PbfSolver
 		}
 	}
 
+	// ============================================================
+	// Neighbor geometry
+	// ============================================================
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private void UpdateNeighborGeometryRange(
 		int start,
@@ -1289,35 +1778,86 @@ public class PbfSolver
 		float[] predX,
 		float[] predY)
 	{
-		int[] localNeighbors = neighborBuffer;
-		float[] localDx = neighborDx;
-		float[] localDy = neighborDy;
-		float[] localQ = neighborQ;
-		float[] localGradient = neighborGradientScale;
+		int[] localNeighbors =
+			neighborBuffer;
 
-		for (int index = start; index < end; index++)
+		float[] localDx =
+			neighborDx;
+
+		float[] localDy =
+			neighborDy;
+
+		float[] localQ =
+			neighborQ;
+
+		float[] localGradient =
+			neighborGradientScale;
+
+		for (
+			int index = start;
+			index < end;
+			index++)
 		{
-			int j = localNeighbors[index];
-			float dx = px - predX[j];
-			float dy = py - predY[j];
-			float distanceSquared = dx * dx + dy * dy;
+			int j =
+				localNeighbors[index];
 
-			localDx[index] = dx;
-			localDy[index] = dy;
+			float dx =
+				px -
+				predX[j];
 
-			if (distanceSquared <= 0.000001f)
+			float dy =
+				py -
+				predY[j];
+
+			float distanceSquared =
+				dx * dx +
+				dy * dy;
+
+			localDx[index] =
+				dx;
+
+			localDy[index] =
+				dy;
+
+			if (
+				distanceSquared <=
+				0.000001f)
 			{
-				localQ[index] = 1.0f;
-				localGradient[index] = 0.0f;
+				localQ[index] =
+					1.0f;
+
+				localGradient[index] =
+					0.0f;
+
 				continue;
 			}
 
-			float inverseDistance = 1.0f / MathF.Sqrt(distanceSquared);
-			float q = 1.0f - (distanceSquared * inverseDistance) * InverseSmoothingRadius;
-			float q2 = q * q;
-			localQ[index] = q;
+			float inverseDistance =
+				1.0f /
+				MathF.Sqrt(
+					distanceSquared
+				);
+
+			float q =
+				1.0f -
+				(
+					distanceSquared *
+					inverseDistance
+				) *
+				InverseSmoothingRadius;
+
+			float q2 =
+				q * q;
+
+			localQ[index] =
+				q;
+
 			localGradient[index] =
-				-3.0f * q2 * InverseSmoothingRadius * inverseDistance * InverseRestDensity;
+				-3.0f *
+				q2 *
+				InverseSmoothingRadius *
+				inverseDistance *
+				InverseRestDensity;
 		}
 	}
 
@@ -1331,7 +1871,6 @@ public class PbfSolver
 		float maximumDensityError =
 			0.0f;
 
-		// Local references for the hot neighbor loop.
 		float[] localNeighborQ =
 			neighborQ;
 
@@ -1353,7 +1892,8 @@ public class PbfSolver
 		float[] localLambdas =
 			lambdas;
 
-		float inverseRestDensity = InverseRestDensity;
+		float inverseRestDensity =
+			InverseRestDensity;
 
 		int stride =
 			neighborStride;
@@ -1364,16 +1904,24 @@ public class PbfSolver
 			i++)
 		{
 			int start =
-				i * stride;
+				i *
+				stride;
 
 			int end =
 				start +
 				localNeighborCounts[i];
 
-			float density = 0.0f;
-			float gradSumX = 0.0f;
-			float gradSumY = 0.0f;
-			float neighborGradientSquared = 0.0f;
+			float density =
+				0.0f;
+
+			float gradSumX =
+				0.0f;
+
+			float gradSumY =
+				0.0f;
+
+			float neighborGradientSquared =
+				0.0f;
 
 			for (
 				int index = start;
@@ -1420,7 +1968,9 @@ public class PbfSolver
 				1.0f;
 
 			float absoluteConstraint =
-				constraint < 0.0f ? -constraint : constraint;
+				constraint < 0.0f
+					? -constraint
+					: constraint;
 
 			if (
 				absoluteConstraint >
@@ -1508,7 +2058,6 @@ public class PbfSolver
 
 		neighborQ =
 			new float[capacity];
-
 
 		neighborGradientScale =
 			new float[capacity];

@@ -4,3 +4,4 @@ res://Scripts/Fluid/FluidRenderer.cs
 res://Scripts/Fluid/StatisticsGraph.cs
 res://Scripts/Fluid/TileMapPhysics.cs
 res://Scripts/Fluid/FluidSimulator.cs
+res://Scripts/Fluid/PbfSolver.cs

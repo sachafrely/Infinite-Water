@@ -6,31 +6,21 @@ using Godot;
 /// <summary>
 /// Generates PBF collision geometry from the visual Environment TileMapLayer.
 ///
-/// IMPORTANT:
-/// This version treats the terrain as SOLID OCCUPIED AREA instead of
-/// reconstructing only its border.
-///
-/// Pipeline:
+/// Collision model:
 ///
 ///     visual tile pixels
 ///          ↓
 ///     solid pixel mask
 ///          ↓
-///     rectangle decomposition
+///     horizontal solid runs
 ///          ↓
-///     convex filled polygon colliders
+///     vertical run merging
+///          ↓
+///     convex filled rectangle colliders
 ///
-/// This intentionally does NOT use:
-/// - contour extraction
-/// - border segments
-/// - collision thickness
-/// - endpoint extension
-/// - corner thickening
-/// - contour simplification
-/// - artificial dilation
-///
-/// The collision therefore represents the actual solid volume of the
-/// environment rather than a collection of thickened boundary lines.
+/// The collision represents the actual solid visual area.
+/// No dilation, thickness, contour extension, or artificial
+/// collision geometry is added.
 /// </summary>
 [Tool]
 public partial class TileMapPhysics : Node2D
@@ -43,19 +33,8 @@ public partial class TileMapPhysics : Node2D
 	public NodePath EnvironmentPath { get; set; } =
 		new NodePath("../Environment");
 
-	/// <summary>
-	/// Kept for scene compatibility.
-	///
-	/// NO LONGER USED for collision generation.
-	/// Solid-area collision does not need artificial thickness.
-	/// </summary>
-	
-
-
-
 	[Export]
 	public bool GenerateOnReady { get; set; } = true;
-
 
 	[Export]
 	public bool DebugOutput { get; set; } = true;
@@ -114,30 +93,19 @@ public partial class TileMapPhysics : Node2D
 	// Solid-region generation
 	// ============================================================
 
-	/// <summary>
-	/// Minimum rectangle width.
-	/// </summary>
 	[Export]
 	public int MinimumRectangleWidth { get; set; } = 1;
 
-	/// <summary>
-	/// Minimum rectangle height.
-	/// </summary>
 	[Export]
 	public int MinimumRectangleHeight { get; set; } = 1;
 
-	/// <summary>
-	/// Maximum generated solid-region colliders.
-	///
-	/// This is a safety limit only.
-	/// </summary>
 	[Export]
 	public int MaximumSolidColliders { get; set; } = 5000;
 
 	/// <summary>
-	/// When true, rectangles are merged aggressively.
-	///
-	/// This reduces PBF collision checks substantially.
+	/// Kept for scene compatibility.
+	/// The new run-based decomposition already performs
+	/// aggressive merging.
 	/// </summary>
 	[Export]
 	public bool MergeSolidRegions { get; set; } = true;
@@ -212,6 +180,24 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
+	// Horizontal run
+	// ============================================================
+
+	private struct SolidRun
+	{
+		public int X;
+		public int Width;
+
+		public SolidRun(
+			int x,
+			int width)
+		{
+			X = x;
+			Width = width;
+		}
+	}
+
+	// ============================================================
 	// Ready
 	// ============================================================
 
@@ -237,7 +223,7 @@ public partial class TileMapPhysics : Node2D
 		);
 
 		GD.Print(
-			"Collision mode: SOLID REGION"
+			"Collision mode: SOLID REGION / RUN MERGING"
 		);
 
 		CallDeferred(
@@ -254,31 +240,29 @@ public partial class TileMapPhysics : Node2D
 		if (generating)
 			return;
 
-environment =
-	GetEnvironment();
+		environment =
+			GetEnvironment();
 
-if (environment == null)
-{
-	GD.PushError(
-		"TileMapPhysics: Environment TileMapLayer " +
-        "could not be found."
-	);
+		if (environment == null)
+		{
+			GD.PushError(
+				"TileMapPhysics: Environment TileMapLayer " +
+				"could not be found."
+			);
 
-	return;
-}
+			return;
+		}
 
-// --------------------------------------------------------
-// Rendering order:
-// Environment is in front of wheels and water.
-// --------------------------------------------------------
+		// --------------------------------------------------------
+		// Rendering order.
+		// --------------------------------------------------------
 
-environment.ZIndex = 20;
+		environment.ZIndex = 20;
 
-simulator =
-	FindFluidSimulator(
-		GetTree().Root
-	);
-
+		simulator =
+			FindFluidSimulator(
+				GetTree().Root
+			);
 
 		if (simulator == null)
 		{
@@ -685,7 +669,7 @@ simulator =
 		generated = false;
 
 		// --------------------------------------------------------
-		// Remove old PBF collision.
+		// Remove old collision.
 		// --------------------------------------------------------
 
 		solver.ClearPolygonColliders();
@@ -698,10 +682,7 @@ simulator =
 		);
 
 		// --------------------------------------------------------
-		// Build the actual occupied pixel mask.
-		//
-		// NO dilation.
-		// NO contour reconstruction.
+		// Build occupied pixel mask.
 		// --------------------------------------------------------
 
 		HashSet<Vector2I> solidPixels =
@@ -719,7 +700,7 @@ simulator =
 		}
 
 		// --------------------------------------------------------
-		// Convert solid pixels into merged rectangles.
+		// Convert mask into merged rectangles.
 		// --------------------------------------------------------
 
 		List<SolidRectangle> rectangles =
@@ -741,7 +722,7 @@ simulator =
 		}
 
 		// --------------------------------------------------------
-		// Create one convex filled collider per rectangle.
+		// Create colliders.
 		// --------------------------------------------------------
 
 		int generatedCount = 0;
@@ -824,8 +805,6 @@ simulator =
 				new Vector2(maxX, minY)
 			};
 
-			// Ensure the winding expected by the existing
-			// FluidPolygonCollider implementation.
 			if (
 				PolygonArea(polygon) >
 				0.0f)
@@ -852,9 +831,7 @@ simulator =
 		}
 
 		// --------------------------------------------------------
-		// Build debug boundary directly from the solid mask.
-		//
-		// This is ONLY visualization. It is not used for physics.
+		// Debug boundary.
 		// --------------------------------------------------------
 
 		if (ShowDebugGeometry)
@@ -1241,8 +1218,7 @@ simulator =
 			1;
 
 		// --------------------------------------------------------
-		// A compact byte grid is much cheaper than repeatedly
-		// scanning a HashSet during rectangle decomposition.
+		// Occupancy grid.
 		// --------------------------------------------------------
 
 		bool[,] occupied =
@@ -1261,128 +1237,157 @@ simulator =
 		}
 
 		// --------------------------------------------------------
-		// Greedy maximal rectangle decomposition.
+		// Run-based decomposition.
 		//
-		// At every unprocessed solid pixel:
+		// Instead of consuming one arbitrary rectangle at a time,
+		// first convert every row into maximal horizontal runs.
 		//
-		// 1. Find the widest horizontal run.
-		// 2. Expand that run downward while all pixels remain solid.
-		// 3. Emit one rectangle.
+		// Example:
 		//
-		// The consumed area is removed from the working grid.
+		// #######
+		// #######
+		// #######
 		//
-		// This produces filled collision regions rather than
-		// individual boundary segments.
+		// becomes one rectangle instead of several independent
+		// rectangles.
+		//
+		// More importantly, detailed tiles with many separate
+		// pixels get consolidated wherever their horizontal shape
+		// is identical.
 		// --------------------------------------------------------
+
+		List<SolidRun>[] rows =
+			new List<SolidRun>[height];
+
+		for (int y = 0; y < height; y++)
+		{
+			rows[y] =
+				BuildHorizontalRuns(
+					occupied,
+					y,
+					width
+				);
+		}
+
+		// --------------------------------------------------------
+		// Active rectangles.
+		//
+		// A rectangle remains active while the next row contains
+		// an identical run at the same X and width.
+		// --------------------------------------------------------
+
+		Dictionary<RunKey, int>
+			active =
+				new Dictionary<RunKey, int>();
 
 		for (
 			int y = 0;
 			y < height;
 			y++)
 		{
-			for (
-				int x = 0;
-				x < width;
-				x++)
-			{
-				if (!occupied[x, y])
-					continue;
+			List<SolidRun> runs =
+				rows[y];
 
-				int rectangleWidth =
-					FindMaximumWidth(
-						occupied,
-						x,
-						y,
-						width
+			HashSet<RunKey> continued =
+				new HashSet<RunKey>();
+
+			foreach (
+				SolidRun run in runs)
+			{
+				RunKey key =
+					new RunKey(
+						run.X,
+						run.Width
 					);
 
+				int rectangleIndex;
+
 				if (
-					rectangleWidth <
-					MinimumRectangleWidth)
+					active.TryGetValue(
+						key,
+						out rectangleIndex))
 				{
-					rectangleWidth = 1;
-				}
+					SolidRectangle rectangle =
+						rectangles[
+							rectangleIndex
+						];
 
-				int rectangleHeight =
-					1;
-
-				while (
-					y + rectangleHeight <
-					height)
-				{
-					bool entireRow =
-						true;
-
-					for (
-						int xx = x;
-						xx <
-							x +
-							rectangleWidth;
-						xx++)
+					if (
+						rectangle.Y +
+						rectangle.Height ==
+						minY + y)
 					{
-						if (
-							!occupied[
-								xx,
-								y +
-								rectangleHeight
-							])
-						{
-							entireRow = false;
-							break;
-						}
+						rectangle.Height++;
+
+						rectangles[
+							rectangleIndex
+						] = rectangle;
+
+						continued.Add(
+							key
+						);
+
+						continue;
 					}
-
-					if (!entireRow)
-						break;
-
-					rectangleHeight++;
 				}
 
-				if (
-					rectangleHeight <
-					MinimumRectangleHeight)
-				{
-					rectangleHeight = 1;
-				}
-
-				SolidRectangle rectangle =
+				SolidRectangle newRectangle =
 					new SolidRectangle(
-						minX + x,
+						minX + run.X,
 						minY + y,
-						rectangleWidth,
-						rectangleHeight
+						run.Width,
+						1
 					);
 
 				rectangles.Add(
-					rectangle
+					newRectangle
 				);
 
-				// ------------------------------------------------
-				// Mark the entire rectangle as consumed.
-				// ------------------------------------------------
+				active[key] =
+					rectangles.Count - 1;
 
-				for (
-					int yy = y;
-					yy <
-						y +
-						rectangleHeight;
-					yy++)
+				continued.Add(
+					key
+				);
+			}
+
+			// ----------------------------------------------------
+			// Remove active runs which did not continue.
+			// ----------------------------------------------------
+
+			if (active.Count > 0)
+			{
+				List<RunKey> expired =
+					new List<RunKey>();
+
+				foreach (
+					KeyValuePair<
+						RunKey,
+						int> pair
+						in active)
 				{
-					for (
-						int xx = x;
-						xx <
-							x +
-							rectangleWidth;
-						xx++)
+					if (!continued.Contains(pair.Key))
 					{
-						occupied[
-							xx,
-							yy
-						] = false;
+						expired.Add(
+							pair.Key
+						);
 					}
+				}
+
+				foreach (
+					RunKey key in expired)
+				{
+					active.Remove(key);
 				}
 			}
 		}
+
+		// --------------------------------------------------------
+		// Optional second merge pass.
+		//
+		// This can combine rectangles that became adjacent after
+		// the run-based vertical merging.
+		// --------------------------------------------------------
 
 		if (MergeSolidRegions)
 		{
@@ -1396,29 +1401,97 @@ simulator =
 	}
 
 	// ============================================================
-	// Maximum horizontal run
+	// Run key
 	// ============================================================
 
-	private static int FindMaximumWidth(
-		bool[,] occupied,
-		int x,
-		int y,
-		int width)
+	private readonly struct RunKey :
+		IEquatable<RunKey>
 	{
-		int result = 0;
+		public readonly int X;
+		public readonly int Width;
 
-		for (
-			int xx = x;
-			xx < width;
-			xx++)
+		public RunKey(
+			int x,
+			int width)
 		{
-			if (!occupied[xx, y])
-				break;
-
-			result++;
+			X = x;
+			Width = width;
 		}
 
-		return result;
+		public bool Equals(
+			RunKey other)
+		{
+			return
+				X == other.X &&
+				Width == other.Width;
+		}
+
+		public override bool Equals(
+			object obj)
+		{
+			return
+				obj is RunKey &&
+				Equals(
+					(RunKey)obj
+				);
+		}
+
+		public override int GetHashCode()
+		{
+			unchecked
+			{
+				return
+					(X * 397) ^
+					Width;
+			}
+		}
+	}
+
+	// ============================================================
+	// Build horizontal runs
+	// ============================================================
+
+	private static List<SolidRun>
+		BuildHorizontalRuns(
+			bool[,] occupied,
+			int y,
+			int width)
+	{
+		List<SolidRun> runs =
+			new List<SolidRun>();
+
+		int x = 0;
+
+		while (x < width)
+		{
+			if (!occupied[x, y])
+			{
+				x++;
+				continue;
+			}
+
+			int start =
+				x;
+
+			while (
+				x < width &&
+				occupied[x, y])
+			{
+				x++;
+			}
+
+			int runWidth =
+				x - start;
+
+			runs.Add(
+				new SolidRun(
+					start,
+					runWidth
+				)
+			);
+		}
+
+		return runs;
 	}
 
 	// ============================================================
@@ -1439,12 +1512,16 @@ simulator =
 
 		bool changed = true;
 
-		// Keep this deliberately bounded. The initial greedy
-		// decomposition already does the majority of the work.
+		// Allow more passes than the old version because the
+		// run-based decomposition has already reduced the number
+		// of rectangles substantially.
 		int safety =
 			Mathf.Min(
-				64,
-				result.Count
+				128,
+				Mathf.Max(
+					1,
+					result.Count
+				)
 			);
 
 		while (
@@ -1483,7 +1560,8 @@ simulator =
 							a.Width ==
 							b.X)
 						{
-							a.Width += b.Width;
+							a.Width +=
+								b.Width;
 
 							result[i] = a;
 							result.RemoveAt(j);
@@ -1497,8 +1575,11 @@ simulator =
 							b.Width ==
 							a.X)
 						{
-							a.X = b.X;
-							a.Width += b.Width;
+							a.X =
+								b.X;
+
+							a.Width +=
+								b.Width;
 
 							result[i] = a;
 							result.RemoveAt(j);
@@ -1521,7 +1602,8 @@ simulator =
 							a.Height ==
 							b.Y)
 						{
-							a.Height += b.Height;
+							a.Height +=
+								b.Height;
 
 							result[i] = a;
 							result.RemoveAt(j);
@@ -1535,8 +1617,11 @@ simulator =
 							b.Height ==
 							a.Y)
 						{
-							a.Y = b.Y;
-							a.Height += b.Height;
+							a.Y =
+								b.Y;
+
+							a.Height +=
+								b.Height;
 
 							result[i] = a;
 							result.RemoveAt(j);
