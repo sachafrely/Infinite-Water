@@ -6,15 +6,31 @@ using Godot;
 /// <summary>
 /// Generates PBF collision geometry from the visual Environment TileMapLayer.
 ///
-/// Design goals:
+/// IMPORTANT:
+/// This version treats the terrain as SOLID OCCUPIED AREA instead of
+/// reconstructing only its border.
 ///
-/// 1. Use the actual visual alpha/color mask.
-/// 2. Produce watertight boundary geometry.
-/// 3. Preserve meaningful terrain angles.
-/// 4. Merge long straight runs into single segments.
-/// 5. Keep every collider convex.
-/// 6. Use overlapping/thickened segment colliders to prevent
-///    high velocity particles from tunneling through corners.
+/// Pipeline:
+///
+///     visual tile pixels
+///          ↓
+///     solid pixel mask
+///          ↓
+///     rectangle decomposition
+///          ↓
+///     convex filled polygon colliders
+///
+/// This intentionally does NOT use:
+/// - contour extraction
+/// - border segments
+/// - collision thickness
+/// - endpoint extension
+/// - corner thickening
+/// - contour simplification
+/// - artificial dilation
+///
+/// The collision therefore represents the actual solid volume of the
+/// environment rather than a collection of thickened boundary lines.
 /// </summary>
 [Tool]
 public partial class TileMapPhysics : Node2D
@@ -28,23 +44,21 @@ public partial class TileMapPhysics : Node2D
 		new NodePath("../Environment");
 
 	/// <summary>
-	/// Physical thickness of the collision wall.
+	/// Kept for scene compatibility.
 	///
-	/// 16 px is intentional. The visible debug line is still
-	/// only 2 px wide; this controls the actual PBF collision.
+	/// NO LONGER USED for collision generation.
+	/// Solid-area collision does not need artificial thickness.
 	/// </summary>
 	[Export]
-	public float CollisionThickness { get; set; } = 16.0f;
+	public float CollisionThickness { get; set; } = 0.0f;
 
 	/// <summary>
-	/// Extends every segment beyond its endpoints.
+	/// Kept for scene compatibility.
 	///
-	/// This makes neighboring segment colliders overlap at
-	/// corners and removes tiny gaps that high velocity particles
-	/// could otherwise cross.
+	/// NO LONGER USED.
 	/// </summary>
 	[Export]
-	public float CollisionEndExtension { get; set; } = 8.0f;
+	public float CollisionEndExtension { get; set; } = 0.0f;
 
 	[Export]
 	public bool GenerateOnReady { get; set; } = true;
@@ -106,40 +120,36 @@ public partial class TileMapPhysics : Node2D
 	public bool UseEmptyColorKey { get; set; } = true;
 
 	// ============================================================
-	// Boundary processing
+	// Solid-region generation
 	// ============================================================
 
 	/// <summary>
-	/// Small dilation closes single-pixel holes and microscopic
-	/// discontinuities in the source artwork.
+	/// Minimum rectangle width.
 	/// </summary>
 	[Export]
-	public int CollisionSealPixels { get; set; } = 1;
+	public int MinimumRectangleWidth { get; set; } = 1;
 
 	/// <summary>
-	/// Distance used for removing redundant points.
+	/// Minimum rectangle height.
+	/// </summary>
+	[Export]
+	public int MinimumRectangleHeight { get; set; } = 1;
+
+	/// <summary>
+	/// Maximum generated solid-region colliders.
 	///
-	/// IMPORTANT:
-	/// The simplifier below never removes actual direction
-	/// changes. Therefore this can be larger than 1 without
-	/// destroying terrain corners.
+	/// This is a safety limit only.
 	/// </summary>
 	[Export]
-	public float ContourSimplification { get; set; } = 2.0f;
+	public int MaximumSolidColliders { get; set; } = 5000;
 
 	/// <summary>
-	/// Minimum useful contour area.
-	/// </summary>
-	[Export]
-	public float MinimumContourArea { get; set; } = 4.0f;
-
-	/// <summary>
-	/// Maximum number of generated segment colliders.
+	/// When true, rectangles are merged aggressively.
 	///
-	/// This is a safety limit, not the normal target.
+	/// This reduces PBF collision checks substantially.
 	/// </summary>
 	[Export]
-	public int MaximumContourSegments { get; set; } = 2500;
+	public bool MergeSolidRegions { get; set; } = true;
 
 	// ============================================================
 	// Runtime references
@@ -187,46 +197,26 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Grid edge
+	// Solid rectangle
 	// ============================================================
 
-	private struct GridEdge : IEquatable<GridEdge>
+	private struct SolidRectangle
 	{
-		public Vector2I A;
-		public Vector2I B;
+		public int X;
+		public int Y;
+		public int Width;
+		public int Height;
 
-		public GridEdge(
-			Vector2I a,
-			Vector2I b)
+		public SolidRectangle(
+			int x,
+			int y,
+			int width,
+			int height)
 		{
-			A = a;
-			B = b;
-		}
-
-		public bool Equals(
-			GridEdge other)
-		{
-			return
-				A == other.A &&
-				B == other.B;
-		}
-
-		public override bool Equals(
-			object obj)
-		{
-			return
-				obj is GridEdge &&
-				Equals(
-					(GridEdge)obj
-				);
-		}
-
-		public override int GetHashCode()
-		{
-			return HashCode.Combine(
-				A,
-				B
-			);
+			X = x;
+			Y = y;
+			Width = width;
+			Height = height;
 		}
 	}
 
@@ -253,6 +243,10 @@ public partial class TileMapPhysics : Node2D
 		GD.Print(
 			"ShowDebugGeometry: " +
 			ShowDebugGeometry
+		);
+
+		GD.Print(
+			"Collision mode: SOLID REGION"
 		);
 
 		CallDeferred(
@@ -632,7 +626,7 @@ public partial class TileMapPhysics : Node2D
 	public void GenerateColliders()
 	{
 		GD.Print(
-			"========== GENERATE COLLIDERS CALLED =========="
+			"========== GENERATE SOLID COLLIDERS =========="
 		);
 
 		if (generating)
@@ -691,17 +685,24 @@ public partial class TileMapPhysics : Node2D
 		generating = true;
 		generated = false;
 
+		// --------------------------------------------------------
+		// Remove old PBF collision.
+		// --------------------------------------------------------
+
 		solver.ClearPolygonColliders();
 
 		generatedColliders.Clear();
 		debugEdges.Clear();
 
 		GD.Print(
-			"TileMapPhysics: Generating collision..."
+			"TileMapPhysics: Building solid terrain mask..."
 		);
 
 		// --------------------------------------------------------
-		// Build solid pixel mask.
+		// Build the actual occupied pixel mask.
+		//
+		// NO dilation.
+		// NO contour reconstruction.
 		// --------------------------------------------------------
 
 		HashSet<Vector2I> solidPixels =
@@ -719,329 +720,149 @@ public partial class TileMapPhysics : Node2D
 		}
 
 		// --------------------------------------------------------
-		// Seal microscopic holes.
+		// Convert solid pixels into merged rectangles.
 		// --------------------------------------------------------
 
-		if (CollisionSealPixels > 0)
-		{
-			solidPixels =
-				DilateMask(
-					solidPixels,
-					CollisionSealPixels
-				);
-		}
-
-		// --------------------------------------------------------
-		// Extract complete closed contours.
-		// --------------------------------------------------------
-
-		List<List<Vector2I>> loops =
-			ExtractBoundaryLoops(
+		List<SolidRectangle> rectangles =
+			BuildSolidRectangles(
 				solidPixels
 			);
 
 		if (DebugOutput)
 		{
 			GD.Print(
-				"TileMapPhysics: boundary loops = " +
-				loops.Count
+				"TileMapPhysics: solid pixels = " +
+				solidPixels.Count
 			);
 
-			for (
-				int i = 0;
-				i < loops.Count;
-				i++)
-			{
-				GD.Print(
-					"  Loop " +
-					i +
-					": " +
-					loops[i].Count +
-					" points"
-				);
-			}
-		}
-
-		if (loops.Count == 0)
-		{
-			GD.PushWarning(
-				"TileMapPhysics: No boundary loops found."
+			GD.Print(
+				"TileMapPhysics: generated solid rectangles = " +
+				rectangles.Count
 			);
-
-			generating = false;
-
-			return;
 		}
 
-		int totalSegments = 0;
-		int rejectedContours = 0;
+		// --------------------------------------------------------
+		// Create one convex filled collider per rectangle.
+		// --------------------------------------------------------
 
-		// --------------------------------------------------------
-		// Process every contour.
-		// --------------------------------------------------------
+		int generatedCount = 0;
 
 		foreach (
-			List<Vector2I> loop in loops)
+			SolidRectangle rectangle in rectangles)
 		{
-			if (loop.Count < 3)
+			if (
+				generatedCount >=
+				MaximumSolidColliders)
 			{
-				rejectedContours++;
-				continue;
-			}
-
-			List<Vector2> contour =
-				new List<Vector2>(
-					loop.Count
+				GD.PushWarning(
+					"TileMapPhysics: MaximumSolidColliders " +
+					"reached."
 				);
 
-			foreach (
-				Vector2I point in loop)
-			{
-				contour.Add(
-					GridToTileMapLocal(
-						point
-					)
-				);
+				break;
 			}
 
-			contour =
-				RemoveDuplicatePoints(
-					contour
+			Vector2 topLeft =
+				new Vector2(
+					rectangle.X,
+					rectangle.Y
 				);
 
-			if (contour.Count < 3)
-			{
-				rejectedContours++;
-				continue;
-			}
-
-			// ----------------------------------------------------
-			// First remove ONLY redundant collinear points.
-			//
-			// This is the important difference from the previous
-			// simplifier: actual corners are never removed here.
-			// ----------------------------------------------------
-
-			contour =
-				RemoveCollinearPoints(
-					contour
+			Vector2 bottomRight =
+				new Vector2(
+					rectangle.X +
+					rectangle.Width,
+					rectangle.Y +
+					rectangle.Height
 				);
 
-			// ----------------------------------------------------
-			// Second pass:
-			//
-			// Remove only tiny points that are genuinely
-			// redundant AND do not represent a meaningful turn.
-			// ----------------------------------------------------
-
-			if (ContourSimplification > 0.0f)
-			{
-				contour =
-					SimplifyContourPreservingCorners(
-						contour,
-						ContourSimplification
-					);
-			}
-
-			// ----------------------------------------------------
-			// Run collinear cleanup again.
-			// ----------------------------------------------------
-
-			contour =
-				RemoveCollinearPoints(
-					contour
+			Vector2 simulationTopLeft =
+				ToSimulationSpace(
+					topLeft
 				);
 
-			if (contour.Count < 3)
-			{
-				rejectedContours++;
-				continue;
-			}
+			Vector2 simulationBottomRight =
+				ToSimulationSpace(
+					bottomRight
+				);
 
-			float area =
-				PolygonArea(
-					contour
+			float minX =
+				Mathf.Min(
+					simulationTopLeft.X,
+					simulationBottomRight.X
+				);
+
+			float maxX =
+				Mathf.Max(
+					simulationTopLeft.X,
+					simulationBottomRight.X
+				);
+
+			float minY =
+				Mathf.Min(
+					simulationTopLeft.Y,
+					simulationBottomRight.Y
+				);
+
+			float maxY =
+				Mathf.Max(
+					simulationTopLeft.Y,
+					simulationBottomRight.Y
 				);
 
 			if (
-				Mathf.Abs(area) <
-				MinimumContourArea)
+				maxX - minX <= 0.001f ||
+				maxY - minY <= 0.001f)
 			{
-				if (DebugOutput)
-				{
-					GD.Print(
-						"TileMapPhysics: contour rejected " +
-						"because area is too small: " +
-						area
-					);
-				}
-
-				rejectedContours++;
 				continue;
 			}
 
-			// ----------------------------------------------------
-			// Normalize clockwise.
-			// ----------------------------------------------------
-
-			if (area > 0.0f)
+			Vector2[] polygon =
 			{
-				contour.Reverse();
-			}
+				new Vector2(minX, minY),
+				new Vector2(minX, maxY),
+				new Vector2(maxX, maxY),
+				new Vector2(maxX, minY)
+			};
 
-			int before =
-				totalSegments;
-
-			// ----------------------------------------------------
-			// Convert every meaningful boundary edge into one
-			// convex thick collider.
-			// ----------------------------------------------------
-
-			for (
-				int i = 0;
-				i < contour.Count;
-				i++)
+			// Ensure the winding expected by the existing
+			// FluidPolygonCollider implementation.
+			if (
+				PolygonArea(polygon) >
+				0.0f)
 			{
-				if (
-					totalSegments >=
-					MaximumContourSegments)
-				{
-					GD.PushWarning(
-						"TileMapPhysics: MaximumContourSegments " +
-						"reached."
-					);
-
-					break;
-				}
-
-				Vector2 localA =
-					contour[i];
-
-				Vector2 localB =
-					contour[
-						(i + 1) %
-						contour.Count
-					];
-
-				Vector2 simulationA =
-					ToSimulationSpace(
-						localA
-					);
-
-				Vector2 simulationB =
-					ToSimulationSpace(
-						localB
-					);
-
-				Vector2 difference =
-					simulationB -
-					simulationA;
-
-				float length =
-					difference.Length();
-
-				if (length < 0.01f)
-				{
-					continue;
-				}
-
-				// ------------------------------------------------
-				// The key anti-leak improvement:
-				//
-				// extend the segment at BOTH ends.
-				//
-				// Adjacent segments therefore overlap around
-				// every corner.
-				// ------------------------------------------------
-
-				Vector2 direction =
-					difference /
-					length;
-
-				float extension =
-					Mathf.Max(
-						0.0f,
-						CollisionEndExtension
-					);
-
-				Vector2 extendedA =
-					simulationA -
-					direction *
-					extension;
-
-				Vector2 extendedB =
-					simulationB +
-					direction *
-					extension;
-
-				Vector2[] polygon =
-					BuildSegmentPolygon(
-						extendedA,
-						extendedB,
-						Mathf.Max(
-							CollisionThickness,
-							12.0f
-						)
-					);
-
-				if (
-					polygon == null ||
-					polygon.Length < 4)
-				{
-					continue;
-				}
-
-				float polygonArea =
-					PolygonArea(
-						polygon
-					);
-
-				if (
-					Mathf.Abs(
-						polygonArea
-					) < 0.001f)
-				{
-					continue;
-				}
-
-				FluidPolygonCollider collider =
-					new FluidPolygonCollider(
-						polygon
-					);
-
-				solver.AddPolygonCollider(
-					collider
-				);
-
-				generatedColliders.Add(
-					collider
-				);
-
-				totalSegments++;
-
-				if (ShowDebugGeometry)
-				{
-					// Draw the actual terrain line, not the
-					// extended collision strip.
-					debugEdges.Add(
-						new DebugEdge(
-							simulationA,
-							simulationB
-						)
-					);
-				}
-			}
-
-			if (DebugOutput)
-			{
-				GD.Print(
-					"  Contour: " +
-					contour.Count +
-					" points -> " +
-					(totalSegments - before) +
-					" colliders"
+				Array.Reverse(
+					polygon
 				);
 			}
+
+			FluidPolygonCollider collider =
+				new FluidPolygonCollider(
+					polygon
+				);
+
+			solver.AddPolygonCollider(
+				collider
+			);
+
+			generatedColliders.Add(
+				collider
+			);
+
+			generatedCount++;
+		}
+
+		// --------------------------------------------------------
+		// Build debug boundary directly from the solid mask.
+		//
+		// This is ONLY visualization. It is not used for physics.
+		// --------------------------------------------------------
+
+		if (ShowDebugGeometry)
+		{
+			BuildDebugBoundary(
+				solidPixels
+			);
 		}
 
 		generated =
@@ -1056,7 +877,7 @@ public partial class TileMapPhysics : Node2D
 			);
 
 			GD.Print(
-				"TileMapPhysics COLLISION RESULT"
+				"TileMapPhysics SOLID COLLISION RESULT"
 			);
 
 			GD.Print(
@@ -1070,41 +891,25 @@ public partial class TileMapPhysics : Node2D
 			);
 
 			GD.Print(
-				"Boundary loops: " +
-				loops.Count
+				"Solid rectangles: " +
+				rectangles.Count
 			);
 
 			GD.Print(
-				"Rejected contours: " +
-				rejectedContours
-			);
-
-			GD.Print(
-				"Generated collision segments: " +
-				totalSegments
-			);
-
-			GD.Print(
-				"PBF colliders: " +
+				"Generated colliders: " +
 				generatedColliders.Count
 			);
 
 			GD.Print(
-				"Collision thickness: " +
-				Mathf.Max(
-					CollisionThickness,
-					12.0f
-				)
+				"Collision thickness: NOT USED"
 			);
 
 			GD.Print(
-				"Collision end extension: " +
-				CollisionEndExtension
+				"Collision extension: NOT USED"
 			);
 
 			GD.Print(
-				"Contour simplification: " +
-				ContourSimplification
+				"Dilation: NOT USED"
 			);
 
 			GD.Print(
@@ -1388,45 +1193,359 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Dilate mask
+	// Solid rectangle decomposition
 	// ============================================================
 
-	private static HashSet<Vector2I>
-		DilateMask(
-			HashSet<Vector2I> source,
-			int radius)
+	private List<SolidRectangle>
+		BuildSolidRectangles(
+			HashSet<Vector2I> solid)
 	{
-		if (
-			radius <= 0 ||
-			source.Count == 0)
+		List<SolidRectangle> rectangles =
+			new List<SolidRectangle>();
+
+		if (solid.Count == 0)
+			return rectangles;
+
+		// --------------------------------------------------------
+		// Find bounds.
+		// --------------------------------------------------------
+
+		int minX = int.MaxValue;
+		int minY = int.MaxValue;
+		int maxX = int.MinValue;
+		int maxY = int.MinValue;
+
+		foreach (
+			Vector2I p in solid)
 		{
-			return source;
+			if (p.X < minX)
+				minX = p.X;
+
+			if (p.Y < minY)
+				minY = p.Y;
+
+			if (p.X > maxX)
+				maxX = p.X;
+
+			if (p.Y > maxY)
+				maxY = p.Y;
 		}
 
-		HashSet<Vector2I> result =
-			new HashSet<Vector2I>(
+		int width =
+			maxX -
+			minX +
+			1;
+
+		int height =
+			maxY -
+			minY +
+			1;
+
+		// --------------------------------------------------------
+		// A compact byte grid is much cheaper than repeatedly
+		// scanning a HashSet during rectangle decomposition.
+		// --------------------------------------------------------
+
+		bool[,] occupied =
+			new bool[
+				width,
+				height
+			];
+
+		foreach (
+			Vector2I p in solid)
+		{
+			occupied[
+				p.X - minX,
+				p.Y - minY
+			] = true;
+		}
+
+		// --------------------------------------------------------
+		// Greedy maximal rectangle decomposition.
+		//
+		// At every unprocessed solid pixel:
+		//
+		// 1. Find the widest horizontal run.
+		// 2. Expand that run downward while all pixels remain solid.
+		// 3. Emit one rectangle.
+		//
+		// The consumed area is removed from the working grid.
+		//
+		// This produces filled collision regions rather than
+		// individual boundary segments.
+		// --------------------------------------------------------
+
+		for (
+			int y = 0;
+			y < height;
+			y++)
+		{
+			for (
+				int x = 0;
+				x < width;
+				x++)
+			{
+				if (!occupied[x, y])
+					continue;
+
+				int rectangleWidth =
+					FindMaximumWidth(
+						occupied,
+						x,
+						y,
+						width
+					);
+
+				if (
+					rectangleWidth <
+					MinimumRectangleWidth)
+				{
+					rectangleWidth = 1;
+				}
+
+				int rectangleHeight =
+					1;
+
+				while (
+					y + rectangleHeight <
+					height)
+				{
+					bool entireRow =
+						true;
+
+					for (
+						int xx = x;
+						xx <
+							x +
+							rectangleWidth;
+						xx++)
+					{
+						if (
+							!occupied[
+								xx,
+								y +
+								rectangleHeight
+							])
+						{
+							entireRow = false;
+							break;
+						}
+					}
+
+					if (!entireRow)
+						break;
+
+					rectangleHeight++;
+				}
+
+				if (
+					rectangleHeight <
+					MinimumRectangleHeight)
+				{
+					rectangleHeight = 1;
+				}
+
+				SolidRectangle rectangle =
+					new SolidRectangle(
+						minX + x,
+						minY + y,
+						rectangleWidth,
+						rectangleHeight
+					);
+
+				rectangles.Add(
+					rectangle
+				);
+
+				// ------------------------------------------------
+				// Mark the entire rectangle as consumed.
+				// ------------------------------------------------
+
+				for (
+					int yy = y;
+					yy <
+						y +
+						rectangleHeight;
+					yy++)
+				{
+					for (
+						int xx = x;
+						xx <
+							x +
+							rectangleWidth;
+						xx++)
+					{
+						occupied[
+							xx,
+							yy
+						] = false;
+					}
+				}
+			}
+		}
+
+		if (MergeSolidRegions)
+		{
+			rectangles =
+				MergeAdjacentRectangles(
+					rectangles
+				);
+		}
+
+		return rectangles;
+	}
+
+	// ============================================================
+	// Maximum horizontal run
+	// ============================================================
+
+	private static int FindMaximumWidth(
+		bool[,] occupied,
+		int x,
+		int y,
+		int width)
+	{
+		int result = 0;
+
+		for (
+			int xx = x;
+			xx < width;
+			xx++)
+		{
+			if (!occupied[xx, y])
+				break;
+
+			result++;
+		}
+
+		return result;
+	}
+
+	// ============================================================
+	// Merge adjacent rectangles
+	// ============================================================
+
+	private static List<SolidRectangle>
+		MergeAdjacentRectangles(
+			List<SolidRectangle> source)
+	{
+		if (source.Count <= 1)
+			return source;
+
+		List<SolidRectangle> result =
+			new List<SolidRectangle>(
 				source
 			);
 
-		foreach (
-			Vector2I p in source)
+		bool changed = true;
+
+		// Keep this deliberately bounded. The initial greedy
+		// decomposition already does the majority of the work.
+		int safety =
+			Mathf.Min(
+				64,
+				result.Count
+			);
+
+		while (
+			changed &&
+			safety-- > 0)
 		{
+			changed = false;
+
 			for (
-				int y = -radius;
-				y <= radius;
-				y++)
+				int i = 0;
+				i < result.Count &&
+				!changed;
+				i++)
 			{
+				SolidRectangle a =
+					result[i];
+
 				for (
-					int x = -radius;
-					x <= radius;
-					x++)
+					int j = i + 1;
+					j < result.Count;
+					j++)
 				{
-					result.Add(
-						new Vector2I(
-							p.X + x,
-							p.Y + y
-						)
-					);
+					SolidRectangle b =
+						result[j];
+
+					// ------------------------------------------------
+					// Horizontal merge.
+					// ------------------------------------------------
+
+					if (
+						a.Y == b.Y &&
+						a.Height == b.Height)
+					{
+						if (
+							a.X +
+							a.Width ==
+							b.X)
+						{
+							a.Width += b.Width;
+
+							result[i] = a;
+							result.RemoveAt(j);
+
+							changed = true;
+							break;
+						}
+
+						if (
+							b.X +
+							b.Width ==
+							a.X)
+						{
+							a.X = b.X;
+							a.Width += b.Width;
+
+							result[i] = a;
+							result.RemoveAt(j);
+
+							changed = true;
+							break;
+						}
+					}
+
+					// ------------------------------------------------
+					// Vertical merge.
+					// ------------------------------------------------
+
+					if (
+						a.X == b.X &&
+						a.Width == b.Width)
+					{
+						if (
+							a.Y +
+							a.Height ==
+							b.Y)
+						{
+							a.Height += b.Height;
+
+							result[i] = a;
+							result.RemoveAt(j);
+
+							changed = true;
+							break;
+						}
+
+						if (
+							b.Y +
+							b.Height ==
+							a.Y)
+						{
+							a.Y = b.Y;
+							a.Height += b.Height;
+
+							result[i] = a;
+							result.RemoveAt(j);
+
+							changed = true;
+							break;
+						}
+					}
 				}
 			}
 		}
@@ -1435,15 +1554,13 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Extract boundary loops
+	// Debug boundary
 	// ============================================================
 
-	private List<List<Vector2I>>
-		ExtractBoundaryLoops(
-			HashSet<Vector2I> solid)
+	private void BuildDebugBoundary(
+		HashSet<Vector2I> solid)
 	{
-		HashSet<GridEdge> edges =
-			new HashSet<GridEdge>();
+		debugEdges.Clear();
 
 		foreach (
 			Vector2I p in solid)
@@ -1451,6 +1568,7 @@ public partial class TileMapPhysics : Node2D
 			int x = p.X;
 			int y = p.Y;
 
+			// Top.
 			if (
 				!solid.Contains(
 					new Vector2I(
@@ -1459,19 +1577,19 @@ public partial class TileMapPhysics : Node2D
 					)
 				))
 			{
-				AddBoundaryEdge(
-					edges,
-					new Vector2I(
+				AddDebugEdge(
+					new Vector2(
 						x,
 						y
 					),
-					new Vector2I(
+					new Vector2(
 						x + 1,
 						y
 					)
 				);
 			}
 
+			// Right.
 			if (
 				!solid.Contains(
 					new Vector2I(
@@ -1480,19 +1598,19 @@ public partial class TileMapPhysics : Node2D
 					)
 				))
 			{
-				AddBoundaryEdge(
-					edges,
-					new Vector2I(
+				AddDebugEdge(
+					new Vector2(
 						x + 1,
 						y
 					),
-					new Vector2I(
+					new Vector2(
 						x + 1,
 						y + 1
 					)
 				);
 			}
 
+			// Bottom.
 			if (
 				!solid.Contains(
 					new Vector2I(
@@ -1501,19 +1619,19 @@ public partial class TileMapPhysics : Node2D
 					)
 				))
 			{
-				AddBoundaryEdge(
-					edges,
-					new Vector2I(
+				AddDebugEdge(
+					new Vector2(
 						x + 1,
 						y + 1
 					),
-					new Vector2I(
+					new Vector2(
 						x,
 						y + 1
 					)
 				);
 			}
 
+			// Left.
 			if (
 				!solid.Contains(
 					new Vector2I(
@@ -1522,709 +1640,38 @@ public partial class TileMapPhysics : Node2D
 					)
 				))
 			{
-				AddBoundaryEdge(
-					edges,
-					new Vector2I(
+				AddDebugEdge(
+					new Vector2(
 						x,
 						y + 1
 					),
-					new Vector2I(
+					new Vector2(
 						x,
 						y
 					)
 				);
 			}
 		}
-
-		Dictionary<Vector2I, List<Vector2I>>
-			nextMap =
-				new Dictionary<
-					Vector2I,
-					List<Vector2I>
-				>();
-
-		foreach (
-			GridEdge edge in edges)
-		{
-			List<Vector2I> list;
-
-			if (
-				!nextMap.TryGetValue(
-					edge.A,
-					out list
-				))
-			{
-				list =
-					new List<Vector2I>();
-
-				nextMap[edge.A] =
-					list;
-			}
-
-			list.Add(
-				edge.B
-			);
-		}
-
-		// Deterministic ordering.
-		foreach (
-			KeyValuePair<
-				Vector2I,
-				List<Vector2I>
-			> pair in nextMap)
-		{
-			Vector2I origin =
-				pair.Key;
-
-			pair.Value.Sort(
-				(a, b) =>
-				{
-					Vector2 da =
-						new Vector2(
-							a.X - origin.X,
-							a.Y - origin.Y
-						);
-
-					Vector2 db =
-						new Vector2(
-							b.X - origin.X,
-							b.Y - origin.Y
-						);
-
-					float aa =
-						Mathf.Atan2(
-							da.Y,
-							da.X
-						);
-
-					float ab =
-						Mathf.Atan2(
-							db.Y,
-							db.X
-						);
-
-					return aa.CompareTo(ab);
-				}
-			);
-		}
-
-		HashSet<GridEdge> remaining =
-			new HashSet<GridEdge>(
-				edges
-			);
-
-		List<List<Vector2I>> loops =
-			new List<List<Vector2I>>();
-
-		while (remaining.Count > 0)
-		{
-			GridEdge first =
-				FindDeterministicFirstEdge(
-					remaining
-				);
-
-			List<Vector2I> loop =
-				TraceSingleBoundary(
-					first,
-					remaining,
-					nextMap
-				);
-
-			if (
-				loop != null &&
-				loop.Count >= 3)
-			{
-				loops.Add(
-					loop
-				);
-			}
-		}
-
-		return loops;
 	}
 
-	// ============================================================
-	// Deterministic first edge
-	// ============================================================
-
-	private static GridEdge
-		FindDeterministicFirstEdge(
-			HashSet<GridEdge> edges)
+	private void AddDebugEdge(
+		Vector2 a,
+		Vector2 b)
 	{
-		GridEdge best =
-			default;
-
-		bool haveBest =
-			false;
-
-		foreach (
-			GridEdge edge in edges)
-		{
-			if (!haveBest)
-			{
-				best = edge;
-				haveBest = true;
-				continue;
-			}
-
-			if (
-				edge.A.Y < best.A.Y ||
-				(
-					edge.A.Y == best.A.Y &&
-					edge.A.X < best.A.X
-				) ||
-				(
-					edge.A == best.A &&
-					edge.B.Y < best.B.Y
-				) ||
-				(
-					edge.A == best.A &&
-					edge.B.Y == best.B.Y &&
-					edge.B.X < best.B.X
-				))
-			{
-				best = edge;
-			}
-		}
-
-		return best;
-	}
-
-	// ============================================================
-	// Trace boundary
-	// ============================================================
-
-	private static List<Vector2I>
-		TraceSingleBoundary(
-			GridEdge first,
-			HashSet<GridEdge> remaining,
-			Dictionary<
-				Vector2I,
-				List<Vector2I>
-			> nextMap)
-	{
-		List<Vector2I> loop =
-			new List<Vector2I>();
-
-		Vector2I start =
-			first.A;
-
-		Vector2I previous =
-			first.A;
-
-		Vector2I current =
-			first.B;
-
-		RemoveEdge(
-			remaining,
-			first.A,
-			first.B
-		);
-
-		loop.Add(
-			start
-		);
-
-		int safety =
-			Mathf.Max(
-				1000,
-				remaining.Count * 2 + 100
-			);
-
-		for (
-			int iteration = 0;
-			iteration < safety;
-			iteration++)
-		{
-			if (current == start)
-			{
-				return loop;
-			}
-
-			loop.Add(
-				current
-			);
-
-			List<Vector2I> candidates;
-
-			if (
-				!nextMap.TryGetValue(
-					current,
-					out candidates
-				))
-			{
-				return null;
-			}
-
-			Vector2 incoming =
-				new Vector2(
-					current.X - previous.X,
-					current.Y - previous.Y
-				);
-
-			Vector2I next =
-				default;
-
-			bool found =
-				false;
-
-			float bestScore =
-				float.MaxValue;
-
-			foreach (
-				Vector2I candidate in candidates)
-			{
-				GridEdge edge =
-					new GridEdge(
-						current,
-						candidate
-					);
-
-				if (
-					!remaining.Contains(
-						edge
-					))
-				{
-					continue;
-				}
-
-				Vector2 outgoing =
-					new Vector2(
-						candidate.X - current.X,
-						candidate.Y - current.Y
-					);
-
-				float cross =
-					incoming.X *
-					outgoing.Y -
-					incoming.Y *
-					outgoing.X;
-
-				float dot =
-					incoming.Dot(
-						outgoing
-					);
-
-				float score;
-
-				if (
-					Mathf.Abs(cross) <
-					0.001f &&
-					dot > 0.0f)
-				{
-					score = 0.0f;
-				}
-				else if (cross < 0.0f)
-				{
-					score = 1.0f;
-				}
-				else
-				{
-					score = 2.0f;
-				}
-
-				score +=
-					Mathf.Atan2(
-						outgoing.Y,
-						outgoing.X
-					) *
-					0.0001f;
-
-				if (score < bestScore)
-				{
-					bestScore = score;
-					next = candidate;
-					found = true;
-				}
-			}
-
-			if (!found)
-			{
-				return null;
-			}
-
-			previous =
-				current;
-
-			current =
-				next;
-
-			RemoveEdge(
-				remaining,
-				previous,
-				current
-			);
-		}
-
-		return null;
-	}
-
-	// ============================================================
-	// Add boundary edge
-	// ============================================================
-
-	private static void AddBoundaryEdge(
-		HashSet<GridEdge> edges,
-		Vector2I a,
-		Vector2I b)
-	{
-		GridEdge edge =
-			new GridEdge(
-				a,
-				b
-			);
-
-		GridEdge reverse =
-			new GridEdge(
-				b,
-				a
-			);
-
-		if (edges.Contains(reverse))
-		{
-			edges.Remove(reverse);
+		if (!ShowDebugGeometry)
 			return;
-		}
 
-		edges.Add(edge);
-	}
-
-	private static void RemoveEdge(
-		HashSet<GridEdge> edges,
-		Vector2I a,
-		Vector2I b)
-	{
-		edges.Remove(
-			new GridEdge(
-				a,
-				b
+		debugEdges.Add(
+			new DebugEdge(
+				ToSimulationSpace(a),
+				ToSimulationSpace(b)
 			)
-		);
-	}
-
-	// ============================================================
-	// Remove duplicate points
-	// ============================================================
-
-	private static List<Vector2>
-		RemoveDuplicatePoints(
-			List<Vector2> polygon)
-	{
-		if (polygon.Count <= 1)
-			return polygon;
-
-		List<Vector2> result =
-			new List<Vector2>();
-
-		for (
-			int i = 0;
-			i < polygon.Count;
-			i++)
-		{
-			Vector2 current =
-				polygon[i];
-
-			Vector2 previous =
-				polygon[
-					(i - 1 + polygon.Count) %
-					polygon.Count
-				];
-
-			if (
-				current.DistanceSquaredTo(
-					previous
-				) > 0.000001f)
-			{
-				result.Add(
-					current
-				);
-			}
-		}
-
-		return result;
-	}
-
-	// ============================================================
-	// Remove collinear points
-	// ============================================================
-
-	private static List<Vector2>
-		RemoveCollinearPoints(
-			List<Vector2> polygon)
-	{
-		if (polygon.Count <= 3)
-			return polygon;
-
-		List<Vector2> result =
-			new List<Vector2>(
-				polygon
-			);
-
-		bool changed = true;
-
-		int safety =
-			result.Count * 2;
-
-		while (
-			changed &&
-			result.Count > 3 &&
-			safety-- > 0)
-		{
-			changed = false;
-
-			for (
-				int i = 0;
-				i < result.Count;
-				i++)
-			{
-				Vector2 previous =
-					result[
-						(i - 1 + result.Count) %
-						result.Count
-					];
-
-				Vector2 current =
-					result[i];
-
-				Vector2 next =
-					result[
-						(i + 1) %
-						result.Count
-					];
-
-				Vector2 a =
-					current -
-					previous;
-
-				Vector2 b =
-					next -
-					current;
-
-				float cross =
-					a.X * b.Y -
-					a.Y * b.X;
-
-				if (
-					Mathf.Abs(cross) >
-					0.0001f)
-				{
-					continue;
-				}
-
-				float dot =
-					a.Dot(b);
-
-				// Only remove points sitting between the
-				// neighboring points.
-				if (dot < 0.0f)
-				{
-					continue;
-				}
-
-				result.RemoveAt(i);
-
-				changed = true;
-				break;
-			}
-		}
-
-		return result;
-	}
-
-	// ============================================================
-	// Corner-preserving simplification
-	// ============================================================
-
-	private static List<Vector2>
-		SimplifyContourPreservingCorners(
-			List<Vector2> polygon,
-			float tolerance)
-	{
-		if (
-			polygon.Count <= 3 ||
-			tolerance <= 0.0f)
-		{
-			return polygon;
-		}
-
-		List<Vector2> result =
-			new List<Vector2>(
-				polygon
-			);
-
-		float toleranceSquared =
-			tolerance *
-			tolerance;
-
-		bool changed = true;
-
-		int safety =
-			result.Count * 2;
-
-		while (
-			changed &&
-			result.Count > 3 &&
-			safety-- > 0)
-		{
-			changed = false;
-
-			for (
-				int i = 0;
-				i < result.Count;
-				i++)
-			{
-				Vector2 previous =
-					result[
-						(i - 1 + result.Count) %
-						result.Count
-					];
-
-				Vector2 current =
-					result[i];
-
-				Vector2 next =
-					result[
-						(i + 1) %
-						result.Count
-					];
-
-				Vector2 incoming =
-					(current - previous).Normalized();
-
-				Vector2 outgoing =
-					(next - current).Normalized();
-
-				if (
-					incoming.LengthSquared() <
-					0.5f ||
-					outgoing.LengthSquared() <
-					0.5f)
-				{
-					continue;
-				}
-
-				float cross =
-					incoming.X *
-					outgoing.Y -
-					incoming.Y *
-					outgoing.X;
-
-				// ------------------------------------------------
-				// NEVER remove a meaningful corner.
-				//
-				// This is the important difference from a plain
-				// RDP-style simplifier.
-				// ------------------------------------------------
-
-				if (
-					Mathf.Abs(cross) >
-					0.01f)
-				{
-					continue;
-				}
-
-				float distance =
-					DistancePointToSegmentSquared(
-						current,
-						previous,
-						next
-					);
-
-				if (
-					distance <=
-					toleranceSquared)
-				{
-					result.RemoveAt(i);
-
-					changed = true;
-					break;
-				}
-			}
-		}
-
-		return result;
-	}
-
-	// ============================================================
-	// Distance point -> segment
-	// ============================================================
-
-	private static float
-		DistancePointToSegmentSquared(
-			Vector2 p,
-			Vector2 a,
-			Vector2 b)
-	{
-		Vector2 ab =
-			b - a;
-
-		float lengthSquared =
-			ab.LengthSquared();
-
-		if (
-			lengthSquared <=
-			0.000001f)
-		{
-			return p.DistanceSquaredTo(a);
-		}
-
-		float t =
-			(p - a).Dot(ab) /
-			lengthSquared;
-
-		t =
-			Mathf.Clamp(
-				t,
-				0.0f,
-				1.0f
-			);
-
-		Vector2 closest =
-			a +
-			ab * t;
-
-		return p.DistanceSquaredTo(
-			closest
 		);
 	}
 
 	// ============================================================
 	// Polygon area
 	// ============================================================
-
-	private static float PolygonArea(
-		List<Vector2> polygon)
-	{
-		if (
-			polygon == null ||
-			polygon.Count < 3)
-		{
-			return 0.0f;
-		}
-
-		float area = 0.0f;
-
-		for (
-			int i = 0;
-			i < polygon.Count;
-			i++)
-		{
-			Vector2 a =
-				polygon[i];
-
-			Vector2 b =
-				polygon[
-					(i + 1) %
-					polygon.Count
-				];
-
-			area +=
-				a.X * b.Y -
-				b.X * a.Y;
-		}
-
-		return area * 0.5f;
-	}
 
 	private static float PolygonArea(
 		Vector2[] polygon)
@@ -2258,90 +1705,6 @@ public partial class TileMapPhysics : Node2D
 		}
 
 		return area * 0.5f;
-	}
-
-	// ============================================================
-	// Grid -> TileMap local
-	// ============================================================
-
-	private static Vector2
-		GridToTileMapLocal(
-			Vector2I point)
-	{
-		return new Vector2(
-			point.X,
-			point.Y
-		);
-	}
-
-	// ============================================================
-	// Build thick convex segment
-	// ============================================================
-
-	private static Vector2[]
-		BuildSegmentPolygon(
-			Vector2 a,
-			Vector2 b,
-			float thickness)
-	{
-		Vector2 direction =
-			b - a;
-
-		float lengthSquared =
-			direction.LengthSquared();
-
-		if (
-			lengthSquared <=
-			0.000001f)
-		{
-			return Array.Empty<Vector2>();
-		}
-
-		float inverseLength =
-			1.0f /
-			Mathf.Sqrt(
-				lengthSquared
-			);
-
-		direction *=
-			inverseLength;
-
-		Vector2 normal =
-			new Vector2(
-				-direction.Y,
-				direction.X
-			);
-
-		float halfThickness =
-			Mathf.Max(
-				6.0f,
-				thickness * 0.5f
-			);
-
-		Vector2 offset =
-			normal *
-			halfThickness;
-
-		Vector2[] polygon =
-		{
-			a - offset,
-			a + offset,
-			b + offset,
-			b - offset
-		};
-
-		// FluidPolygonCollider expects its winding to define
-		// its collision normal direction.
-		if (
-			PolygonArea(polygon) >
-			0.0f)
-		{
-			Array.Reverse(
-				polygon
-			);
-		}
-
-		return polygon;
 	}
 
 	// ============================================================
