@@ -24,6 +24,9 @@ public class ParticleData
 	public float[] PredX;
 	public float[] PredY;
 
+	// Age of each active particle in seconds.
+	public float[] Age;
+
 	public ParticleData(int capacity)
 	{
 		Capacity = capacity;
@@ -37,6 +40,7 @@ public class ParticleData
 
 		PredX = new float[capacity];
 		PredY = new float[capacity];
+		Age = new float[capacity];
 	}
 
 	public bool AddParticle(
@@ -72,6 +76,9 @@ public class ParticleData
 
 		PredY[index] =
 			y;
+
+		Age[index] =
+			0.0f;
 
 		activeCount++;
 
@@ -118,11 +125,32 @@ public class ParticleData
 
 			PredY[index] =
 				PredY[lastIndex];
+
+			Age[index] =
+				Age[lastIndex];
 		}
 
 		activeCount--;
 
 		return true;
+	}
+
+	// ------------------------------------------------------------
+	// Advance particle ages
+	// ------------------------------------------------------------
+
+	public void AdvanceAges(float delta)
+	{
+		if (delta <= 0.0f)
+			return;
+
+		for (
+			int i = 0;
+			i < activeCount;
+			i++)
+		{
+			Age[i] += delta;
+		}
 	}
 
 	public Vector2 GetPosition(int i)

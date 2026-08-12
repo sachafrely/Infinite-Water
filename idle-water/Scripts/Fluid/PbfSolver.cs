@@ -160,6 +160,12 @@ public class PbfSolver
 	private float[] neighborGradientScale;
 
 	// ============================================================
+	// Particle packing profiler
+	// ============================================================
+
+	private float[] packingNearestDistances;
+
+	// ============================================================
 	// Wheel
 	// ============================================================
 
@@ -308,19 +314,19 @@ public class PbfSolver
 
 			if (printProfiler)
 			{
-			PrintProfiler(
-				predictMs,
-				spatialHashMs,
-				neighborCacheMs,
-				pbfMs,
-				collisionMs,
-				terrainQueryMs,
-				terrainResolveMs,
-				wheelCollisionMs,
-				boundsMs,
-				velocityMs,
-				totalMs
-			);
+				PrintProfiler(
+					predictMs,
+					spatialHashMs,
+					neighborCacheMs,
+					pbfMs,
+					collisionMs,
+					terrainQueryMs,
+					terrainResolveMs,
+					wheelCollisionMs,
+					boundsMs,
+					velocityMs,
+					totalMs
+				);
 			}
 
 			return;
@@ -471,6 +477,19 @@ public class PbfSolver
 			ElapsedMilliseconds(
 				neighborCacheStart
 			);
+
+		// --------------------------------------------------------
+		// Particle packing profiler
+		// --------------------------------------------------------
+
+		if (printProfiler)
+		{
+			CalculateParticlePackingStats(
+				predX,
+				predY,
+				count
+			);
+		}
 
 		// --------------------------------------------------------
 		// PBF iterations
@@ -737,19 +756,19 @@ public class PbfSolver
 
 		if (printProfiler)
 		{
-		PrintProfiler(
-			predictMs,
-			spatialHashMs,
-			neighborCacheMs,
-			pbfMs,
-			collisionMs,
-			terrainQueryMs,
-			terrainResolveMs,
-			wheelCollisionMs,
-			boundsMs,
-			velocityMs,
-			total
-		);
+			PrintProfiler(
+				predictMs,
+				spatialHashMs,
+				neighborCacheMs,
+				pbfMs,
+				collisionMs,
+				terrainQueryMs,
+				terrainResolveMs,
+				wheelCollisionMs,
+				boundsMs,
+				velocityMs,
+				total
+			);
 		}
 	}
 
@@ -796,6 +815,269 @@ public class PbfSolver
 			$"Bounds: {boundsMs:F3} ms | " +
 			$"Velocity: {velocityMs:F3} ms | " +
 			$"Total: {totalMs:F3} ms"
+		);
+	}
+
+	// ============================================================
+	// Particle packing profiler
+	// ============================================================
+
+	private void CalculateParticlePackingStats(
+		float[] predX,
+		float[] predY,
+		int count)
+	{
+		if (count <= 0)
+			return;
+
+		if (
+			packingNearestDistances == null ||
+			packingNearestDistances.Length < count)
+		{
+			packingNearestDistances =
+				new float[count];
+		}
+
+		double minimumDistance =
+			double.MaxValue;
+
+		double nearestDistanceSum =
+			0.0;
+
+		int validCount =
+			0;
+
+		int below1 =
+			0;
+
+		int below2 =
+			0;
+
+		int below3 =
+			0;
+
+		int below4 =
+			0;
+
+		long neighborSum =
+			0;
+
+		int maximumNeighbors =
+			0;
+
+		int neighborCapHits =
+			0;
+
+		int stride =
+			neighborStride;
+
+		for (
+			int i = 0;
+			i < count;
+			i++)
+		{
+			int neighborCount =
+				neighborCounts[i];
+
+			neighborSum +=
+				neighborCount;
+
+			if (
+				neighborCount >
+				maximumNeighbors)
+			{
+				maximumNeighbors =
+					neighborCount;
+			}
+
+			if (
+				neighborCount >=
+				MaxNeighbors)
+			{
+				neighborCapHits++;
+			}
+
+			float nearestDistance =
+				float.MaxValue;
+
+			int start =
+				i * stride;
+
+			int end =
+				start +
+				neighborCount;
+
+			for (
+				int index = start;
+				index < end;
+				index++)
+			{
+				int j =
+					neighborBuffer[index];
+
+				if (j == i)
+					continue;
+
+				float dx =
+					predX[i] -
+					predX[j];
+
+				float dy =
+					predY[i] -
+					predY[j];
+
+				float distanceSquared =
+					dx * dx +
+					dy * dy;
+
+				if (
+					distanceSquared <=
+					0.000001f)
+				{
+					nearestDistance =
+						0.0f;
+
+					break;
+				}
+
+				float distance =
+					MathF.Sqrt(
+						distanceSquared
+					);
+
+				if (
+					distance <
+					nearestDistance)
+				{
+					nearestDistance =
+						distance;
+				}
+			}
+
+			if (
+				nearestDistance ==
+				float.MaxValue)
+			{
+				packingNearestDistances[i] =
+					float.NaN;
+
+				continue;
+			}
+
+			packingNearestDistances[i] =
+				nearestDistance;
+
+			nearestDistanceSum +=
+				nearestDistance;
+
+			validCount++;
+
+			if (
+				nearestDistance <
+				minimumDistance)
+			{
+				minimumDistance =
+					nearestDistance;
+			}
+
+			if (
+				nearestDistance <
+				1.0f)
+			{
+				below1++;
+			}
+
+			if (
+				nearestDistance <
+				2.0f)
+			{
+				below2++;
+			}
+
+			if (
+				nearestDistance <
+				3.0f)
+			{
+				below3++;
+			}
+
+			if (
+				nearestDistance <
+				4.0f)
+			{
+				below4++;
+			}
+		}
+
+		if (validCount <= 0)
+		{
+			GD.Print(
+				"[PARTICLE PACKING] " +
+				$"Particles: {count} | " +
+				"No valid nearest neighbors"
+			);
+
+			return;
+		}
+
+		// --------------------------------------------------------
+		// Sort nearest-neighbor distances.
+		// --------------------------------------------------------
+
+		Array.Sort(
+			packingNearestDistances,
+			0,
+			validCount
+		);
+
+		int p5Index =
+			(int)Math.Floor(
+				(validCount - 1) *
+				0.05
+			);
+
+		int medianIndex =
+			(validCount - 1) /
+			2;
+
+		float p5 =
+			packingNearestDistances[
+				p5Index
+			];
+
+		float median =
+			packingNearestDistances[
+				medianIndex
+			];
+
+		double averageNearest =
+			nearestDistanceSum /
+			validCount;
+
+		double averageNeighbors =
+			(double)neighborSum /
+			count;
+
+		double minDistance =
+			minimumDistance ==
+			double.MaxValue
+				? 0.0
+				: minimumDistance;
+
+		GD.Print(
+			"[PARTICLE PACKING] " +
+			$"Particles: {count} | " +
+			$"MinDistance: {minDistance:F3} px | " +
+			$"AvgNearest: {averageNearest:F3} px | " +
+			$"P5: {p5:F3} px | " +
+			$"Median: {median:F3} px | " +
+			$"<1px: {below1} | " +
+			$"<2px: {below2} | " +
+			$"<3px: {below3} | " +
+			$"<4px: {below4} | " +
+			$"AvgNeighbors: {averageNeighbors:F2} | " +
+			$"MaxNeighbors: {maximumNeighbors} | " +
+			$"NeighborCapHits: {neighborCapHits}"
 		);
 	}
 
@@ -974,20 +1256,6 @@ public class PbfSolver
 
 			// ----------------------------------------------------
 			// Terrain grid query
-			//
-			// The collider grid is already built with an expanded
-			// AABB:
-			//
-			// PolygonParticleRadius + ColliderGridExpansion
-			//
-			// Therefore a collider capable of overlapping the
-			// particle is already registered in the particle's
-			// current grid cell.
-			//
-			// The previous implementation searched a complete
-			// 3x3 group of cells for every particle, every PBF
-			// iteration. This was the main source of collision
-			// query cost.
 			// ----------------------------------------------------
 
 			long terrainQueryStart =
@@ -1084,9 +1352,6 @@ public class PbfSolver
 
 			// ----------------------------------------------------
 			// Wheel collision
-			//
-			// Wheels remain separate because their geometry is
-			// dynamic and changes every frame.
 			// ----------------------------------------------------
 
 			for (
@@ -2156,6 +2421,9 @@ public class PbfSolver
 
 		neighborGradientScale =
 			new float[capacity];
+
+		packingNearestDistances =
+			new float[count];
 	}
 
 	// ============================================================

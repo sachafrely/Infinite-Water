@@ -63,6 +63,9 @@ public partial class FluidSimulator : Node2D
 	//
 	// Removed particles are NOT counted again as spawns.
 	private long totalRainSpawns = 0;
+	private long totalParticlesRemoved = 0;
+	private long profilerRainSpawnsAtStart = 0;
+	private long profilerParticlesRemovedAtStart = 0;
 
 	// ============================================================
 	// Density rendering grid
@@ -138,6 +141,14 @@ public partial class FluidSimulator : Node2D
 
 	private const float DespawnBottomY =
 		WorldMaxY - 8.0f;
+
+	// Particle-age profiler thresholds. These are diagnostics only.
+	private const float AgeThreshold5Seconds = 5.0f;
+	private const float AgeThreshold10Seconds = 10.0f;
+	private const float AgeThreshold20Seconds = 20.0f;
+	private const float AgeThreshold30Seconds = 30.0f;
+	private const float NearBottomDistance = 100.0f;
+	private const float StationarySpeedSquared = 4.0f;
 
 	// ============================================================
 	// Water wheels
@@ -295,6 +306,14 @@ public partial class FluidSimulator : Node2D
 
 		lastPhysicsDelta =
 			dt;
+
+		// --------------------------------------------------------
+		// Particle ages
+		// --------------------------------------------------------
+		// Existing particles age by the actual physics delta.
+		// New particles spawned later this frame start at age 0.
+		// This is diagnostic only and does not affect simulation.
+		particles.AdvanceAges(dt);
 
 		// --------------------------------------------------------
 		// Reset per-frame energy counters
@@ -1621,9 +1640,10 @@ void fragment()
 			if (
 				outside)
 			{
-				particles.RemoveParticle(
-					i
-				);
+				if (particles.RemoveParticle(i))
+				{
+					totalParticlesRemoved++;
+				}
 
 				// Do NOT increment i.
 				//
@@ -1834,6 +1854,12 @@ void fragment()
 		);
 
 		// --------------------------------------------------------
+		// Particle age diagnostics
+		// --------------------------------------------------------
+
+		PrintParticleAgeProfiler();
+
+		// --------------------------------------------------------
 		// Energy statistics
 		// --------------------------------------------------------
 
@@ -1900,11 +1926,145 @@ void fragment()
 	}
 
 	// ============================================================
+	// Particle age profiler
+	// ============================================================
+
+	private void PrintParticleAgeProfiler()
+	{
+		int count =
+			particles.Count;
+
+		if (count <= 0)
+		{
+			GD.Print(
+				"ParticleAge: Active=0"
+			);
+			return;
+		}
+
+		float minimumAge =
+			float.MaxValue;
+
+		float maximumAge =
+			0.0f;
+
+		double totalAge =
+			0.0;
+
+		int olderThan5 = 0;
+		int olderThan10 = 0;
+		int olderThan20 = 0;
+		int olderThan30 = 0;
+
+		int nearBottom = 0;
+		int stationary = 0;
+
+		float bottomThreshold =
+			WorldMaxY -
+			NearBottomDistance;
+
+		for (
+			int i = 0;
+			i < count;
+			i++)
+		{
+			float age =
+				particles.Age[i];
+
+			if (age < minimumAge)
+				minimumAge = age;
+
+			if (age > maximumAge)
+				maximumAge = age;
+
+			totalAge += age;
+
+			if (age >= AgeThreshold5Seconds)
+				olderThan5++;
+
+			if (age >= AgeThreshold10Seconds)
+				olderThan10++;
+
+			if (age >= AgeThreshold20Seconds)
+				olderThan20++;
+
+			if (age >= AgeThreshold30Seconds)
+				olderThan30++;
+
+			if (particles.PosY[i] >= bottomThreshold)
+				nearBottom++;
+
+			float vx =
+				particles.VelX[i];
+
+			float vy =
+				particles.VelY[i];
+
+			float speedSquared =
+				vx * vx +
+				vy * vy;
+
+			if (speedSquared <= StationarySpeedSquared)
+				stationary++;
+		}
+
+		double averageAge =
+			totalAge / count;
+
+		long spawnsThisInterval =
+			totalRainSpawns -
+			profilerRainSpawnsAtStart;
+
+		long removedThisInterval =
+			totalParticlesRemoved -
+			profilerParticlesRemovedAtStart;
+
+		GD.Print(
+			"ParticleAge: " +
+			"Active=" + count +
+			" | Min=" + minimumAge.ToString("F2") + "s" +
+			" | Avg=" + averageAge.ToString("F2") + "s" +
+			" | Max=" + maximumAge.ToString("F2") + "s"
+		);
+
+		GD.Print(
+			"ParticleAge: " +
+			">5s=" + olderThan5 +
+			" | >10s=" + olderThan10 +
+			" | >20s=" + olderThan20 +
+			" | >30s=" + olderThan30
+		);
+
+		GD.Print(
+			"ParticleState: " +
+			"Stationary=" + stationary +
+			" | NearBottom=" + nearBottom +
+			" (last " + NearBottomDistance.ToString("F0") + "px)"
+		);
+
+		GD.Print(
+			"ParticleFlow: " +
+			"SpawnsSinceLast=" + spawnsThisInterval +
+			" | RemovedSinceLast=" + removedThisInterval +
+			" | Net=" + (spawnsThisInterval - removedThisInterval)
+		);
+
+		GD.Print(
+			"ParticleFlowTotal: " +
+			"Spawned=" + totalRainSpawns +
+			" | Removed=" + totalParticlesRemoved
+		);
+	}
+
+	// ============================================================
 	// Reset profiler
 	// ============================================================
 
 	private void ResetFullProfiler()
 	{
+		profilerRainSpawnsAtStart = totalRainSpawns;
+		profilerParticlesRemovedAtStart = totalParticlesRemoved;
+
 		fullProfilerFrames = 0;
 
 		fullPhysicsTime = 0.0;
