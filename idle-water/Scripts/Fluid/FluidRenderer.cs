@@ -221,22 +221,22 @@ render_mode unshaded;
 // ============================================================
 
 uniform vec3 deep_color : source_color =
-vec3(0.005, 0.16, 0.48);
+vec3(0.015, 0.25, 0.68);
 
 uniform vec3 middle_color : source_color =
-vec3(0.005, 0.16, 0.48);
+vec3(0.015, 0.25, 0.68);
 
 uniform vec3 shallow_color : source_color =
-vec3(0.11, 0.48, 0.88);
+vec3(0.08, 0.58, 1.00);
 
 uniform vec3 surface_color : source_color =
-vec3(0.55, 0.78, 0.95);
+vec3(0.65, 0.88, 1.00);
 
 // ============================================================
 // Appearance
 // ============================================================
 
-uniform float water_alpha = 0.70;
+uniform float water_alpha = 0.60;
 
 uniform float surface_glow_strength = 0.40;
 

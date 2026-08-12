@@ -26,7 +26,7 @@ public class PbfSolver
 	//
 	// ============================================================
 	
-	private const float Gravity = 300.0f;
+	private const float Gravity = 250.0f;
 
 	private const float SmoothingRadius = 8.0f;
 	private const float SmoothingRadiusSquared = 64.0f;
