@@ -92,7 +92,7 @@ public partial class FluidSimulator : Node2D
 	// Therefore 100% rain = 200 particles/sec.
 	// 10% = 20/sec, 20% = 40/sec, ... 100% = 200/sec.
 
-	private const float RainAmount = 75.0f;
+	private const float RainAmount = 100.0f;
 
 	private const int RainMinimumPercent = 10;
 	private const int RainMaximumPercent = 100;
@@ -118,7 +118,7 @@ public partial class FluidSimulator : Node2D
 		0.0f;
 
 	private const float RainVelocityY =
-		400.0f;
+		200.0f;
 
 	private float rainSpawnAccumulator =
 		0.0f;
@@ -145,8 +145,8 @@ public partial class FluidSimulator : Node2D
 
 	private const int MaxWheelCount = 8;
 
-	private const int WheelTileAtlasX = 20;
-	private const int WheelTileAtlasY = 12;
+	private const int WheelTileAtlasX = 7;
+	private const int WheelTileAtlasY = 6;
 
 	private const float WheelOuterRadius = 50.0f;
 	private const float WheelInnerRadius = 12.5f;
