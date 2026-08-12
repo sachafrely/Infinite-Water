@@ -49,22 +49,13 @@ public partial class TileMapPhysics : Node2D
 	/// NO LONGER USED for collision generation.
 	/// Solid-area collision does not need artificial thickness.
 	/// </summary>
-	[Export]
-	public float CollisionThickness { get; set; } = 0.0f;
+	
 
-	/// <summary>
-	/// Kept for scene compatibility.
-	///
-	/// NO LONGER USED.
-	/// </summary>
-	[Export]
-	public float CollisionEndExtension { get; set; } = 0.0f;
+
 
 	[Export]
 	public bool GenerateOnReady { get; set; } = true;
 
-	[Export]
-	public bool RebuildWhenChanged { get; set; } = false;
 
 	[Export]
 	public bool DebugOutput { get; set; } = true;
