@@ -98,8 +98,8 @@ public partial class FluidSimulator : Node2D
 	private const int RainMaximumPercent = 100;
 	private const int RainPercentStep = 10;
 
-	private const float RainMinimumDuration = 10.0f;
-	private const float RainMaximumDuration = 30.0f;
+	private const float RainMinimumDuration = 25.0f;
+	private const float RainMaximumDuration = 60.0f;
 
 	private int currentRainPercent;
 	private float rainPhaseTimer;
