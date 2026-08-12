@@ -35,19 +35,52 @@ public class PbfSolver
 	// Wheel bounds
 	// ============================================================
 
-	// Cached AABBs for wheels.
+	// Cached AABBs for wheel colliders.
 	//
 	// The wheel geometry rotates, so these are updated once per
 	// simulation frame after UpdateWheelGeometry().
 	//
-	// Particles use these bounds as a cheap broad-phase test before
-	// calling the expensive polygon collision routine.
+	// These arrays are kept for the existing collider-level bounds
+	// data. A second, higher-level broad phase below groups all
+	// colliders belonging to the same physical wheel.
 	private float[] wheelMinX;
 	private float[] wheelMaxX;
 	private float[] wheelMinY;
 	private float[] wheelMaxY;
 
 	private const float WheelBoundsExpansion = 2.5f;
+
+	// ============================================================
+	// Wheel collision groups
+	// ============================================================
+
+	// A physical wheel is composed of multiple polygon colliders:
+	// 8 blades + 1 hub.
+	//
+	// Previously, every particle checked every wheel collider.
+	// With 5 wheels that means roughly 45 collider checks per
+	// particle per PBF iteration.
+	//
+	// We now first perform ONE AABB test per physical wheel.
+	// Only if the particle is inside that wheel's local area do
+	// we inspect its individual blade/hub colliders.
+	private readonly List<WheelCollisionGroup>
+		wheelCollisionGroups =
+			new List<WheelCollisionGroup>();
+
+	private sealed class WheelCollisionGroup
+	{
+		public FluidWheelState Wheel;
+
+		public readonly List<FluidPolygonCollider>
+			Colliders =
+				new List<FluidPolygonCollider>(9);
+
+		public float MinX;
+		public float MaxX;
+		public float MinY;
+		public float MaxY;
+	}
 
 	// ============================================================
 	// Simulation
@@ -75,7 +108,6 @@ public class PbfSolver
 	private const int MaxIterations = 3;
 
 	private const float DensityErrorThreshold = 0.90f;
-
 	private const float MaxCorrection = 0.5f;
 	private const float MaxCorrectionSquared = 0.25f;
 
@@ -101,7 +133,6 @@ public class PbfSolver
 
 	private const float SleepVelocityThreshold = 2.0f;
 	private const float WakeVelocityThreshold = 4.0f;
-
 	private const float SleepTime = 0.35f;
 	private const float SleepDampingStrength = 3.0f;
 
@@ -137,7 +168,6 @@ public class PbfSolver
 	private const float PolygonParticleRadius = 2.5f;
 
 	private const float ColliderGridCellSize = 32.0f;
-
 	private const float ColliderGridExpansion = 1.0f;
 
 	// ============================================================
@@ -162,9 +192,9 @@ public class PbfSolver
 	private const int MaxParticlesPerPixel = 2;
 
 	// Only exact / extremely close overlaps receive the special
-	// deterministic separation. This is intentionally tiny so that
-	// it does not inject artificial sideways motion into the fluid.
-	private const float ExactOverlapDistanceSquared = 0.000001f;
+	// deterministic separation.
+	private const float ExactOverlapDistanceSquared =
+		0.000001f;
 
 	private const float ExactOverlapSeparation = 0.05f;
 
@@ -275,12 +305,19 @@ public class PbfSolver
 					collider
 				);
 
+				RegisterWheelCollider(
+					collider
+				);
+
 				EnsureWheelBounds();
-				colliderGridDirty = true;
+
+				colliderGridDirty =
+					true;
 			}
 			else
 			{
-				colliderGridDirty = true;
+				colliderGridDirty =
+					true;
 			}
 		}
 	}
@@ -304,7 +341,9 @@ public class PbfSolver
 				!collider.IsWheel)
 			{
 				polygonColliders.RemoveAt(i);
-				colliderGridDirty = true;
+
+				colliderGridDirty =
+					true;
 			}
 		}
 	}
@@ -320,7 +359,8 @@ public class PbfSolver
 		profilerFrameCounter++;
 
 		bool printProfiler =
-			profilerFrameCounter >= ProfilerIntervalFrames;
+			profilerFrameCounter >=
+			ProfilerIntervalFrames;
 
 		if (printProfiler)
 			profilerFrameCounter = 0;
@@ -384,7 +424,9 @@ public class PbfSolver
 			return;
 		}
 
-		EnsureBuffers(count);
+		EnsureBuffers(
+			count
+		);
 
 		float[] posX =
 			particles.PosX;
@@ -579,11 +621,6 @@ public class PbfSolver
 
 			// ----------------------------------------------------
 			// Pixel occupancy correction
-			//
-			// This is deliberately position-only.
-			// It never changes velocity.
-			// It never deletes particles.
-			// It never changes the rain spawning rate.
 			// ----------------------------------------------------
 
 			ApplyPixelOccupancyCorrection(
@@ -715,7 +752,41 @@ public class PbfSolver
 						) <
 						BoundaryVelocityEpsilon)
 					{
-						finalVelocityX = 0.0f;
+						finalVelocityX =
+							0.0f;
+					}
+					else
+					{
+						finalVelocityX =
+							-finalVelocityX *
+							BoundaryRestitution;
+					}
+				}
+
+				finalVelocityY *=
+					1.0f -
+					BoundaryFriction;
+			}
+
+			// ----------------------------------------------------
+			// Right boundary
+			// ----------------------------------------------------
+
+			else if (
+				x >=
+				MaxX - BoundarySkin)
+			{
+				if (
+					finalVelocityX > 0.0f)
+				{
+					if (
+						Mathf.Abs(
+							finalVelocityX
+						) <
+						BoundaryVelocityEpsilon)
+					{
+						finalVelocityX =
+							0.0f;
 					}
 					else
 					{
@@ -879,9 +950,12 @@ public class PbfSolver
 			if (
 				!pixelOccupancy.TryGetValue(
 					key,
-					out int occupancy))
+					out int occupancy
+				))
 			{
-				pixelOccupancy[key] = 1;
+				pixelOccupancy[key] =
+					1;
+
 				continue;
 			}
 
@@ -987,9 +1061,10 @@ public class PbfSolver
 	// ============================================================
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static Vector2 GetDeterministicSeparationDirection(
-		int particleIndex,
-		int otherParticleIndex)
+	private static Vector2
+		GetDeterministicSeparationDirection(
+			int particleIndex,
+			int otherParticleIndex)
 	{
 		int value =
 			particleIndex ^
@@ -1027,52 +1102,6 @@ public class PbfSolver
 	}
 
 	// ============================================================
-	// Profiler
-	// ============================================================
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static double ElapsedMilliseconds(
-		long start)
-	{
-		return
-			(double)(
-				Stopwatch.GetTimestamp() -
-				start
-			) *
-			1000.0 /
-			Stopwatch.Frequency;
-	}
-
-	private static void PrintProfiler(
-		double predictMs,
-		double spatialHashMs,
-		double neighborCacheMs,
-		double pbfMs,
-		double collisionMs,
-		double terrainQueryMs,
-		double terrainResolveMs,
-		double wheelCollisionMs,
-		double boundsMs,
-		double velocityMs,
-		double totalMs)
-	{
-		GD.Print(
-			$"[PBF PROFILER] " +
-			$"Predict: {predictMs:F3} ms | " +
-			$"SpatialHash: {spatialHashMs:F3} ms | " +
-			$"NeighborCache: {neighborCacheMs:F3} ms | " +
-			$"PBF: {pbfMs:F3} ms | " +
-			$"Collision: {collisionMs:F3} ms " +
-			$"(Query: {terrainQueryMs:F3} ms | " +
-			$"TerrainResolve: {terrainResolveMs:F3} ms | " +
-			$"Wheel: {wheelCollisionMs:F3} ms) | " +
-			$"Bounds: {boundsMs:F3} ms | " +
-			$"Velocity: {velocityMs:F3} ms | " +
-			$"Total: {totalMs:F3} ms"
-		);
-	}
-
-	// ============================================================
 	// Particle packing profiler
 	// ============================================================
 
@@ -1084,19 +1113,24 @@ public class PbfSolver
 		if (count <= 0)
 			return;
 
-		if (
-			packingNearestDistances == null ||
-			packingNearestDistances.Length < count)
-		{
-			packingNearestDistances =
-				new float[count];
-		}
+		EnsurePackingBuffer(
+			count
+		);
 
-		double minimumDistance =
-			double.MaxValue;
+		int neighborSum =
+			0;
+
+		int maximumNeighbors =
+			0;
+
+		int neighborCapHits =
+			0;
 
 		double nearestDistanceSum =
 			0.0;
+
+		double minimumDistance =
+			double.MaxValue;
 
 		int validCount =
 			0;
@@ -1112,18 +1146,6 @@ public class PbfSolver
 
 		int below4 =
 			0;
-
-		long neighborSum =
-			0;
-
-		int maximumNeighbors =
-			0;
-
-		int neighborCapHits =
-			0;
-
-		int stride =
-			neighborStride;
 
 		for (
 			int i = 0;
@@ -1155,7 +1177,8 @@ public class PbfSolver
 				float.MaxValue;
 
 			int start =
-				i * stride;
+				i *
+				neighborStride;
 
 			int end =
 				start +
@@ -1168,9 +1191,6 @@ public class PbfSolver
 			{
 				int j =
 					neighborBuffer[index];
-
-				if (j == i)
-					continue;
 
 				float dx =
 					predX[i] -
@@ -1188,14 +1208,11 @@ public class PbfSolver
 					distanceSquared <=
 					0.000001f)
 				{
-					nearestDistance =
-						0.0f;
-
-					break;
+					continue;
 				}
 
 				float distance =
-					MathF.Sqrt(
+					Mathf.Sqrt(
 						distanceSquared
 					);
 
@@ -1263,7 +1280,8 @@ public class PbfSolver
 			}
 		}
 
-		if (validCount <= 0)
+		if (
+			validCount <= 0)
 		{
 			GD.Print(
 				"[PARTICLE PACKING] " +
@@ -1366,11 +1384,15 @@ public class PbfSolver
 			i < count;
 			i++)
 		{
-			float correctionX = 0.0f;
-			float correctionY = 0.0f;
+			float correctionX =
+				0.0f;
+
+			float correctionY =
+				0.0f;
 
 			int start =
-				i * stride;
+				i *
+				stride;
 
 			int end =
 				start +
@@ -1388,7 +1410,8 @@ public class PbfSolver
 					localNeighborBuffer[index];
 
 				float scale =
-					(lambdaI + localLambdas[j]) *
+					(lambdaI +
+					localLambdas[j]) *
 					localGradientScale[index];
 
 				correctionX +=
@@ -1478,31 +1501,14 @@ public class PbfSolver
 			colliderMaxY;
 
 		// --------------------------------------------------------
-		// Wheel data is cached locally.
+		// Wheel data
 		// --------------------------------------------------------
 
-		List<FluidPolygonCollider> localWheelColliders =
-			wheelColliders;
-
-		float[] localWheelMinX =
-			wheelMinX;
-
-		float[] localWheelMaxX =
-			wheelMaxX;
-
-		float[] localWheelMinY =
-			wheelMinY;
-
-		float[] localWheelMaxY =
-			wheelMaxY;
-
-		// One timer around the complete wheel collision pass.
-		// This avoids thousands of Stopwatch calls.
 		long wheelCollisionStart =
 			0;
 
 		bool measureWheelCollision =
-			localWheelColliders.Count > 0;
+			wheelCollisionGroups.Count > 0;
 
 		if (measureWheelCollision)
 		{
@@ -1634,86 +1640,129 @@ public class PbfSolver
 				);
 
 			// ----------------------------------------------------
-			// Optimized wheel collision
+			// Wheel collision
 			// ----------------------------------------------------
 			//
-			// BEFORE:
-			// Every particle called ResolveCollision() for every
-			// wheel.
+			// NEW BROAD PHASE:
 			//
-			// NOW:
-			// Particle -> cheap AABB test -> polygon collision.
+			// particle
+			//    |
+			//    +--> wheel AABB
+			//             |
+			//             +--> wheel blade/hub colliders
+			//                        |
+			//                        +--> ResolveCollision()
 			//
-			// Most particles never get past the AABB test.
+			// A particle far away from a wheel never touches any of
+			// its individual polygon colliders.
+			//
+			// This is especially important because each wheel has
+			// multiple polygon colliders.
 			// ----------------------------------------------------
 
 			for (
 				int w = 0;
-				w < localWheelColliders.Count;
+				w < wheelCollisionGroups.Count;
 				w++)
 			{
-				FluidPolygonCollider collider =
-					localWheelColliders[w];
-
-				if (collider == null)
-					continue;
-
-				// ------------------------------------------------
-				// Broad-phase wheel bounds.
-				// ------------------------------------------------
+				WheelCollisionGroup group =
+					wheelCollisionGroups[w];
 
 				if (
-					position.X <
-					localWheelMinX[w] ||
-					position.X >
-					localWheelMaxX[w] ||
-					position.Y <
-					localWheelMinY[w] ||
-					position.Y >
-					localWheelMaxY[w])
+					group == null ||
+					group.Colliders.Count == 0)
 				{
 					continue;
 				}
 
 				// ------------------------------------------------
-				// Expensive polygon collision only for particles
-				// that are actually close to the wheel.
+				// Physical-wheel broad phase.
 				// ------------------------------------------------
 
-				bool wheelResolved =
-					collider.ResolveCollision(
-						position,
-						PolygonParticleRadius,
-						out Vector2 correctedPosition,
-						out Vector2 normal
+				if (
+					position.X < group.MinX ||
+					position.X > group.MaxX ||
+					position.Y < group.MinY ||
+					position.Y > group.MaxY)
+				{
+					continue;
+				}
+
+				List<FluidPolygonCollider>
+					groupColliders =
+						group.Colliders;
+
+				// ------------------------------------------------
+				// Local collider phase.
+				// ------------------------------------------------
+
+				for (
+					int c = 0;
+					c < groupColliders.Count;
+					c++)
+				{
+					FluidPolygonCollider collider =
+						groupColliders[c];
+
+					if (collider == null)
+						continue;
+
+					// Cheap collider-level AABB test.
+					collider.GetBounds(
+						out float colliderMinX,
+						out float colliderMaxX,
+						out float colliderMinY,
+						out float colliderMaxY
 					);
 
-				if (!wheelResolved)
-				{
-					continue;
-				}
+					if (
+						!ParticleOverlapsBounds(
+							position.X,
+							position.Y,
+							colliderMinX,
+							colliderMaxX,
+							colliderMinY,
+							colliderMaxY
+						))
+					{
+						continue;
+					}
 
-				ApplyWheelTorque(
-					collider,
-					position,
-					normal,
-					velX[i],
-					velY[i],
-					dt
-				);
+					// Expensive polygon collision.
+					bool wheelResolved =
+						collider.ResolveCollision(
+							position,
+							PolygonParticleRadius,
+							out Vector2 correctedPosition,
+							out Vector2 normal
+						);
 
-				position =
-					correctedPosition;
+					if (!wheelResolved)
+						continue;
 
-				if (
-					normal.LengthSquared() >
-					ImpactNormalEpsilon)
-				{
-					accumulatedNormal +=
-						normal;
+					// Wheel torque behavior is unchanged.
+					ApplyWheelTorque(
+						collider,
+						position,
+						normal,
+						velX[i],
+						velY[i],
+						dt
+					);
 
-					particleImpacted =
-						true;
+					position =
+						correctedPosition;
+
+					if (
+						normal.LengthSquared() >
+						ImpactNormalEpsilon)
+					{
+						accumulatedNormal +=
+							normal;
+
+						particleImpacted =
+							true;
+					}
 				}
 			}
 
@@ -1779,30 +1828,40 @@ public class PbfSolver
 		float minY,
 		float maxY)
 	{
-		float dx = 0.0f;
+		float dx =
+			0.0f;
 
-		if (particleX < minX)
+		if (
+			particleX <
+			minX)
 		{
 			dx =
 				minX -
 				particleX;
 		}
-		else if (particleX > maxX)
+		else if (
+			particleX >
+			maxX)
 		{
 			dx =
 				particleX -
 				maxX;
 		}
 
-		float dy = 0.0f;
+		float dy =
+			0.0f;
 
-		if (particleY < minY)
+		if (
+			particleY <
+			minY)
 		{
 			dy =
 				minY -
 				particleY;
 		}
-		else if (particleY > maxY)
+		else if (
+			particleY >
+			maxY)
 		{
 			dy =
 				particleY -
@@ -1817,6 +1876,63 @@ public class PbfSolver
 			distanceSquared <=
 			PolygonParticleRadius *
 			PolygonParticleRadius;
+	}
+
+	// ============================================================
+	// Register wheel collider
+	// ============================================================
+
+	private void RegisterWheelCollider(
+		FluidPolygonCollider collider)
+	{
+		if (
+			collider == null ||
+			!collider.IsWheel)
+		{
+			return;
+		}
+
+		FluidWheelState wheelState =
+			collider.Wheel;
+
+		if (wheelState == null)
+			return;
+
+		for (
+			int i = 0;
+			i < wheelCollisionGroups.Count;
+			i++)
+		{
+			WheelCollisionGroup existing =
+				wheelCollisionGroups[i];
+
+			if (
+				ReferenceEquals(
+					existing.Wheel,
+					wheelState
+				))
+			{
+				existing.Colliders.Add(
+					collider
+				);
+
+				return;
+			}
+		}
+
+		WheelCollisionGroup group =
+			new WheelCollisionGroup();
+
+		group.Wheel =
+			wheelState;
+
+		group.Colliders.Add(
+			collider
+		);
+
+		wheelCollisionGroups.Add(
+			group
+		);
 	}
 
 	// ============================================================
@@ -1854,17 +1970,18 @@ public class PbfSolver
 
 	private void UpdateWheelBounds()
 	{
-		int count =
+		int colliderCount =
 			wheelColliders.Count;
 
-		if (count <= 0)
+		if (colliderCount <= 0)
 			return;
 
 		EnsureWheelBounds();
 
+		// Keep the existing collider-level cached bounds updated.
 		for (
 			int i = 0;
-			i < count;
+			i < colliderCount;
 			i++)
 		{
 			FluidPolygonCollider collider =
@@ -1910,6 +2027,105 @@ public class PbfSolver
 				maxY +
 				WheelBoundsExpansion;
 		}
+
+		// --------------------------------------------------------
+		// Build one AABB for every physical wheel.
+		// --------------------------------------------------------
+
+		for (
+			int w = 0;
+			w < wheelCollisionGroups.Count;
+			w++)
+		{
+			WheelCollisionGroup group =
+				wheelCollisionGroups[w];
+
+			if (
+				group == null ||
+				group.Colliders.Count == 0)
+			{
+				continue;
+			}
+
+			float minX =
+				float.MaxValue;
+
+			float maxX =
+				float.MinValue;
+
+			float minY =
+				float.MaxValue;
+
+			float maxY =
+				float.MinValue;
+
+			for (
+				int c = 0;
+				c < group.Colliders.Count;
+				c++)
+			{
+				FluidPolygonCollider collider =
+					group.Colliders[c];
+
+				if (collider == null)
+					continue;
+
+				collider.GetBounds(
+					out float colliderMinX,
+					out float colliderMaxX,
+					out float colliderMinY,
+					out float colliderMaxY
+				);
+
+				if (
+					colliderMinX <
+					minX)
+				{
+					minX =
+						colliderMinX;
+				}
+
+				if (
+					colliderMaxX >
+					maxX)
+				{
+					maxX =
+						colliderMaxX;
+				}
+
+				if (
+					colliderMinY <
+					minY)
+				{
+					minY =
+						colliderMinY;
+				}
+
+				if (
+					colliderMaxY >
+					maxY)
+				{
+					maxY =
+						colliderMaxY;
+				}
+			}
+
+			group.MinX =
+				minX -
+				WheelBoundsExpansion;
+
+			group.MaxX =
+				maxX +
+				WheelBoundsExpansion;
+
+			group.MinY =
+				minY -
+				WheelBoundsExpansion;
+
+			group.MaxY =
+				maxY +
+				WheelBoundsExpansion;
+		}
 	}
 
 	// ============================================================
@@ -1945,7 +2161,9 @@ public class PbfSolver
 			colliderGrid.Length != cellCount)
 		{
 			colliderGrid =
-				new List<int>[cellCount];
+				new List<int>[
+					cellCount
+				];
 
 			for (
 				int i = 0;
@@ -1972,19 +2190,28 @@ public class PbfSolver
 
 		if (
 			colliderMinX == null ||
-			colliderMinX.Length != colliderCount)
+			colliderMinX.Length !=
+			colliderCount)
 		{
 			colliderMinX =
-				new float[colliderCount];
+				new float[
+					colliderCount
+				];
 
 			colliderMaxX =
-				new float[colliderCount];
+				new float[
+					colliderCount
+				];
 
 			colliderMinY =
-				new float[colliderCount];
+				new float[
+					colliderCount
+				];
 
 			colliderMaxY =
-				new float[colliderCount];
+				new float[
+					colliderCount
+				];
 		}
 
 		float expansion =
@@ -2105,7 +2332,8 @@ public class PbfSolver
 			cell >=
 			colliderGridWidth)
 		{
-			return colliderGridWidth - 1;
+			return
+				colliderGridWidth - 1;
 		}
 
 		return cell;
@@ -2132,7 +2360,8 @@ public class PbfSolver
 			cell >=
 			colliderGridHeight)
 		{
-			return colliderGridHeight - 1;
+			return
+				colliderGridHeight - 1;
 		}
 
 		return cell;
@@ -2291,16 +2520,20 @@ public class PbfSolver
 		int count)
 	{
 		float left =
-			MinX + BoundarySkin;
+			MinX +
+			BoundarySkin;
 
 		float right =
-			MaxX - BoundarySkin;
+			MaxX -
+			BoundarySkin;
 
 		float top =
-			MinY + BoundarySkin;
+			MinY +
+			BoundarySkin;
 
 		float bottom =
-			MaxY - BoundarySkin;
+			MaxY -
+			BoundarySkin;
 
 		for (
 			int i = 0;
@@ -2314,47 +2547,67 @@ public class PbfSolver
 				predY[i];
 
 			// LEFT
-
 			if (x < left)
 			{
-				x = left;
+				x =
+					left;
 
-				impacted[i] = true;
-				impactNormalX[i] = 1.0f;
-				impactNormalY[i] = 0.0f;
+				impacted[i] =
+					true;
+
+				impactNormalX[i] =
+					1.0f;
+
+				impactNormalY[i] =
+					0.0f;
 			}
 
 			// RIGHT
-
 			else if (x > right)
 			{
-				x = right;
+				x =
+					right;
 
-				impacted[i] = true;
-				impactNormalX[i] = -1.0f;
-				impactNormalY[i] = 0.0f;
+				impacted[i] =
+					true;
+
+				impactNormalX[i] =
+					-1.0f;
+
+				impactNormalY[i] =
+					0.0f;
 			}
 
 			// TOP
-
 			if (y < top)
 			{
-				y = top;
+				y =
+					top;
 
-				impacted[i] = true;
-				impactNormalX[i] = 0.0f;
-				impactNormalY[i] = 1.0f;
+				impacted[i] =
+					true;
+
+				impactNormalX[i] =
+					0.0f;
+
+				impactNormalY[i] =
+					1.0f;
 			}
 
 			// BOTTOM
-
 			else if (y > bottom)
 			{
-				y = bottom;
+				y =
+					bottom;
 
-				impacted[i] = true;
-				impactNormalX[i] = 0.0f;
-				impactNormalY[i] = -1.0f;
+				impacted[i] =
+					true;
+
+				impactNormalX[i] =
+					0.0f;
+
+				impactNormalY[i] =
+					-1.0f;
 			}
 
 			predX[i] =
@@ -2619,7 +2872,8 @@ public class PbfSolver
 				InverseSmoothingRadius;
 
 			float q2 =
-				q * q;
+				q *
+				q;
 
 			localQ[index] =
 				q;
@@ -2704,10 +2958,12 @@ public class PbfSolver
 					localNeighborQ[index];
 
 				float q2 =
-					q * q;
+					q *
+					q;
 
 				density +=
-					q2 * q;
+					q2 *
+					q;
 
 				float scale =
 					localNeighborGradientScale[index];
@@ -2753,8 +3009,10 @@ public class PbfSolver
 			}
 
 			float denominator =
-				gradSumX * gradSumX +
-				gradSumY * gradSumY +
+				gradSumX *
+				gradSumX +
+				gradSumY *
+				gradSumY +
 				neighborGradientSquared;
 
 			localLambdas[i] =
@@ -2769,98 +3027,202 @@ public class PbfSolver
 	}
 
 	// ============================================================
-	// Buffers
+	// Remaining solver helpers
 	// ============================================================
 
 	private void EnsureBuffers(
 		int count)
 	{
-		if (
-			lambdas != null &&
-			lambdas.Length >= count)
-		{
-			EnsureWheelBounds();
-			return;
-		}
-
-		lambdas =
-			new float[count];
-
-		particleDensity =
-			new float[count];
-
-		sleepProgress =
-			new float[count];
-
-		sleeping =
-			new bool[count];
-
-		SurfaceParticles =
-			new bool[count];
-
-		impactNormalX =
-			new float[count];
-
-		impactNormalY =
-			new float[count];
-
-		impacted =
-			new bool[count];
-
-		neighborCounts =
-			new int[count];
-
-		neighborStride =
+		int requiredStride =
 			MaxNeighbors;
 
-		int capacity =
-			Math.Max(
-				MaxNeighbors,
-				count *
-				MaxNeighbors
-			);
+		if (
+			neighborStride !=
+			requiredStride)
+		{
+			neighborStride =
+				requiredStride;
+		}
 
-		neighborBuffer =
-			new int[capacity];
+		int requiredNeighborLength =
+			count *
+			neighborStride;
 
-		neighborDx =
-			new float[capacity];
+		if (
+			neighborBuffer == null ||
+			neighborBuffer.Length <
+			requiredNeighborLength)
+		{
+			neighborBuffer =
+				new int[
+					requiredNeighborLength
+				];
 
-		neighborDy =
-			new float[capacity];
+			neighborDx =
+				new float[
+					requiredNeighborLength
+				];
 
-		neighborQ =
-			new float[capacity];
+			neighborDy =
+				new float[
+					requiredNeighborLength
+				];
 
-		neighborGradientScale =
-			new float[capacity];
+			neighborQ =
+				new float[
+					requiredNeighborLength
+				];
 
-		packingNearestDistances =
-			new float[count];
+			neighborGradientScale =
+				new float[
+					requiredNeighborLength
+				];
+		}
 
-		EnsureWheelBounds();
+		if (
+			neighborCounts == null ||
+			neighborCounts.Length <
+			count)
+		{
+			neighborCounts =
+				new int[count];
+		}
+
+		if (
+			lambdas == null ||
+			lambdas.Length <
+			count)
+		{
+			lambdas =
+				new float[count];
+
+			particleDensity =
+				new float[count];
+
+			sleepProgress =
+				new float[count];
+
+			sleeping =
+				new bool[count];
+
+			impactNormalX =
+				new float[count];
+
+			impactNormalY =
+				new float[count];
+
+			impacted =
+				new bool[count];
+
+			SurfaceParticles =
+				new bool[count];
+
+			packingNearestDistances =
+				new float[count];
+		}
+		else if (
+			SurfaceParticles == null ||
+			SurfaceParticles.Length <
+			count)
+		{
+			SurfaceParticles =
+				new bool[count];
+		}
 	}
 
-	// ============================================================
-	// Density field
-	// ============================================================
-
-	public void BuildDensityField(
-		ParticleData particles,
-		DensityField field)
+	private void EnsurePackingBuffer(
+		int count)
 	{
-		field.Clear();
-
-		for (
-			int i = 0;
-			i < particles.Count;
-			i++)
+		if (
+			packingNearestDistances == null ||
+			packingNearestDistances.Length <
+			count)
 		{
-			field.AddDensity(
-				particles.PredX[i],
-				particles.PredY[i],
-				particleDensity[i]
-			);
+			packingNearestDistances =
+				new float[count];
 		}
+	}
+
+	private static double
+		ElapsedMilliseconds(
+			long startTimestamp)
+	{
+		return
+			(
+				Stopwatch.GetTimestamp() -
+				startTimestamp
+			) *
+			1000.0 /
+			Stopwatch.Frequency;
+	}
+
+	private void PrintProfiler(
+		double predictMs,
+		double spatialHashMs,
+		double neighborCacheMs,
+		double pbfMs,
+		double collisionMs,
+		double terrainQueryMs,
+		double terrainResolveMs,
+		double wheelCollisionMs,
+		double boundsMs,
+		double velocityMs,
+		double totalMs)
+	{
+		GD.Print(
+			"========== PBF PROFILER =========="
+		);
+
+		GD.Print(
+			$"Particles: {neighborCounts?.Length ?? 0}"
+		);
+
+		GD.Print(
+			$"Predict: {predictMs:F3} ms"
+		);
+
+		GD.Print(
+			$"SpatialHash: {spatialHashMs:F3} ms"
+		);
+
+		GD.Print(
+			$"NeighborCache: {neighborCacheMs:F3} ms"
+		);
+
+		GD.Print(
+			$"PBF: {pbfMs:F3} ms"
+		);
+
+		GD.Print(
+			$"Collision: {collisionMs:F3} ms"
+		);
+
+		GD.Print(
+			$"TerrainQuery: {terrainQueryMs:F3} ms"
+		);
+
+		GD.Print(
+			$"TerrainResolve: {terrainResolveMs:F3} ms"
+		);
+
+		GD.Print(
+			$"Wheel: {wheelCollisionMs:F3} ms"
+		);
+
+		GD.Print(
+			$"Bounds: {boundsMs:F3} ms"
+		);
+
+		GD.Print(
+			$"Velocity: {velocityMs:F3} ms"
+		);
+
+		GD.Print(
+			$"TOTAL: {totalMs:F3} ms"
+		);
+
+		GD.Print(
+			"=================================="
+		);
 	}
 }

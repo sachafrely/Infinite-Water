@@ -77,7 +77,7 @@ public partial class FluidSimulator : Node2D
 	// pixel.
 	// ============================================================
 
-	private const int MaxParticlesPerDensityCell = 2;
+	private const int MaxParticlesPerDensityCell = 1;
 
 	private const int PixelGridWidth = 920;
 	private const int PixelGridHeight = 1020;
@@ -118,15 +118,20 @@ public partial class FluidSimulator : Node2D
 
 	private const float RainAmount = 100.0f;
 
-	private const int RainMinimumPercent = 10;
-	private const int RainMaximumPercent = 100;
-	private const int RainPercentStep = 10;
+	private const int RainMinimumPercent = 0;
+	private const int RainMaximumPercent = 50;
+	private const int RainPercentStep = 20;
 
-	private const float RainMinimumDuration = 25.0f;
+	private const float RainMinimumDuration = 45.0f;
 	private const float RainMaximumDuration = 60.0f;
 
-	private int currentRainPercent;
+	private float currentRainPercent;
+	private float targetRainPercent;
+	private float rainTransitionStartPercent;
+	private float rainTransitionTimer;
 	private float rainPhaseTimer;
+
+	private const float RainTransitionDuration = 10.0f;
 
 	// ============================================================
 	// Rain HUD
@@ -749,7 +754,7 @@ public partial class FluidSimulator : Node2D
 
 		rainHudLabel.Text =
 			"RAIN  " +
-			currentRainPercent +
+			currentRainPercent.ToString("F0") +
 			"%\nRATE  " +
 			currentRainAmount.ToString("F0") +
 			" / sec\nNEXT CHANGE  " +
@@ -1684,7 +1689,50 @@ void fragment()
 
 	private void InitializeDynamicRain()
 	{
-		SelectNewRainPhase();
+		int stepCount =
+			(
+				RainMaximumPercent -
+				RainMinimumPercent
+			) /
+			RainPercentStep +
+			1;
+
+		int randomStep =
+			rainRandom.RandiRange(
+				0,
+				stepCount - 1
+			);
+
+		float initialRainPercent =
+			RainMinimumPercent +
+			randomStep *
+			RainPercentStep;
+
+		currentRainPercent =
+			initialRainPercent;
+
+		targetRainPercent =
+			initialRainPercent;
+
+		rainTransitionStartPercent =
+			initialRainPercent;
+
+		rainTransitionTimer =
+			RainTransitionDuration;
+
+		rainPhaseTimer =
+			rainRandom.RandfRange(
+				RainMinimumDuration,
+				RainMaximumDuration
+			);
+
+		GD.Print(
+			"RAIN CHANGE -> " +
+			currentRainPercent.ToString("F0") +
+			"% for " +
+			rainPhaseTimer.ToString("F1") +
+			"s"
+		);
 	}
 
 	private void SelectNewRainPhase()
@@ -1703,10 +1751,16 @@ void fragment()
 				stepCount - 1
 			);
 
-		currentRainPercent =
+		rainTransitionStartPercent =
+			currentRainPercent;
+
+		targetRainPercent =
 			RainMinimumPercent +
 			randomStep *
 			RainPercentStep;
+
+		rainTransitionTimer =
+			0.0f;
 
 		rainPhaseTimer =
 			rainRandom.RandfRange(
@@ -1716,10 +1770,12 @@ void fragment()
 
 		GD.Print(
 			"RAIN CHANGE -> " +
-			currentRainPercent +
+			targetRainPercent.ToString("F0") +
 			"% for " +
 			rainPhaseTimer.ToString("F1") +
-			"s"
+			"s (transition " +
+			RainTransitionDuration.ToString("F1") +
+			"s)"
 		);
 	}
 
@@ -1734,6 +1790,38 @@ void fragment()
 			0.0f)
 		{
 			SelectNewRainPhase();
+		}
+
+		if (
+			rainTransitionTimer <
+			RainTransitionDuration)
+		{
+			rainTransitionTimer +=
+				dt;
+
+			if (
+				rainTransitionTimer >
+				RainTransitionDuration)
+			{
+				rainTransitionTimer =
+					RainTransitionDuration;
+			}
+
+			float transitionProgress =
+				rainTransitionTimer /
+				RainTransitionDuration;
+
+			currentRainPercent =
+				Mathf.Lerp(
+					rainTransitionStartPercent,
+					targetRainPercent,
+					transitionProgress
+				);
+		}
+		else
+		{
+			currentRainPercent =
+				targetRainPercent;
 		}
 	}
 
