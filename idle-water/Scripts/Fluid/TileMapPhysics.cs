@@ -263,23 +263,31 @@ public partial class TileMapPhysics : Node2D
 		if (generating)
 			return;
 
-		environment =
-			GetEnvironment();
+environment =
+	GetEnvironment();
 
-		if (environment == null)
-		{
-			GD.PushError(
-				"TileMapPhysics: Environment TileMapLayer " +
-				"could not be found."
-			);
+if (environment == null)
+{
+	GD.PushError(
+		"TileMapPhysics: Environment TileMapLayer " +
+        "could not be found."
+	);
 
-			return;
-		}
+	return;
+}
 
-		simulator =
-			FindFluidSimulator(
-				GetTree().Root
-			);
+// --------------------------------------------------------
+// Rendering order:
+// Environment is in front of wheels and water.
+// --------------------------------------------------------
+
+environment.ZIndex = 20;
+
+simulator =
+	FindFluidSimulator(
+		GetTree().Root
+	);
+
 
 		if (simulator == null)
 		{

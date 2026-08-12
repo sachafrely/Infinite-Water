@@ -20,8 +20,8 @@ public partial class WaterWheelVisual : Node2D
 	// Configuration
 	// ============================================================
 
-	public float OuterRadius = 115.0f;
-	public float InnerRadius = 55.0f;
+	public float OuterRadius = 145.0f;
+	public float InnerRadius = 75.0f;
 	public int BladeCount = 10;
 	public float BladeWidth = 18.0f;
 
@@ -133,7 +133,10 @@ public partial class WaterWheelVisual : Node2D
 	// ============================================================
 
 	public override void _Ready()
-	{
+	{	
+			// Render the wheel in front of the water.
+			ZIndex = 10;
+
 		SetupPixelViewport();
 		UpdatePainter();
 	}
