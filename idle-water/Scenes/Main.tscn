@@ -797,7 +797,6 @@ texture = ExtResource("4_v1gob")
 
 [node name="TileMapPhysics" type="Node2D" parent="." unique_id=1135241783]
 script = ExtResource("2_kln2b")
-ShowDebugGeometry = false
 DebugColor = Color(1, 0.2, 0.1, 0.8)
 
 [node name="TopUI" type="Control" parent="." unique_id=1677817206]

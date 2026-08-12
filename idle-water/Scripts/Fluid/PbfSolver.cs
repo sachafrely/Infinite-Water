@@ -23,9 +23,6 @@ public class PbfSolver
 	private int colliderGridHeight;
 	private bool colliderGridDirty = true;
 
-	private int[] colliderQueryStamp;
-	private int colliderQueryId;
-
 	private float[] colliderMinX;
 	private float[] colliderMaxX;
 	private float[] colliderMinY;
@@ -275,9 +272,11 @@ public class PbfSolver
 		double neighborCacheMs = 0.0;
 		double pbfMs = 0.0;
 		double collisionMs = 0.0;
+
 		double terrainQueryMs = 0.0;
 		double terrainResolveMs = 0.0;
 		double wheelCollisionMs = 0.0;
+
 		double boundsMs = 0.0;
 		double velocityMs = 0.0;
 
@@ -905,17 +904,6 @@ public class PbfSolver
 		if (colliderGrid == null)
 			return;
 
-		if (colliderQueryId == int.MaxValue)
-		{
-			Array.Clear(
-				colliderQueryStamp,
-				0,
-				colliderQueryStamp.Length
-			);
-
-			colliderQueryId = 1;
-		}
-
 		List<int>[] localGrid =
 			colliderGrid;
 
@@ -924,9 +912,6 @@ public class PbfSolver
 
 		int localGridHeight =
 			colliderGridHeight;
-
-		int[] localQueryStamp =
-			colliderQueryStamp;
 
 		List<FluidPolygonCollider> localColliders =
 			polygonColliders;
@@ -948,21 +933,6 @@ public class PbfSolver
 			i < count;
 			i++)
 		{
-			colliderQueryId++;
-
-			if (
-				colliderQueryId ==
-				int.MaxValue)
-			{
-				Array.Clear(
-					localQueryStamp,
-					0,
-					localQueryStamp.Length
-				);
-
-				colliderQueryId = 1;
-			}
-
 			Vector2 position =
 				new Vector2(
 					predX[i],
@@ -987,45 +957,40 @@ public class PbfSolver
 
 			// ----------------------------------------------------
 			// Terrain grid query
+			//
+			// The collider grid is already built with an expanded
+			// AABB:
+			//
+			// PolygonParticleRadius + ColliderGridExpansion
+			//
+			// Therefore a collider capable of overlapping the
+			// particle is already registered in the particle's
+			// current grid cell.
+			//
+			// The previous implementation searched a complete
+			// 3x3 group of cells for every particle, every PBF
+			// iteration. This was the main source of collision
+			// query cost.
 			// ----------------------------------------------------
 
 			long terrainQueryStart =
 				Stopwatch.GetTimestamp();
 
-			for (
-				int cy = baseCellY - 1;
-				cy <= baseCellY + 1;
-				cy++)
+			if (
+				baseCellX >= 0 &&
+				baseCellX < localGridWidth &&
+				baseCellY >= 0 &&
+				baseCellY < localGridHeight)
 			{
-				if (
-					cy < 0 ||
-					cy >= localGridHeight)
+				List<int> cell =
+					localGrid[
+						baseCellY *
+						localGridWidth +
+						baseCellX
+					];
+
+				if (cell != null)
 				{
-					continue;
-				}
-
-				for (
-					int cx = baseCellX - 1;
-					cx <= baseCellX + 1;
-					cx++)
-				{
-					if (
-						cx < 0 ||
-						cx >= localGridWidth)
-					{
-						continue;
-					}
-
-					List<int> cell =
-						localGrid[
-							cy *
-							localGridWidth +
-							cx
-						];
-
-					if (cell == null)
-						continue;
-
 					for (
 						int k = 0;
 						k < cell.Count;
@@ -1033,16 +998,6 @@ public class PbfSolver
 					{
 						int c =
 							cell[k];
-
-						if (
-							localQueryStamp[c] ==
-							colliderQueryId)
-						{
-							continue;
-						}
-
-						localQueryStamp[c] =
-							colliderQueryId;
 
 						FluidPolygonCollider collider =
 							localColliders[c];
@@ -1112,6 +1067,9 @@ public class PbfSolver
 
 			// ----------------------------------------------------
 			// Wheel collision
+			//
+			// Wheels remain separate because their geometry is
+			// dynamic and changes every frame.
 			// ----------------------------------------------------
 
 			for (
@@ -1313,20 +1271,6 @@ public class PbfSolver
 			{
 				colliderGrid[i]?.Clear();
 			}
-		}
-
-		if (
-			colliderQueryStamp == null ||
-			colliderQueryStamp.Length !=
-			polygonColliders.Count)
-		{
-			colliderQueryStamp =
-				new int[
-					polygonColliders.Count
-				];
-
-			colliderQueryId =
-				1;
 		}
 
 		int colliderCount =
