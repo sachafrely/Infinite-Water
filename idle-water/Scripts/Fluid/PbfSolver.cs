@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 public class PbfSolver
@@ -25,11 +26,6 @@ public class PbfSolver
 	private int[] colliderQueryStamp;
 	private int colliderQueryId;
 
-	// Cached terrain collider bounds.
-	//
-	// These are populated when the collider grid is rebuilt.
-	// Terrain colliders are static, so there is no reason to call
-	// GetBounds() for every particle collision test.
 	private float[] colliderMinX;
 	private float[] colliderMaxX;
 	private float[] colliderMinY;
@@ -101,16 +97,6 @@ public class PbfSolver
 
 	// ============================================================
 	// Current simulation world
-	//
-	// Camera:
-	//     X = 360 .. 1080
-	//     Y = 0 .. 720
-	//
-	// Buffered simulation:
-	//     Left   = 260
-	//     Right  = 1180
-	//     Top    = -200
-	//     Bottom = 820
 	// ============================================================
 
 	private const float MinX = 260.0f;
@@ -132,15 +118,8 @@ public class PbfSolver
 
 	private const float PolygonParticleRadius = 2.5f;
 
-	// Reduced from 64 to 32.
-	//
-	// This gives the collider grid finer spatial separation, which
-	// is especially useful now that the new tileset generates more
-	// terrain rectangles.
 	private const float ColliderGridCellSize = 32.0f;
 
-	// Small extra margin used when putting collider AABBs into
-	// grid cells.
 	private const float ColliderGridExpansion = 1.0f;
 
 	// ============================================================
@@ -250,9 +229,6 @@ public class PbfSolver
 
 	// ============================================================
 	// Clear terrain colliders
-	//
-	// IMPORTANT:
-	// Wheel colliders must NOT be deleted here.
 	// ============================================================
 
 	public void ClearPolygonColliders()
@@ -283,6 +259,28 @@ public class PbfSolver
 		ParticleData particles,
 		float dt)
 	{
+		long totalStart =
+			Stopwatch.GetTimestamp();
+
+		long predictStart;
+		long spatialHashStart;
+		long neighborCacheStart;
+		long pbfStart;
+		long collisionStart;
+		long boundsStart;
+		long velocityStart;
+
+		double predictMs = 0.0;
+		double spatialHashMs = 0.0;
+		double neighborCacheMs = 0.0;
+		double pbfMs = 0.0;
+		double collisionMs = 0.0;
+		double terrainQueryMs = 0.0;
+		double terrainResolveMs = 0.0;
+		double wheelCollisionMs = 0.0;
+		double boundsMs = 0.0;
+		double velocityMs = 0.0;
+
 		int count =
 			particles.Count;
 
@@ -292,6 +290,25 @@ public class PbfSolver
 		{
 			if (wheel != null)
 				wheel.Step(dt);
+
+			double totalMs =
+				ElapsedMilliseconds(
+					totalStart
+				);
+
+			PrintProfiler(
+				predictMs,
+				spatialHashMs,
+				neighborCacheMs,
+				pbfMs,
+				collisionMs,
+				terrainQueryMs,
+				terrainResolveMs,
+				wheelCollisionMs,
+				boundsMs,
+				velocityMs,
+				totalMs
+			);
 
 			return;
 		}
@@ -370,6 +387,9 @@ public class PbfSolver
 		// Predict
 		// --------------------------------------------------------
 
+		predictStart =
+			Stopwatch.GetTimestamp();
+
 		float gravityDt =
 			Gravity * dt;
 
@@ -390,9 +410,17 @@ public class PbfSolver
 				velY[i] * dt;
 		}
 
+		predictMs =
+			ElapsedMilliseconds(
+				predictStart
+			);
+
 		// --------------------------------------------------------
 		// Spatial hash
 		// --------------------------------------------------------
+
+		spatialHashStart =
+			Stopwatch.GetTimestamp();
 
 		hash.Clear();
 
@@ -408,15 +436,35 @@ public class PbfSolver
 			);
 		}
 
+		spatialHashMs =
+			ElapsedMilliseconds(
+				spatialHashStart
+			);
+
+		// --------------------------------------------------------
+		// Neighbor cache
+		// --------------------------------------------------------
+
+		neighborCacheStart =
+			Stopwatch.GetTimestamp();
+
 		BuildNeighborCache(
 			predX,
 			predY,
 			count
 		);
 
+		neighborCacheMs =
+			ElapsedMilliseconds(
+				neighborCacheStart
+			);
+
 		// --------------------------------------------------------
 		// PBF iterations
 		// --------------------------------------------------------
+
+		pbfStart =
+			Stopwatch.GetTimestamp();
 
 		for (
 			int iteration = 0;
@@ -450,25 +498,44 @@ public class PbfSolver
 			if (
 				polygonColliders.Count > 0)
 			{
+				collisionStart =
+					Stopwatch.GetTimestamp();
+
 				ConstrainToPolygonColliders(
 					predX,
 					predY,
 					velX,
 					velY,
 					count,
-					dt
+					dt,
+					ref terrainQueryMs,
+					ref terrainResolveMs,
+					ref wheelCollisionMs
 				);
+
+				collisionMs +=
+					ElapsedMilliseconds(
+						collisionStart
+					);
 			}
 
 			// ----------------------------------------------------
 			// World bounds
 			// ----------------------------------------------------
 
+			boundsStart =
+				Stopwatch.GetTimestamp();
+
 			ConstrainToBounds(
 				predX,
 				predY,
 				count
 			);
+
+			boundsMs +=
+				ElapsedMilliseconds(
+					boundsStart
+				);
 
 			if (
 				iteration + 1 >= MinIterations &&
@@ -479,9 +546,17 @@ public class PbfSolver
 			}
 		}
 
+		pbfMs =
+			ElapsedMilliseconds(
+				pbfStart
+			);
+
 		// --------------------------------------------------------
 		// Reconstruct velocity
 		// --------------------------------------------------------
+
+		velocityStart =
+			Stopwatch.GetTimestamp();
 
 		float inverseDt =
 			1.0f / dt;
@@ -632,6 +707,80 @@ public class PbfSolver
 			posY[i] =
 				predY[i];
 		}
+
+		velocityMs =
+			ElapsedMilliseconds(
+				velocityStart
+			);
+
+		// --------------------------------------------------------
+		// Total profiler time
+		// --------------------------------------------------------
+
+		double total =
+			ElapsedMilliseconds(
+				totalStart
+			);
+
+		PrintProfiler(
+			predictMs,
+			spatialHashMs,
+			neighborCacheMs,
+			pbfMs,
+			collisionMs,
+			terrainQueryMs,
+			terrainResolveMs,
+			wheelCollisionMs,
+			boundsMs,
+			velocityMs,
+			total
+		);
+	}
+
+	// ============================================================
+	// Profiler
+	// ============================================================
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static double ElapsedMilliseconds(
+		long start)
+	{
+		return
+			(double)(
+				Stopwatch.GetTimestamp() -
+				start
+			) *
+			1000.0 /
+			Stopwatch.Frequency;
+	}
+
+	private static void PrintProfiler(
+		double predictMs,
+		double spatialHashMs,
+		double neighborCacheMs,
+		double pbfMs,
+		double collisionMs,
+		double terrainQueryMs,
+		double terrainResolveMs,
+		double wheelCollisionMs,
+		double boundsMs,
+		double velocityMs,
+		double totalMs)
+	{
+		GD.Print(
+			$"[PBF PROFILER] " +
+			$"Predict: {predictMs:F3} ms | " +
+			$"SpatialHash: {spatialHashMs:F3} ms | " +
+			$"NeighborCache: {neighborCacheMs:F3} ms | " +
+			$"PBF: {pbfMs:F3} ms | " +
+			$"Collision: {collisionMs:F3} ms " +
+			$"(Query: {terrainQueryMs:F3} ms | " +
+			$"TerrainResolve: {terrainResolveMs:F3} ms | " +
+			$"Wheel: {wheelCollisionMs:F3} ms) | " +
+			$"Bounds: {boundsMs:F3} ms | " +
+			$"Velocity: {velocityMs:F3} ms | " +
+			$"Total: {totalMs:F3} ms"
+		);
 	}
 
 	// ============================================================
@@ -748,7 +897,10 @@ public class PbfSolver
 		float[] velX,
 		float[] velY,
 		int count,
-		float dt)
+		float dt,
+		ref double terrainQueryMs,
+		ref double terrainResolveMs,
+		ref double wheelCollisionMs)
 	{
 		if (colliderGrid == null)
 			return;
@@ -764,7 +916,6 @@ public class PbfSolver
 			colliderQueryId = 1;
 		}
 
-		// Local references for the hot loop.
 		List<int>[] localGrid =
 			colliderGrid;
 
@@ -835,11 +986,11 @@ public class PbfSolver
 				);
 
 			// ----------------------------------------------------
-			// Terrain collider grid.
-			//
-			// We still check the 3x3 neighborhood because the
-			// particle collision radius can cross a grid boundary.
+			// Terrain grid query
 			// ----------------------------------------------------
+
+			long terrainQueryStart =
+				Stopwatch.GetTimestamp();
 
 			for (
 				int cy = baseCellY - 1;
@@ -903,17 +1054,6 @@ public class PbfSolver
 							continue;
 						}
 
-						// ------------------------------------------------
-						// FAST AABB REJECTION
-						//
-						// This is deliberately before ResolveCollision().
-						//
-						// Most colliders in nearby grid cells will not
-						// actually touch this particle. Avoiding the
-						// polygon calculation for those colliders is the
-						// main optimization added here.
-						// ------------------------------------------------
-
 						if (
 							!ParticleOverlapsBounds(
 								position.X,
@@ -927,17 +1067,23 @@ public class PbfSolver
 							continue;
 						}
 
-						// ------------------------------------------------
-						// Actual polygon collision.
-						// ------------------------------------------------
+						long terrainResolveStart =
+							Stopwatch.GetTimestamp();
 
-						if (
-							!collider.ResolveCollision(
+						bool resolved =
+							collider.ResolveCollision(
 								position,
 								PolygonParticleRadius,
 								out Vector2 correctedPosition,
 								out Vector2 normal
-							))
+							);
+
+						terrainResolveMs +=
+							ElapsedMilliseconds(
+								terrainResolveStart
+							);
+
+						if (!resolved)
 						{
 							continue;
 						}
@@ -959,11 +1105,13 @@ public class PbfSolver
 				}
 			}
 
+			terrainQueryMs +=
+				ElapsedMilliseconds(
+					terrainQueryStart
+				);
+
 			// ----------------------------------------------------
-			// Wheels remain separate.
-			//
-			// This intentionally does not use the terrain grid
-			// because wheel geometry moves every frame.
+			// Wheel collision
 			// ----------------------------------------------------
 
 			for (
@@ -977,13 +1125,23 @@ public class PbfSolver
 				if (collider == null)
 					continue;
 
-				if (
-					!collider.ResolveCollision(
+				long wheelStart =
+					Stopwatch.GetTimestamp();
+
+				bool wheelResolved =
+					collider.ResolveCollision(
 						position,
 						PolygonParticleRadius,
 						out Vector2 correctedPosition,
 						out Vector2 normal
-					))
+					);
+
+				wheelCollisionMs +=
+					ElapsedMilliseconds(
+						wheelStart
+					);
+
+				if (!wheelResolved)
 				{
 					continue;
 				}
@@ -1062,12 +1220,6 @@ public class PbfSolver
 		float minY,
 		float maxY)
 	{
-		// Find squared distance from the particle to the AABB.
-		//
-		// If the particle center is outside the box, this gives the
-		// shortest distance to the box.
-		//
-		// If it is inside the box, distanceSquared becomes zero.
 		float dx = 0.0f;
 
 		if (particleX < minX)
@@ -1136,10 +1288,6 @@ public class PbfSolver
 			colliderGridWidth *
 			colliderGridHeight;
 
-		// --------------------------------------------------------
-		// Allocate / clear grid.
-		// --------------------------------------------------------
-
 		if (
 			colliderGrid == null ||
 			colliderGrid.Length != cellCount)
@@ -1167,10 +1315,6 @@ public class PbfSolver
 			}
 		}
 
-		// --------------------------------------------------------
-		// Query stamps.
-		// --------------------------------------------------------
-
 		if (
 			colliderQueryStamp == null ||
 			colliderQueryStamp.Length !=
@@ -1184,10 +1328,6 @@ public class PbfSolver
 			colliderQueryId =
 				1;
 		}
-
-		// --------------------------------------------------------
-		// Bounds caches.
-		// --------------------------------------------------------
 
 		int colliderCount =
 			polygonColliders.Count;
@@ -1209,10 +1349,6 @@ public class PbfSolver
 				new float[colliderCount];
 		}
 
-		// --------------------------------------------------------
-		// Put each static terrain collider into the grid.
-		// --------------------------------------------------------
-
 		float expansion =
 			PolygonParticleRadius +
 			ColliderGridExpansion;
@@ -1229,7 +1365,6 @@ public class PbfSolver
 				collider == null ||
 				collider.IsWheel)
 			{
-				// Give invalid entries harmless bounds.
 				colliderMinX[i] =
 					0.0f;
 
@@ -1252,7 +1387,6 @@ public class PbfSolver
 				out float maxY
 			);
 
-			// Cache the exact collider bounds.
 			colliderMinX[i] =
 				minX;
 

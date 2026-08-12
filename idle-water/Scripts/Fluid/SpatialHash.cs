@@ -1,4 +1,3 @@
-
 using Godot;
 using System;
 using System.Runtime.CompilerServices;
@@ -9,40 +8,40 @@ public sealed class SpatialHash
 	// Configuration
 	// ============================================================
 
-	// IMPORTANT:
-	// PbfSolver uses an 8px smoothing radius.
+	// PBF smoothing radius is 8px.
 	//
-	// The previous hash used 12px, which meant the hash was
-	// searching a larger neighborhood than the PBF solver could
-	// actually use.
-	//
-	// Matching the cell size to the PBF radius keeps the 3x3
-	// lookup tight.
+	// Cell size matches the smoothing radius, meaning a particle
+	// only needs to inspect the surrounding 3x3 cells.
 	private const float CellSize = 8.0f;
 	private const float InverseCellSize = 1.0f / CellSize;
 
 	private const float PbfRadiusSquared = 64.0f;
 
 	// ============================================================
-	// Hash table
-	// ============================================================
-
-	private const int HashCapacity = 8192;
-	private const int HashMask =
-		HashCapacity - 1;
-
-	// ============================================================
 	// World
 	// ============================================================
 
 	private const float WorldMinX = 0.0f;
-	private const float WorldMinY = 0.0f;
+	private const float WorldMinY = -200.0f;
+
+	private const float WorldMaxX = 1200.0f;
+	private const float WorldMaxY = 840.0f;
 
 	// ============================================================
-	// Storage
+	// Direct grid
+	//
+	// Instead of hashing cells into 8192 buckets, every spatial
+	// cell gets its own head entry.
+	//
+	// This completely removes hash collisions.
 	// ============================================================
+
+	private readonly int gridWidth;
+	private readonly int gridHeight;
+	private readonly int gridCellCount;
 
 	private readonly int[] heads;
+
 	private int[] next;
 
 	// ============================================================
@@ -58,9 +57,25 @@ public sealed class SpatialHash
 			particleCapacity = 1;
 		}
 
+		gridWidth =
+			(int)MathF.Ceiling(
+				(WorldMaxX - WorldMinX) *
+				InverseCellSize
+			);
+
+		gridHeight =
+			(int)MathF.Ceiling(
+				(WorldMaxY - WorldMinY) *
+				InverseCellSize
+			);
+
+		gridCellCount =
+			gridWidth *
+			gridHeight;
+
 		heads =
 			new int[
-				HashCapacity
+				gridCellCount
 			];
 
 		next =
@@ -75,6 +90,7 @@ public sealed class SpatialHash
 	// Clear
 	// ============================================================
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void Clear()
 	{
 		Array.Fill(
@@ -101,8 +117,7 @@ public sealed class SpatialHash
 			next.Length * 2;
 
 		if (
-			newCapacity <
-			required)
+			newCapacity < required)
 		{
 			newCapacity =
 				required;
@@ -146,28 +161,43 @@ public sealed class SpatialHash
 				InverseCellSize
 			);
 
-		int bucket =
-			HashCell(
-				cellX,
-				cellY
-			);
+		// Clamp to valid grid.
+		//
+		// This is cheap and prevents particles temporarily outside
+		// the simulation buffer from producing invalid indices.
+
+		if (cellX < 0)
+			cellX = 0;
+		else if (cellX >= gridWidth)
+			cellX = gridWidth - 1;
+
+		if (cellY < 0)
+			cellY = 0;
+		else if (cellY >= gridHeight)
+			cellY = gridHeight - 1;
+
+		int cellIndex =
+			cellY *
+			gridWidth +
+			cellX;
 
 		next[particleIndex] =
-			heads[bucket];
+			heads[cellIndex];
 
-		heads[bucket] =
+		heads[cellIndex] =
 			particleIndex;
 	}
 
 	// ============================================================
 	// Optimized PBF query
 	//
-	// PBF radius = 8.
+	// Cell size = smoothing radius = 8px.
 	//
-	// With an 8px cell size, a 3x3 neighborhood is sufficient
-	// to cover the complete smoothing radius.
+	// Therefore only the 3x3 surrounding cells can contain
+	// particles within an 8px radius.
 	// ============================================================
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public int QueryPbf(
 		float px,
 		float py,
@@ -197,52 +227,59 @@ public sealed class SpatialHash
 
 		int count = 0;
 
+		int minCellX =
+			centerCellX - 1;
+
+		int maxCellX =
+			centerCellX + 1;
+
+		int minCellY =
+			centerCellY - 1;
+
+		int maxCellY =
+			centerCellY + 1;
+
+		// Clamp query range.
+
+		if (minCellX < 0)
+			minCellX = 0;
+
+		if (maxCellX >= gridWidth)
+			maxCellX = gridWidth - 1;
+
+		if (minCellY < 0)
+			minCellY = 0;
+
+		if (maxCellY >= gridHeight)
+			maxCellY = gridHeight - 1;
+
 		// --------------------------------------------------------
-		// 3x3 neighborhood
+		// 3x3 cells
 		// --------------------------------------------------------
 
 		for (
-			int cellY =
-				centerCellY - 1;
-
-			cellY <=
-				centerCellY + 1;
-
+			int cellY = minCellY;
+			cellY <= maxCellY;
 			cellY++)
 		{
+			int rowStart =
+				cellY *
+				gridWidth;
+
 			for (
-				int cellX =
-					centerCellX - 1;
-
-				cellX <=
-					centerCellX + 1;
-
+				int cellX = minCellX;
+				cellX <= maxCellX;
 				cellX++)
 			{
-				int bucket =
-					HashCell(
-						cellX,
-						cellY
-					);
-
 				int particle =
-					heads[bucket];
+					heads[
+						rowStart +
+						cellX
+					];
 
 				while (
 					particle != -1)
 				{
-					// ------------------------------------------------
-					// Stop immediately once the neighbor buffer is
-					// full.
-					// ------------------------------------------------
-
-					if (
-						count >=
-						maxNeighbors)
-					{
-						return count;
-					}
-
 					float dx =
 						px -
 						positionsX[particle];
@@ -259,6 +296,13 @@ public sealed class SpatialHash
 						distanceSquared <=
 						PbfRadiusSquared)
 					{
+						if (
+							count >=
+							maxNeighbors)
+						{
+							return count;
+						}
+
 						output[
 							outputOffset +
 							count
@@ -279,71 +323,206 @@ public sealed class SpatialHash
 
 	// ============================================================
 	// Optimized PBF query with geometry output
+	//
+	// This is the HOT PATH used by PbfSolver.
 	// ============================================================
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public int QueryPbfWithGeometry(
-		float px, float py,
-		float[] positionsX, float[] positionsY,
-		int[] output, float[] outputDx, float[] outputDy,
+		float px,
+		float py,
+		float[] positionsX,
+		float[] positionsY,
+		int[] output,
+		float[] outputDx,
+		float[] outputDy,
 		float[] outputQ,
 		float[] outputGradientScale,
-		int outputOffset, int maxNeighbors)
+		int outputOffset,
+		int maxNeighbors)
 	{
-		if (maxNeighbors <= 0) return 0;
+		if (
+			maxNeighbors <= 0)
+		{
+			return 0;
+		}
 
-		int centerCellX = FastFloorToInt((px - WorldMinX) * InverseCellSize);
-		int centerCellY = FastFloorToInt((py - WorldMinY) * InverseCellSize);
+		int centerCellX =
+			FastFloorToInt(
+				(px - WorldMinX) *
+				InverseCellSize
+			);
+
+		int centerCellY =
+			FastFloorToInt(
+				(py - WorldMinY) *
+				InverseCellSize
+			);
+
 		int count = 0;
 
-		for (int cellY = centerCellY - 1; cellY <= centerCellY + 1; cellY++)
+		int minCellX =
+			centerCellX - 1;
+
+		int maxCellX =
+			centerCellX + 1;
+
+		int minCellY =
+			centerCellY - 1;
+
+		int maxCellY =
+			centerCellY + 1;
+
+		if (minCellX < 0)
+			minCellX = 0;
+
+		if (maxCellX >= gridWidth)
+			maxCellX = gridWidth - 1;
+
+		if (minCellY < 0)
+			minCellY = 0;
+
+		if (maxCellY >= gridHeight)
+			maxCellY = gridHeight - 1;
+
+		// Constants pulled into locals for the hot loop.
+
+		const float inverseSmoothingRadius =
+			1.0f / 8.0f;
+
+		const float inverseRestDensity =
+			1.0f / 1.15f;
+
+		const float epsilon =
+			0.000001f;
+
+		// --------------------------------------------------------
+		// 3x3 cells
+		// --------------------------------------------------------
+
+		for (
+			int cellY = minCellY;
+			cellY <= maxCellY;
+			cellY++)
 		{
-			for (int cellX = centerCellX - 1; cellX <= centerCellX + 1; cellX++)
+			int rowStart =
+				cellY *
+				gridWidth;
+
+			for (
+				int cellX = minCellX;
+				cellX <= maxCellX;
+				cellX++)
 			{
-				int particle = heads[HashCell(cellX, cellY)];
-				while (particle != -1)
+				int particle =
+					heads[
+						rowStart +
+						cellX
+					];
+
+				while (
+					particle != -1)
 				{
-					if (count >= maxNeighbors) return count;
+					float dx =
+						px -
+						positionsX[particle];
 
-					float dx = px - positionsX[particle];
-					float dy = py - positionsY[particle];
-					float distanceSquared = dx * dx + dy * dy;
+					float dy =
+						py -
+						positionsY[particle];
 
-					if (distanceSquared <= PbfRadiusSquared)
+					float distanceSquared =
+						dx * dx +
+						dy * dy;
+
+					if (
+						distanceSquared <=
+						PbfRadiusSquared)
 					{
-						int index = outputOffset + count;
-						output[index] = particle;
-						outputDx[index] = dx;
-						outputDy[index] = dy;
-
-						if (distanceSquared <= 0.000001f)
+						if (
+							count >=
+							maxNeighbors)
 						{
-							outputQ[index] = 1.0f;
-							outputGradientScale[index] = 0.0f;
+							return count;
+						}
+
+						int index =
+							outputOffset +
+							count;
+
+						output[index] =
+							particle;
+
+						outputDx[index] =
+							dx;
+
+						outputDy[index] =
+							dy;
+
+						if (
+							distanceSquared <=
+							epsilon)
+						{
+							outputQ[index] =
+								1.0f;
+
+							outputGradientScale[index] =
+								0.0f;
 						}
 						else
 						{
-							float inverseDistance = 1.0f / MathF.Sqrt(distanceSquared);
-							float q = 1.0f - (distanceSquared * inverseDistance) * (1.0f / 8.0f);
-							float q2 = q * q;
-							outputQ[index] = q;
-							outputGradientScale[index] = -3.0f * q2 * (1.0f / 8.0f) * inverseDistance * (1.0f / 1.15f);
+							float inverseDistance =
+								1.0f /
+								MathF.Sqrt(
+									distanceSquared
+								);
+
+							float distance =
+								distanceSquared *
+								inverseDistance;
+
+							float q =
+								1.0f -
+								distance *
+								inverseSmoothingRadius;
+
+							float q2 =
+								q *
+								q;
+
+							outputQ[index] =
+								q;
+
+							outputGradientScale[index] =
+								-3.0f *
+								q2 *
+								inverseSmoothingRadius *
+								inverseDistance *
+								inverseRestDensity;
 						}
+
 						count++;
 					}
 
-					particle = next[particle];
+					particle =
+						next[particle];
 				}
 			}
 		}
+
 		return count;
 	}
 
 	// ============================================================
 	// Generic radius query
 	//
-	// Kept for compatibility with existing code.
+	// Kept for compatibility.
+	//
+	// The current PBF solver normally uses the specialized
+	// QueryPbfWithGeometry() above.
 	// ============================================================
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public int QueryPbf(
 		float px,
 		float py,
@@ -373,47 +552,73 @@ public sealed class SpatialHash
 			);
 
 		float radiusSquared =
-			radius * radius;
+			radius *
+			radius;
+
+		// Determine how many cells are actually required.
+
+		int cellRadius =
+			(int)MathF.Ceiling(
+				radius *
+				InverseCellSize
+			);
+
+		if (cellRadius < 1)
+			cellRadius = 1;
+
+		int minCellX =
+			centerCellX -
+			cellRadius;
+
+		int maxCellX =
+			centerCellX +
+			cellRadius;
+
+		int minCellY =
+			centerCellY -
+			cellRadius;
+
+		int maxCellY =
+			centerCellY +
+			cellRadius;
+
+		if (minCellX < 0)
+			minCellX = 0;
+
+		if (maxCellX >= gridWidth)
+			maxCellX = gridWidth - 1;
+
+		if (minCellY < 0)
+			minCellY = 0;
+
+		if (maxCellY >= gridHeight)
+			maxCellY = gridHeight - 1;
 
 		int count = 0;
 
 		for (
-			int cellY =
-				centerCellY - 1;
-
-			cellY <=
-				centerCellY + 1;
-
+			int cellY = minCellY;
+			cellY <= maxCellY;
 			cellY++)
 		{
+			int rowStart =
+				cellY *
+				gridWidth;
+
 			for (
-				int cellX =
-					centerCellX - 1;
-
-				cellX <=
-					centerCellX + 1;
-
+				int cellX = minCellX;
+				cellX <= maxCellX;
 				cellX++)
 			{
-				int bucket =
-					HashCell(
-						cellX,
-						cellY
-					);
-
 				int particle =
-					heads[bucket];
+					heads[
+						rowStart +
+						cellX
+					];
 
 				while (
 					particle != -1)
 				{
-					if (
-						count >=
-						maxNeighbors)
-					{
-						return count;
-					}
-
 					float dx =
 						px -
 						positionsX[particle];
@@ -430,6 +635,13 @@ public sealed class SpatialHash
 						distanceSquared <=
 						radiusSquared)
 					{
+						if (
+							count >=
+							maxNeighbors)
+						{
+							return count;
+						}
+
 						output[
 							outputOffset +
 							count
@@ -449,48 +661,10 @@ public sealed class SpatialHash
 	}
 
 	// ============================================================
-	// Hash
-	// ============================================================
-
-	private static int HashCell(
-		int cellX,
-		int cellY)
-	{
-		unchecked
-		{
-			uint hash =
-				(uint)(
-					cellX *
-					73856093
-				);
-
-			hash ^=
-				(uint)(
-					cellY *
-					19349663
-				);
-
-			hash ^=
-				hash >> 13;
-
-			hash *=
-				0x5bd1e995u;
-
-			hash ^=
-				hash >> 15;
-
-			return
-				(int)(
-					hash &
-					HashMask
-				);
-		}
-	}
-
-	// ============================================================
 	// Fast floor
 	// ============================================================
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static int FastFloorToInt(
 		float value)
 	{
