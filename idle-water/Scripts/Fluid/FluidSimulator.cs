@@ -143,7 +143,7 @@ public partial class FluidSimulator : Node2D
 	// Water wheels
 	// ============================================================
 
-	private const int MaxWheelCount = 4;
+	private const int MaxWheelCount = 8;
 
 	private const int WheelTileAtlasX = 20;
 	private const int WheelTileAtlasY = 10;
