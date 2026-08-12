@@ -6,6 +6,9 @@ using System.Runtime.CompilerServices;
 
 public class PbfSolver
 {
+	private const int ProfilerIntervalFrames = 600;
+	private int profilerFrameCounter = 0;
+
 	private readonly SpatialHash hash;
 
 	private readonly List<FluidPolygonCollider>
@@ -256,6 +259,14 @@ public class PbfSolver
 		ParticleData particles,
 		float dt)
 	{
+		profilerFrameCounter++;
+
+		bool printProfiler =
+			profilerFrameCounter >= ProfilerIntervalFrames;
+
+		if (printProfiler)
+			profilerFrameCounter = 0;
+
 		long totalStart =
 			Stopwatch.GetTimestamp();
 
@@ -295,6 +306,8 @@ public class PbfSolver
 					totalStart
 				);
 
+			if (printProfiler)
+			{
 			PrintProfiler(
 				predictMs,
 				spatialHashMs,
@@ -308,6 +321,7 @@ public class PbfSolver
 				velocityMs,
 				totalMs
 			);
+			}
 
 			return;
 		}
@@ -721,6 +735,8 @@ public class PbfSolver
 				totalStart
 			);
 
+		if (printProfiler)
+		{
 		PrintProfiler(
 			predictMs,
 			spatialHashMs,
@@ -734,6 +750,7 @@ public class PbfSolver
 			velocityMs,
 			total
 		);
+		}
 	}
 
 	// ============================================================
