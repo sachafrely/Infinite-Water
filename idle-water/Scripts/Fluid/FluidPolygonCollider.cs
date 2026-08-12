@@ -12,9 +12,9 @@ public class FluidWheelState
 	// Wheel tuning
 	// ------------------------------------------------------------
 
-	private const float TorqueScale = 0.005f;
-	private const float AngularDamping = 0.20f;
-	private const float MaxAngularVelocity = 25.0f;
+	private const float TorqueScale = 0.003f;
+	private const float AngularDamping = 0.40f;
+	private const float MaxAngularVelocity = 20.0f;
 
 	private float accumulatedTorque;
 
