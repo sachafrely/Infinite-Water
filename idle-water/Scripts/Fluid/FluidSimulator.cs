@@ -146,7 +146,7 @@ public partial class FluidSimulator : Node2D
 	private const int MaxWheelCount = 8;
 
 	private const int WheelTileAtlasX = 20;
-	private const int WheelTileAtlasY = 10;
+	private const int WheelTileAtlasY = 12;
 
 	private const float WheelOuterRadius = 50.0f;
 	private const float WheelInnerRadius = 12.5f;
