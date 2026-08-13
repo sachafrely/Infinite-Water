@@ -59,7 +59,7 @@ public class PbfSolver
 
 		public readonly List<FluidPolygonCollider>
 			Colliders =
-				new List<FluidPolygonCollider>(9);
+			new List<FluidPolygonCollider>(9);
 
 		public float MinX;
 		public float MaxX;
@@ -103,55 +103,53 @@ public class PbfSolver
 	private const float VelocityDamping = 0.998f;
 
 	// ============================================================
-	// Impact / surface interaction
+	// Surface behavior
 	// ============================================================
-
-	private const float ImpactDamping = 0.5f;
-	private const float ImpactNormalEpsilon = 0.0001f;
-
+	//
 	// IMPORTANT:
 	//
-	// These values are deliberately much smaller than before.
+	// The old values allowed collision handling to behave like
+	// sticky material:
 	//
-	// A fluid should lose very little tangential momentum when
-	// sliding along terrain. The old GroundDrag = 0.09 could
-	// noticeably slow particles on shallow slopes.
-	private const float GroundDrag = 0.015f;
-
-	// Only a very small amount of inward velocity is corrected.
-	// This prevents the particle from being glued against the
-	// surface.
-	private const float GroundStick = 0.02f;
-
-	// ============================================================
-	// Slope sliding
+	// GroundDrag  = 0.09
+	// GroundStick = 0.10
+	//
+	// That is especially noticeable on shallow/slanted surfaces.
+	//
+	// Water should instead retain its tangential velocity.
 	// ============================================================
 
-	// A surface whose normal is nearly vertical is treated as a
-	// horizontal floor/ceiling.
-	//
-	// Once the normal has a meaningful X component, gravity has a
-	// component along the surface and the particle must remain
-	// eligible for sliding.
-	private const float SlopeNormalXThreshold = 0.08f;
+	private const float ImpactDamping = 0.10f;
 
-	// Minimum tangential acceleration caused by gravity before we
-	// consider the surface a real slope.
-	private const float MinimumSlopeAcceleration = 0.5f;
+	private const float ImpactNormalEpsilon = 0.0001f;
 
-	// Slight multiplier for gravity along a surface.
+	// Almost no artificial friction along terrain.
+	private const float GroundDrag = 0.005f;
+
+	// Do NOT artificially pull particles back into surfaces.
+	private const float GroundStick = 0.0f;
+
+	// Small compensation used when collision projection has removed
+	// too much of the tangential gravity component.
 	//
-	// 1.0 = physically correct gravity projection.
-	private const float SurfaceGravityMultiplier = 1.0f;
+	// This is intentionally below 1.0 so it does not create
+	// unrealistic acceleration.
+	private const float SurfaceGravityRetention = 0.85f;
+
+	// Surfaces whose normal is almost vertical are considered
+	// horizontal ground for sleeping purposes.
+	//
+	// A slanted surface should NOT easily put water to sleep.
+	private const float HorizontalSurfaceNormalY = 0.92f;
 
 	// ============================================================
 	// Sleeping
 	// ============================================================
 
-	private const float SleepVelocityThreshold = 2.0f;
-	private const float WakeVelocityThreshold = 4.0f;
-	private const float SleepTime = 0.35f;
-	private const float SleepDampingStrength = 3.0f;
+	private const float SleepVelocityThreshold = 1.0f;
+	private const float WakeVelocityThreshold = 3.0f;
+	private const float SleepTime = 0.50f;
+	private const float SleepDampingStrength = 1.5f;
 
 	private const float SleepVelocityThresholdSquared =
 		SleepVelocityThreshold *
@@ -735,7 +733,7 @@ public class PbfSolver
 				predY[i];
 
 			// ----------------------------------------------------
-			// Left boundary
+			// World boundaries
 			// ----------------------------------------------------
 
 			if (
@@ -766,11 +764,6 @@ public class PbfSolver
 					1.0f -
 					BoundaryFriction;
 			}
-
-			// ----------------------------------------------------
-			// Right boundary
-			// ----------------------------------------------------
-
 			else if (
 				x >=
 				MaxX - BoundarySkin)
@@ -800,10 +793,6 @@ public class PbfSolver
 					BoundaryFriction;
 			}
 
-			// ----------------------------------------------------
-			// Top boundary
-			// ----------------------------------------------------
-
 			if (
 				y <=
 				boundaryTop + 0.001f)
@@ -820,11 +809,6 @@ public class PbfSolver
 					1.0f -
 					BoundaryFriction;
 			}
-
-			// ----------------------------------------------------
-			// Bottom boundary
-			// ----------------------------------------------------
-
 			else if (
 				y >=
 				boundaryBottom - 0.001f)
@@ -843,32 +827,40 @@ public class PbfSolver
 			}
 
 			// ----------------------------------------------------
-			// Impact damping
+			// Surface flow
+			// ----------------------------------------------------
+			//
+			// Collision projection can remove part of the movement
+			// that should have remained tangent to a slanted surface.
+			//
+			// Gravity is:
+			//
+			//      G = (0, Gravity)
+			//
+			// Remove its component along the collision normal:
+			//
+			//      Gt = G - N * dot(G,N)
+			//
+			// Gt is therefore the component of gravity that should
+			// naturally make the water flow DOWN the surface.
+			//
+			// We only add a fraction of it. This is not intended to
+			// create extra gravity; it is mainly there to prevent
+			// collision projection/damping from destroying downhill
+			// motion.
 			// ----------------------------------------------------
 
 			if (impacted[i])
 			{
-				ApplyImpactDamping(
+				ApplySurfaceFlow(
 					i,
+					dt,
 					ref finalVelocityX,
 					ref finalVelocityY
 				);
 
-				// ------------------------------------------------
-				// IMPORTANT:
-				//
-				// Make gravity act along the surface.
-				//
-				// The particle already received gravity during
-				// prediction. However, collision projection can
-				// remove much of the normal component. We preserve
-				// the tangential component explicitly so a shallow
-				// slope cannot behave like a sticky floor.
-				// ------------------------------------------------
-
-				ApplySurfaceSliding(
+				ApplyImpactDamping(
 					i,
-					dt,
 					ref finalVelocityX,
 					ref finalVelocityY
 				);
@@ -876,6 +868,17 @@ public class PbfSolver
 
 			// ----------------------------------------------------
 			// Sleep
+			// ----------------------------------------------------
+			//
+			// A key change:
+			//
+			// A particle touching a slanted surface is NOT allowed
+			// to sleep just because its instantaneous velocity is
+			// small.
+			//
+			// Otherwise shallow slopes become sticky because the
+			// particle eventually gets classified as sleeping while
+			// gravity is still trying to pull it downhill.
 			// ----------------------------------------------------
 
 			ApplySleepBehavior(
@@ -927,10 +930,10 @@ public class PbfSolver
 	}
 
 	// ============================================================
-	// Surface sliding
+	// Surface flow
 	// ============================================================
 
-	private void ApplySurfaceSliding(
+	private void ApplySurfaceFlow(
 		int i,
 		float dt,
 		ref float velocityX,
@@ -965,90 +968,38 @@ public class PbfSolver
 		normalY *=
 			inverseLength;
 
-		// --------------------------------------------------------
-		// Is this actually a slope?
-		// --------------------------------------------------------
+		// Gravity vector.
+		float gravityX =
+			0.0f;
 
-		float absoluteNormalX =
-			Mathf.Abs(
-				normalX
-			);
+		float gravityY =
+			Gravity;
 
-		if (
-			absoluteNormalX <
-			SlopeNormalXThreshold)
-		{
-			return;
-		}
+		float gravityNormal =
+			gravityX * normalX +
+			gravityY * normalY;
 
-		// --------------------------------------------------------
-		// Remove only velocity INTO the surface.
-		//
-		// This is deliberately NOT a friction operation.
-		// Tangential velocity must survive.
-		// --------------------------------------------------------
-
-		float normalVelocity =
-			velocityX *
-			normalX +
-			velocityY *
-			normalY;
-
-		if (normalVelocity < 0.0f)
-		{
-			velocityX -=
-				normalX *
-				normalVelocity;
-
-			velocityY -=
-				normalY *
-				normalVelocity;
-		}
-
-		// --------------------------------------------------------
-		// Gravity projected onto the surface.
-		//
-		// g = (0, Gravity)
-		//
-		// g_parallel =
-		//     g - n * dot(g,n)
-		// --------------------------------------------------------
-
-		float gravityDotNormal =
-			Gravity *
-			normalY;
-
-		float gravityAlongX =
-			-
+		// Tangential component of gravity.
+		float tangentGravityX =
+			gravityX -
 			normalX *
-			gravityDotNormal;
+			gravityNormal;
 
-		float gravityAlongY =
-			Gravity -
+		float tangentGravityY =
+			gravityY -
 			normalY *
-			gravityDotNormal;
+			gravityNormal;
 
-		float gravityAlongSquared =
-			gravityAlongX *
-			gravityAlongX +
-			gravityAlongY *
-			gravityAlongY;
+		// Only compensate for part of the lost surface acceleration.
+		velocityX +=
+			tangentGravityX *
+			dt *
+			SurfaceGravityRetention;
 
-		if (
-			gravityAlongSquared >
-			MinimumSlopeAcceleration *
-			MinimumSlopeAcceleration)
-		{
-			velocityX +=
-				gravityAlongX *
-				dt *
-				SurfaceGravityMultiplier;
-
-			velocityY +=
-				gravityAlongY *
-				dt *
-				SurfaceGravityMultiplier;
-		}
+		velocityY +=
+			tangentGravityY *
+			dt *
+			SurfaceGravityRetention;
 	}
 
 	// ============================================================
@@ -1921,7 +1872,7 @@ public class PbfSolver
 
 				List<FluidPolygonCollider>
 					groupColliders =
-						group.Colliders;
+					group.Colliders;
 
 				for (
 					int c = 0;
@@ -2435,7 +2386,8 @@ public class PbfSolver
 		}
 		else if (
 			terrainColliderQueryStamp == null ||
-			terrainColliderQueryStamp.Length != colliderCount)
+			terrainColliderQueryStamp.Length !=
+			colliderCount)
 		{
 			terrainColliderQueryStamp =
 				new int[
@@ -2683,11 +2635,10 @@ public class PbfSolver
 			velocityY *
 			normalY;
 
-		// Remove velocity INTO the surface only.
+		// Only damp motion INTO the surface.
 		//
-		// Positive normal velocity is separation from the surface
-		// and is therefore left mostly untouched.
-		if (normalVelocity < 0.0f)
+		// Motion away from the surface is never damped here.
+		if (normalVelocity > 0.0f)
 		{
 			float velocityChange =
 				normalVelocity *
@@ -2702,33 +2653,34 @@ public class PbfSolver
 				velocityChange;
 		}
 
-		// Small correction if numerical/PBF movement leaves the
-		// particle moving slightly into the surface.
-		float separationVelocity =
-			velocityX *
-			normalX +
-			velocityY *
-			normalY;
-
-		if (separationVelocity < 0.0f)
+		// GroundStick intentionally remains zero.
+		//
+		// We do not add an artificial velocity toward the surface.
+		if (GroundStick > 0.0f)
 		{
-			float stickAmount =
-				-separationVelocity *
-				GroundStick;
+			float separationVelocity =
+				velocityX *
+				normalX +
+				velocityY *
+				normalY;
 
-			velocityX +=
-				normalX *
-				stickAmount;
+			if (separationVelocity < 0.0f)
+			{
+				float stickAmount =
+					-separationVelocity *
+					GroundStick;
 
-			velocityY +=
-				normalY *
-				stickAmount;
+				velocityX +=
+					normalX *
+					stickAmount;
+
+				velocityY +=
+					normalY *
+					stickAmount;
+			}
 		}
 
 		// Very small tangential drag.
-		//
-		// This is intentionally weak. Strong tangential drag is one
-		// of the things that makes water appear glued to slopes.
 		float tangentX =
 			-normalY;
 
@@ -2864,38 +2816,6 @@ public class PbfSolver
 		ref float velocityX,
 		ref float velocityY)
 	{
-		// --------------------------------------------------------
-		// CRITICAL SLOPE FIX
-		//
-		// If the particle is touching a slanted surface, do NOT
-		// allow the generic sleeping system to kill its small
-		// downhill velocity.
-		//
-		// This is the main fix for the "water glued to slope"
-		// behavior.
-		// --------------------------------------------------------
-
-		if (impacted[i])
-		{
-			float slopeNormalX =
-				Mathf.Abs(
-					impactNormalX[i]
-				);
-
-			if (
-				slopeNormalX >=
-				SlopeNormalXThreshold)
-			{
-				sleepProgress[i] =
-					0.0f;
-
-				sleeping[i] =
-					false;
-
-				return;
-			}
-		}
-
 		float velocitySquared =
 			velocityX *
 			velocityX +
@@ -2913,6 +2833,43 @@ public class PbfSolver
 				false;
 
 			return;
+		}
+
+		// --------------------------------------------------------
+		// IMPORTANT:
+		//
+		// Do not sleep particles that are touching a meaningful
+		// slanted surface.
+		//
+		// The old sleep system could turn shallow-slope water into
+		// "glue": velocity becomes small -> particle sleeps -> the
+		// particle remains on the surface.
+		// --------------------------------------------------------
+
+		if (impacted[i])
+		{
+			float normalY =
+				Mathf.Abs(
+					impactNormalY[i]
+				);
+
+			// If the normal is not close to vertical, this is a
+			// meaningful slanted surface.
+			//
+			// Keep the particle awake so gravity can continue to
+			// move it downhill.
+			if (
+				normalY <
+				HorizontalSurfaceNormalY)
+			{
+				sleepProgress[i] =
+					0.0f;
+
+				sleeping[i] =
+					false;
+
+				return;
+			}
 		}
 
 		if (

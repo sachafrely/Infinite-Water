@@ -104,9 +104,9 @@ public partial class FluidSimulator : Node2D
 	// Dynamic Rain
 	// ============================================================
 
-	private const float RainAmount = 100.0f;
+	private const float RainAmount = 150.0f;
 
-	private const int RainMinimumPercent = 20;
+	private const int RainMinimumPercent = 0;
 	private const int RainMaximumPercent = 100;
 	private const int RainPercentStep = 10;
 
