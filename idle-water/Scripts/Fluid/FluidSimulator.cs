@@ -28,6 +28,49 @@ public partial class FluidSimulator : Node2D
 	private float lastPhysicsDelta = 0.0f;
 
 	// ============================================================
+	// Rain / Energy statistical graph
+	// ============================================================
+	//
+	// A second statistical graph is displayed below the existing
+	// graph.
+	//
+	// X-axis:
+	//     Average rain percentage during the 10-second window.
+	//
+	// Y-axis:
+	//     Average energy gained during the 10-second window.
+	//
+	// Sampling:
+	//     Every 600 physics frames.
+	//
+	// First point:
+	//     Frame 1200 = 20 seconds.
+	//
+	// Therefore:
+	//
+	//     0 - 599       -> accumulate only
+	//     600 - 1199    -> accumulate only
+	//     1200          -> first point
+	//     1800          -> second point
+	//     2400          -> third point
+	//
+	// Active particle count is NOT used as the X-axis.
+	//
+	// ============================================================
+
+	private const int RainEnergyGraphIntervalFrames = 600;
+
+	private const int RainEnergyGraphInitialDelayFrames = 1200;
+
+	private int rainEnergyGraphFrames = 0;
+
+	private double rainEnergyRainSum = 0.0;
+
+	private double rainEnergyEnergySum = 0.0;
+
+	private double rainEnergyParticleSum = 0.0;
+
+	// ============================================================
 	// Current indicator
 	// ============================================================
 
@@ -174,27 +217,6 @@ public partial class FluidSimulator : Node2D
 
 	// ============================================================
 	// Anti-lag evaporation tracking
-	// ============================================================
-	//
-	// Evaporation is based on the number of particles that exist
-	// when evaporation begins.
-	//
-	// We do NOT calculate removal from the current particle count.
-	//
-	// Instead:
-	//
-	//     targetRemoved =
-	//         startCount * progress
-	//
-	// This produces a predictable linear evaporation period.
-	//
-	// Example with 1000 particles:
-	//
-	// 0s  -> 0 removed
-	// 2s  -> 200 removed
-	// 5s  -> 500 removed
-	// 8s  -> 800 removed
-	// 10s -> 1000 removed
 	// ============================================================
 
 	private int antiLagEvaporationStartParticleCount = 0;
@@ -897,6 +919,10 @@ public partial class FluidSimulator : Node2D
 			return;
 		}
 
+		// --------------------------------------------------------
+		// Existing graph
+		// --------------------------------------------------------
+
 		double energyPerSecond =
 			delta > 0.000001f
 				? energyGeneratedThisFrame /
@@ -909,6 +935,99 @@ public partial class FluidSimulator : Node2D
 			(float)Engine.GetFramesPerSecond(),
 			delta
 		);
+
+		// --------------------------------------------------------
+		// New rain / energy graph
+		// --------------------------------------------------------
+		//
+		// Accumulate the current rain percentage and energy
+		// generated during every physics frame.
+		//
+		// IMPORTANT:
+		//
+		// The X-axis for the second graph is average rain.
+		// ActiveParticleCount is NOT the X-axis.
+		// --------------------------------------------------------
+
+		rainEnergyGraphFrames++;
+
+		rainEnergyRainSum +=
+			currentRainPercent;
+
+		rainEnergyEnergySum +=
+			energyGeneratedThisFrame;
+
+		rainEnergyParticleSum +=
+			ActiveParticleCount;
+
+		// --------------------------------------------------------
+		// No second graph point during first 20 seconds.
+		// --------------------------------------------------------
+
+		if (
+			rainEnergyGraphFrames <
+			RainEnergyGraphInitialDelayFrames)
+		{
+			return;
+		}
+
+		// --------------------------------------------------------
+		// Only create points every 600 frames.
+		// --------------------------------------------------------
+
+		if (
+			rainEnergyGraphFrames %
+			RainEnergyGraphIntervalFrames !=
+			0)
+		{
+			return;
+		}
+
+		// --------------------------------------------------------
+		// Calculate averages.
+		// --------------------------------------------------------
+
+		double averageRain =
+			rainEnergyRainSum /
+			RainEnergyGraphIntervalFrames;
+
+		double averageEnergy =
+			rainEnergyEnergySum /
+			RainEnergyGraphIntervalFrames;
+
+		double averageParticles =
+			rainEnergyParticleSum /
+			RainEnergyGraphIntervalFrames;
+
+		// --------------------------------------------------------
+		// Add the second graph point.
+		//
+		// X = average rain
+		// Y = average energy
+		//
+		// averageParticles is passed separately so the graph can
+		// retain particle statistics if needed, but it is NOT
+		// used as the rain/energy graph's X coordinate.
+		// --------------------------------------------------------
+
+		statisticsGraph.AddRainEnergySample(
+			(float)averageRain,
+			(float)averageEnergy,
+			(float)averageParticles
+		);
+
+		// --------------------------------------------------------
+		// Reset the completed 10-second window.
+		// --------------------------------------------------------
+
+		rainEnergyRainSum =
+			0.0;
+
+		rainEnergyEnergySum =
+			0.0;
+
+		rainEnergyParticleSum =
+			0.0;
 	}
 
 	// ============================================================
@@ -2011,8 +2130,6 @@ void fragment()
 		antiLagStateTimer =
 			0.0f;
 
-		// Capture the exact number of active particles when
-		// evaporation begins.
 		antiLagEvaporationStartParticleCount =
 			particles.Count;
 
@@ -2053,10 +2170,6 @@ void fragment()
 				antiLagStateTimer,
 				0.0f
 			);
-
-		// --------------------------------------------------------
-		// Calculate cumulative evaporation target
-		// --------------------------------------------------------
 
 		if (
 			antiLagEvaporationStartParticleCount >
@@ -2108,20 +2221,10 @@ void fragment()
 			}
 		}
 
-		// --------------------------------------------------------
-		// Completion
-		// --------------------------------------------------------
-
 		if (
 			antiLagStateTimer >=
 			AntiLagEvaporationDuration)
 		{
-			// Remove any remaining particles.
-			//
-			// Normally there should be zero or only a very small
-			// remainder because particles may also have naturally
-			// despawned during the evaporation period.
-
 			while (
 				particles.Count > 0)
 			{
@@ -2462,11 +2565,6 @@ void fragment()
 			dt
 		);
 
-		// Rain continues during the gradual reduction and recovery.
-		//
-		// Rain is disabled once the cleanup reaches draining or
-		// evaporation.
-
 		if (
 			antiLagState ==
 			AntiLagState.Draining ||
@@ -2475,14 +2573,6 @@ void fragment()
 		{
 			return;
 		}
-
-		// RainAmount = 100.0f means 50% rain.
-		//
-		// Therefore:
-		//
-		// 10%  = 20 particles/sec
-		// 50%  = 100 particles/sec
-		// 100% = 200 particles/sec
 
 		float currentRainAmount =
 			RainAmount *
@@ -2559,9 +2649,6 @@ void fragment()
 
 			totalRainSpawns++;
 
-			// Register immediately so multiple particles spawned
-			// during the same frame cannot occupy the same pixel.
-
 			if (
 				pixelIndex >= 0)
 			{
@@ -2600,11 +2687,6 @@ void fragment()
 				particles.RemoveParticle(
 					i
 				);
-
-				// Do not increment i.
-				//
-				// RemoveParticle() moves the last active particle
-				// into this slot.
 
 				continue;
 			}
@@ -2706,9 +2788,6 @@ void fragment()
 					physicsMs
 				: 0.0;
 
-		// Use the same averaged rendered FPS that is printed below
-		// for the anti-lag decision.
-
 		EvaluateAntiLagProfilerResult(
 			fps
 		);
@@ -2723,10 +2802,6 @@ void fragment()
 			fullProfilerFrames +
 			" physics frames)"
 		);
-
-		// --------------------------------------------------------
-		// Particle statistics
-		// --------------------------------------------------------
 
 		GD.Print(
 			"ActiveParticles=" +
