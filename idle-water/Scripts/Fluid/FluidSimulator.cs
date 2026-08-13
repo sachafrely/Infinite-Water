@@ -25,7 +25,6 @@ public partial class FluidSimulator : Node2D
 
 	private double energyGeneratedThisFrame = 0.0;
 
-	// Last physics delta.
 	private float lastPhysicsDelta = 0.0f;
 
 	// ============================================================
@@ -57,24 +56,13 @@ public partial class FluidSimulator : Node2D
 	// Maximum particles per world pixel
 	// ============================================================
 	//
-	// This is deliberately separate from DensityField.
+	// Rain spawning uses actual simulation/world coordinates.
 	//
-	// DensityField is a rendering structure and has its own
-	// resolution / coordinate system.
+	// This occupancy map is deliberately separate from DensityField
+	// because DensityField is a rendering structure with a different
+	// resolution and coordinate system.
 	//
-	// Rain spawning happens in simulation/world coordinates,
-	// including Y = -200, so using DensityField directly for
-	// spawn validation can incorrectly reject every particle.
-	//
-	// We therefore keep a lightweight occupancy map in actual
-	// simulation pixel coordinates.
-	//
-	// Maximum 2 particles are allowed to occupy the same pixel.
-	//
-	// This is a conservative physical-density rule:
-	// particles may overlap neighboring pixels, but we never
-	// allow more than two particle centers in the exact same
-	// pixel.
+	// Maximum 1 particle center is allowed per exact world pixel.
 	// ============================================================
 
 	private const int MaxParticlesPerDensityCell = 1;
@@ -136,10 +124,16 @@ public partial class FluidSimulator : Node2D
 	// ============================================================
 	// Anti-lag cleanup
 	// ============================================================
-	// Two consecutive low-FPS profiler results trigger the safety
-	// cleanup. With 600 profiler frames this is about 20 seconds
-	// at the normal 60 Hz physics rate.
+	//
+	// Two consecutive low-FPS profiler results trigger cleanup.
+	//
+	// FullProfilerInterval = 600 physics frames.
+	// At 60 physics FPS this is approximately 10 seconds.
+	//
+	// Therefore two consecutive profiler results represent
+	// approximately 20 seconds of sustained low performance.
 	// ============================================================
+
 	private enum AntiLagState
 	{
 		Normal,
@@ -150,46 +144,49 @@ public partial class FluidSimulator : Node2D
 	}
 
 	private const double AntiLagFpsThreshold = 25.0;
+
 	private const int AntiLagRequiredLowProfilerResults = 2;
+
 	private const float AntiLagRainReductionDuration = 10.0f;
+
 	private const float AntiLagDrainDuration = 20.0f;
 
-	// Evaporation intentionally remains only 10 seconds.
 	private const float AntiLagEvaporationDuration = 10.0f;
 
 	private const float AntiLagRecoveryDuration = 10.0f;
 
-	private AntiLagState antiLagState = AntiLagState.Normal;
+	private AntiLagState antiLagState =
+		AntiLagState.Normal;
+
 	private float antiLagStateTimer = 0.0f;
+
 	private float antiLagStateStartRainPercent = 0.0f;
+
 	private float antiLagRecoveryTargetRainPercent = 0.0f;
+
 	private int consecutiveLowProfilerResults = 0;
 
 	private long totalEvaporatedParticles = 0;
+
 	private long evaporatedParticlesThisCleanup = 0;
+
 	private int antiLagCleanupCount = 0;
 
 	// ============================================================
 	// Anti-lag evaporation tracking
 	// ============================================================
 	//
-	// IMPORTANT:
+	// Evaporation is based on the number of particles that exist
+	// when evaporation begins.
 	//
-	// Evaporation must be based on the number of particles that
-	// existed when evaporation actually started.
+	// We do NOT calculate removal from the current particle count.
 	//
-	// The previous algorithm calculated removal from the CURRENT
-	// particle count every frame:
+	// Instead:
 	//
-	//     particles.Count * dt / remainingTime
+	//     targetRemoved =
+	//         startCount * progress
 	//
-	// This behaves like a rapidly accelerating removal process,
-	// especially because it also forced at least one particle to
-	// be removed every physics frame.
-	//
-	// Instead, we remember the starting particle count and calculate
-	// the exact cumulative number of particles that SHOULD have
-	// evaporated at the current point in time.
+	// This produces a predictable linear evaporation period.
 	//
 	// Example with 1000 particles:
 	//
@@ -198,8 +195,6 @@ public partial class FluidSimulator : Node2D
 	// 5s  -> 500 removed
 	// 8s  -> 800 removed
 	// 10s -> 1000 removed
-	//
-	// This gives us a predictable 10-second evaporation period.
 	// ============================================================
 
 	private int antiLagEvaporationStartParticleCount = 0;
@@ -211,6 +206,7 @@ public partial class FluidSimulator : Node2D
 	// ============================================================
 
 	private CanvasLayer rainHudLayer;
+
 	private Label rainHudLabel;
 
 	private const float RainSpawnY =
@@ -248,9 +244,11 @@ public partial class FluidSimulator : Node2D
 	private const int MaxWheelCount = 8;
 
 	private const int WheelTileAtlasX = 7;
+
 	private const int WheelTileAtlasY = 6;
 
 	private const float WheelOuterRadius = 50.0f;
+
 	private const float WheelInnerRadius = 12.5f;
 
 	private const int WheelBladeCount = 8;
@@ -284,15 +282,23 @@ public partial class FluidSimulator : Node2D
 	private int fullProfilerFrames = 0;
 
 	private double fullPhysicsTime = 0.0;
+
 	private double fullRenderedFpsSum = 0.0;
+
 	private double fullSpawnTime = 0.0;
+
 	private double fullPbfTime = 0.0;
+
 	private double fullDensityTime = 0.0;
+
 	private double fullRendererTime = 0.0;
 
 	private double fullRendererBuildPixelsTime = 0.0;
+
 	private double fullRendererSurfaceGlowTime = 0.0;
+
 	private double fullRendererFillBytesTime = 0.0;
+
 	private double fullRendererTextureUploadTime = 0.0;
 
 	// ============================================================
@@ -439,6 +445,7 @@ public partial class FluidSimulator : Node2D
 			dt
 		);
 
+		// --------------------------------------------------------
 		// Rain
 		// --------------------------------------------------------
 
@@ -515,16 +522,11 @@ public partial class FluidSimulator : Node2D
 		// --------------------------------------------------------
 		// Rebuild pixel occupancy
 		// --------------------------------------------------------
-		//
-		// This happens AFTER movement/despawn so that the next
-		// frame's spawn decisions are based on the actual current
-		// particle positions.
-		// --------------------------------------------------------
 
 		RebuildPixelOccupancy();
 
 		// --------------------------------------------------------
-		// Update statistics graph
+		// Statistics graph
 		// --------------------------------------------------------
 
 		UpdateStatisticsHud(
@@ -588,6 +590,7 @@ public partial class FluidSimulator : Node2D
 
 		fullPhysicsTime +=
 			physicsTimer.Elapsed.TotalMilliseconds;
+
 		fullRenderedFpsSum +=
 			Engine.GetFramesPerSecond();
 
@@ -1466,7 +1469,9 @@ void fragment()
 	private struct GameViewMapping
 	{
 		public SubViewportContainer GameView;
+
 		public SubViewport SimulationViewport;
+
 		public Camera2D Camera;
 
 		public bool IsValid =>
@@ -1769,20 +1774,22 @@ void fragment()
 	}
 
 	// ============================================================
-	// Anti-lag cleanup
+	// Anti-lag profiler evaluation
 	// ============================================================
 
 	private void EvaluateAntiLagProfilerResult(
 		double profilerFps)
 	{
 		if (
-			antiLagState != AntiLagState.Normal)
+			antiLagState !=
+			AntiLagState.Normal)
 		{
 			return;
 		}
 
 		if (
-			profilerFps < AntiLagFpsThreshold)
+			profilerFps <
+			AntiLagFpsThreshold)
 		{
 			consecutiveLowProfilerResults++;
 
@@ -1800,7 +1807,9 @@ void fragment()
 				consecutiveLowProfilerResults >=
 				AntiLagRequiredLowProfilerResults)
 			{
-				StartAntiLagCleanup(profilerFps);
+				StartAntiLagCleanup(
+					profilerFps
+				);
 			}
 		}
 		else
@@ -1819,36 +1828,58 @@ void fragment()
 		}
 	}
 
+	// ============================================================
+	// Start anti-lag cleanup
+	// ============================================================
+
 	private void StartAntiLagCleanup(
 		double triggerProfilerFps)
 	{
 		antiLagCleanupCount++;
+
 		consecutiveLowProfilerResults = 0;
 
-		antiLagState = AntiLagState.ReducingRain;
-		antiLagStateTimer = 0.0f;
-		antiLagStateStartRainPercent = currentRainPercent;
-		rainSpawnAccumulator = 0.0f;
-		evaporatedParticlesThisCleanup = 0;
+		antiLagState =
+			AntiLagState.ReducingRain;
 
-		// Reset evaporation bookkeeping for the new cleanup.
-		antiLagEvaporationStartParticleCount = 0;
-		antiLagEvaporationParticlesRemoved = 0;
+		antiLagStateTimer =
+			0.0f;
 
-		GD.Print("========================================");
+		antiLagStateStartRainPercent =
+			currentRainPercent;
+
+		rainSpawnAccumulator =
+			0.0f;
+
+		evaporatedParticlesThisCleanup =
+			0;
+
+		antiLagEvaporationStartParticleCount =
+			0;
+
+		antiLagEvaporationParticlesRemoved =
+			0;
+
+		GD.Print(
+			"========================================"
+		);
+
 		GD.Print(
 			"ANTI-LAG CLEANUP #" +
 			antiLagCleanupCount +
 			" STARTED"
 		);
+
 		GD.Print(
 			"Trigger profiler PhysicsFPS=" +
 			triggerProfilerFps.ToString("F1")
 		);
+
 		GD.Print(
 			"Starting ActiveParticles=" +
 			particles.Count
 		);
+
 		GD.Print(
 			"Rain reducing from " +
 			antiLagStateStartRainPercent.ToString("F1") +
@@ -1858,11 +1889,16 @@ void fragment()
 		);
 	}
 
+	// ============================================================
+	// Update anti-lag cleanup
+	// ============================================================
+
 	private void UpdateAntiLagCleanup(
 		float dt)
 	{
 		if (
-			antiLagState == AntiLagState.Normal)
+			antiLagState ==
+			AntiLagState.Normal)
 		{
 			return;
 		}
@@ -1873,7 +1909,8 @@ void fragment()
 				0.0f
 			);
 
-		switch (antiLagState)
+		switch (
+			antiLagState)
 		{
 			case AntiLagState.ReducingRain:
 				UpdateAntiLagRainReduction();
@@ -1881,11 +1918,15 @@ void fragment()
 
 			case AntiLagState.Draining:
 				currentRainPercent = 0.0f;
+
 				targetRainPercent = 0.0f;
-				rainPhaseTimer = Mathf.Max(
-					AntiLagDrainDuration - antiLagStateTimer,
-					0.0f
-				);
+
+				rainPhaseTimer =
+					Mathf.Max(
+						AntiLagDrainDuration -
+						antiLagStateTimer,
+						0.0f
+					);
 
 				if (
 					antiLagStateTimer >=
@@ -1893,10 +1934,13 @@ void fragment()
 				{
 					BeginAntiLagEvaporation();
 				}
+
 				break;
 
 			case AntiLagState.Evaporating:
-				UpdateAntiLagEvaporation(dt);
+				UpdateAntiLagEvaporation(
+					dt
+				);
 				break;
 
 			case AntiLagState.Recovering:
@@ -1905,35 +1949,49 @@ void fragment()
 		}
 	}
 
+	// ============================================================
+	// Anti-lag rain reduction
+	// ============================================================
+
 	private void UpdateAntiLagRainReduction()
 	{
-		float progress = Mathf.Clamp(
-			antiLagStateTimer /
-			AntiLagRainReductionDuration,
-			0.0f,
-			1.0f
-		);
+		float progress =
+			Mathf.Clamp(
+				antiLagStateTimer /
+				AntiLagRainReductionDuration,
+				0.0f,
+				1.0f
+			);
 
-		currentRainPercent = Mathf.Lerp(
-			antiLagStateStartRainPercent,
-			0.0f,
-			progress
-		);
+		currentRainPercent =
+			Mathf.Lerp(
+				antiLagStateStartRainPercent,
+				0.0f,
+				progress
+			);
 
-		targetRainPercent = 0.0f;
+		targetRainPercent =
+			0.0f;
 
-		rainPhaseTimer = Mathf.Max(
-			AntiLagRainReductionDuration - antiLagStateTimer,
-			0.0f
-		);
+		rainPhaseTimer =
+			Mathf.Max(
+				AntiLagRainReductionDuration -
+				antiLagStateTimer,
+				0.0f
+			);
 
 		if (
 			antiLagStateTimer >=
 			AntiLagRainReductionDuration)
 		{
-			antiLagState = AntiLagState.Draining;
-			antiLagStateTimer = 0.0f;
-			currentRainPercent = 0.0f;
+			antiLagState =
+				AntiLagState.Draining;
+
+			antiLagStateTimer =
+				0.0f;
+
+			currentRainPercent =
+				0.0f;
 
 			GD.Print(
 				"ANTI-LAG: Rain reached 0%. Starting 20s natural drain."
@@ -1941,16 +1999,20 @@ void fragment()
 		}
 	}
 
+	// ============================================================
+	// Begin anti-lag evaporation
+	// ============================================================
+
 	private void BeginAntiLagEvaporation()
 	{
-		antiLagState = AntiLagState.Evaporating;
-		antiLagStateTimer = 0.0f;
+		antiLagState =
+			AntiLagState.Evaporating;
 
-		// Capture the exact number of particles present at the
-		// beginning of evaporation.
-		//
-		// This value becomes the reference for the entire
-		// 10-second evaporation period.
+		antiLagStateTimer =
+			0.0f;
+
+		// Capture the exact number of active particles when
+		// evaporation begins.
 		antiLagEvaporationStartParticleCount =
 			particles.Count;
 
@@ -1972,45 +2034,33 @@ void fragment()
 		);
 	}
 
+	// ============================================================
+	// Anti-lag evaporation
+	// ============================================================
+
 	private void UpdateAntiLagEvaporation(
 		float dt)
 	{
-		currentRainPercent = 0.0f;
-		targetRainPercent = 0.0f;
+		currentRainPercent =
+			0.0f;
 
-		rainPhaseTimer = Mathf.Max(
-			AntiLagEvaporationDuration - antiLagStateTimer,
-			0.0f
-		);
+		targetRainPercent =
+			0.0f;
+
+		rainPhaseTimer =
+			Mathf.Max(
+				AntiLagEvaporationDuration -
+				antiLagStateTimer,
+				0.0f
+			);
 
 		// --------------------------------------------------------
-		// Time-based evaporation
-		// --------------------------------------------------------
-		//
-		// Calculate the cumulative number of particles that should
-		// have evaporated by this point.
-		//
-		// We deliberately DO NOT calculate this from particles.Count.
-		//
-		// The old implementation:
-		//
-		//     particles.Count * dt / remainingTime
-		//
-		// continually recalculated the removal rate from an already
-		// shrinking pool and also forced at least one particle out
-		// every frame. That made the evaporation finish much sooner
-		// than the configured duration.
-		//
-		// Instead:
-		//
-		//     targetRemoved =
-		//         startCount * elapsed / duration
-		//
-		// This gives a stable, predictable evaporation rate.
+		// Calculate cumulative evaporation target
 		// --------------------------------------------------------
 
 		if (
-			antiLagEvaporationStartParticleCount > 0)
+			antiLagEvaporationStartParticleCount >
+			0)
 		{
 			float progress =
 				Mathf.Clamp(
@@ -2050,7 +2100,9 @@ void fragment()
 					);
 
 					evaporatedParticlesThisCleanup++;
+
 					totalEvaporatedParticles++;
+
 					antiLagEvaporationParticlesRemoved++;
 				}
 			}
@@ -2064,12 +2116,12 @@ void fragment()
 			antiLagStateTimer >=
 			AntiLagEvaporationDuration)
 		{
-			// At the exact end of the evaporation period, remove
-			// anything that remains.
+			// Remove any remaining particles.
 			//
-			// Normally this should only be a very small remainder
-			// caused by particles leaving through the normal outer
-			// edge despawn during evaporation.
+			// Normally there should be zero or only a very small
+			// remainder because particles may also have naturally
+			// despawned during the evaporation period.
+
 			while (
 				particles.Count > 0)
 			{
@@ -2078,25 +2130,33 @@ void fragment()
 				);
 
 				evaporatedParticlesThisCleanup++;
+
 				totalEvaporatedParticles++;
 			}
 
-			GD.Print("========================================");
+			GD.Print(
+				"========================================"
+			);
+
 			GD.Print(
 				"ANTI-LAG EVAPORATION COMPLETE"
 			);
+
 			GD.Print(
 				"Evaporation Start Particles=" +
 				antiLagEvaporationStartParticleCount
 			);
+
 			GD.Print(
 				"Evaporated Particles=" +
 				evaporatedParticlesThisCleanup
 			);
+
 			GD.Print(
 				"Total Evaporated Particles=" +
 				totalEvaporatedParticles
 			);
+
 			GD.Print(
 				"Remaining Particles=" +
 				particles.Count
@@ -2106,14 +2166,24 @@ void fragment()
 		}
 	}
 
+	// ============================================================
+	// Begin anti-lag recovery
+	// ============================================================
+
 	private void BeginAntiLagRecovery()
 	{
-		antiLagState = AntiLagState.Recovering;
-		antiLagStateTimer = 0.0f;
+		antiLagState =
+			AntiLagState.Recovering;
+
+		antiLagStateTimer =
+			0.0f;
+
 		antiLagRecoveryTargetRainPercent =
 			GetRandomRainPercent();
 
-		currentRainPercent = 0.0f;
+		currentRainPercent =
+			0.0f;
+
 		targetRainPercent =
 			antiLagRecoveryTargetRainPercent;
 
@@ -2129,28 +2199,36 @@ void fragment()
 		);
 	}
 
+	// ============================================================
+	// Anti-lag recovery
+	// ============================================================
+
 	private void UpdateAntiLagRecovery()
 	{
-		float progress = Mathf.Clamp(
-			antiLagStateTimer /
-			AntiLagRecoveryDuration,
-			0.0f,
-			1.0f
-		);
+		float progress =
+			Mathf.Clamp(
+				antiLagStateTimer /
+				AntiLagRecoveryDuration,
+				0.0f,
+				1.0f
+			);
 
-		currentRainPercent = Mathf.Lerp(
-			0.0f,
-			antiLagRecoveryTargetRainPercent,
-			progress
-		);
+		currentRainPercent =
+			Mathf.Lerp(
+				0.0f,
+				antiLagRecoveryTargetRainPercent,
+				progress
+			);
 
 		targetRainPercent =
 			antiLagRecoveryTargetRainPercent;
 
-		rainPhaseTimer = Mathf.Max(
-			AntiLagRecoveryDuration - antiLagStateTimer,
-			0.0f
-		);
+		rainPhaseTimer =
+			Mathf.Max(
+				AntiLagRecoveryDuration -
+				antiLagStateTimer,
+				0.0f
+			);
 
 		if (
 			antiLagStateTimer >=
@@ -2190,14 +2268,19 @@ void fragment()
 		}
 	}
 
+	// ============================================================
+	// Random rain percentage
+	// ============================================================
+
 	private int GetRandomRainPercent()
 	{
-		int stepCount = (
-			RainMaximumPercent -
-			RainMinimumPercent
-		) /
-		RainPercentStep +
-		1;
+		int stepCount =
+			(
+				RainMaximumPercent -
+				RainMinimumPercent
+			) /
+			RainPercentStep +
+			1;
 
 		int randomStep =
 			rainRandom.RandiRange(
@@ -2205,13 +2288,14 @@ void fragment()
 				stepCount - 1
 			);
 
-		return RainMinimumPercent +
+		return
+			RainMinimumPercent +
 			randomStep *
 			RainPercentStep;
 	}
 
 	// ============================================================
-	// Rain
+	// Rain initialization
 	// ============================================================
 
 	private void InitializeDynamicRain()
@@ -2262,6 +2346,10 @@ void fragment()
 		);
 	}
 
+	// ============================================================
+	// Select new rain phase
+	// ============================================================
+
 	private void SelectNewRainPhase()
 	{
 		int stepCount =
@@ -2306,11 +2394,16 @@ void fragment()
 		);
 	}
 
+	// ============================================================
+	// Dynamic rain update
+	// ============================================================
+
 	private void UpdateDynamicRain(
 		float dt)
 	{
 		if (
-			antiLagState != AntiLagState.Normal)
+			antiLagState !=
+			AntiLagState.Normal)
 		{
 			return;
 		}
@@ -2358,6 +2451,10 @@ void fragment()
 		}
 	}
 
+	// ============================================================
+	// Spawn rain particles
+	// ============================================================
+
 	private void SpawnRainParticle(
 		float dt)
 	{
@@ -2365,22 +2462,24 @@ void fragment()
 			dt
 		);
 
-		// During the anti-lag cleanup, rain must continue spawning
-		// while the cleanup is gradually reducing the rain percentage.
+		// Rain continues during the gradual reduction and recovery.
 		//
-		// ReducingRain and Recovering are intentionally allowed here.
-		// Once we enter Draining or Evaporating, spawning is disabled.
+		// Rain is disabled once the cleanup reaches draining or
+		// evaporation.
 
 		if (
-			antiLagState == AntiLagState.Draining ||
-			antiLagState == AntiLagState.Evaporating)
+			antiLagState ==
+			AntiLagState.Draining ||
+			antiLagState ==
+			AntiLagState.Evaporating)
 		{
 			return;
 		}
 
-		// RainAmount = 100.0f is 50% rain.
+		// RainAmount = 100.0f means 50% rain.
 		//
 		// Therefore:
+		//
 		// 10%  = 20 particles/sec
 		// 50%  = 100 particles/sec
 		// 100% = 200 particles/sec
@@ -2458,12 +2557,11 @@ void fragment()
 				RainVelocityY
 			);
 
-			// The particle is now actually active.
 			totalRainSpawns++;
 
-			// Register it immediately so that if multiple rain
-			// particles are spawned during the same frame, the
-			// density limit is respected between those spawns.
+			// Register immediately so multiple particles spawned
+			// during the same frame cannot occupy the same pixel.
+
 			if (
 				pixelIndex >= 0)
 			{
@@ -2503,10 +2601,10 @@ void fragment()
 					i
 				);
 
-				// Do NOT increment i.
+				// Do not increment i.
 				//
-				// RemoveParticle() moves the previous last
-				// active particle into this slot.
+				// RemoveParticle() moves the last active particle
+				// into this slot.
 
 				continue;
 			}
@@ -2608,8 +2706,9 @@ void fragment()
 					physicsMs
 				: 0.0;
 
-		// Use the profiler's averaged rendered FPS for the anti-lag
-		// trigger. This is the same FPS value printed below.
+		// Use the same averaged rendered FPS that is printed below
+		// for the anti-lag decision.
+
 		EvaluateAntiLagProfilerResult(
 			fps
 		);
@@ -2843,16 +2942,23 @@ void fragment()
 		fullProfilerFrames = 0;
 
 		fullPhysicsTime = 0.0;
+
 		fullRenderedFpsSum = 0.0;
 
 		fullSpawnTime = 0.0;
+
 		fullPbfTime = 0.0;
+
 		fullDensityTime = 0.0;
+
 		fullRendererTime = 0.0;
 
 		fullRendererBuildPixelsTime = 0.0;
+
 		fullRendererSurfaceGlowTime = 0.0;
+
 		fullRendererFillBytesTime = 0.0;
+
 		fullRendererTextureUploadTime = 0.0;
 	}
 }

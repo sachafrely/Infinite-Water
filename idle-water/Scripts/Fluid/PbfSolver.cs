@@ -31,18 +31,13 @@ public class PbfSolver
 	private float[] colliderMinY;
 	private float[] colliderMaxY;
 
+	private int[] terrainColliderQueryStamp;
+	private int terrainColliderQueryStampId = 0;
+
 	// ============================================================
 	// Wheel bounds
 	// ============================================================
 
-	// Cached AABBs for wheel colliders.
-	//
-	// The wheel geometry rotates, so these are updated once per
-	// simulation frame after UpdateWheelGeometry().
-	//
-	// These arrays are kept for the existing collider-level bounds
-	// data. A second, higher-level broad phase below groups all
-	// colliders belonging to the same physical wheel.
 	private float[] wheelMinX;
 	private float[] wheelMaxX;
 	private float[] wheelMinY;
@@ -54,16 +49,6 @@ public class PbfSolver
 	// Wheel collision groups
 	// ============================================================
 
-	// A physical wheel is composed of multiple polygon colliders:
-	// 8 blades + 1 hub.
-	//
-	// Previously, every particle checked every wheel collider.
-	// With 5 wheels that means roughly 45 collider checks per
-	// particle per PBF iteration.
-	//
-	// We now first perform ONE AABB test per physical wheel.
-	// Only if the particle is inside that wheel's local area do
-	// we inspect its individual blade/hub colliders.
 	private readonly List<WheelCollisionGroup>
 		wheelCollisionGroups =
 			new List<WheelCollisionGroup>();
@@ -118,14 +103,46 @@ public class PbfSolver
 	private const float VelocityDamping = 0.998f;
 
 	// ============================================================
-	// Impact
+	// Impact / surface interaction
 	// ============================================================
 
 	private const float ImpactDamping = 0.5f;
 	private const float ImpactNormalEpsilon = 0.0001f;
 
-	private const float GroundDrag = 0.09f;
-	private const float GroundStick = 0.10f;
+	// IMPORTANT:
+	//
+	// These values are deliberately much smaller than before.
+	//
+	// A fluid should lose very little tangential momentum when
+	// sliding along terrain. The old GroundDrag = 0.09 could
+	// noticeably slow particles on shallow slopes.
+	private const float GroundDrag = 0.015f;
+
+	// Only a very small amount of inward velocity is corrected.
+	// This prevents the particle from being glued against the
+	// surface.
+	private const float GroundStick = 0.02f;
+
+	// ============================================================
+	// Slope sliding
+	// ============================================================
+
+	// A surface whose normal is nearly vertical is treated as a
+	// horizontal floor/ceiling.
+	//
+	// Once the normal has a meaningful X component, gravity has a
+	// component along the surface and the particle must remain
+	// eligible for sliding.
+	private const float SlopeNormalXThreshold = 0.08f;
+
+	// Minimum tangential acceleration caused by gravity before we
+	// consider the surface a real slope.
+	private const float MinimumSlopeAcceleration = 0.5f;
+
+	// Slight multiplier for gravity along a surface.
+	//
+	// 1.0 = physically correct gravity projection.
+	private const float SurfaceGravityMultiplier = 1.0f;
 
 	// ============================================================
 	// Sleeping
@@ -182,17 +199,8 @@ public class PbfSolver
 	// Pixel occupancy
 	// ============================================================
 
-	// Maximum number of particles allowed to remain in the same
-	// integer pixel.
-	//
-	// IMPORTANT:
-	// This does NOT limit spawning.
-	// This does NOT remove particles.
-	// This does NOT change ParticleData.Count.
 	private const int MaxParticlesPerPixel = 2;
 
-	// Only exact / extremely close overlaps receive the special
-	// deterministic separation.
 	private const float ExactOverlapDistanceSquared =
 		0.000001f;
 
@@ -619,19 +627,11 @@ public class PbfSolver
 				count
 			);
 
-			// ----------------------------------------------------
-			// Pixel occupancy correction
-			// ----------------------------------------------------
-
 			ApplyPixelOccupancyCorrection(
 				predX,
 				predY,
 				count
 			);
-
-			// ----------------------------------------------------
-			// Polygon / wheel collision
-			// ----------------------------------------------------
 
 			if (
 				polygonColliders.Count > 0)
@@ -642,10 +642,13 @@ public class PbfSolver
 				ConstrainToPolygonColliders(
 					predX,
 					predY,
+					posX,
+					posY,
 					velX,
 					velY,
 					count,
 					dt,
+					iteration == 0,
 					ref terrainQueryMs,
 					ref terrainResolveMs,
 					ref wheelCollisionMs
@@ -656,10 +659,6 @@ public class PbfSolver
 						collisionStart
 					);
 			}
-
-			// ----------------------------------------------------
-			// World bounds
-			// ----------------------------------------------------
 
 			boundsStart =
 				Stopwatch.GetTimestamp();
@@ -854,6 +853,25 @@ public class PbfSolver
 					ref finalVelocityX,
 					ref finalVelocityY
 				);
+
+				// ------------------------------------------------
+				// IMPORTANT:
+				//
+				// Make gravity act along the surface.
+				//
+				// The particle already received gravity during
+				// prediction. However, collision projection can
+				// remove much of the normal component. We preserve
+				// the tangential component explicitly so a shallow
+				// slope cannot behave like a sticky floor.
+				// ------------------------------------------------
+
+				ApplySurfaceSliding(
+					i,
+					dt,
+					ref finalVelocityX,
+					ref finalVelocityY
+				);
 			}
 
 			// ----------------------------------------------------
@@ -885,10 +903,6 @@ public class PbfSolver
 				velocityStart
 			);
 
-		// --------------------------------------------------------
-		// Total profiler time
-		// --------------------------------------------------------
-
 		double total =
 			ElapsedMilliseconds(
 				totalStart
@@ -909,6 +923,131 @@ public class PbfSolver
 				velocityMs,
 				total
 			);
+		}
+	}
+
+	// ============================================================
+	// Surface sliding
+	// ============================================================
+
+	private void ApplySurfaceSliding(
+		int i,
+		float dt,
+		ref float velocityX,
+		ref float velocityY)
+	{
+		float normalX =
+			impactNormalX[i];
+
+		float normalY =
+			impactNormalY[i];
+
+		float normalLengthSquared =
+			normalX * normalX +
+			normalY * normalY;
+
+		if (
+			normalLengthSquared <=
+			ImpactNormalEpsilon)
+		{
+			return;
+		}
+
+		float inverseLength =
+			1.0f /
+			Mathf.Sqrt(
+				normalLengthSquared
+			);
+
+		normalX *=
+			inverseLength;
+
+		normalY *=
+			inverseLength;
+
+		// --------------------------------------------------------
+		// Is this actually a slope?
+		// --------------------------------------------------------
+
+		float absoluteNormalX =
+			Mathf.Abs(
+				normalX
+			);
+
+		if (
+			absoluteNormalX <
+			SlopeNormalXThreshold)
+		{
+			return;
+		}
+
+		// --------------------------------------------------------
+		// Remove only velocity INTO the surface.
+		//
+		// This is deliberately NOT a friction operation.
+		// Tangential velocity must survive.
+		// --------------------------------------------------------
+
+		float normalVelocity =
+			velocityX *
+			normalX +
+			velocityY *
+			normalY;
+
+		if (normalVelocity < 0.0f)
+		{
+			velocityX -=
+				normalX *
+				normalVelocity;
+
+			velocityY -=
+				normalY *
+				normalVelocity;
+		}
+
+		// --------------------------------------------------------
+		// Gravity projected onto the surface.
+		//
+		// g = (0, Gravity)
+		//
+		// g_parallel =
+		//     g - n * dot(g,n)
+		// --------------------------------------------------------
+
+		float gravityDotNormal =
+			Gravity *
+			normalY;
+
+		float gravityAlongX =
+			-
+			normalX *
+			gravityDotNormal;
+
+		float gravityAlongY =
+			Gravity -
+			normalY *
+			gravityDotNormal;
+
+		float gravityAlongSquared =
+			gravityAlongX *
+			gravityAlongX +
+			gravityAlongY *
+			gravityAlongY;
+
+		if (
+			gravityAlongSquared >
+			MinimumSlopeAcceleration *
+			MinimumSlopeAcceleration)
+		{
+			velocityX +=
+				gravityAlongX *
+				dt *
+				SurfaceGravityMultiplier;
+
+			velocityY +=
+				gravityAlongY *
+				dt *
+				SurfaceGravityMultiplier;
 		}
 	}
 
@@ -1465,10 +1604,13 @@ public class PbfSolver
 	private void ConstrainToPolygonColliders(
 		float[] predX,
 		float[] predY,
+		float[] startX,
+		float[] startY,
 		float[] velX,
 		float[] velY,
 		int count,
 		float dt,
+		bool useSweptTerrain,
 		ref double terrainQueryMs,
 		ref double terrainResolveMs,
 		ref double wheelCollisionMs)
@@ -1487,22 +1629,6 @@ public class PbfSolver
 
 		List<FluidPolygonCollider> localColliders =
 			polygonColliders;
-
-		float[] localMinX =
-			colliderMinX;
-
-		float[] localMaxX =
-			colliderMaxX;
-
-		float[] localMinY =
-			colliderMinY;
-
-		float[] localMaxY =
-			colliderMaxY;
-
-		// --------------------------------------------------------
-		// Wheel data
-		// --------------------------------------------------------
 
 		long wheelCollisionStart =
 			0;
@@ -1533,16 +1659,6 @@ public class PbfSolver
 			bool particleImpacted =
 				false;
 
-			int baseCellX =
-				GetColliderCellX(
-					position.X
-				);
-
-			int baseCellY =
-				GetColliderCellY(
-					position.Y
-				);
-
 			// ----------------------------------------------------
 			// Terrain grid query
 			// ----------------------------------------------------
@@ -1550,21 +1666,133 @@ public class PbfSolver
 			long terrainQueryStart =
 				Stopwatch.GetTimestamp();
 
-			if (
-				baseCellX >= 0 &&
-				baseCellX < localGridWidth &&
-				baseCellY >= 0 &&
-				baseCellY < localGridHeight)
-			{
-				List<int> cell =
-					localGrid[
-						baseCellY *
-						localGridWidth +
-						baseCellX
-					];
+			int queryMinCellX;
+			int queryMaxCellX;
+			int queryMinCellY;
+			int queryMaxCellY;
 
-				if (cell != null)
+			if (useSweptTerrain)
+			{
+				float minPathX =
+					Mathf.Min(
+						startX[i],
+						position.X
+					);
+
+				float maxPathX =
+					Mathf.Max(
+						startX[i],
+						position.X
+					);
+
+				float minPathY =
+					Mathf.Min(
+						startY[i],
+						position.Y
+					);
+
+				float maxPathY =
+					Mathf.Max(
+						startY[i],
+						position.Y
+					);
+
+				float expansion =
+					PolygonParticleRadius +
+					1.0f;
+
+				queryMinCellX =
+					GetColliderCellX(
+						minPathX - expansion
+					);
+
+				queryMaxCellX =
+					GetColliderCellX(
+						maxPathX + expansion
+					);
+
+				queryMinCellY =
+					GetColliderCellY(
+						minPathY - expansion
+					);
+
+				queryMaxCellY =
+					GetColliderCellY(
+						maxPathY + expansion
+					);
+			}
+			else
+			{
+				queryMinCellX =
+					GetColliderCellX(
+						position.X
+					);
+
+				queryMaxCellX =
+					queryMinCellX;
+
+				queryMinCellY =
+					GetColliderCellY(
+						position.Y
+					);
+
+				queryMaxCellY =
+					queryMinCellY;
+			}
+
+			terrainColliderQueryStampId++;
+
+			if (
+				terrainColliderQueryStampId ==
+				int.MaxValue)
+			{
+				Array.Clear(
+					terrainColliderQueryStamp,
+					0,
+					terrainColliderQueryStamp.Length
+				);
+
+				terrainColliderQueryStampId =
+					1;
+			}
+
+			int terrainStamp =
+				terrainColliderQueryStampId;
+
+			for (
+				int cellY = queryMinCellY;
+				cellY <= queryMaxCellY;
+				cellY++)
+			{
+				if (
+					cellY < 0 ||
+					cellY >= localGridHeight)
 				{
+					continue;
+				}
+
+				for (
+					int cellX = queryMinCellX;
+					cellX <= queryMaxCellX;
+					cellX++)
+				{
+					if (
+						cellX < 0 ||
+						cellX >= localGridWidth)
+					{
+						continue;
+					}
+
+					List<int> cell =
+						localGrid[
+							cellY *
+							localGridWidth +
+							cellX
+						];
+
+					if (cell == null)
+						continue;
+
 					for (
 						int k = 0;
 						k < cell.Count;
@@ -1572,6 +1800,23 @@ public class PbfSolver
 					{
 						int c =
 							cell[k];
+
+						if (
+							c < 0 ||
+							c >= localColliders.Count)
+						{
+							continue;
+						}
+
+						if (
+							terrainColliderQueryStamp[c] ==
+							terrainStamp)
+						{
+							continue;
+						}
+
+						terrainColliderQueryStamp[c] =
+							terrainStamp;
 
 						FluidPolygonCollider collider =
 							localColliders[c];
@@ -1583,29 +1828,38 @@ public class PbfSolver
 							continue;
 						}
 
-						if (
-							!ParticleOverlapsBounds(
-								position.X,
-								position.Y,
-								localMinX[c],
-								localMaxX[c],
-								localMinY[c],
-								localMaxY[c]
-							))
-						{
-							continue;
-						}
-
 						long terrainResolveStart =
 							Stopwatch.GetTimestamp();
 
-						bool resolved =
-							collider.ResolveCollision(
-								position,
-								PolygonParticleRadius,
-								out Vector2 correctedPosition,
-								out Vector2 normal
-							);
+						bool resolved;
+						Vector2 correctedPosition;
+						Vector2 normal;
+
+						if (useSweptTerrain)
+						{
+							resolved =
+								collider.ResolveSweptCollision(
+									new Vector2(
+										startX[i],
+										startY[i]
+									),
+									position,
+									PolygonParticleRadius,
+									out correctedPosition,
+									out normal,
+									out _
+								);
+						}
+						else
+						{
+							resolved =
+								collider.ResolveCollision(
+									position,
+									PolygonParticleRadius,
+									out correctedPosition,
+									out normal
+								);
+						}
 
 						terrainResolveMs +=
 							ElapsedMilliseconds(
@@ -1613,9 +1867,7 @@ public class PbfSolver
 							);
 
 						if (!resolved)
-						{
 							continue;
-						}
 
 						position =
 							correctedPosition;
@@ -1642,23 +1894,6 @@ public class PbfSolver
 			// ----------------------------------------------------
 			// Wheel collision
 			// ----------------------------------------------------
-			//
-			// NEW BROAD PHASE:
-			//
-			// particle
-			//    |
-			//    +--> wheel AABB
-			//             |
-			//             +--> wheel blade/hub colliders
-			//                        |
-			//                        +--> ResolveCollision()
-			//
-			// A particle far away from a wheel never touches any of
-			// its individual polygon colliders.
-			//
-			// This is especially important because each wheel has
-			// multiple polygon colliders.
-			// ----------------------------------------------------
 
 			for (
 				int w = 0;
@@ -1675,10 +1910,6 @@ public class PbfSolver
 					continue;
 				}
 
-				// ------------------------------------------------
-				// Physical-wheel broad phase.
-				// ------------------------------------------------
-
 				if (
 					position.X < group.MinX ||
 					position.X > group.MaxX ||
@@ -1692,10 +1923,6 @@ public class PbfSolver
 					groupColliders =
 						group.Colliders;
 
-				// ------------------------------------------------
-				// Local collider phase.
-				// ------------------------------------------------
-
 				for (
 					int c = 0;
 					c < groupColliders.Count;
@@ -1707,7 +1934,6 @@ public class PbfSolver
 					if (collider == null)
 						continue;
 
-					// Cheap collider-level AABB test.
 					collider.GetBounds(
 						out float colliderMinX,
 						out float colliderMaxX,
@@ -1728,7 +1954,6 @@ public class PbfSolver
 						continue;
 					}
 
-					// Expensive polygon collision.
 					bool wheelResolved =
 						collider.ResolveCollision(
 							position,
@@ -1740,7 +1965,6 @@ public class PbfSolver
 					if (!wheelResolved)
 						continue;
 
-					// Wheel torque behavior is unchanged.
 					ApplyWheelTorque(
 						collider,
 						position,
@@ -1801,10 +2025,6 @@ public class PbfSolver
 				}
 			}
 		}
-
-		// --------------------------------------------------------
-		// Wheel profiler.
-		// --------------------------------------------------------
 
 		if (measureWheelCollision)
 		{
@@ -1978,7 +2198,6 @@ public class PbfSolver
 
 		EnsureWheelBounds();
 
-		// Keep the existing collider-level cached bounds updated.
 		for (
 			int i = 0;
 			i < colliderCount;
@@ -2027,10 +2246,6 @@ public class PbfSolver
 				maxY +
 				WheelBoundsExpansion;
 		}
-
-		// --------------------------------------------------------
-		// Build one AABB for every physical wheel.
-		// --------------------------------------------------------
 
 		for (
 			int w = 0;
@@ -2212,6 +2427,23 @@ public class PbfSolver
 				new float[
 					colliderCount
 				];
+
+			terrainColliderQueryStamp =
+				new int[
+					colliderCount
+				];
+		}
+		else if (
+			terrainColliderQueryStamp == null ||
+			terrainColliderQueryStamp.Length != colliderCount)
+		{
+			terrainColliderQueryStamp =
+				new int[
+					colliderCount
+				];
+
+			terrainColliderQueryStampId =
+				0;
 		}
 
 		float expansion =
@@ -2451,7 +2683,11 @@ public class PbfSolver
 			velocityY *
 			normalY;
 
-		if (normalVelocity > 0.0f)
+		// Remove velocity INTO the surface only.
+		//
+		// Positive normal velocity is separation from the surface
+		// and is therefore left mostly untouched.
+		if (normalVelocity < 0.0f)
 		{
 			float velocityChange =
 				normalVelocity *
@@ -2466,6 +2702,8 @@ public class PbfSolver
 				velocityChange;
 		}
 
+		// Small correction if numerical/PBF movement leaves the
+		// particle moving slightly into the surface.
 		float separationVelocity =
 			velocityX *
 			normalX +
@@ -2487,6 +2725,10 @@ public class PbfSolver
 				stickAmount;
 		}
 
+		// Very small tangential drag.
+		//
+		// This is intentionally weak. Strong tangential drag is one
+		// of the things that makes water appear glued to slopes.
 		float tangentX =
 			-normalY;
 
@@ -2546,7 +2788,6 @@ public class PbfSolver
 			float y =
 				predY[i];
 
-			// LEFT
 			if (x < left)
 			{
 				x =
@@ -2561,8 +2802,6 @@ public class PbfSolver
 				impactNormalY[i] =
 					0.0f;
 			}
-
-			// RIGHT
 			else if (x > right)
 			{
 				x =
@@ -2578,7 +2817,6 @@ public class PbfSolver
 					0.0f;
 			}
 
-			// TOP
 			if (y < top)
 			{
 				y =
@@ -2593,8 +2831,6 @@ public class PbfSolver
 				impactNormalY[i] =
 					1.0f;
 			}
-
-			// BOTTOM
 			else if (y > bottom)
 			{
 				y =
@@ -2628,6 +2864,38 @@ public class PbfSolver
 		ref float velocityX,
 		ref float velocityY)
 	{
+		// --------------------------------------------------------
+		// CRITICAL SLOPE FIX
+		//
+		// If the particle is touching a slanted surface, do NOT
+		// allow the generic sleeping system to kill its small
+		// downhill velocity.
+		//
+		// This is the main fix for the "water glued to slope"
+		// behavior.
+		// --------------------------------------------------------
+
+		if (impacted[i])
+		{
+			float slopeNormalX =
+				Mathf.Abs(
+					impactNormalX[i]
+				);
+
+			if (
+				slopeNormalX >=
+				SlopeNormalXThreshold)
+			{
+				sleepProgress[i] =
+					0.0f;
+
+				sleeping[i] =
+					false;
+
+				return;
+			}
+		}
+
 		float velocitySquared =
 			velocityX *
 			velocityX +
