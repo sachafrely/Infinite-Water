@@ -159,14 +159,14 @@ public partial class FluidSimulator : Node2D
 	// Dynamic Rain
 	// ============================================================
 
-	private const float RainAmount = 100.0f;
+	private const float RainAmount = 120.0f;
 
 	private const int RainMinimumPercent = 0;
 	private const int RainMaximumPercent = 100;
 	private const int RainPercentStep = 10;
 
 	private const float RainMinimumDuration = 13.0f;
-	private const float RainMaximumDuration = 19.0f;
+	private const float RainMaximumDuration = 29.0f;
 
 	private float currentRainPercent;
 	private float targetRainPercent;
@@ -199,9 +199,9 @@ public partial class FluidSimulator : Node2D
 		Recovering
 	}
 
-	private const double AntiLagFpsThreshold = 10.0;
+	private const double AntiLagFpsThreshold = 25.0;
 
-	private const int AntiLagRequiredLowProfilerResults = 5;
+	private const int AntiLagRequiredLowProfilerResults = 4;
 
 	private const float AntiLagRainReductionDuration = 10.0f;
 
