@@ -118,12 +118,12 @@ public partial class FluidSimulator : Node2D
 
 	private const float RainAmount = 100.0f;
 
-	private const int RainMinimumPercent = 0;
-	private const int RainMaximumPercent = 50;
-	private const int RainPercentStep = 20;
+	private const int RainMinimumPercent = 20;
+	private const int RainMaximumPercent = 100;
+	private const int RainPercentStep = 10;
 
-	private const float RainMinimumDuration = 45.0f;
-	private const float RainMaximumDuration = 60.0f;
+	private const float RainMinimumDuration = 15.0f;
+	private const float RainMaximumDuration = 30.0f;
 
 	private float currentRainPercent;
 	private float targetRainPercent;
@@ -132,6 +132,39 @@ public partial class FluidSimulator : Node2D
 	private float rainPhaseTimer;
 
 	private const float RainTransitionDuration = 10.0f;
+
+	// ============================================================
+	// Anti-lag cleanup
+	// ============================================================
+	// Two consecutive low-FPS profiler results trigger the safety
+	// cleanup. With 600 profiler frames this is about 20 seconds
+	// at the normal 60 Hz physics rate.
+	// ============================================================
+	private enum AntiLagState
+	{
+		Normal,
+		ReducingRain,
+		Draining,
+		Evaporating,
+		Recovering
+	}
+
+	private const double AntiLagFpsThreshold = 25.0;
+	private const int AntiLagRequiredLowProfilerResults = 2;
+	private const float AntiLagRainReductionDuration = 10.0f;
+	private const float AntiLagDrainDuration = 20.0f;
+	private const float AntiLagEvaporationDuration = 20.0f;
+	private const float AntiLagRecoveryDuration = 10.0f;
+
+	private AntiLagState antiLagState = AntiLagState.Normal;
+	private float antiLagStateTimer = 0.0f;
+	private float antiLagStateStartRainPercent = 0.0f;
+	private float antiLagRecoveryTargetRainPercent = 0.0f;
+	private int consecutiveLowProfilerResults = 0;
+
+	private long totalEvaporatedParticles = 0;
+	private long evaporatedParticlesThisCleanup = 0;
+	private int antiLagCleanupCount = 0;
 
 	// ============================================================
 	// Rain HUD
@@ -211,6 +244,7 @@ public partial class FluidSimulator : Node2D
 	private int fullProfilerFrames = 0;
 
 	private double fullPhysicsTime = 0.0;
+	private double fullRenderedFpsSum = 0.0;
 	private double fullSpawnTime = 0.0;
 	private double fullPbfTime = 0.0;
 	private double fullDensityTime = 0.0;
@@ -358,6 +392,12 @@ public partial class FluidSimulator : Node2D
 		}
 
 		// --------------------------------------------------------
+		// Anti-lag cleanup state
+		// --------------------------------------------------------
+		UpdateAntiLagCleanup(
+			dt
+		);
+
 		// Rain
 		// --------------------------------------------------------
 
@@ -507,6 +547,8 @@ public partial class FluidSimulator : Node2D
 
 		fullPhysicsTime +=
 			physicsTimer.Elapsed.TotalMilliseconds;
+		fullRenderedFpsSum +=
+			Engine.GetFramesPerSecond();
 
 		fullProfilerFrames++;
 
@@ -1201,6 +1243,15 @@ void fragment()
 	public long TotalRainSpawns =>
 		totalRainSpawns;
 
+	public long TotalEvaporatedParticles =>
+		totalEvaporatedParticles;
+
+	public long EvaporatedParticlesThisCleanup =>
+		evaporatedParticlesThisCleanup;
+
+	public bool AntiLagCleanupActive =>
+		antiLagState != AntiLagState.Normal;
+
 	public long RainRejectedByDensity =>
 		rainRejectedByDensity;
 
@@ -1684,6 +1735,338 @@ void fragment()
 	}
 
 	// ============================================================
+	// Anti-lag cleanup
+	// ============================================================
+
+	private void EvaluateAntiLagProfilerResult(
+		double profilerFps)
+	{
+		if (
+			antiLagState != AntiLagState.Normal)
+		{
+			return;
+		}
+
+		if (
+			profilerFps < AntiLagFpsThreshold)
+		{
+			consecutiveLowProfilerResults++;
+
+			GD.Print(
+				"ANTI-LAG CHECK: low profiler FPS " +
+				profilerFps.ToString("F1") +
+				" (" +
+				consecutiveLowProfilerResults +
+				"/" +
+				AntiLagRequiredLowProfilerResults +
+				")"
+			);
+
+			if (
+				consecutiveLowProfilerResults >=
+				AntiLagRequiredLowProfilerResults)
+			{
+				StartAntiLagCleanup(profilerFps);
+			}
+		}
+		else
+		{
+			if (
+				consecutiveLowProfilerResults > 0)
+			{
+				GD.Print(
+					"ANTI-LAG CHECK: FPS recovered to " +
+					profilerFps.ToString("F1") +
+					", resetting consecutive low-FPS count."
+				);
+			}
+
+			consecutiveLowProfilerResults = 0;
+		}
+	}
+
+	private void StartAntiLagCleanup(
+		double triggerProfilerFps)
+	{
+		antiLagCleanupCount++;
+		consecutiveLowProfilerResults = 0;
+
+		antiLagState = AntiLagState.ReducingRain;
+		antiLagStateTimer = 0.0f;
+		antiLagStateStartRainPercent = currentRainPercent;
+		rainSpawnAccumulator = 0.0f;
+		evaporatedParticlesThisCleanup = 0;
+
+		GD.Print("========================================");
+		GD.Print(
+			"ANTI-LAG CLEANUP #" +
+			antiLagCleanupCount +
+			" STARTED"
+		);
+		GD.Print(
+			"Trigger profiler PhysicsFPS=" +
+			triggerProfilerFps.ToString("F1")
+		);
+		GD.Print(
+			"Starting ActiveParticles=" +
+			particles.Count
+		);
+		GD.Print(
+			"Rain reducing from " +
+			antiLagStateStartRainPercent.ToString("F1") +
+			"% to 0% over " +
+			AntiLagRainReductionDuration.ToString("F0") +
+			"s."
+		);
+	}
+
+	private void UpdateAntiLagCleanup(
+		float dt)
+	{
+		if (
+			antiLagState == AntiLagState.Normal)
+		{
+			return;
+		}
+
+		antiLagStateTimer += Mathf.Max(dt, 0.0f);
+
+		switch (antiLagState)
+		{
+			case AntiLagState.ReducingRain:
+				UpdateAntiLagRainReduction();
+				break;
+
+			case AntiLagState.Draining:
+				currentRainPercent = 0.0f;
+				targetRainPercent = 0.0f;
+				rainPhaseTimer = Mathf.Max(
+					AntiLagDrainDuration - antiLagStateTimer,
+					0.0f
+				);
+
+				if (
+					antiLagStateTimer >=
+					AntiLagDrainDuration)
+				{
+					BeginAntiLagEvaporation();
+				}
+				break;
+
+			case AntiLagState.Evaporating:
+				UpdateAntiLagEvaporation(dt);
+				break;
+
+			case AntiLagState.Recovering:
+				UpdateAntiLagRecovery();
+				break;
+		}
+	}
+
+	private void UpdateAntiLagRainReduction()
+	{
+		float progress = Mathf.Clamp(
+			antiLagStateTimer /
+			AntiLagRainReductionDuration,
+			0.0f,
+			1.0f
+		);
+
+		currentRainPercent = Mathf.Lerp(
+			antiLagStateStartRainPercent,
+			0.0f,
+			progress
+		);
+		targetRainPercent = 0.0f;
+		rainPhaseTimer = Mathf.Max(
+			AntiLagRainReductionDuration - antiLagStateTimer,
+			0.0f
+		);
+
+		if (
+			antiLagStateTimer >=
+			AntiLagRainReductionDuration)
+		{
+			antiLagState = AntiLagState.Draining;
+			antiLagStateTimer = 0.0f;
+			currentRainPercent = 0.0f;
+
+			GD.Print(
+				"ANTI-LAG: Rain reached 0%. Starting 20s natural drain."
+			);
+		}
+	}
+
+	private void BeginAntiLagEvaporation()
+	{
+		antiLagState = AntiLagState.Evaporating;
+		antiLagStateTimer = 0.0f;
+
+		GD.Print(
+			"ANTI-LAG: Natural drain complete. Remaining particles=" +
+			particles.Count +
+			". Starting 20s evaporation."
+		);
+	}
+
+	private void UpdateAntiLagEvaporation(
+		float dt)
+	{
+		currentRainPercent = 0.0f;
+		targetRainPercent = 0.0f;
+		rainPhaseTimer = Mathf.Max(
+			AntiLagEvaporationDuration - antiLagStateTimer,
+			0.0f
+		);
+
+		float remainingTime = Mathf.Max(
+			AntiLagEvaporationDuration - antiLagStateTimer,
+			0.0001f
+		);
+
+		if (
+			particles.Count > 0)
+		{
+			int removeCount = Mathf.CeilToInt(
+				particles.Count * dt /
+				remainingTime
+			);
+
+			if (removeCount < 1)
+			{
+				removeCount = 1;
+			}
+
+			removeCount = Math.Min(
+				removeCount,
+				particles.Count
+			);
+
+			for (
+				int i = 0;
+				i < removeCount;
+				i++)
+			{
+				particles.RemoveParticle(
+					particles.Count - 1
+				);
+
+				evaporatedParticlesThisCleanup++;
+				totalEvaporatedParticles++;
+			}
+		}
+
+		if (
+			antiLagStateTimer >=
+			AntiLagEvaporationDuration)
+		{
+			while (
+				particles.Count > 0)
+			{
+				particles.RemoveParticle(
+					particles.Count - 1
+				);
+
+				evaporatedParticlesThisCleanup++;
+				totalEvaporatedParticles++;
+			}
+
+			GD.Print("========================================");
+			GD.Print("ANTI-LAG EVAPORATION COMPLETE");
+			GD.Print(
+				"Evaporated Particles=" +
+				evaporatedParticlesThisCleanup
+			);
+			GD.Print(
+				"Total Evaporated Particles=" +
+				totalEvaporatedParticles
+			);
+			GD.Print(
+				"Remaining Particles=" +
+				particles.Count
+			);
+
+			BeginAntiLagRecovery();
+		}
+	}
+
+	private void BeginAntiLagRecovery()
+	{
+		antiLagState = AntiLagState.Recovering;
+		antiLagStateTimer = 0.0f;
+		antiLagRecoveryTargetRainPercent = GetRandomRainPercent();
+		currentRainPercent = 0.0f;
+		targetRainPercent = antiLagRecoveryTargetRainPercent;
+		rainPhaseTimer = AntiLagRecoveryDuration;
+
+		GD.Print(
+			"ANTI-LAG: Recovery started. Target rain=" +
+			antiLagRecoveryTargetRainPercent.ToString("F0") +
+			"% over " +
+			AntiLagRecoveryDuration.ToString("F0") +
+			"s."
+		);
+	}
+
+	private void UpdateAntiLagRecovery()
+	{
+		float progress = Mathf.Clamp(
+			antiLagStateTimer /
+			AntiLagRecoveryDuration,
+			0.0f,
+			1.0f
+		);
+
+		currentRainPercent = Mathf.Lerp(
+			0.0f,
+			antiLagRecoveryTargetRainPercent,
+			progress
+		);
+		targetRainPercent = antiLagRecoveryTargetRainPercent;
+		rainPhaseTimer = Mathf.Max(
+			AntiLagRecoveryDuration - antiLagStateTimer,
+			0.0f
+		);
+
+		if (
+			antiLagStateTimer >=
+			AntiLagRecoveryDuration)
+		{
+			currentRainPercent = antiLagRecoveryTargetRainPercent;
+			targetRainPercent = antiLagRecoveryTargetRainPercent;
+			antiLagState = AntiLagState.Normal;
+			antiLagStateTimer = 0.0f;
+			rainPhaseTimer = rainRandom.RandfRange(
+				RainMinimumDuration,
+				RainMaximumDuration
+			);
+			rainTransitionStartPercent = currentRainPercent;
+			rainTransitionTimer = RainTransitionDuration;
+
+			GD.Print(
+				"ANTI-LAG CLEANUP COMPLETE. Returning to normal rain."
+			);
+			GD.Print("========================================");
+		}
+	}
+
+	private int GetRandomRainPercent()
+	{
+		int stepCount = (
+			RainMaximumPercent -
+			RainMinimumPercent
+		) / RainPercentStep + 1;
+
+		int randomStep = rainRandom.RandiRange(
+			0,
+			stepCount - 1
+		);
+
+		return RainMinimumPercent +
+			randomStep * RainPercentStep;
+	}
+
+	// ============================================================
 	// Rain
 	// ============================================================
 
@@ -1782,6 +2165,13 @@ void fragment()
 	private void UpdateDynamicRain(
 		float dt)
 	{
+
+		if (
+			antiLagState != AntiLagState.Normal)
+		{
+			return;
+		}
+
 		rainPhaseTimer -=
 			dt;
 
@@ -1831,6 +2221,12 @@ void fragment()
 		UpdateDynamicRain(
 			dt
 		);
+
+		if (
+			antiLagState != AntiLagState.Normal)
+		{
+			return;
+		}
 
 		// RainAmount = 100.0f is 50% rain.
 		//
@@ -2051,13 +2447,21 @@ void fragment()
 		}
 
 		double fps =
-			Engine.GetFramesPerSecond();
+			fullProfilerFrames > 0
+				? fullRenderedFpsSum / fullProfilerFrames
+				: 0.0;
 
 		double physicsFps =
 			physicsMs > 0.001
 				? 1000.0 /
 					physicsMs
 				: 0.0;
+
+		// Use the profiler's averaged rendered FPS for the anti-lag
+		// trigger. This is the same FPS value printed below.
+		EvaluateAntiLagProfilerResult(
+			fps
+		);
 
 		GD.Print(
 			"========================================"
@@ -2079,6 +2483,21 @@ void fragment()
 			particles.Count +
 			"/" +
 			particles.Capacity
+		);
+
+		GD.Print(
+			"Evaporated Particles=" +
+			evaporatedParticlesThisCleanup
+		);
+
+		GD.Print(
+			"Total Evaporated Particles=" +
+			totalEvaporatedParticles
+		);
+
+		GD.Print(
+			"AntiLagCleanupCount=" +
+			antiLagCleanupCount
 		);
 
 		GD.Print(
@@ -2273,6 +2692,7 @@ void fragment()
 		fullProfilerFrames = 0;
 
 		fullPhysicsTime = 0.0;
+		fullRenderedFpsSum = 0.0;
 
 		fullSpawnTime = 0.0;
 		fullPbfTime = 0.0;
