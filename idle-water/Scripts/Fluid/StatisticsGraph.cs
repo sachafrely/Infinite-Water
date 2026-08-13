@@ -5,502 +5,389 @@ using System.Collections.Generic;
 public partial class StatisticsGraph : Control
 {
 	// ============================================================
-	// Graph configuration
+	// TOP GRAPH DATA
 	// ============================================================
 
-	private const int MaxSamples = 120;
+	private readonly List<GraphSample> samples =
+		new List<GraphSample>(4096);
+
+	// ============================================================
+	// BOTTOM GRAPH DATA
+	// ============================================================
+
+	private readonly List<RainEnergySample> rainEnergySamples =
+		new List<RainEnergySample>();
+
+	// ============================================================
+	// GENERAL SETTINGS
+	// ============================================================
+
+	private const int MaxRainEnergySamples = 120;
+
+	private const float GraphSpacing = 35.0f;
 
 	private const float GraphMarginLeft = 55.0f;
 	private const float GraphMarginRight = 15.0f;
 	private const float GraphMarginTop = 25.0f;
-	private const float GraphMarginBottom = 40.0f;
+	private const float GraphMarginBottom = 35.0f;
 
-	private const float SecondGraphSpacing = 35.0f;
+	private const float SecondGraphMarginLeft = 55.0f;
+	private const float SecondGraphMarginRight = 15.0f;
+	private const float SecondGraphMarginTop = 25.0f;
+	private const float SecondGraphMarginBottom = 35.0f;
 
-	// ============================================================
-	// Existing graph
-	// ============================================================
+	private const float GraphBorderWidth = 2.0f;
+	private const float GridLineWidth = 1.0f;
 
-	private readonly List<float> particleHistory =
-		new List<float>();
-
-	private readonly List<float> energyHistory =
-		new List<float>();
-
-	private readonly List<float> fpsHistory =
-		new List<float>();
+	private const float PointRadius = 3.5f;
 
 	// ============================================================
-	// Second statistical graph
-	//
-	// X = average rain amount (%)
-	// Y = average energy gained
-	//
-	// Average active particles is also collected and stored,
-	// but is NOT used for the X-axis.
-	//
-	// Sampling:
-	//
-	// 600 physics frames = 10 seconds
-	//
-	// The first 600 frames are a warm-up period.
-	//
-	// No point is created at 10 seconds.
-	//
-	// First point:
-	//
-	//     Frame 1200 = 20 seconds
-	//
-	// and represents:
-	//
-	//     Frames 601-1200
-	//
-	// Then:
-	//
-	//     Frame 1800 = Point #2
-	//     Frames 1201-1800
-	//
-	//     Frame 2400 = Point #3
-	//     Frames 1801-2400
-	//
-	// etc.
-	//
-	// This means every plotted point represents exactly
-	// the preceding 10-second period.
+	// GRAPH TITLES
 	// ============================================================
 
-	private readonly List<float> rainEnergyRainHistory =
-		new List<float>();
+	private const string ExistingGraphTitle =
+		"STATISTICS";
 
-	private readonly List<float> rainEnergyEnergyHistory =
-		new List<float>();
+	private const string ExistingGraphXAxis =
+		"Time";
 
-	private readonly List<float> rainEnergyParticleHistory =
-		new List<float>();
+	private const string ExistingGraphYAxis =
+		"Value";
 
-	private const int StatisticalSampleIntervalFrames = 600;
+	private const string RainEnergyGraphTitle =
+		"RAIN / ENERGY STATISTICS";
 
-	private const int StatisticalFirstSampleFrame = 1200;
+	private const string RainEnergyGraphXAxis =
+		"Average Rain %";
 
-	private int statisticalFrameCounter = 0;
-
-	private double statisticalRainSum = 0.0;
-
-	private double statisticalEnergySum = 0.0;
-
-	private double statisticalParticleSum = 0.0;
-
-	private int statisticalSampleFrames = 0;
+	private const string RainEnergyGraphYAxis =
+		"Average Energy";
 
 	// ============================================================
-	// Existing graph timing
+	// TOP GRAPH COLORS
 	// ============================================================
 
-	private float graphElapsedTime = 0.0f;
+	private readonly Color particlesColor =
+		new Color(0.3f, 0.9f, 1.0f);
+
+	private readonly Color energyColor =
+		new Color(1.0f, 0.75f, 0.25f);
+
+	private readonly Color fpsColor =
+		new Color(0.4f, 1.0f, 0.45f);
 
 	// ============================================================
-	// Rendering
+	// DATA STRUCTURES
 	// ============================================================
 
-	private Font defaultFont;
+	private struct GraphSample
+	{
+		public float Particles;
+		public float EnergyPerSecond;
+		public float Fps;
+
+		public GraphSample(
+			float particles,
+			float energyPerSecond,
+			float fps)
+		{
+			Particles = particles;
+			EnergyPerSecond = energyPerSecond;
+			Fps = fps;
+		}
+	}
+
+	private struct RainEnergySample
+	{
+		public float AverageRain;
+		public float AverageEnergy;
+		public float AverageParticles;
+
+		public RainEnergySample(
+			float averageRain,
+			float averageEnergy,
+			float averageParticles)
+		{
+			AverageRain = averageRain;
+			AverageEnergy = averageEnergy;
+			AverageParticles = averageParticles;
+		}
+	}
 
 	// ============================================================
-	// Initialization
+	// TOP GRAPH SCALING
+	// ============================================================
+
+	private float existingMaxParticles = 100.0f;
+	private float existingMaxEnergy = 1.0f;
+	private float existingMaxFps = 60.0f;
+
+	// ============================================================
+	// BOTTOM GRAPH SCALING
+	// ============================================================
+
+	private float rainEnergyMaxRain = 100.0f;
+	private float rainEnergyMaxEnergy = 1.0f;
+
+	// ============================================================
+	// TOP GRAPH CACHE
+	// ============================================================
+
+	private Vector2[] cachedParticlesPoints =
+		new Vector2[0];
+
+	private Vector2[] cachedEnergyPoints =
+		new Vector2[0];
+
+	private Vector2[] cachedFpsPoints =
+		new Vector2[0];
+
+	private bool topGraphCacheDirty = true;
+
+	private int lastCachedWidth = -1;
+
+	// Rebuild the compressed graph only periodically.
+	// This prevents processing the complete history every frame.
+	private int samplesSinceCacheBuild = 0;
+
+	private const int CacheRebuildInterval = 30;
+
+	// ============================================================
+	// INITIALIZATION
 	// ============================================================
 
 	public override void _Ready()
 	{
-		defaultFont =
-			ThemeDB.FallbackFont;
+		MouseFilter =
+			Control.MouseFilterEnum.Ignore;
 
 		QueueRedraw();
 	}
 
 	// ============================================================
-	// Existing graph sample
+	// TOP GRAPH API
 	// ============================================================
 
 	public void AddSample(
-		float activeParticles,
+		int activeParticles,
 		double energyPerSecond,
 		float fps,
 		float delta)
 	{
-		graphElapsedTime +=
-			Mathf.Max(
-				delta,
-				0.0f
-			);
-
-		particleHistory.Add(
-			activeParticles
+		samples.Add(
+			new GraphSample(
+				activeParticles,
+				(float)energyPerSecond,
+				fps
+			)
 		);
 
-		energyHistory.Add(
-			(float)energyPerSecond
-		);
+		// Keep ALL historical data.
+		//
+		// The graph compresses the history visually instead
+		// of deleting old samples.
 
-		fpsHistory.Add(
+		UpdateExistingGraphScale(
+			activeParticles,
+			(float)energyPerSecond,
 			fps
 		);
 
-		while (
-			particleHistory.Count >
-			MaxSamples)
-		{
-			particleHistory.RemoveAt(0);
-		}
+		samplesSinceCacheBuild++;
 
-		while (
-			energyHistory.Count >
-			MaxSamples)
+		if (
+			samplesSinceCacheBuild >=
+			CacheRebuildInterval)
 		{
-			energyHistory.RemoveAt(0);
-		}
-
-		while (
-			fpsHistory.Count >
-			MaxSamples)
-		{
-			fpsHistory.RemoveAt(0);
+			topGraphCacheDirty = true;
+			samplesSinceCacheBuild = 0;
 		}
 
 		QueueRedraw();
 	}
 
 	// ============================================================
-	// Statistical graph sample
-	//
-	// Expected call from FluidSimulator:
-	//
-	//     AddRainEnergySample(
-	//         rainPercent,
-	//         energyGained,
-	//         averageParticles
-	//     );
-	//
-	// This method should be called exactly once per physics frame.
-	//
-	// IMPORTANT:
-	//
-	// Frames 1-600 are intentionally ignored for the statistical
-	// graph.
-	//
-	// Frame 1200 creates the first point using frames 601-1200.
-	//
-	// After that, every 600 frames creates another point.
+	// BOTTOM GRAPH API
 	// ============================================================
 
 	public void AddRainEnergySample(
-		float rainPercent,
-		double energyGained,
+		float averageRain,
+		float averageEnergy,
 		float averageParticles)
 	{
-		statisticalFrameCounter++;
-
-		// --------------------------------------------------------
-		// First 600 frames:
-		//
-		// Warm-up period.
-		//
-		// Do NOT accumulate these frames because the first point
-		// at frame 1200 must represent only frames 601-1200.
-		// --------------------------------------------------------
-
-		if (
-			statisticalFrameCounter <=
-			StatisticalSampleIntervalFrames)
-		{
-			return;
-		}
-
-		// --------------------------------------------------------
-		// Accumulate the current frame.
-		//
-		// Therefore:
-		//
-		// Frames 601-1200
-		//     = first statistical window
-		//
-		// Frames 1201-1800
-		//     = second statistical window
-		//
-		// etc.
-		// --------------------------------------------------------
-
-		statisticalRainSum +=
-			rainPercent;
-
-		statisticalEnergySum +=
-			energyGained;
-
-		statisticalParticleSum +=
-			averageParticles;
-
-		statisticalSampleFrames++;
-
-		// --------------------------------------------------------
-		// Create a point only when:
-		//
-		// frame == 1200
-		//
-		// or every 600 frames after that.
-		// --------------------------------------------------------
-
-		bool shouldCreatePoint =
-			statisticalFrameCounter >=
-			StatisticalFirstSampleFrame &&
-			(
-				statisticalFrameCounter -
-				StatisticalFirstSampleFrame
-			) %
-			StatisticalSampleIntervalFrames == 0;
-
-		if (
-			shouldCreatePoint)
-		{
-			CreateStatisticalPoint();
-		}
-	}
-
-	// ============================================================
-	// Create second graph point
-	// ============================================================
-
-	private void CreateStatisticalPoint()
-	{
-		if (
-			statisticalSampleFrames <= 0)
-		{
-			return;
-		}
-
-		// --------------------------------------------------------
-		// X:
-		//
-		// Average rain percentage during this exact
-		// 10-second statistical window.
-		// --------------------------------------------------------
-
-		float averageRain =
-			(float)(
-				statisticalRainSum /
-				statisticalSampleFrames
+		RainEnergySample sample =
+			new RainEnergySample(
+				averageRain,
+				averageEnergy,
+				averageParticles
 			);
 
-		// --------------------------------------------------------
-		// Y:
-		//
-		// Average energy gained during this exact
-		// 10-second statistical window.
-		// --------------------------------------------------------
-
-		float averageEnergy =
-			(float)(
-				statisticalEnergySum /
-				statisticalSampleFrames
-			);
-
-		// --------------------------------------------------------
-		// Additional statistic:
-		//
-		// Average active particles during this exact
-		// 10-second statistical window.
-		//
-		// Stored for future use/debugging.
-		// Does NOT affect plotted coordinates.
-		// --------------------------------------------------------
-
-		float averageParticles =
-			(float)(
-				statisticalParticleSum /
-				statisticalSampleFrames
-			);
-
-		// --------------------------------------------------------
-		// Store point
-		// --------------------------------------------------------
-
-		rainEnergyRainHistory.Add(
-			averageRain
-		);
-
-		rainEnergyEnergyHistory.Add(
-			averageEnergy
-		);
-
-		rainEnergyParticleHistory.Add(
-			averageParticles
-		);
-
-		// --------------------------------------------------------
-		// Keep history bounded.
-		// --------------------------------------------------------
+		rainEnergySamples.Add(sample);
 
 		while (
-			rainEnergyRainHistory.Count >
-			MaxSamples)
+			rainEnergySamples.Count >
+			MaxRainEnergySamples)
 		{
-			rainEnergyRainHistory.RemoveAt(0);
+			rainEnergySamples.RemoveAt(0);
 		}
 
-		while (
-			rainEnergyEnergyHistory.Count >
-			MaxSamples)
-		{
-			rainEnergyEnergyHistory.RemoveAt(0);
-		}
-
-		while (
-			rainEnergyParticleHistory.Count >
-			MaxSamples)
-		{
-			rainEnergyParticleHistory.RemoveAt(0);
-		}
-
-		// --------------------------------------------------------
-		// Debug output
-		// --------------------------------------------------------
-
-		GD.Print(
-			"STATISTICAL GRAPH: Point #" +
-			rainEnergyRainHistory.Count +
-			" | Frame=" +
-			statisticalFrameCounter +
-			" | WindowFrames=" +
-			statisticalSampleFrames +
-			" | AvgRain=" +
-			averageRain.ToString("F2") +
-			"% | AvgEnergy=" +
-			averageEnergy.ToString("F4") +
-			" | AvgParticles=" +
-			averageParticles.ToString("F1")
-		);
-
-		// --------------------------------------------------------
-		// Reset the 10-second accumulation window.
-		//
-		// The next frame starts a completely new window.
-		// --------------------------------------------------------
-
-		statisticalRainSum =
-			0.0;
-
-		statisticalEnergySum =
-			0.0;
-
-		statisticalParticleSum =
-			0.0;
-
-		statisticalSampleFrames =
-			0;
+		RecalculateRainEnergyGraphScale();
 
 		QueueRedraw();
+
+		GD.Print(
+			"Rain/Energy Graph Point: " +
+			"Rain=" +
+			averageRain.ToString("F1") +
+			"% " +
+			"Energy=" +
+			averageEnergy.ToString("F4") +
+			" AvgParticles=" +
+			averageParticles.ToString("F1")
+		);
 	}
 
 	// ============================================================
-	// Draw
+	// TOP GRAPH SCALE UPDATE
+	// ============================================================
+
+	private void UpdateExistingGraphScale(
+		float particles,
+		float energy,
+		float fps)
+	{
+		bool scaleChanged = false;
+
+		if (
+			particles >
+			existingMaxParticles)
+		{
+			existingMaxParticles =
+				particles;
+
+			scaleChanged = true;
+		}
+
+		if (
+			energy >
+			existingMaxEnergy)
+		{
+			existingMaxEnergy =
+				energy;
+
+			scaleChanged = true;
+		}
+
+		if (
+			fps >
+			existingMaxFps)
+		{
+			existingMaxFps =
+				fps;
+
+			scaleChanged = true;
+		}
+
+		if (scaleChanged)
+		{
+			topGraphCacheDirty = true;
+		}
+
+		existingMaxParticles =
+			Mathf.Max(
+				existingMaxParticles,
+				1.0f
+			);
+
+		existingMaxEnergy =
+			Mathf.Max(
+				existingMaxEnergy,
+				0.001f
+			);
+
+		existingMaxFps =
+			Mathf.Max(
+				existingMaxFps,
+				1.0f
+			);
+	}
+
+	// ============================================================
+	// BOTTOM GRAPH SCALE
+	// ============================================================
+
+	private void RecalculateRainEnergyGraphScale()
+	{
+		rainEnergyMaxRain =
+			100.0f;
+
+		rainEnergyMaxEnergy =
+			0.001f;
+
+		for (
+			int i = 0;
+			i < rainEnergySamples.Count;
+			i++)
+		{
+			RainEnergySample sample =
+				rainEnergySamples[i];
+
+			if (
+				sample.AverageRain >
+				rainEnergyMaxRain)
+			{
+				rainEnergyMaxRain =
+					sample.AverageRain;
+			}
+
+			if (
+				sample.AverageEnergy >
+				rainEnergyMaxEnergy)
+			{
+				rainEnergyMaxEnergy =
+					sample.AverageEnergy;
+			}
+		}
+
+		rainEnergyMaxRain =
+			Mathf.Max(
+				rainEnergyMaxRain,
+				100.0f
+			);
+
+		rainEnergyMaxEnergy =
+			Mathf.Max(
+				rainEnergyMaxEnergy * 1.15f,
+				0.001f
+			);
+	}
+
+	// ============================================================
+	// DRAW
 	// ============================================================
 
 	public override void _Draw()
 	{
-		Rect2 rect =
-			GetRect();
+		DrawExistingGraph();
 
-		if (
-			rect.Size.X <= 10.0f ||
-			rect.Size.Y <= 10.0f)
-		{
-			return;
-		}
-
-		float graphWidth =
-			rect.Size.X -
-			GraphMarginLeft -
-			GraphMarginRight;
-
-		float availableHeight =
-			rect.Size.Y -
-			SecondGraphSpacing;
-
-		float firstGraphHeight =
-			availableHeight *
-			0.5f;
-
-		float secondGraphTop =
-			firstGraphHeight +
-			SecondGraphSpacing;
-
-		float secondGraphHeight =
-			rect.Size.Y -
-			secondGraphTop;
-
-		// ========================================================
-		// Existing graph
-		// ========================================================
-
-		DrawExistingGraph(
-			new Rect2(
-				GraphMarginLeft,
-				GraphMarginTop,
-				graphWidth,
-				Mathf.Max(
-					firstGraphHeight -
-					GraphMarginTop,
-					1.0f
-				)
-			)
-		);
-
-		// ========================================================
-		// Second statistical graph
-		// ========================================================
-
-		DrawRainEnergyGraph(
-			new Rect2(
-				GraphMarginLeft,
-				secondGraphTop,
-				graphWidth,
-				Mathf.Max(
-					secondGraphHeight -
-					GraphMarginBottom,
-					1.0f
-				)
-			)
-		);
+		DrawRainEnergyGraph();
 	}
 
 	// ============================================================
-	// Existing graph drawing
+	// TOP GRAPH
 	// ============================================================
 
-	private void DrawExistingGraph(
-		Rect2 graphRect)
+	private void DrawExistingGraph()
 	{
+		Rect2 graphRect =
+			GetExistingGraphRect();
+
 		if (
 			graphRect.Size.X <= 0.0f ||
 			graphRect.Size.Y <= 0.0f)
 		{
 			return;
 		}
-
-		float maxParticles =
-			GetMaximumValue(
-				particleHistory,
-				1.0f
-			);
-
-		float maxEnergy =
-			GetMaximumValue(
-				energyHistory,
-				1.0f
-			);
-
-		float maxFps =
-			GetMaximumValue(
-				fpsHistory,
-				60.0f
-			);
 
 		// --------------------------------------------------------
 		// Background
@@ -509,10 +396,10 @@ public partial class StatisticsGraph : Control
 		DrawRect(
 			graphRect,
 			new Color(
+				0.04f,
+				0.04f,
 				0.05f,
-				0.05f,
-				0.05f,
-				0.75f
+				0.92f
 			),
 			true
 		);
@@ -521,50 +408,22 @@ public partial class StatisticsGraph : Control
 		// Grid
 		// --------------------------------------------------------
 
-		DrawGraphGrid(
-			graphRect,
-			5,
-			5
-		);
+		DrawExistingGrid(graphRect);
 
 		// --------------------------------------------------------
-		// Lines
+		// Border
 		// --------------------------------------------------------
 
-		DrawHistoryLine(
+		DrawRect(
 			graphRect,
-			particleHistory,
-			maxParticles,
 			new Color(
-				0.2f,
-				0.8f,
-				1.0f,
-				1.0f
-			)
-		);
-
-		DrawHistoryLine(
-			graphRect,
-			energyHistory,
-			maxEnergy,
-			new Color(
-				1.0f,
 				0.75f,
-				0.2f,
-				1.0f
-			)
-		);
-
-		DrawHistoryLine(
-			graphRect,
-			fpsHistory,
-			maxFps,
-			new Color(
-				0.3f,
-				1.0f,
-				0.3f,
-				1.0f
-			)
+				0.75f,
+				0.75f,
+				0.9f
+			),
+			false,
+			GraphBorderWidth
 		);
 
 		// --------------------------------------------------------
@@ -572,389 +431,627 @@ public partial class StatisticsGraph : Control
 		// --------------------------------------------------------
 
 		DrawString(
-			defaultFont,
+			ThemeDB.FallbackFont,
 			new Vector2(
 				graphRect.Position.X,
-				graphRect.Position.Y -
-				8.0f
+				graphRect.Position.Y - 7.0f
 			),
-			"STATISTICS",
+			ExistingGraphTitle,
 			HorizontalAlignment.Left,
 			-1,
 			14,
-			Colors.White
-		);
-	}
-
-	// ============================================================
-	// Second graph drawing
-	//
-	// X = average rain %
-	// Y = average energy gained
-	// ============================================================
-
-	private void DrawRainEnergyGraph(
-		Rect2 graphRect)
-	{
-		if (
-			graphRect.Size.X <= 0.0f ||
-			graphRect.Size.Y <= 0.0f)
-		{
-			return;
-		}
-
-		const float minRain =
-			0.0f;
-
-		const float maxRain =
-			100.0f;
-
-		float maxEnergy =
-			GetMaximumValue(
-				rainEnergyEnergyHistory,
-				1.0f
-			);
-
-		if (
-			maxEnergy <= 0.0f)
-		{
-			maxEnergy =
-				1.0f;
-		}
-
-		maxEnergy *=
-			1.1f;
-
-		// --------------------------------------------------------
-		// Background
-		// --------------------------------------------------------
-
-		DrawRect(
-			graphRect,
 			new Color(
-				0.04f,
-				0.04f,
-				0.04f,
-				0.85f
-			),
-			true
+				0.9f,
+				0.9f,
+				0.9f
+			)
 		);
 
 		// --------------------------------------------------------
-		// Grid
+		// Legend
 		// --------------------------------------------------------
 
-		DrawGraphGrid(
-			graphRect,
-			5,
-			5
-		);
+		DrawTopGraphLegend(graphRect);
 
 		// --------------------------------------------------------
-		// Title
+		// X AXIS
 		// --------------------------------------------------------
 
 		DrawString(
-			defaultFont,
+			ThemeDB.FallbackFont,
 			new Vector2(
-				graphRect.Position.X,
-				graphRect.Position.Y -
-				8.0f
-			),
-			"RAIN vs ENERGY",
-			HorizontalAlignment.Left,
-			-1,
-			14,
-			Colors.White
-		);
-
-		// --------------------------------------------------------
-		// X-axis title
-		// --------------------------------------------------------
-
-		DrawString(
-			defaultFont,
-			new Vector2(
-				graphRect.Position.X,
+				graphRect.Position.X +
+				graphRect.Size.X * 0.5f -
+				15.0f,
 				graphRect.Position.Y +
 				graphRect.Size.Y +
-				25.0f
+				27.0f
 			),
-			"RAIN %",
+			ExistingGraphXAxis,
 			HorizontalAlignment.Left,
 			-1,
 			12,
-			Colors.White
+			new Color(
+				0.75f,
+				0.75f,
+				0.75f
+			)
 		);
 
 		// --------------------------------------------------------
-		// Y-axis title
+		// Y AXIS
 		// --------------------------------------------------------
 
 		DrawString(
-			defaultFont,
+			ThemeDB.FallbackFont,
 			new Vector2(
-				graphRect.Position.X -
-				48.0f,
+				graphRect.Position.X - 45.0f,
 				graphRect.Position.Y +
-				12.0f
+				graphRect.Size.Y * 0.5f
 			),
-			"ENERGY",
+			ExistingGraphYAxis,
 			HorizontalAlignment.Left,
 			-1,
 			11,
-			Colors.White
+			new Color(
+				0.75f,
+				0.75f,
+				0.75f
+			)
 		);
 
 		// --------------------------------------------------------
-		// X-axis labels
+		// TIME LABELS
 		// --------------------------------------------------------
 
-		for (
-			int i = 0;
-			i <= 5;
-			i++)
+		DrawTopTimeLabels(graphRect);
+
+		// --------------------------------------------------------
+		// NO DATA
+		// --------------------------------------------------------
+
+		if (samples.Count == 0)
 		{
-			float normalized =
-				i / 5.0f;
-
-			float x =
-				graphRect.Position.X +
-				graphRect.Size.X *
-				normalized;
-
-			string label =
-				(
-					normalized *
-					100.0f
-				).ToString("F0") +
-				"%";
-
 			DrawString(
-				defaultFont,
+				ThemeDB.FallbackFont,
 				new Vector2(
-					x -
-					10.0f,
+					graphRect.Position.X +
+					graphRect.Size.X * 0.5f -
+					55.0f,
 					graphRect.Position.Y +
-					graphRect.Size.Y +
-					16.0f
+					graphRect.Size.Y * 0.5f
 				),
-				label,
+				"Collecting data...",
 				HorizontalAlignment.Left,
 				-1,
-				10,
-				Colors.LightGray
+				12,
+				new Color(
+					0.55f,
+					0.55f,
+					0.55f
+				)
 			);
+
+			return;
 		}
 
 		// --------------------------------------------------------
-		// Y-axis labels
+		// UPDATE CACHE
 		// --------------------------------------------------------
 
-		for (
-			int i = 0;
-			i <= 5;
-			i++)
-		{
-			float normalized =
-				i / 5.0f;
-
-			float y =
-				graphRect.Position.Y +
-				graphRect.Size.Y -
-				graphRect.Size.Y *
-				normalized;
-
-			float value =
-				maxEnergy *
-				normalized;
-
-			DrawString(
-				defaultFont,
-				new Vector2(
-					graphRect.Position.X -
-					45.0f,
-					y +
-					4.0f
-				),
-				value.ToString("F2"),
-				HorizontalAlignment.Right,
-				40,
-				10,
-				Colors.LightGray
-			);
-		}
-
-		// --------------------------------------------------------
-		// Statistical points
-		// --------------------------------------------------------
-
-		int count =
-			Math.Min(
-				rainEnergyRainHistory.Count,
-				rainEnergyEnergyHistory.Count
+		int graphWidth =
+			Mathf.Max(
+				(int)graphRect.Size.X,
+				1
 			);
 
 		if (
-			count <= 0)
+			lastCachedWidth !=
+			graphWidth)
+		{
+			topGraphCacheDirty = true;
+		}
+
+		if (topGraphCacheDirty)
+		{
+			BuildTopGraphCache(
+				graphRect
+			);
+		}
+
+		// --------------------------------------------------------
+		// DRAW THREE SERIES
+		// --------------------------------------------------------
+
+		if (
+			cachedParticlesPoints.Length >= 2)
+		{
+			DrawPolyline(
+				cachedParticlesPoints,
+				particlesColor,
+				2.0f,
+				true
+			);
+		}
+
+		if (
+			cachedEnergyPoints.Length >= 2)
+		{
+			DrawPolyline(
+				cachedEnergyPoints,
+				energyColor,
+				2.0f,
+				true
+			);
+		}
+
+		if (
+			cachedFpsPoints.Length >= 2)
+		{
+			DrawPolyline(
+				cachedFpsPoints,
+				fpsColor,
+				2.0f,
+				true
+			);
+		}
+	}
+
+	// ============================================================
+	// TOP GRAPH LEGEND
+	// ============================================================
+
+	private void DrawTopGraphLegend(
+		Rect2 graphRect)
+	{
+		float x =
+			graphRect.End.X -
+			230.0f;
+
+		float y =
+			graphRect.Position.Y -
+			7.0f;
+
+		DrawCircle(
+			new Vector2(x, y - 4.0f),
+			3.0f,
+			particlesColor
+		);
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				x + 8.0f,
+				y
+			),
+			"Particles",
+			HorizontalAlignment.Left,
+			-1,
+			10,
+			particlesColor
+		);
+
+		x += 75.0f;
+
+		DrawCircle(
+			new Vector2(x, y - 4.0f),
+			3.0f,
+			energyColor
+		);
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				x + 8.0f,
+				y
+			),
+			"Energy",
+			HorizontalAlignment.Left,
+			-1,
+			10,
+			energyColor
+		);
+
+		x += 65.0f;
+
+		DrawCircle(
+			new Vector2(x, y - 4.0f),
+			3.0f,
+			fpsColor
+		);
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				x + 8.0f,
+				y
+			),
+			"FPS",
+			HorizontalAlignment.Left,
+			-1,
+			10,
+			fpsColor
+		);
+	}
+
+	// ============================================================
+	// TOP TIME LABELS
+	// ============================================================
+
+	private void DrawTopTimeLabels(
+		Rect2 graphRect)
+	{
+		float totalSeconds =
+			GetTotalRunSeconds();
+
+		if (totalSeconds <= 0.0f)
 		{
 			return;
 		}
 
-		for (
-			int i = 0;
-			i < count;
-			i++)
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				graphRect.Position.X - 5.0f,
+				graphRect.End.Y + 14.0f
+			),
+			"0s",
+			HorizontalAlignment.Left,
+			-1,
+			10,
+			new Color(
+				0.65f,
+				0.65f,
+				0.65f
+			)
+		);
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				graphRect.Position.X +
+				graphRect.Size.X * 0.5f -
+				10.0f,
+				graphRect.End.Y + 14.0f
+			),
+			FormatSeconds(
+				totalSeconds * 0.5f
+			),
+			HorizontalAlignment.Left,
+			-1,
+			10,
+			new Color(
+				0.65f,
+				0.65f,
+				0.65f
+			)
+		);
+
+		string endText =
+			FormatSeconds(totalSeconds);
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				graphRect.End.X -
+				30.0f,
+				graphRect.End.Y + 14.0f
+			),
+			endText,
+			HorizontalAlignment.Left,
+			-1,
+			10,
+			new Color(
+				0.65f,
+				0.65f,
+				0.65f
+			)
+		);
+	}
+
+	// ============================================================
+	// TOP GRAPH CACHE
+	// ============================================================
+
+	private void BuildTopGraphCache(
+		Rect2 graphRect)
+	{
+		if (samples.Count == 0)
 		{
-			float rain =
+			cachedParticlesPoints =
+				new Vector2[0];
+
+			cachedEnergyPoints =
+				new Vector2[0];
+
+			cachedFpsPoints =
+				new Vector2[0];
+
+			topGraphCacheDirty = false;
+
+			return;
+		}
+
+		int width =
+			Mathf.Max(
+				(int)graphRect.Size.X,
+				2
+			);
+
+		int sampleCount =
+			samples.Count;
+
+		cachedParticlesPoints =
+			BuildCompressedSeries(
+				graphRect,
+				width,
+				sampleCount,
+				0
+			);
+
+		cachedEnergyPoints =
+			BuildCompressedSeries(
+				graphRect,
+				width,
+				sampleCount,
+				1
+			);
+
+		cachedFpsPoints =
+			BuildCompressedSeries(
+				graphRect,
+				width,
+				sampleCount,
+				2
+			);
+
+		lastCachedWidth =
+			width;
+
+		topGraphCacheDirty = false;
+	}
+
+	// ============================================================
+	// COMPRESSED SERIES
+	// ============================================================
+
+	private Vector2[] BuildCompressedSeries(
+		Rect2 graphRect,
+		int width,
+		int sampleCount,
+		int series)
+	{
+		if (sampleCount == 0)
+		{
+			return new Vector2[0];
+		}
+
+		int pointCount =
+			Mathf.Min(
+				width,
+				sampleCount
+			);
+
+		Vector2[] points =
+			new Vector2[pointCount];
+
+		for (
+			int pixel = 0;
+			pixel < pointCount;
+			pixel++)
+		{
+			int startIndex =
+				(int)(
+					(double)pixel *
+					sampleCount /
+					pointCount
+				);
+
+			int endIndex =
+				(int)(
+					(double)(pixel + 1) *
+					sampleCount /
+					pointCount
+				) - 1;
+
+			if (endIndex < startIndex)
+			{
+				endIndex =
+					startIndex;
+			}
+
+			if (endIndex >= sampleCount)
+			{
+				endIndex =
+					sampleCount - 1;
+			}
+
+			double sum =
+				0.0;
+
+			int count =
+				endIndex -
+				startIndex +
+				1;
+
+			for (
+				int i = startIndex;
+				i <= endIndex;
+				i++)
+			{
+				GraphSample sample =
+					samples[i];
+
+				if (series == 0)
+				{
+					sum += sample.Particles;
+				}
+				else if (series == 1)
+				{
+					sum += sample.EnergyPerSecond;
+				}
+				else
+				{
+					sum += sample.Fps;
+				}
+			}
+
+			float value =
+				(float)(
+					sum /
+					Math.Max(
+						count,
+						1
+					)
+				);
+
+			float maxValue;
+
+			if (series == 0)
+			{
+				maxValue =
+					existingMaxParticles;
+			}
+			else if (series == 1)
+			{
+				maxValue =
+					existingMaxEnergy;
+			}
+			else
+			{
+				maxValue =
+					existingMaxFps;
+			}
+
+			float normalized =
 				Mathf.Clamp(
-					rainEnergyRainHistory[i],
-					minRain,
-					maxRain
-				);
-
-			float energy =
-				Mathf.Max(
-					rainEnergyEnergyHistory[i],
-					0.0f
-				);
-
-			float xNormalized =
-				(
-					rain -
-					minRain
-				) /
-				(
-					maxRain -
-					minRain
-				);
-
-			float yNormalized =
-				Mathf.Clamp(
-					energy /
-					maxEnergy,
+					value / maxValue,
 					0.0f,
 					1.0f
 				);
 
-			Vector2 point =
-				new Vector2(
-					graphRect.Position.X +
-					xNormalized *
-					graphRect.Size.X,
+			float x;
 
-					graphRect.Position.Y +
-					graphRect.Size.Y -
-					yNormalized *
-					graphRect.Size.Y
-				);
-
-			// ----------------------------------------------------
-			// Connect chronological points.
-			//
-			// Because this is a statistical scatter graph, the
-			// points are positioned by rain/energy values, but
-			// the line connects them in chronological order.
-			// ----------------------------------------------------
-
-			if (
-				i > 0)
+			if (pointCount == 1)
 			{
-				float previousRain =
-					Mathf.Clamp(
-						rainEnergyRainHistory[i - 1],
-						minRain,
-						maxRain
-					);
-
-				float previousEnergy =
-					Mathf.Max(
-						rainEnergyEnergyHistory[i - 1],
-						0.0f
-					);
-
-				float previousXNormalized =
-					(
-						previousRain -
-						minRain
-					) /
-					(
-						maxRain -
-						minRain
-					);
-
-				float previousYNormalized =
-					Mathf.Clamp(
-						previousEnergy /
-						maxEnergy,
-						0.0f,
-						1.0f
-					);
-
-				Vector2 previousPoint =
-					new Vector2(
-						graphRect.Position.X +
-						previousXNormalized *
-						graphRect.Size.X,
-
-						graphRect.Position.Y +
-						graphRect.Size.Y -
-						previousYNormalized *
-						graphRect.Size.Y
-					);
-
-				DrawLine(
-					previousPoint,
-					point,
-					new Color(
-						1.0f,
-						0.65f,
-						0.15f,
-						0.65f
-					),
-					2.0f
-				);
+				x =
+					graphRect.Position.X +
+					graphRect.Size.X * 0.5f;
+			}
+			else
+			{
+				x =
+					graphRect.Position.X +
+					(float)pixel /
+					(pointCount - 1) *
+					graphRect.Size.X;
 			}
 
-			// ----------------------------------------------------
-			// Point
-			// ----------------------------------------------------
+			float y =
+				graphRect.Position.Y +
+				graphRect.Size.Y -
+				normalized *
+				graphRect.Size.Y;
 
-			DrawCircle(
-				point,
-				4.0f,
-				new Color(
-					1.0f,
-					0.85f,
-					0.2f,
-					1.0f
-				)
-			);
+			points[pixel] =
+				new Vector2(
+					x,
+					y
+				);
 		}
+
+		return points;
 	}
 
 	// ============================================================
-	// Draw graph grid
+	// TOTAL RUN TIME
 	// ============================================================
 
-	private void DrawGraphGrid(
-		Rect2 graphRect,
-		int verticalLines,
-		int horizontalLines)
+	private float GetTotalRunSeconds()
 	{
+		// AddSample is normally called once per frame.
+		//
+		// 60 FPS is therefore used as the graph's time reference.
+
+		return samples.Count / 60.0f;
+	}
+
+	// ============================================================
+	// FORMAT TIME
+	// ============================================================
+
+	private string FormatSeconds(
+		float seconds)
+	{
+		if (seconds < 60.0f)
+		{
+			return Mathf.RoundToInt(seconds) + "s";
+		}
+
+		int total =
+			Mathf.RoundToInt(seconds);
+
+		int minutes =
+			total / 60;
+
+		int remainingSeconds =
+			total % 60;
+
+		return minutes +
+			":" +
+			remainingSeconds.ToString("00");
+	}
+
+	// ============================================================
+	// TOP GRAPH GRID
+	// ============================================================
+
+	private void DrawExistingGrid(
+		Rect2 graphRect)
+	{
+		const int horizontalLines = 5;
+		const int verticalLines = 5;
+
 		for (
-			int i = 0;
-			i <= verticalLines;
+			int i = 1;
+			i < horizontalLines;
 			i++)
 		{
-			float normalized =
+			float y =
+				graphRect.Position.Y +
+				graphRect.Size.Y *
 				i /
-				(float)verticalLines;
+				horizontalLines;
 
+			DrawLine(
+				new Vector2(
+					graphRect.Position.X,
+					y
+				),
+				new Vector2(
+					graphRect.End.X,
+					y
+				),
+				new Color(
+					0.18f,
+					0.18f,
+					0.20f,
+					0.8f
+				),
+				GridLineWidth
+			);
+		}
+
+		for (
+			int i = 1;
+			i < verticalLines;
+			i++)
+		{
 			float x =
 				graphRect.Position.X +
 				graphRect.Size.X *
-				normalized;
+				i /
+				verticalLines;
 
 			DrawLine(
 				new Vector2(
@@ -963,33 +1060,299 @@ public partial class StatisticsGraph : Control
 				),
 				new Vector2(
 					x,
-					graphRect.Position.Y +
-					graphRect.Size.Y
+					graphRect.End.Y
 				),
 				new Color(
-					0.2f,
-					0.2f,
-					0.2f,
-					0.6f
+					0.18f,
+					0.18f,
+					0.20f,
+					0.8f
 				),
-				1.0f
+				GridLineWidth
 			);
 		}
+	}
+
+	// ============================================================
+	// BOTTOM GRAPH
+	// ============================================================
+
+	private void DrawRainEnergyGraph()
+	{
+		Rect2 graphRect =
+			GetRainEnergyGraphRect();
+
+		if (
+			graphRect.Size.X <= 0.0f ||
+			graphRect.Size.Y <= 0.0f)
+		{
+			return;
+		}
+
+		// --------------------------------------------------------
+		// Background
+		// --------------------------------------------------------
+
+		DrawRect(
+			graphRect,
+			new Color(
+				0.04f,
+				0.04f,
+				0.05f,
+				0.92f
+			),
+			true
+		);
+
+		// --------------------------------------------------------
+		// Grid
+		// --------------------------------------------------------
+
+		DrawRainEnergyGrid(graphRect);
+
+		// --------------------------------------------------------
+		// Border
+		// --------------------------------------------------------
+
+		DrawRect(
+			graphRect,
+			new Color(
+				0.75f,
+				0.75f,
+				0.75f,
+				0.9f
+			),
+			false,
+			GraphBorderWidth
+		);
+
+		// --------------------------------------------------------
+		// Title
+		// --------------------------------------------------------
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				graphRect.Position.X,
+				graphRect.Position.Y - 7.0f
+			),
+			RainEnergyGraphTitle,
+			HorizontalAlignment.Left,
+			-1,
+			14,
+			new Color(
+				0.9f,
+				0.9f,
+				0.9f
+			)
+		);
+
+		// --------------------------------------------------------
+		// X LABEL
+		// --------------------------------------------------------
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				graphRect.Position.X +
+				graphRect.Size.X * 0.5f -
+				45.0f,
+				graphRect.Position.Y +
+				graphRect.Size.Y +
+				27.0f
+			),
+			RainEnergyGraphXAxis,
+			HorizontalAlignment.Left,
+			-1,
+			12,
+			new Color(
+				0.75f,
+				0.75f,
+				0.75f
+			)
+		);
+
+		// --------------------------------------------------------
+		// Y LABEL
+		// --------------------------------------------------------
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				graphRect.Position.X -
+				45.0f,
+				graphRect.Position.Y +
+				graphRect.Size.Y * 0.5f
+			),
+			RainEnergyGraphYAxis,
+			HorizontalAlignment.Left,
+			-1,
+			11,
+			new Color(
+				0.75f,
+				0.75f,
+				0.75f
+			)
+		);
+
+		// --------------------------------------------------------
+		// X TICKS
+		// --------------------------------------------------------
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				graphRect.Position.X - 5.0f,
+				graphRect.End.Y + 14.0f
+			),
+			"0%",
+			HorizontalAlignment.Left,
+			-1,
+			10,
+			new Color(
+				0.65f,
+				0.65f,
+				0.65f
+			)
+		);
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				graphRect.Position.X +
+				graphRect.Size.X * 0.5f -
+				10.0f,
+				graphRect.End.Y + 14.0f
+			),
+			"50%",
+			HorizontalAlignment.Left,
+			-1,
+			10,
+			new Color(
+				0.65f,
+				0.65f,
+				0.65f
+			)
+		);
+
+		DrawString(
+			ThemeDB.FallbackFont,
+			new Vector2(
+				graphRect.End.X - 25.0f,
+				graphRect.End.Y + 14.0f
+			),
+			"100%",
+			HorizontalAlignment.Left,
+			-1,
+			10,
+			new Color(
+				0.65f,
+				0.65f,
+				0.65f
+			)
+		);
+
+		// --------------------------------------------------------
+		// NO DATA
+		// --------------------------------------------------------
+
+		if (rainEnergySamples.Count < 1)
+		{
+			DrawString(
+				ThemeDB.FallbackFont,
+				new Vector2(
+					graphRect.Position.X +
+					graphRect.Size.X * 0.5f -
+					55.0f,
+					graphRect.Position.Y +
+					graphRect.Size.Y * 0.5f
+				),
+				"Collecting data...",
+				HorizontalAlignment.Left,
+				-1,
+				12,
+				new Color(
+					0.55f,
+					0.55f,
+					0.55f
+				)
+			);
+
+			return;
+		}
+
+		// --------------------------------------------------------
+		// DOTS ONLY
+		// --------------------------------------------------------
 
 		for (
 			int i = 0;
-			i <= horizontalLines;
+			i < rainEnergySamples.Count;
 			i++)
 		{
-			float normalized =
-				i /
-				(float)horizontalLines;
+			RainEnergySample sample =
+				rainEnergySamples[i];
 
+			float normalizedX =
+				Mathf.Clamp(
+					sample.AverageRain /
+					rainEnergyMaxRain,
+					0.0f,
+					1.0f
+				);
+
+			float normalizedY =
+				Mathf.Clamp(
+					sample.AverageEnergy /
+					rainEnergyMaxEnergy,
+					0.0f,
+					1.0f
+				);
+
+			Vector2 point =
+				new Vector2(
+					graphRect.Position.X +
+					normalizedX *
+					graphRect.Size.X,
+
+					graphRect.Position.Y +
+					graphRect.Size.Y -
+					normalizedY *
+					graphRect.Size.Y
+				);
+
+			DrawCircle(
+				point,
+				PointRadius,
+				new Color(
+					1.0f,
+					0.75f,
+					0.25f
+				)
+			);
+		}
+	}
+
+	// ============================================================
+	// BOTTOM GRID
+	// ============================================================
+
+	private void DrawRainEnergyGrid(
+		Rect2 graphRect)
+	{
+		const int horizontalLines = 5;
+		const int verticalLines = 5;
+
+		for (
+			int i = 1;
+			i < horizontalLines;
+			i++)
+		{
 			float y =
 				graphRect.Position.Y +
-				graphRect.Size.Y -
 				graphRect.Size.Y *
-				normalized;
+				i /
+				horizontalLines;
 
 			DrawLine(
 				new Vector2(
@@ -997,167 +1360,194 @@ public partial class StatisticsGraph : Control
 					y
 				),
 				new Vector2(
-					graphRect.Position.X +
-					graphRect.Size.X,
+					graphRect.End.X,
 					y
 				),
 				new Color(
-					0.2f,
-					0.2f,
-					0.2f,
-					0.6f
+					0.18f,
+					0.18f,
+					0.20f,
+					0.8f
 				),
-				1.0f
+				GridLineWidth
 			);
-		}
-	}
-
-	// ============================================================
-	// Draw regular history line
-	// ============================================================
-
-	private void DrawHistoryLine(
-		Rect2 graphRect,
-		List<float> history,
-		float maxValue,
-		Color color)
-	{
-		if (
-			history == null ||
-			history.Count < 2 ||
-			maxValue <= 0.0f)
-		{
-			return;
 		}
 
 		for (
 			int i = 1;
-			i < history.Count;
+			i < verticalLines;
 			i++)
 		{
-			float previousNormalized =
-				Mathf.Clamp(
-					history[i - 1] /
-					maxValue,
-					0.0f,
-					1.0f
-				);
-
-			float currentNormalized =
-				Mathf.Clamp(
-					history[i] /
-					maxValue,
-					0.0f,
-					1.0f
-				);
-
-			float previousX =
+			float x =
 				graphRect.Position.X +
-				(
-					(i - 1) /
-					(float)(history.Count - 1)
-				) *
-				graphRect.Size.X;
-
-			float currentX =
-				graphRect.Position.X +
-				(
-					i /
-					(float)(history.Count - 1)
-				) *
-				graphRect.Size.X;
-
-			float previousY =
-				graphRect.Position.Y +
-				graphRect.Size.Y -
-				previousNormalized *
-				graphRect.Size.Y;
-
-			float currentY =
-				graphRect.Position.Y +
-				graphRect.Size.Y -
-				currentNormalized *
-				graphRect.Size.Y;
+				graphRect.Size.X *
+				i /
+				verticalLines;
 
 			DrawLine(
 				new Vector2(
-					previousX,
-					previousY
+					x,
+					graphRect.Position.Y
 				),
 				new Vector2(
-					currentX,
-					currentY
+					x,
+					graphRect.End.Y
 				),
-				color,
-				2.0f
+				new Color(
+					0.18f,
+					0.18f,
+					0.20f,
+					0.8f
+				),
+				GridLineWidth
 			);
 		}
 	}
 
 	// ============================================================
-	// Maximum value helper
+	// GRAPH RECTANGLES
 	// ============================================================
 
-	private float GetMaximumValue(
-		List<float> values,
-		float minimum)
+	private Rect2 GetExistingGraphRect()
 	{
-		float maximum =
-			minimum;
+		float width =
+			Mathf.Max(
+				Size.X -
+				GraphMarginLeft -
+				GraphMarginRight,
+				100.0f
+			);
 
-		for (
-			int i = 0;
-			i < values.Count;
-			i++)
-		{
-			if (
-				values[i] >
-				maximum)
-			{
-				maximum =
-					values[i];
-			}
-		}
+		float height =
+			Mathf.Max(
+				(Size.Y -
+				GraphSpacing) *
+				0.5f -
+				GraphMarginTop -
+				GraphMarginBottom,
+				80.0f
+			);
 
-		return maximum;
+		return new Rect2(
+			GraphMarginLeft,
+			GraphMarginTop,
+			width,
+			height
+		);
+	}
+
+	private Rect2 GetRainEnergyGraphRect()
+	{
+		float width =
+			Mathf.Max(
+				Size.X -
+				SecondGraphMarginLeft -
+				SecondGraphMarginRight,
+				100.0f
+			);
+
+		Rect2 firstGraph =
+			GetExistingGraphRect();
+
+		float top =
+			firstGraph.End.Y +
+			GraphSpacing +
+			SecondGraphMarginTop;
+
+		float bottomSpace =
+			Size.Y -
+			top -
+			SecondGraphMarginBottom;
+
+		float height =
+			Mathf.Max(
+				bottomSpace,
+				80.0f
+			);
+
+		return new Rect2(
+			SecondGraphMarginLeft,
+			top,
+			width,
+			height
+		);
 	}
 
 	// ============================================================
-	// Public reset
+	// RESIZE
 	// ============================================================
 
-	public void ClearStatistics()
+	public override void _Notification(
+		int what)
 	{
-		particleHistory.Clear();
+		if (
+			what ==
+			NotificationResized)
+		{
+			topGraphCacheDirty = true;
 
-		energyHistory.Clear();
+			QueueRedraw();
+		}
+	}
 
-		fpsHistory.Clear();
+	// ============================================================
+	// PUBLIC DATA ACCESS
+	// ============================================================
 
-		rainEnergyRainHistory.Clear();
+	public int SampleCount =>
+		samples.Count;
 
-		rainEnergyEnergyHistory.Clear();
+	public int RainEnergySampleCount =>
+		rainEnergySamples.Count;
 
-		rainEnergyParticleHistory.Clear();
+	public float LatestAverageRain
+	{
+		get
+		{
+			if (
+				rainEnergySamples.Count ==
+				0)
+			{
+				return 0.0f;
+			}
 
-		graphElapsedTime =
-			0.0f;
+			return rainEnergySamples[
+				rainEnergySamples.Count - 1
+			].AverageRain;
+		}
+	}
 
-		statisticalFrameCounter =
-			0;
+	public float LatestAverageEnergy
+	{
+		get
+		{
+			if (
+				rainEnergySamples.Count ==
+				0)
+			{
+				return 0.0f;
+			}
 
-		statisticalRainSum =
-			0.0;
+			return rainEnergySamples[
+				rainEnergySamples.Count - 1
+			].AverageEnergy;
+		}
+	}
 
-		statisticalEnergySum =
-			0.0;
+	public float LatestAverageParticles
+	{
+		get
+		{
+			if (
+				rainEnergySamples.Count ==
+				0)
+			{
+				return 0.0f;
+			}
 
-		statisticalParticleSum =
-			0.0;
-
-		statisticalSampleFrames =
-			0;
-
-		QueueRedraw();
+			return rainEnergySamples[
+				rainEnergySamples.Count - 1
+			].AverageParticles;
+		}
 	}
 }
