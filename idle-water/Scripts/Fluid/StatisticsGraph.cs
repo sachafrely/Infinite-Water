@@ -24,57 +24,73 @@ public partial class StatisticsGraph : Control
 
 	private const int MaxRainEnergySamples = 120;
 
-	private const float GraphSpacing = 35.0f;
+	private const float GraphSpacing = 20.0f;
 
-	private const float GraphMarginLeft = 55.0f;
-	private const float GraphMarginRight = 15.0f;
-	private const float GraphMarginTop = 25.0f;
-	private const float GraphMarginBottom = 35.0f;
+	private const float GraphMarginLeft = 45.0f;
+	private const float GraphMarginRight = 35.0f;
+	private const float GraphMarginTop = 45.0f;
+	private const float GraphMarginBottom = 15.0f;
 
-	private const float SecondGraphMarginLeft = 55.0f;
-	private const float SecondGraphMarginRight = 15.0f;
-	private const float SecondGraphMarginTop = 25.0f;
-	private const float SecondGraphMarginBottom = 35.0f;
+	private const float SecondGraphMarginLeft = 45.0f;
+	private const float SecondGraphMarginRight = 35.0f;
+	private const float SecondGraphMarginTop = 35.0f;
+	private const float SecondGraphMarginBottom = 40.0f;
 
 	private const float GraphBorderWidth = 2.0f;
 	private const float GridLineWidth = 1.0f;
 
-	private const float PointRadius = 3.5f;
+	// Bottom graph dot diameter.
+	private const float BottomPointRadius = 1.8f;
+
+	// ============================================================
+	// TOP GRAPH HISTORY
+	// ============================================================
+
+	// Maximum visible history in seconds.
+	private const float MaxTopGraphSeconds = 600.0f;
+
+	// The simulator normally adds one sample per frame.
+	// We keep a little more than 600 seconds internally so
+	// that the visible window can be selected efficiently.
+	private const int AssumedSamplesPerSecond = 60;
+
+	private const int MaxTopGraphSamples =
+		(int)(MaxTopGraphSeconds * AssumedSamplesPerSecond);
 
 	// ============================================================
 	// GRAPH TITLES
 	// ============================================================
 
 	private const string ExistingGraphTitle =
-		"STATISTICS";
+		"Statistics";
 
 	private const string ExistingGraphXAxis =
-		"Time";
+		"";
 
 	private const string ExistingGraphYAxis =
 		"Value";
 
 	private const string RainEnergyGraphTitle =
-		"RAIN / ENERGY STATISTICS";
+		"Energy Per Particle";
 
 	private const string RainEnergyGraphXAxis =
-		"Average Rain %";
+		"Rain Amount";
 
 	private const string RainEnergyGraphYAxis =
-		"Average Energy";
+		"Energy";
 
 	// ============================================================
 	// TOP GRAPH COLORS
 	// ============================================================
 
-	private readonly Color particlesColor =
-		new Color(0.3f, 0.9f, 1.0f);
+private readonly Color particlesColor =
+	new Color(0.05f, 0.40f, 0.75f);
 
-	private readonly Color energyColor =
-		new Color(1.0f, 0.75f, 0.25f);
+private readonly Color energyColor =
+	new Color(1.0f, 0.75f, 0.25f);
 
-	private readonly Color fpsColor =
-		new Color(0.4f, 1.0f, 0.45f);
+private readonly Color fpsColor =
+	new Color(0.75f, 0.78f, 0.82f);
 
 	// ============================================================
 	// DATA STRUCTURES
@@ -133,21 +149,23 @@ public partial class StatisticsGraph : Control
 	// TOP GRAPH CACHE
 	// ============================================================
 
+	// IMPORTANT:
+	// These are NOT readonly because they are replaced when
+	// rebuilding the cache.
 	private Vector2[] cachedParticlesPoints =
-		new Vector2[0];
+		Array.Empty<Vector2>();
 
 	private Vector2[] cachedEnergyPoints =
-		new Vector2[0];
+		Array.Empty<Vector2>();
 
 	private Vector2[] cachedFpsPoints =
-		new Vector2[0];
+		Array.Empty<Vector2>();
 
 	private bool topGraphCacheDirty = true;
 
 	private int lastCachedWidth = -1;
 
-	// Rebuild the compressed graph only periodically.
-	// This prevents processing the complete history every frame.
+	// Rebuild only periodically instead of every frame.
 	private int samplesSinceCacheBuild = 0;
 
 	private const int CacheRebuildInterval = 30;
@@ -182,10 +200,16 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		// Keep ALL historical data.
+		// Keep only enough data for 600 seconds.
 		//
-		// The graph compresses the history visually instead
-		// of deleting old samples.
+		// This prevents the graph from growing forever and
+		// eventually becoming expensive again.
+		while (
+			samples.Count >
+			MaxTopGraphSamples)
+		{
+			samples.RemoveAt(0);
+		}
 
 		UpdateExistingGraphScale(
 			activeParticles,
@@ -248,7 +272,7 @@ public partial class StatisticsGraph : Control
 	}
 
 	// ============================================================
-	// TOP GRAPH SCALE UPDATE
+	// TOP GRAPH SCALE
 	// ============================================================
 
 	private void UpdateExistingGraphScale(
@@ -439,7 +463,7 @@ public partial class StatisticsGraph : Control
 			ExistingGraphTitle,
 			HorizontalAlignment.Left,
 			-1,
-			14,
+			22,
 			new Color(
 				0.9f,
 				0.9f,
@@ -470,7 +494,7 @@ public partial class StatisticsGraph : Control
 			ExistingGraphXAxis,
 			HorizontalAlignment.Left,
 			-1,
-			12,
+			18,
 			new Color(
 				0.75f,
 				0.75f,
@@ -492,7 +516,7 @@ public partial class StatisticsGraph : Control
 			ExistingGraphYAxis,
 			HorizontalAlignment.Left,
 			-1,
-			11,
+			20,
 			new Color(
 				0.75f,
 				0.75f,
@@ -524,7 +548,7 @@ public partial class StatisticsGraph : Control
 				"Collecting data...",
 				HorizontalAlignment.Left,
 				-1,
-				12,
+				22,
 				new Color(
 					0.55f,
 					0.55f,
@@ -536,7 +560,7 @@ public partial class StatisticsGraph : Control
 		}
 
 		// --------------------------------------------------------
-		// UPDATE CACHE
+		// CACHE
 		// --------------------------------------------------------
 
 		int graphWidth =
@@ -554,13 +578,11 @@ public partial class StatisticsGraph : Control
 
 		if (topGraphCacheDirty)
 		{
-			BuildTopGraphCache(
-				graphRect
-			);
+			BuildTopGraphCache(graphRect);
 		}
 
 		// --------------------------------------------------------
-		// DRAW THREE SERIES
+		// THREE SERIES
 		// --------------------------------------------------------
 
 		if (
@@ -621,13 +643,13 @@ public partial class StatisticsGraph : Control
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
-				x + 8.0f,
+				x + 30.0f,
 				y
 			),
 			"Particles",
 			HorizontalAlignment.Left,
 			-1,
-			10,
+			22,
 			particlesColor
 		);
 
@@ -648,7 +670,7 @@ public partial class StatisticsGraph : Control
 			"Energy",
 			HorizontalAlignment.Left,
 			-1,
-			10,
+			20,
 			energyColor
 		);
 
@@ -669,7 +691,7 @@ public partial class StatisticsGraph : Control
 			"FPS",
 			HorizontalAlignment.Left,
 			-1,
-			10,
+			20,
 			fpsColor
 		);
 	}
@@ -682,7 +704,10 @@ public partial class StatisticsGraph : Control
 		Rect2 graphRect)
 	{
 		float totalSeconds =
-			GetTotalRunSeconds();
+			Mathf.Min(
+				GetTotalRunSeconds(),
+				MaxTopGraphSeconds
+			);
 
 		if (totalSeconds <= 0.0f)
 		{
@@ -695,10 +720,10 @@ public partial class StatisticsGraph : Control
 				graphRect.Position.X - 5.0f,
 				graphRect.End.Y + 14.0f
 			),
-			"0s",
+			"",
 			HorizontalAlignment.Left,
 			-1,
-			10,
+			22,
 			new Color(
 				0.65f,
 				0.65f,
@@ -719,7 +744,7 @@ public partial class StatisticsGraph : Control
 			),
 			HorizontalAlignment.Left,
 			-1,
-			10,
+			22,
 			new Color(
 				0.65f,
 				0.65f,
@@ -733,14 +758,13 @@ public partial class StatisticsGraph : Control
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
-				graphRect.End.X -
-				30.0f,
+				graphRect.End.X - 30.0f,
 				graphRect.End.Y + 14.0f
 			),
 			endText,
 			HorizontalAlignment.Left,
 			-1,
-			10,
+			22,
 			new Color(
 				0.65f,
 				0.65f,
@@ -759,13 +783,13 @@ public partial class StatisticsGraph : Control
 		if (samples.Count == 0)
 		{
 			cachedParticlesPoints =
-				new Vector2[0];
+				Array.Empty<Vector2>();
 
 			cachedEnergyPoints =
-				new Vector2[0];
+				Array.Empty<Vector2>();
 
 			cachedFpsPoints =
-				new Vector2[0];
+				Array.Empty<Vector2>();
 
 			topGraphCacheDirty = false;
 
@@ -812,7 +836,7 @@ public partial class StatisticsGraph : Control
 	}
 
 	// ============================================================
-	// COMPRESSED SERIES
+	// COMPRESSED TOP SERIES
 	// ============================================================
 
 	private Vector2[] BuildCompressedSeries(
@@ -821,13 +845,13 @@ public partial class StatisticsGraph : Control
 		int sampleCount,
 		int series)
 	{
-		if (sampleCount == 0)
+		if (sampleCount <= 0)
 		{
-			return new Vector2[0];
+			return Array.Empty<Vector2>();
 		}
 
 		int pointCount =
-			Mathf.Min(
+			Math.Min(
 				width,
 				sampleCount
 			);
@@ -866,8 +890,7 @@ public partial class StatisticsGraph : Control
 					sampleCount - 1;
 			}
 
-			double sum =
-				0.0;
+			double sum = 0.0;
 
 			int count =
 				endIndex -
@@ -969,11 +992,8 @@ public partial class StatisticsGraph : Control
 
 	private float GetTotalRunSeconds()
 	{
-		// AddSample is normally called once per frame.
-		//
-		// 60 FPS is therefore used as the graph's time reference.
-
-		return samples.Count / 60.0f;
+		return samples.Count /
+			(float)AssumedSamplesPerSecond;
 	}
 
 	// ============================================================
@@ -1003,7 +1023,7 @@ public partial class StatisticsGraph : Control
 	}
 
 	// ============================================================
-	// TOP GRAPH GRID
+	// TOP GRID
 	// ============================================================
 
 	private void DrawExistingGrid(
@@ -1089,10 +1109,6 @@ public partial class StatisticsGraph : Control
 			return;
 		}
 
-		// --------------------------------------------------------
-		// Background
-		// --------------------------------------------------------
-
 		DrawRect(
 			graphRect,
 			new Color(
@@ -1104,15 +1120,7 @@ public partial class StatisticsGraph : Control
 			true
 		);
 
-		// --------------------------------------------------------
-		// Grid
-		// --------------------------------------------------------
-
 		DrawRainEnergyGrid(graphRect);
-
-		// --------------------------------------------------------
-		// Border
-		// --------------------------------------------------------
 
 		DrawRect(
 			graphRect,
@@ -1126,10 +1134,6 @@ public partial class StatisticsGraph : Control
 			GraphBorderWidth
 		);
 
-		// --------------------------------------------------------
-		// Title
-		// --------------------------------------------------------
-
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
@@ -1139,17 +1143,13 @@ public partial class StatisticsGraph : Control
 			RainEnergyGraphTitle,
 			HorizontalAlignment.Left,
 			-1,
-			14,
+			20,
 			new Color(
 				0.9f,
 				0.9f,
 				0.9f
 			)
 		);
-
-		// --------------------------------------------------------
-		// X LABEL
-		// --------------------------------------------------------
 
 		DrawString(
 			ThemeDB.FallbackFont,
@@ -1164,7 +1164,7 @@ public partial class StatisticsGraph : Control
 			RainEnergyGraphXAxis,
 			HorizontalAlignment.Left,
 			-1,
-			12,
+			20,
 			new Color(
 				0.75f,
 				0.75f,
@@ -1172,22 +1172,17 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		// --------------------------------------------------------
-		// Y LABEL
-		// --------------------------------------------------------
-
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
-				graphRect.Position.X -
-				45.0f,
+				graphRect.Position.X - 45.0f,
 				graphRect.Position.Y +
 				graphRect.Size.Y * 0.5f
 			),
 			RainEnergyGraphYAxis,
 			HorizontalAlignment.Left,
 			-1,
-			11,
+			22,
 			new Color(
 				0.75f,
 				0.75f,
@@ -1195,20 +1190,17 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		// --------------------------------------------------------
-		// X TICKS
-		// --------------------------------------------------------
-
+		// X ticks.
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
 				graphRect.Position.X - 5.0f,
 				graphRect.End.Y + 14.0f
 			),
-			"0%",
+			"",
 			HorizontalAlignment.Left,
 			-1,
-			10,
+			22,
 			new Color(
 				0.65f,
 				0.65f,
@@ -1224,10 +1216,10 @@ public partial class StatisticsGraph : Control
 				10.0f,
 				graphRect.End.Y + 14.0f
 			),
-			"50%",
+			"",
 			HorizontalAlignment.Left,
 			-1,
-			10,
+			22,
 			new Color(
 				0.65f,
 				0.65f,
@@ -1241,20 +1233,16 @@ public partial class StatisticsGraph : Control
 				graphRect.End.X - 25.0f,
 				graphRect.End.Y + 14.0f
 			),
-			"100%",
+			"",
 			HorizontalAlignment.Left,
 			-1,
-			10,
+			22,
 			new Color(
 				0.65f,
 				0.65f,
 				0.65f
 			)
 		);
-
-		// --------------------------------------------------------
-		// NO DATA
-		// --------------------------------------------------------
 
 		if (rainEnergySamples.Count < 1)
 		{
@@ -1270,7 +1258,7 @@ public partial class StatisticsGraph : Control
 				"Collecting data...",
 				HorizontalAlignment.Left,
 				-1,
-				12,
+				22,
 				new Color(
 					0.55f,
 					0.55f,
@@ -1283,6 +1271,9 @@ public partial class StatisticsGraph : Control
 
 		// --------------------------------------------------------
 		// DOTS ONLY
+		//
+		// Radius = 1 px => approximately 2x2 px.
+		// No connecting lines.
 		// --------------------------------------------------------
 
 		for (
@@ -1323,7 +1314,7 @@ public partial class StatisticsGraph : Control
 
 			DrawCircle(
 				point,
-				PointRadius,
+				BottomPointRadius,
 				new Color(
 					1.0f,
 					0.75f,

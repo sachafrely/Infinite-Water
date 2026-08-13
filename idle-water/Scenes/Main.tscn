@@ -346,7 +346,7 @@ mouse_filter = 2
 [node name="StatisticsGraph" type="Control" parent="BottomUI" unique_id=1260497483]
 anchors_preset = 0
 offset_right = 720.0
-offset_bottom = 280.0
+offset_bottom = 320.0
 mouse_filter = 2
 script = ExtResource("7_jw32o")
 
