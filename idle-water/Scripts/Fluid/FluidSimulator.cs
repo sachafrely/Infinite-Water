@@ -71,16 +71,7 @@ public partial class FluidSimulator : Node2D
 	private long rainRejectedByCapacity = 0;
 
 	// ============================================================
-	// Maximum particles per world pixel
-	// ============================================================
-	//
-	// Simulation world:
-	//
-	//     X = -100 .. 820   = 920 pixels
-	//     Y = -50 .. 1250  = 1300 pixels
-	//
-	// One occupancy cell corresponds to one world pixel.
-	//
+	// Maximum number of particles per world pixel
 	// ============================================================
 
 	private const int MaxParticlesPerDensityCell = 1;
@@ -89,6 +80,10 @@ public partial class FluidSimulator : Node2D
 	private const int PixelGridHeight = 1300;
 
 	private int[] pixelOccupancy;
+
+	private int[] pixelOccupancyStamp;
+
+	private int pixelOccupancyGeneration = 0;
 
 	private readonly List<int> occupiedPixelIndices =
 		new List<int>();
@@ -100,33 +95,13 @@ public partial class FluidSimulator : Node2D
 	// ============================================================
 	// Density rendering grid
 	// ============================================================
-	//
-	// DensityCellSize = 4 pixels.
-	//
-	//     920 / 4  = 230 cells
-	//     1300 / 4 = 325 cells
-	//
-	// ============================================================
 
-	private const int DensityWidth = 230;
-	private const int DensityHeight = 325;
+	private const int DensityWidth = 920;
+	private const int DensityHeight = 1300;
 	private const float DensityCellSize = 4.0f;
 
 	// ============================================================
 	// Simulation world
-	// ============================================================
-	//
-	// Exact simulation bounds:
-	//
-	//     Left   = -100
-	//     Right  =  820
-	//     Top    = -50
-	//     Bottom = 1300
-	//
-	// Total:
-	//
-	//     920 x 1300 pixels
-	//
 	// ============================================================
 
 	private const float WorldWidth = 920.0f;
@@ -137,6 +112,33 @@ public partial class FluidSimulator : Node2D
 
 	private const float WorldMinY = -50.0f;
 	private const float WorldMaxY = 1250.0f;
+
+	// ============================================================
+	// Simulation world center
+	// ============================================================
+
+	// Exact center of:
+	//
+	// X = -100 .. 920
+	// Y = -50  .. 1300
+	//
+	// Therefore:
+	//
+	// Center X = 460
+	// Center Y = 650
+	//
+	
+	private const float WorldCenterX =
+		(WorldMinX + WorldMaxX) * 0.5f;
+
+	private const float WorldCenterY =
+		(WorldMinY + WorldMaxY) * 0.5f;
+
+	private static readonly Vector2 SimulationWorldCenter =
+		new Vector2(
+			WorldCenterX,
+			WorldCenterY
+		);
 
 	// ============================================================
 	// Dynamic Rain
@@ -255,7 +257,7 @@ public partial class FluidSimulator : Node2D
 
 	private const int WheelTileAtlasY = 6;
 
-	private const float WheelOuterRadius = 50.0f;
+	private const float WheelOuterRadius = 45.0f;
 
 	private const float WheelInnerRadius = 12.5f;
 
@@ -369,6 +371,12 @@ public partial class FluidSimulator : Node2D
 			DensityCellSize
 		);
 
+		// --------------------------------------------------------
+		// Explicitly center the simulation camera.
+		// --------------------------------------------------------
+
+		CenterSimulationCamera();
+
 		BuildDensityField();
 
 		renderer.Update(
@@ -407,7 +415,98 @@ public partial class FluidSimulator : Node2D
 			", DensityGrid=" +
 			DensityWidth +
 			"x" +
-			DensityHeight
+			DensityHeight +
+			", WorldCenter=" +
+			SimulationWorldCenter
+		);
+
+		// --------------------------------------------------------
+		// Run one more time after the scene has finished its
+		// initialization. This prevents another Camera2D or
+		// viewport initialization step from overwriting the
+		// desired center.
+		// --------------------------------------------------------
+
+		CallDeferred(
+			nameof(CenterSimulationCamera)
+		);
+	}
+
+	// ============================================================
+	// Center simulation camera
+	// ============================================================
+	//
+	// The simulation world is explicitly centered at:
+	//
+	//     (460, 650)
+	//
+	// because:
+	//
+	//     X = -100 .. 920
+	//     Y = -50  .. 1300
+	//
+	// This method does not modify the simulation itself.
+	// It only establishes the Camera2D position.
+	//
+	// ============================================================
+
+	private void CenterSimulationCamera()
+	{
+		GameViewMapping mapping =
+			CreateGameViewMapping();
+
+		if (
+			!mapping.IsValid)
+		{
+			GD.PushWarning(
+				"FluidSimulator: Could not center simulation camera. " +
+				"GameView, SimulationViewport, or Camera2D is missing."
+			);
+
+			return;
+		}
+
+		Camera2D camera =
+			mapping.Camera;
+
+		// Make absolutely sure this camera is the active camera
+		// for the SimulationViewport.
+		camera.Enabled =
+			true;
+
+		// The camera position is in simulation/world coordinates.
+		camera.Position =
+			SimulationWorldCenter;
+
+		GD.Print(
+			"SIMULATION CAMERA CENTERED -> " +
+			SimulationWorldCenter
+		);
+
+		GD.Print(
+			"Simulation world bounds: " +
+			WorldMinX +
+			".." +
+			WorldMaxX +
+			" x " +
+			WorldMinY +
+			".." +
+			WorldMaxY
+		);
+
+		GD.Print(
+			"Simulation world center: " +
+			SimulationWorldCenter
+		);
+
+		GD.Print(
+			"Camera position after centering: " +
+			camera.Position
+		);
+
+		GD.Print(
+			"Simulation viewport size: " +
+			mapping.SimulationViewport.Size
 		);
 	}
 
@@ -628,11 +727,18 @@ public partial class FluidSimulator : Node2D
 
 	private void InitializePixelOccupancy()
 	{
+		int pixelCount =
+			PixelGridWidth *
+			PixelGridHeight;
+
 		pixelOccupancy =
-			new int[
-				PixelGridWidth *
-				PixelGridHeight
-			];
+			new int[pixelCount];
+
+		pixelOccupancyStamp =
+			new int[pixelCount];
+
+		pixelOccupancyGeneration =
+			1;
 
 		occupiedPixelIndices.Clear();
 
@@ -682,6 +788,30 @@ public partial class FluidSimulator : Node2D
 	}
 
 	// ============================================================
+	// Get current occupancy for one pixel
+	// ============================================================
+
+	private int GetPixelOccupancy(
+		int pixelIndex)
+	{
+		if (
+			pixelIndex < 0 ||
+			pixelIndex >= pixelOccupancy.Length)
+		{
+			return 0;
+		}
+
+		if (
+			pixelOccupancyStamp[pixelIndex] !=
+			pixelOccupancyGeneration)
+		{
+			return 0;
+		}
+
+		return pixelOccupancy[pixelIndex];
+	}
+
+	// ============================================================
 	// Check pixel density
 	// ============================================================
 
@@ -701,7 +831,9 @@ public partial class FluidSimulator : Node2D
 		}
 
 		return
-			pixelOccupancy[pixelIndex] <
+			GetPixelOccupancy(
+				pixelIndex
+			) <
 			MaxParticlesPerDensityCell;
 	}
 
@@ -720,8 +852,15 @@ public partial class FluidSimulator : Node2D
 		}
 
 		if (
-			pixelOccupancy[pixelIndex] == 0)
+			pixelOccupancyStamp[pixelIndex] !=
+			pixelOccupancyGeneration)
 		{
+			pixelOccupancyStamp[pixelIndex] =
+				pixelOccupancyGeneration;
+
+			pixelOccupancy[pixelIndex] =
+				0;
+
 			occupiedPixelIndices.Add(
 				pixelIndex
 			);
@@ -729,14 +868,15 @@ public partial class FluidSimulator : Node2D
 			occupiedPixelCount++;
 		}
 
-		pixelOccupancy[pixelIndex]++;
+		int occupancy =
+			++pixelOccupancy[pixelIndex];
 
 		if (
-			pixelOccupancy[pixelIndex] >
+			occupancy >
 			maxPixelOccupancy)
 		{
 			maxPixelOccupancy =
-				pixelOccupancy[pixelIndex];
+				occupancy;
 		}
 	}
 
@@ -746,17 +886,23 @@ public partial class FluidSimulator : Node2D
 
 	private void RebuildPixelOccupancy()
 	{
-		for (
-			int i = 0;
-			i < occupiedPixelIndices.Count;
-			i++)
-		{
-			int pixelIndex =
-				occupiedPixelIndices[i];
+		pixelOccupancyGeneration++;
 
-			pixelOccupancy[pixelIndex] =
-				0;
+		if (
+			pixelOccupancyGeneration == int.MaxValue)
+		{
+			Array.Clear(
+				pixelOccupancyStamp,
+				0,
+				pixelOccupancyStamp.Length
+			);
+
+			pixelOccupancyGeneration =
+				1;
 		}
+
+		int generation =
+			pixelOccupancyGeneration;
 
 		occupiedPixelIndices.Clear();
 
@@ -781,9 +927,42 @@ public partial class FluidSimulator : Node2D
 				continue;
 			}
 
-			RegisterParticlePixel(
-				pixelIndex
-			);
+			if (
+				pixelOccupancyStamp[pixelIndex] !=
+				generation)
+			{
+				pixelOccupancyStamp[pixelIndex] =
+					generation;
+
+				pixelOccupancy[pixelIndex] =
+					1;
+
+				occupiedPixelIndices.Add(
+					pixelIndex
+				);
+
+				occupiedPixelCount++;
+
+				if (
+					maxPixelOccupancy < 1)
+				{
+					maxPixelOccupancy =
+						1;
+				}
+			}
+			else
+			{
+				int occupancy =
+					++pixelOccupancy[pixelIndex];
+
+				if (
+					occupancy >
+					maxPixelOccupancy)
+				{
+					maxPixelOccupancy =
+						occupancy;
+				}
+			}
 		}
 	}
 
@@ -1957,7 +2136,7 @@ void fragment()
 		);
 
 		GD.Print(
-			"Trigger profiler PhysicsFPS=" +
+			"Trigger profiler Frame FPS=" +
 			triggerProfilerFps.ToString("F1")
 		);
 
@@ -2784,6 +2963,11 @@ void fragment()
 			"," +
 			WorldMaxY +
 			")"
+		);
+
+		GD.Print(
+			"SimulationWorldCenter=" +
+			SimulationWorldCenter
 		);
 
 		GD.Print(

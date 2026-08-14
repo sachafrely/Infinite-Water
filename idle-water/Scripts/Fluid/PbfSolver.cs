@@ -142,11 +142,11 @@ public class PbfSolver
 	// Current simulation world
 	// ============================================================
 
-	private const float MinX = 260.0f;
-	private const float MaxX = 1180.0f;
+	private const float MinX = -100.0f;
+	private const float MaxX = 920.0f;
 
-	private const float MinY = -200.0f;
-	private const float MaxY = 820.0f;
+	private const float MinY = -50.0f;
+	private const float MaxY = 1250.0f;
 
 	private const float BoundarySkin = 0.5f;
 

@@ -26,12 +26,12 @@ public partial class StatisticsGraph : Control
 
 	private const float GraphSpacing = 20.0f;
 
-	private const float GraphMarginLeft = 45.0f;
+	private const float GraphMarginLeft = 75.0f;
 	private const float GraphMarginRight = 35.0f;
 	private const float GraphMarginTop = 45.0f;
 	private const float GraphMarginBottom = 15.0f;
 
-	private const float SecondGraphMarginLeft = 45.0f;
+	private const float SecondGraphMarginLeft = 75.0f;
 	private const float SecondGraphMarginRight = 35.0f;
 	private const float SecondGraphMarginTop = 35.0f;
 	private const float SecondGraphMarginBottom = 40.0f;
@@ -39,7 +39,7 @@ public partial class StatisticsGraph : Control
 	private const float GraphBorderWidth = 2.0f;
 	private const float GridLineWidth = 1.0f;
 
-	// Bottom graph dot diameter.
+	// Bottom graph dot radius.
 	private const float BottomPointRadius = 1.8f;
 
 	// ============================================================
@@ -50,8 +50,6 @@ public partial class StatisticsGraph : Control
 	private const float MaxTopGraphSeconds = 600.0f;
 
 	// The simulator normally adds one sample per frame.
-	// We keep a little more than 600 seconds internally so
-	// that the visible window can be selected efficiently.
 	private const int AssumedSamplesPerSecond = 60;
 
 	private const int MaxTopGraphSamples =
@@ -73,8 +71,11 @@ public partial class StatisticsGraph : Control
 	private const string RainEnergyGraphTitle =
 		"Energy Per Particle";
 
+	// IMPORTANT:
+	// The bottom graph X axis is ACTIVE PARTICLES,
+	// not rain percentage.
 	private const string RainEnergyGraphXAxis =
-		"Rain Amount";
+		"Particles";
 
 	private const string RainEnergyGraphYAxis =
 		"Energy";
@@ -83,14 +84,14 @@ public partial class StatisticsGraph : Control
 	// TOP GRAPH COLORS
 	// ============================================================
 
-private readonly Color particlesColor =
-	new Color(0.05f, 0.40f, 0.75f);
+	private readonly Color particlesColor =
+		new Color(0.05f, 0.40f, 0.75f);
 
-private readonly Color energyColor =
-	new Color(1.0f, 0.75f, 0.25f);
+	private readonly Color energyColor =
+		new Color(1.0f, 0.75f, 0.25f);
 
-private readonly Color fpsColor =
-	new Color(0.75f, 0.78f, 0.82f);
+	private readonly Color fpsColor =
+		new Color(0.4f, 0.4f, 0.4f);
 
 	// ============================================================
 	// DATA STRUCTURES
@@ -115,8 +116,14 @@ private readonly Color fpsColor =
 
 	private struct RainEnergySample
 	{
+		// Kept for diagnostics/statistical information.
+		// It is NOT used as the bottom graph X axis.
 		public float AverageRain;
+
+		// Y axis of bottom graph.
 		public float AverageEnergy;
+
+		// X axis of bottom graph.
 		public float AverageParticles;
 
 		public RainEnergySample(
@@ -142,16 +149,16 @@ private readonly Color fpsColor =
 	// BOTTOM GRAPH SCALING
 	// ============================================================
 
-	private float rainEnergyMaxRain = 100.0f;
-	private float rainEnergyMaxEnergy = 1.0f;
+	// IMPORTANT:
+	// This is now PARTICLE count, not rain percentage.
+	private float particleEnergyMaxParticles = 100.0f;
+
+	private float particleEnergyMaxEnergy = 1.0f;
 
 	// ============================================================
 	// TOP GRAPH CACHE
 	// ============================================================
 
-	// IMPORTANT:
-	// These are NOT readonly because they are replaced when
-	// rebuilding the cache.
 	private Vector2[] cachedParticlesPoints =
 		Array.Empty<Vector2>();
 
@@ -201,9 +208,6 @@ private readonly Color fpsColor =
 		);
 
 		// Keep only enough data for 600 seconds.
-		//
-		// This prevents the graph from growing forever and
-		// eventually becoming expensive again.
 		while (
 			samples.Count >
 			MaxTopGraphSamples)
@@ -255,19 +259,19 @@ private readonly Color fpsColor =
 			rainEnergySamples.RemoveAt(0);
 		}
 
-		RecalculateRainEnergyGraphScale();
+		RecalculateParticleEnergyGraphScale();
 
 		QueueRedraw();
 
 		GD.Print(
-			"Rain/Energy Graph Point: " +
-			"Rain=" +
-			averageRain.ToString("F1") +
-			"% " +
-			"Energy=" +
+			"Particle/Energy Graph Point: " +
+			"Particles=" +
+			averageParticles.ToString("F1") +
+			" Energy=" +
 			averageEnergy.ToString("F4") +
-			" AvgParticles=" +
-			averageParticles.ToString("F1")
+			" Rain=" +
+			averageRain.ToString("F1") +
+			"%"
 		);
 	}
 
@@ -340,12 +344,14 @@ private readonly Color fpsColor =
 	// BOTTOM GRAPH SCALE
 	// ============================================================
 
-	private void RecalculateRainEnergyGraphScale()
+	private void RecalculateParticleEnergyGraphScale()
 	{
-		rainEnergyMaxRain =
-			100.0f;
+		// X axis is now PARTICLES.
+		particleEnergyMaxParticles =
+			1.0f;
 
-		rainEnergyMaxEnergy =
+		// Y axis is ENERGY.
+		particleEnergyMaxEnergy =
 			0.001f;
 
 		for (
@@ -357,31 +363,33 @@ private readonly Color fpsColor =
 				rainEnergySamples[i];
 
 			if (
-				sample.AverageRain >
-				rainEnergyMaxRain)
+				sample.AverageParticles >
+				particleEnergyMaxParticles)
 			{
-				rainEnergyMaxRain =
-					sample.AverageRain;
+				particleEnergyMaxParticles =
+					sample.AverageParticles;
 			}
 
 			if (
 				sample.AverageEnergy >
-				rainEnergyMaxEnergy)
+				particleEnergyMaxEnergy)
 			{
-				rainEnergyMaxEnergy =
+				particleEnergyMaxEnergy =
 					sample.AverageEnergy;
 			}
 		}
 
-		rainEnergyMaxRain =
+		// Give the graph some breathing room above the
+		// highest measured value.
+		particleEnergyMaxParticles =
 			Mathf.Max(
-				rainEnergyMaxRain,
-				100.0f
+				particleEnergyMaxParticles * 1.15f,
+				1.0f
 			);
 
-		rainEnergyMaxEnergy =
+		particleEnergyMaxEnergy =
 			Mathf.Max(
-				rainEnergyMaxEnergy * 1.15f,
+				particleEnergyMaxEnergy * 1.15f,
 				0.001f
 			);
 	}
@@ -1109,6 +1117,10 @@ private readonly Color fpsColor =
 			return;
 		}
 
+		// --------------------------------------------------------
+		// Background
+		// --------------------------------------------------------
+
 		DrawRect(
 			graphRect,
 			new Color(
@@ -1120,7 +1132,15 @@ private readonly Color fpsColor =
 			true
 		);
 
+		// --------------------------------------------------------
+		// Grid
+		// --------------------------------------------------------
+
 		DrawRainEnergyGrid(graphRect);
+
+		// --------------------------------------------------------
+		// Border
+		// --------------------------------------------------------
 
 		DrawRect(
 			graphRect,
@@ -1133,6 +1153,10 @@ private readonly Color fpsColor =
 			false,
 			GraphBorderWidth
 		);
+
+		// --------------------------------------------------------
+		// Title
+		// --------------------------------------------------------
 
 		DrawString(
 			ThemeDB.FallbackFont,
@@ -1150,6 +1174,10 @@ private readonly Color fpsColor =
 				0.9f
 			)
 		);
+
+		// --------------------------------------------------------
+		// X AXIS LABEL
+		// --------------------------------------------------------
 
 		DrawString(
 			ThemeDB.FallbackFont,
@@ -1172,6 +1200,10 @@ private readonly Color fpsColor =
 			)
 		);
 
+		// --------------------------------------------------------
+		// Y AXIS LABEL
+		// --------------------------------------------------------
+
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
@@ -1190,17 +1222,22 @@ private readonly Color fpsColor =
 			)
 		);
 
-		// X ticks.
+		// --------------------------------------------------------
+		// X AXIS TICKS
+		//
+		// These now represent PARTICLE COUNT.
+		// --------------------------------------------------------
+
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
 				graphRect.Position.X - 5.0f,
 				graphRect.End.Y + 14.0f
 			),
-			"",
+			"0",
 			HorizontalAlignment.Left,
 			-1,
-			22,
+			18,
 			new Color(
 				0.65f,
 				0.65f,
@@ -1213,13 +1250,15 @@ private readonly Color fpsColor =
 			new Vector2(
 				graphRect.Position.X +
 				graphRect.Size.X * 0.5f -
-				10.0f,
+				15.0f,
 				graphRect.End.Y + 14.0f
 			),
-			"",
+			FormatParticleCount(
+				particleEnergyMaxParticles * 0.5f
+			),
 			HorizontalAlignment.Left,
 			-1,
-			22,
+			18,
 			new Color(
 				0.65f,
 				0.65f,
@@ -1230,19 +1269,25 @@ private readonly Color fpsColor =
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
-				graphRect.End.X - 25.0f,
+				graphRect.End.X - 30.0f,
 				graphRect.End.Y + 14.0f
 			),
-			"",
+			FormatParticleCount(
+				particleEnergyMaxParticles
+			),
 			HorizontalAlignment.Left,
 			-1,
-			22,
+			18,
 			new Color(
 				0.65f,
 				0.65f,
 				0.65f
 			)
 		);
+
+		// --------------------------------------------------------
+		// NO DATA
+		// --------------------------------------------------------
 
 		if (rainEnergySamples.Count < 1)
 		{
@@ -1272,8 +1317,10 @@ private readonly Color fpsColor =
 		// --------------------------------------------------------
 		// DOTS ONLY
 		//
-		// Radius = 1 px => approximately 2x2 px.
-		// No connecting lines.
+		// X = Average Active Particles
+		// Y = Average Energy
+		//
+		// Rain percentage is NOT used for positioning.
 		// --------------------------------------------------------
 
 		for (
@@ -1286,8 +1333,8 @@ private readonly Color fpsColor =
 
 			float normalizedX =
 				Mathf.Clamp(
-					sample.AverageRain /
-					rainEnergyMaxRain,
+					sample.AverageParticles /
+					particleEnergyMaxParticles,
 					0.0f,
 					1.0f
 				);
@@ -1295,7 +1342,7 @@ private readonly Color fpsColor =
 			float normalizedY =
 				Mathf.Clamp(
 					sample.AverageEnergy /
-					rainEnergyMaxEnergy,
+					particleEnergyMaxEnergy,
 					0.0f,
 					1.0f
 				);
@@ -1462,6 +1509,34 @@ private readonly Color fpsColor =
 			width,
 			height
 		);
+	}
+
+	// ============================================================
+	// PARTICLE COUNT FORMATTING
+	// ============================================================
+
+	private string FormatParticleCount(
+		float particles)
+	{
+		int rounded =
+			Mathf.RoundToInt(
+				particles
+			);
+
+		if (rounded >= 1000)
+		{
+			float thousands =
+				rounded / 1000.0f;
+
+			if (thousands >= 10.0f)
+			{
+				return thousands.ToString("F0") + "k";
+			}
+
+			return thousands.ToString("F1") + "k";
+		}
+
+		return rounded.ToString();
 	}
 
 	// ============================================================
