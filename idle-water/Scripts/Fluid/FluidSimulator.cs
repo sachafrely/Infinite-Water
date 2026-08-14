@@ -30,49 +30,13 @@ public partial class FluidSimulator : Node2D
 	// ============================================================
 	// Rain / Energy statistical graph
 	// ============================================================
-	//
-	// A second statistical graph is displayed below the existing
-	// graph.
-	//
-	// X-axis:
-	//     Average rain percentage during the 10-second window.
-	//
-	// Y-axis:
-	//     Average energy gained during the 10-second window.
-	//
-	// Sampling:
-	//     Every 600 physics frames.
-	//
-	// First point:
-	//     Frame 1200 = 20 seconds.
-	//
-	// IMPORTANT:
-	//
-	// The first point represents ONLY the immediately preceding
-	// 600-frame window.
-	//
-	// Therefore:
-	//
-	//     Frames   1 - 600   -> warm-up / no point
-	//     Frames 601 - 1200  -> first measurement window
-	//     Frame 1200          -> first point
-	//     Frames 1201-1800   -> second measurement window
-	//     Frame 1800          -> second point
-	//     etc.
-	//
-	// Active particle count is NOT used as the X-axis.
-	//
-	// ============================================================
 
 	private const int RainEnergyGraphIntervalFrames = 600;
 
 	private const int RainEnergyGraphInitialDelayFrames = 1200;
 
-	// Total number of physics frames since simulation start.
 	private int rainEnergyGraphTotalFrames = 0;
 
-	// Number of frames accumulated in the CURRENT 10-second
-	// measurement window.
 	private int rainEnergyGraphWindowFrames = 0;
 
 	private double rainEnergyRainSum = 0.0;
@@ -110,20 +74,19 @@ public partial class FluidSimulator : Node2D
 	// Maximum particles per world pixel
 	// ============================================================
 	//
-	// Rain spawning uses actual simulation/world coordinates.
+	// Simulation world:
 	//
-	// This occupancy map is deliberately separate from DensityField
-	// because DensityField is a rendering structure with a
-	// different resolution and coordinate system.
+	//     X = -100 .. 820   = 920 pixels
+	//     Y = -100 .. 1300  = 1400 pixels
 	//
-	// Maximum 1 particle center is allowed per exact world pixel.
+	// One occupancy cell corresponds to one world pixel.
 	//
 	// ============================================================
 
 	private const int MaxParticlesPerDensityCell = 1;
 
 	private const int PixelGridWidth = 920;
-	private const int PixelGridHeight = 1020;
+	private const int PixelGridHeight = 1400;
 
 	private int[] pixelOccupancy;
 
@@ -137,23 +100,43 @@ public partial class FluidSimulator : Node2D
 	// ============================================================
 	// Density rendering grid
 	// ============================================================
+	//
+	// DensityCellSize = 4 pixels.
+	//
+	//     920 / 4  = 230 cells
+	//     1400 / 4 = 350 cells
+	//
+	// ============================================================
 
-	private const int DensityWidth = 360;
-	private const int DensityHeight = 180;
+	private const int DensityWidth = 230;
+	private const int DensityHeight = 350;
 	private const float DensityCellSize = 4.0f;
 
 	// ============================================================
 	// Simulation world
 	// ============================================================
+	//
+	// Exact simulation bounds:
+	//
+	//     Left   = -100
+	//     Right  =  820
+	//     Top    = -100
+	//     Bottom = 1300
+	//
+	// Total:
+	//
+	//     920 x 1400 pixels
+	//
+	// ============================================================
 
 	private const float WorldWidth = 920.0f;
-	private const float WorldHeight = 1020.0f;
+	private const float WorldHeight = 1400.0f;
 
-	private const float WorldMinX = 260.0f;
-	private const float WorldMaxX = 1180.0f;
+	private const float WorldMinX = -100.0f;
+	private const float WorldMaxX = 820.0f;
 
-	private const float WorldMinY = -200.0f;
-	private const float WorldMaxY = 820.0f;
+	private const float WorldMinY = -100.0f;
+	private const float WorldMaxY = 1300.0f;
 
 	// ============================================================
 	// Dynamic Rain
@@ -178,16 +161,6 @@ public partial class FluidSimulator : Node2D
 
 	// ============================================================
 	// Anti-lag cleanup
-	// ============================================================
-	//
-	// Two consecutive low-FPS profiler results trigger cleanup.
-	//
-	// FullProfilerInterval = 600 physics frames.
-	// At 60 physics FPS this is approximately 10 seconds.
-	//
-	// Therefore two consecutive profiler results represent
-	// approximately 20 seconds of sustained low performance.
-	//
 	// ============================================================
 
 	private enum AntiLagState
@@ -292,11 +265,11 @@ public partial class FluidSimulator : Node2D
 
 	private readonly List<FluidWheelState>
 		wheelStates =
-			new List<FluidWheelState>();
+		new List<FluidWheelState>();
 
 	private readonly List<WaterWheelVisual>
 		wheelVisuals =
-			new List<WaterWheelVisual>();
+		new List<WaterWheelVisual>();
 
 	// ============================================================
 	// Wheel energy tracking
@@ -415,7 +388,11 @@ public partial class FluidSimulator : Node2D
 			WorldWidth +
 			"x" +
 			WorldHeight +
-			", ParticleCapacity=" +
+			" @ (" +
+			WorldMinX +
+			"," +
+			WorldMinY +
+			"), ParticleCapacity=" +
 			ParticleCount +
 			", ActiveParticles=" +
 			particles.Count +
@@ -426,7 +403,11 @@ public partial class FluidSimulator : Node2D
 			", Energy=" +
 			energySystem.Energy.ToString("F2") +
 			", MaxParticlesPerDensityCell=" +
-			MaxParticlesPerDensityCell
+			MaxParticlesPerDensityCell +
+			", DensityGrid=" +
+			DensityWidth +
+			"x" +
+			DensityHeight
 		);
 	}
 
@@ -922,23 +903,6 @@ public partial class FluidSimulator : Node2D
 	// ============================================================
 	// Statistics graph update
 	// ============================================================
-	//
-	// Existing graph:
-	//
-	//     X = active particles
-	//     Y = energy generated per second
-	//
-	// Second graph:
-	//
-	//     X = average rain percentage
-	//     Y = average energy gained
-	//
-	// The second graph intentionally waits until 20 seconds before
-	// creating its first point.
-	//
-	// Each point then represents exactly one 600-frame window.
-	//
-	// ============================================================
 
 	private void UpdateStatisticsHud(
 		float delta)
@@ -948,10 +912,6 @@ public partial class FluidSimulator : Node2D
 		{
 			return;
 		}
-
-		// --------------------------------------------------------
-		// Existing graph
-		// --------------------------------------------------------
 
 		double energyPerSecond =
 			delta > 0.000001f
@@ -966,24 +926,7 @@ public partial class FluidSimulator : Node2D
 			delta
 		);
 
-		// --------------------------------------------------------
-		// First physics frame / total frame counter
-		// --------------------------------------------------------
-
 		rainEnergyGraphTotalFrames++;
-
-		// --------------------------------------------------------
-		// Warm-up period
-		//
-		// We deliberately do not accumulate the first 600 frames
-		// into the first statistical window.
-		//
-		// This gives:
-		//
-		// 0-10 seconds  = warm-up
-		// 10-20 seconds = first measurement
-		// 20 seconds    = first point
-		// --------------------------------------------------------
 
 		if (
 			rainEnergyGraphTotalFrames <=
@@ -992,10 +935,6 @@ public partial class FluidSimulator : Node2D
 		{
 			return;
 		}
-
-		// --------------------------------------------------------
-		// Accumulate current 10-second measurement window
-		// --------------------------------------------------------
 
 		rainEnergyGraphWindowFrames++;
 
@@ -1008,20 +947,12 @@ public partial class FluidSimulator : Node2D
 		rainEnergyParticleSum +=
 			ActiveParticleCount;
 
-		// --------------------------------------------------------
-		// Wait until exactly 600 frames have been collected.
-		// --------------------------------------------------------
-
 		if (
 			rainEnergyGraphWindowFrames <
 			RainEnergyGraphIntervalFrames)
 		{
 			return;
 		}
-
-		// --------------------------------------------------------
-		// Calculate averages.
-		// --------------------------------------------------------
 
 		double averageRain =
 			rainEnergyRainSum /
@@ -1034,16 +965,6 @@ public partial class FluidSimulator : Node2D
 		double averageParticles =
 			rainEnergyParticleSum /
 			RainEnergyGraphIntervalFrames;
-
-		// --------------------------------------------------------
-		// Add the second graph point.
-		//
-		// X = average rain percentage
-		// Y = average energy gained
-		//
-		// averageParticles is retained as an additional statistic,
-		// but is NOT used for the X-axis.
-		// --------------------------------------------------------
 
 		statisticsGraph.AddRainEnergySample(
 			(float)averageRain,
@@ -1062,10 +983,6 @@ public partial class FluidSimulator : Node2D
 			", AverageParticles=" +
 			averageParticles.ToString("F1")
 		);
-
-		// --------------------------------------------------------
-		// Reset current 10-second measurement window.
-		// --------------------------------------------------------
 
 		rainEnergyGraphWindowFrames =
 			0;
@@ -2854,6 +2771,22 @@ void fragment()
 		);
 
 		GD.Print(
+			"SimulationWorld=" +
+			WorldWidth +
+			"x" +
+			WorldHeight +
+			" (" +
+			WorldMinX +
+			"," +
+			WorldMinY +
+			") -> (" +
+			WorldMaxX +
+			"," +
+			WorldMaxY +
+			")"
+		);
+
+		GD.Print(
 			"ActiveParticles=" +
 			particles.Count +
 			"/" +
@@ -2914,6 +2847,16 @@ void fragment()
 				PixelGridWidth *
 				PixelGridHeight
 			)
+		);
+
+		GD.Print(
+			"DensityGrid=" +
+			DensityWidth +
+			"x" +
+			DensityHeight +
+			" cells @ " +
+			DensityCellSize +
+			" px"
 		);
 
 		GD.Print(
