@@ -88,10 +88,6 @@ public class PbfSolver
 
 	// ============================================================
 	// PBF
-	//
-	// IMPORTANT OPTIMIZATION:
-	// Two iterations are enough for the current particle packing
-	// and are considerably cheaper than allowing a third iteration.
 	// ============================================================
 
 	private const int MinIterations = 2;
@@ -182,6 +178,25 @@ public class PbfSolver
 
 	// ============================================================
 	// Pixel occupancy
+	//
+	// OPTIMIZED:
+	//
+	// The previous implementation used:
+	//
+	//     Dictionary<long, int>
+	//
+	// This implementation uses a fixed open-addressed hash table.
+	//
+	// Each occupied slot stores:
+	//
+	//     X coordinate
+	//     Y coordinate
+	//     occupancy
+	//     first particle index
+	//     second particle index
+	//
+	// Generation stamps allow the table to be reused without
+	// clearing the entire array every invocation.
 	// ============================================================
 
 	private const int MaxParticlesPerPixel = 2;
@@ -190,6 +205,23 @@ public class PbfSolver
 		0.000001f;
 
 	private const float ExactOverlapSeparation = 0.05f;
+
+	// Maximum particle capacity is currently 4000.
+	// 16384 slots gives a very low load factor and fast probing.
+	private const int PixelOccupancyTableSize = 16384;
+	private const int PixelOccupancyTableMask =
+		PixelOccupancyTableSize - 1;
+
+	private int[] pixelOccupancyX;
+	private int[] pixelOccupancyY;
+	private int[] pixelOccupancyCount;
+
+	private int[] pixelOccupancyFirstParticle;
+	private int[] pixelOccupancySecondParticle;
+
+	private int[] pixelOccupancyStamp;
+
+	private int pixelOccupancyGeneration = 0;
 
 	// ============================================================
 	// Working arrays
@@ -227,12 +259,6 @@ public class PbfSolver
 	private float[] packingNearestDistances;
 
 	// ============================================================
-	// Pixel occupancy
-	// ============================================================
-
-	private Dictionary<long, int> pixelOccupancy;
-
-	// ============================================================
 	// Wheel
 	// ============================================================
 
@@ -257,8 +283,44 @@ public class PbfSolver
 		wheelColliders =
 			new List<FluidPolygonCollider>();
 
-		pixelOccupancy =
-			new Dictionary<long, int>(256);
+		InitializePixelOccupancyTable();
+	}
+
+	// ============================================================
+	// Initialize pixel occupancy table
+	// ============================================================
+
+	private void InitializePixelOccupancyTable()
+	{
+		pixelOccupancyX =
+			new int[
+				PixelOccupancyTableSize
+			];
+
+		pixelOccupancyY =
+			new int[
+				PixelOccupancyTableSize
+			];
+
+		pixelOccupancyCount =
+			new int[
+				PixelOccupancyTableSize
+			];
+
+		pixelOccupancyFirstParticle =
+			new int[
+				PixelOccupancyTableSize
+			];
+
+		pixelOccupancySecondParticle =
+			new int[
+				PixelOccupancyTableSize
+			];
+
+		pixelOccupancyStamp =
+			new int[
+				PixelOccupancyTableSize
+			];
 	}
 
 	// ============================================================
@@ -607,8 +669,6 @@ public class PbfSolver
 			iteration < MaxIterations;
 			iteration++)
 		{
-			// The first iteration already has fresh geometry.
-			// Only rebuild geometry after the previous correction.
 			if (iteration > 0)
 			{
 				long geometryStart =
@@ -644,12 +704,11 @@ public class PbfSolver
 			);
 
 			// ----------------------------------------------------
-			// IMPORTANT OPTIMIZATION
+			// Pixel occupancy
 			//
-			// Exact-pixel overlap correction does not need to run
-			// after every PBF iteration. Running it once after the
-			// final position correction is sufficient and avoids
-			// dictionary work in the inner PBF loop.
+			// Runs only after the final required iteration.
+			// The implementation itself is now allocation-free
+			// and O(1) average per particle.
 			// ----------------------------------------------------
 
 			if (iteration + 1 >= MinIterations)
@@ -978,6 +1037,8 @@ public class PbfSolver
 
 	// ============================================================
 	// Pixel occupancy correction
+	//
+	// OPTIMIZED VERSION
 	// ============================================================
 
 	private void ApplyPixelOccupancyCorrection(
@@ -988,10 +1049,43 @@ public class PbfSolver
 		if (count <= 0)
 			return;
 
-		Dictionary<long, int> localOccupancy =
-			pixelOccupancy;
+		int generation =
+			++pixelOccupancyGeneration;
 
-		localOccupancy.Clear();
+		// Extremely unlikely, but safely reset generation state
+		// rather than allowing a wrapped generation to match old
+		// entries.
+		if (generation == int.MaxValue)
+		{
+			Array.Clear(
+				pixelOccupancyStamp,
+				0,
+				pixelOccupancyStamp.Length
+			);
+
+			generation = 1;
+
+			pixelOccupancyGeneration =
+				generation;
+		}
+
+		int[] stamps =
+			pixelOccupancyStamp;
+
+		int[] occupancy =
+			pixelOccupancyCount;
+
+		int[] particleX =
+			pixelOccupancyX;
+
+		int[] particleY =
+			pixelOccupancyY;
+
+		int[] firstParticle =
+			pixelOccupancyFirstParticle;
+
+		int[] secondParticle =
+			pixelOccupancySecondParticle;
 
 		for (
 			int i = 0;
@@ -999,99 +1093,119 @@ public class PbfSolver
 			i++)
 		{
 			int pixelX =
-				(int)MathF.Floor(predX[i]);
-
-			int pixelY =
-				(int)MathF.Floor(predY[i]);
-
-			long key =
-				MakePixelKey(
-					pixelX,
-					pixelY
+				(int)MathF.Floor(
+					predX[i]
 				);
 
-			if (
-				!localOccupancy.TryGetValue(
-					key,
-					out int occupancy))
+			int pixelY =
+				(int)MathF.Floor(
+					predY[i]
+				);
+
+			int slot =
+				FindPixelOccupancySlot(
+					pixelX,
+					pixelY,
+					generation
+				);
+
+			if (stamps[slot] != generation)
 			{
-				localOccupancy[key] = 1;
+				stamps[slot] =
+					generation;
+
+				particleX[slot] =
+					pixelX;
+
+				particleY[slot] =
+					pixelY;
+
+				occupancy[slot] =
+					1;
+
+				firstParticle[slot] =
+					i;
+
+				secondParticle[slot] =
+					-1;
+
 				continue;
 			}
 
+			int currentOccupancy =
+				occupancy[slot];
+
 			if (
-				occupancy <
+				currentOccupancy <
 				MaxParticlesPerPixel)
 			{
-				localOccupancy[key] =
-					occupancy + 1;
+				occupancy[slot] =
+					currentOccupancy + 1;
+
+				if (currentOccupancy == 1)
+				{
+					secondParticle[slot] =
+						i;
+				}
 
 				continue;
 			}
 
-			// Only search backwards while the particle remains in
-			// the same pixel. This preserves the existing behavior
-			// while avoiding unnecessary work in the common case.
-			bool exactlyOverlapping =
-				false;
+			// ----------------------------------------------------
+			// Pixel already contains 2 particles.
+			//
+			// The old implementation scanned backwards through
+			// all previous particles in the same pixel.
+			//
+			// We now only test the two particles that can actually
+			// matter because MaxParticlesPerPixel == 2.
+			// ----------------------------------------------------
 
-			int overlappingParticle =
-				-1;
+			int first =
+				firstParticle[slot];
 
-			for (
-				int j = i - 1;
-				j >= 0;
-				j--)
-			{
-				int otherPixelX =
-					(int)MathF.Floor(
-						predX[j]
-					);
+			int second =
+				secondParticle[slot];
 
-				int otherPixelY =
-					(int)MathF.Floor(
-						predY[j]
-					);
-
-				if (
-					otherPixelX != pixelX ||
-					otherPixelY != pixelY)
-				{
-					continue;
-				}
-
-				float dx =
-					predX[i] -
-					predX[j];
-
-				float dy =
-					predY[i] -
-					predY[j];
-
-				float distanceSquared =
-					dx * dx +
-					dy * dy;
-
-				if (
-					distanceSquared <=
-					ExactOverlapDistanceSquared)
-				{
-					exactlyOverlapping =
-						true;
-
-					overlappingParticle =
-						j;
-
-					break;
-				}
-			}
-
-			if (exactlyOverlapping)
+			if (
+				first >= 0 &&
+				IsExactPixelOverlap(
+					i,
+					first,
+					predX,
+					predY
+				))
 			{
 				Vector2 direction =
 					GetDeterministicSeparationDirection(
 						i,
-						overlappingParticle
+						first
+					);
+
+				predX[i] +=
+					direction.X *
+					ExactOverlapSeparation;
+
+				predY[i] +=
+					direction.Y *
+					ExactOverlapSeparation;
+
+				continue;
+			}
+
+			if (
+				second >= 0 &&
+				IsExactPixelOverlap(
+					i,
+					second,
+					predX,
+					predY
+				))
+			{
+				Vector2 direction =
+					GetDeterministicSeparationDirection(
+						i,
+						second
 					);
 
 				predX[i] +=
@@ -1106,17 +1220,111 @@ public class PbfSolver
 	}
 
 	// ============================================================
-	// Pixel key
+	// Pixel occupancy slot lookup
 	// ============================================================
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static long MakePixelKey(
+	private int FindPixelOccupancySlot(
+		int x,
+		int y,
+		int generation)
+	{
+		int hashValue =
+			HashPixelCoordinates(
+				x,
+				y
+			);
+
+		int slot =
+			hashValue &
+			PixelOccupancyTableMask;
+
+		int[] stamps =
+			pixelOccupancyStamp;
+
+		int[] xs =
+			pixelOccupancyX;
+
+		int[] ys =
+			pixelOccupancyY;
+
+		while (true)
+		{
+			if (stamps[slot] != generation)
+			{
+				return slot;
+			}
+
+			if (
+				xs[slot] == x &&
+				ys[slot] == y)
+			{
+				return slot;
+			}
+
+			slot =
+				(slot + 1) &
+				PixelOccupancyTableMask;
+		}
+	}
+
+	// ============================================================
+	// Pixel coordinate hash
+	// ============================================================
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static int HashPixelCoordinates(
 		int x,
 		int y)
 	{
+		unchecked
+		{
+			uint h =
+				(uint)x * 0x9E3779B1u;
+
+			h ^=
+				(uint)y * 0x85EBCA77u;
+
+			h ^=
+				h >> 16;
+
+			h *=
+				0xC2B2AE3Du;
+
+			h ^=
+				h >> 13;
+
+			return
+				(int)h;
+		}
+	}
+
+	// ============================================================
+	// Exact overlap test
+	// ============================================================
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static bool IsExactPixelOverlap(
+		int particleIndex,
+		int otherParticleIndex,
+		float[] predX,
+		float[] predY)
+	{
+		float dx =
+			predX[particleIndex] -
+			predX[otherParticleIndex];
+
+		float dy =
+			predY[particleIndex] -
+			predY[otherParticleIndex];
+
+		float distanceSquared =
+			dx * dx +
+			dy * dy;
+
 		return
-			((long)x << 32) ^
-			(uint)y;
+			distanceSquared <=
+			ExactOverlapDistanceSquared;
 	}
 
 	// ============================================================
@@ -1709,10 +1917,6 @@ public class PbfSolver
 			int terrainStamp =
 				localStampId;
 
-			// ----------------------------------------------------
-			// Terrain grid
-			// ----------------------------------------------------
-
 			for (
 				int cellY = queryMinCellY;
 				cellY <= queryMaxCellY;
@@ -1910,7 +2114,6 @@ public class PbfSolver
 					continue;
 				}
 
-				// Fast group-level rejection.
 				if (
 					currentX < group.MinX ||
 					currentX > group.MaxX ||
