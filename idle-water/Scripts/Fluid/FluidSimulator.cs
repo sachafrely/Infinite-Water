@@ -77,7 +77,7 @@ public partial class FluidSimulator : Node2D
 	// Simulation world:
 	//
 	//     X = -100 .. 820   = 920 pixels
-	//     Y = -100 .. 1300  = 1400 pixels
+	//     Y = -50 .. 1250  = 1300 pixels
 	//
 	// One occupancy cell corresponds to one world pixel.
 	//
@@ -86,7 +86,7 @@ public partial class FluidSimulator : Node2D
 	private const int MaxParticlesPerDensityCell = 1;
 
 	private const int PixelGridWidth = 920;
-	private const int PixelGridHeight = 1400;
+	private const int PixelGridHeight = 1300;
 
 	private int[] pixelOccupancy;
 
@@ -104,12 +104,12 @@ public partial class FluidSimulator : Node2D
 	// DensityCellSize = 4 pixels.
 	//
 	//     920 / 4  = 230 cells
-	//     1400 / 4 = 350 cells
+	//     1300 / 4 = 325 cells
 	//
 	// ============================================================
 
 	private const int DensityWidth = 230;
-	private const int DensityHeight = 350;
+	private const int DensityHeight = 325;
 	private const float DensityCellSize = 4.0f;
 
 	// ============================================================
@@ -120,23 +120,23 @@ public partial class FluidSimulator : Node2D
 	//
 	//     Left   = -100
 	//     Right  =  820
-	//     Top    = -100
+	//     Top    = -50
 	//     Bottom = 1300
 	//
 	// Total:
 	//
-	//     920 x 1400 pixels
+	//     920 x 1300 pixels
 	//
 	// ============================================================
 
 	private const float WorldWidth = 920.0f;
-	private const float WorldHeight = 1400.0f;
+	private const float WorldHeight = 1300.0f;
 
 	private const float WorldMinX = -100.0f;
 	private const float WorldMaxX = 820.0f;
 
-	private const float WorldMinY = -100.0f;
-	private const float WorldMaxY = 1300.0f;
+	private const float WorldMinY = -50.0f;
+	private const float WorldMaxY = 1250.0f;
 
 	// ============================================================
 	// Dynamic Rain
@@ -218,7 +218,7 @@ public partial class FluidSimulator : Node2D
 	private Label rainHudLabel;
 
 	private const float RainSpawnY =
-		WorldMinY;
+		WorldMinY + 10.0f;
 
 	private const float RainVelocityX =
 		0.0f;
@@ -249,7 +249,7 @@ public partial class FluidSimulator : Node2D
 	// Water wheels
 	// ============================================================
 
-	private const int MaxWheelCount = 8;
+	private const int MaxWheelCount = 6;
 
 	private const int WheelTileAtlasX = 7;
 
