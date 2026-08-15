@@ -142,6 +142,14 @@ public partial class FluidSimulator : Node2D
 
 		antiLagController =
 			new AntiLagController();
+			
+			antiLagController.SetSimulationWorldBounds(
+	WorldMinX,
+	WorldMinY,
+	WorldMaxX,
+	WorldMaxY
+);
+
 
 		rainSystem.AntiLagController =
 			antiLagController;
@@ -1181,41 +1189,65 @@ void fragment()
 	// ============================================================
 
 	private SimulationProfiler.Report CreateSimulationProfilerReport()
-	{
-		double[] wheelEnergyGeneratedThisFrame =
-			waterWheelManager != null
-				? waterWheelManager.CopyWheelEnergyGeneratedThisFrame()
-				: Array.Empty<double>();
+{
+	double[] wheelEnergyGeneratedThisFrame =
+		waterWheelManager != null
+			? waterWheelManager.CopyWheelEnergyGeneratedThisFrame()
+			: Array.Empty<double>();
 
-		return new SimulationProfiler.Report(
-			WorldWidth,
-			WorldHeight,
-			WorldMinX,
-			WorldMinY,
-			WorldMaxX,
-			WorldMaxY,
-			SimulationWorldCenter,
-			ActiveParticleCount,
-			ParticleCapacity,
-			EvaporatedParticlesThisCleanup,
-			TotalEvaporatedParticles,
-			antiLagController.AntiLagCleanupCount,
-			TotalRainSpawns,
-			RainRejectedByDensity,
-			RainRejectedByCapacity,
-			DensityCapacity,
-			MaxCellOccupancy,
-			OccupiedDensityCells,
-			PixelOccupancyGrid.PixelGridWidth,
-			PixelOccupancyGrid.PixelGridHeight,
-			DensityWidth,
-			DensityHeight,
-			DensityCellSize,
-			energySystem,
-			energyGeneratedThisFrame,
-			lastPhysicsDelta,
-			WheelCount,
-			wheelEnergyGeneratedThisFrame
-		);
+	int[] evaporationSpatialCounts =
+		antiLagController != null
+			? antiLagController.CopyEvaporationSpatialCounts()
+			: Array.Empty<int>();
+
+	return new SimulationProfiler.Report(
+		WorldWidth,
+		WorldHeight,
+		WorldMinX,
+		WorldMinY,
+		WorldMaxX,
+		WorldMaxY,
+		SimulationWorldCenter,
+
+		ActiveParticleCount,
+		ParticleCapacity,
+
+		EvaporatedParticlesThisCleanup,
+		TotalEvaporatedParticles,
+		antiLagController.AntiLagCleanupCount,
+
+		evaporationSpatialCounts,
+		AntiLagController.EvaporationGridWidth,
+		AntiLagController.EvaporationGridHeight,
+		antiLagController.EvaporationSpatialParticleCount,
+		antiLagController.EvaporationAverageX,
+		antiLagController.EvaporationAverageY,
+		antiLagController.EvaporationMinX,
+		antiLagController.EvaporationMaxX,
+		antiLagController.EvaporationMinY,
+		antiLagController.EvaporationMaxY,
+
+		TotalRainSpawns,
+		RainRejectedByDensity,
+		RainRejectedByCapacity,
+
+		DensityCapacity,
+		MaxCellOccupancy,
+		OccupiedDensityCells,
+
+		PixelOccupancyGrid.PixelGridWidth,
+		PixelOccupancyGrid.PixelGridHeight,
+
+		DensityWidth,
+		DensityHeight,
+		DensityCellSize,
+
+		energySystem,
+		energyGeneratedThisFrame,
+		lastPhysicsDelta,
+
+		WheelCount,
+		wheelEnergyGeneratedThisFrame
+	);
 	}
 }

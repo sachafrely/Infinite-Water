@@ -6,9 +6,10 @@ using Godot;
 /// </summary>
 internal sealed class SimulationProfiler
 {
-	/// <summary>
-	/// Snapshot of external state used when printing a profiler interval.
-	/// </summary>
+	// ============================================================
+	// Report
+	// ============================================================
+
 	internal readonly struct Report
 	{
 		public readonly float WorldWidth;
@@ -18,25 +19,51 @@ internal sealed class SimulationProfiler
 		public readonly float WorldMaxX;
 		public readonly float WorldMaxY;
 		public readonly Vector2 SimulationWorldCenter;
+
 		public readonly int ActiveParticleCount;
 		public readonly int ParticleCapacity;
+
 		public readonly long EvaporatedParticlesThisCleanup;
 		public readonly long TotalEvaporatedParticles;
 		public readonly int AntiLagCleanupCount;
+
+		// ========================================================
+		// Evaporation spatial analysis
+		// ========================================================
+
+		public readonly int[] EvaporationSpatialCounts;
+		public readonly int EvaporationGridWidth;
+		public readonly int EvaporationGridHeight;
+
+		public readonly int EvaporationSpatialParticleCount;
+
+		public readonly double EvaporationAverageX;
+		public readonly double EvaporationAverageY;
+
+		public readonly float EvaporationMinX;
+		public readonly float EvaporationMaxX;
+		public readonly float EvaporationMinY;
+		public readonly float EvaporationMaxY;
+
 		public readonly long TotalRainSpawns;
 		public readonly long RainRejectedByDensity;
 		public readonly long RainRejectedByCapacity;
+
 		public readonly int DensityCapacity;
 		public readonly int MaxCellOccupancy;
 		public readonly int OccupiedDensityCells;
+
 		public readonly int PixelGridWidth;
 		public readonly int PixelGridHeight;
+
 		public readonly int DensityWidth;
 		public readonly int DensityHeight;
 		public readonly float DensityCellSize;
+
 		public readonly EnergySystem EnergySystem;
 		public readonly double EnergyGeneratedThisFrame;
 		public readonly float LastPhysicsDelta;
+
 		public readonly int WheelCount;
 		public readonly double[] WheelEnergyGeneratedThisFrame;
 
@@ -53,6 +80,16 @@ internal sealed class SimulationProfiler
 			long evaporatedParticlesThisCleanup,
 			long totalEvaporatedParticles,
 			int antiLagCleanupCount,
+			int[] evaporationSpatialCounts,
+			int evaporationGridWidth,
+			int evaporationGridHeight,
+			int evaporationSpatialParticleCount,
+			double evaporationAverageX,
+			double evaporationAverageY,
+			float evaporationMinX,
+			float evaporationMaxX,
+			float evaporationMinY,
+			float evaporationMaxY,
 			long totalRainSpawns,
 			long rainRejectedByDensity,
 			long rainRejectedByCapacity,
@@ -77,27 +114,98 @@ internal sealed class SimulationProfiler
 			WorldMaxX = worldMaxX;
 			WorldMaxY = worldMaxY;
 			SimulationWorldCenter = simulationWorldCenter;
+
 			ActiveParticleCount = activeParticleCount;
 			ParticleCapacity = particleCapacity;
-			EvaporatedParticlesThisCleanup = evaporatedParticlesThisCleanup;
-			TotalEvaporatedParticles = totalEvaporatedParticles;
-			AntiLagCleanupCount = antiLagCleanupCount;
-			TotalRainSpawns = totalRainSpawns;
-			RainRejectedByDensity = rainRejectedByDensity;
-			RainRejectedByCapacity = rainRejectedByCapacity;
-			DensityCapacity = densityCapacity;
-			MaxCellOccupancy = maxCellOccupancy;
-			OccupiedDensityCells = occupiedDensityCells;
-			PixelGridWidth = pixelGridWidth;
-			PixelGridHeight = pixelGridHeight;
-			DensityWidth = densityWidth;
-			DensityHeight = densityHeight;
-			DensityCellSize = densityCellSize;
-			EnergySystem = energySystem;
-			EnergyGeneratedThisFrame = energyGeneratedThisFrame;
-			LastPhysicsDelta = lastPhysicsDelta;
-			WheelCount = wheelCount;
-			WheelEnergyGeneratedThisFrame = wheelEnergyGeneratedThisFrame;
+
+			EvaporatedParticlesThisCleanup =
+				evaporatedParticlesThisCleanup;
+
+			TotalEvaporatedParticles =
+				totalEvaporatedParticles;
+
+			AntiLagCleanupCount =
+				antiLagCleanupCount;
+
+			EvaporationSpatialCounts =
+				evaporationSpatialCounts ??
+				Array.Empty<int>();
+
+			EvaporationGridWidth =
+				evaporationGridWidth;
+
+			EvaporationGridHeight =
+				evaporationGridHeight;
+
+			EvaporationSpatialParticleCount =
+				evaporationSpatialParticleCount;
+
+			EvaporationAverageX =
+				evaporationAverageX;
+
+			EvaporationAverageY =
+				evaporationAverageY;
+
+			EvaporationMinX =
+				evaporationMinX;
+
+			EvaporationMaxX =
+				evaporationMaxX;
+
+			EvaporationMinY =
+				evaporationMinY;
+
+			EvaporationMaxY =
+				evaporationMaxY;
+
+			TotalRainSpawns =
+				totalRainSpawns;
+
+			RainRejectedByDensity =
+				rainRejectedByDensity;
+
+			RainRejectedByCapacity =
+				rainRejectedByCapacity;
+
+			DensityCapacity =
+				densityCapacity;
+
+			MaxCellOccupancy =
+				maxCellOccupancy;
+
+			OccupiedDensityCells =
+				occupiedDensityCells;
+
+			PixelGridWidth =
+				pixelGridWidth;
+
+			PixelGridHeight =
+				pixelGridHeight;
+
+			DensityWidth =
+				densityWidth;
+
+			DensityHeight =
+				densityHeight;
+
+			DensityCellSize =
+				densityCellSize;
+
+			EnergySystem =
+				energySystem;
+
+			EnergyGeneratedThisFrame =
+				energyGeneratedThisFrame;
+
+			LastPhysicsDelta =
+				lastPhysicsDelta;
+
+			WheelCount =
+				wheelCount;
+
+			WheelEnergyGeneratedThisFrame =
+				wheelEnergyGeneratedThisFrame ??
+				Array.Empty<double>();
 		}
 	}
 
@@ -137,9 +245,6 @@ internal sealed class SimulationProfiler
 	// Properties
 	// ============================================================
 
-	/// <summary>
-	/// Gets the last flushed rendered FPS average.
-	/// </summary>
 	public double LastFps
 	{
 		get;
@@ -147,12 +252,9 @@ internal sealed class SimulationProfiler
 	}
 
 	// ============================================================
-	// Collection
+	// Accumulate
 	// ============================================================
 
-	/// <summary>
-	/// Accumulates one frame of profiler measurements.
-	/// </summary>
 	public void Accumulate(
 		double physicsMs,
 		double renderedFps,
@@ -198,9 +300,10 @@ internal sealed class SimulationProfiler
 		fullProfilerFrames++;
 	}
 
-	/// <summary>
-	/// Prints and resets the profiler interval when enough frames have accumulated.
-	/// </summary>
+	// ============================================================
+	// Flush
+	// ============================================================
+
 	public bool TryFlush(
 		Report report,
 		Action<double> onFpsComputed = null)
@@ -339,6 +442,44 @@ internal sealed class SimulationProfiler
 			"AntiLagCleanupCount=" +
 			report.AntiLagCleanupCount
 		);
+
+		// ========================================================
+		// Evaporation spatial analysis
+		// ========================================================
+
+		GD.Print(
+			"EvaporationSpatialParticles=" +
+			report.EvaporationSpatialParticleCount
+		);
+
+		if (
+			report.EvaporationSpatialParticleCount >
+			0)
+		{
+			GD.Print(
+				"EvaporationAveragePosition=(" +
+				report.EvaporationAverageX.ToString("F1") +
+				"," +
+				report.EvaporationAverageY.ToString("F1") +
+				")"
+			);
+
+			GD.Print(
+				"EvaporationPositionRange=(" +
+				report.EvaporationMinX.ToString("F1") +
+				"," +
+				report.EvaporationMinY.ToString("F1") +
+				") -> (" +
+				report.EvaporationMaxX.ToString("F1") +
+				"," +
+				report.EvaporationMaxY.ToString("F1") +
+				")"
+			);
+
+			PrintEvaporationSpatialGrid(
+				report
+			);
+		}
 
 		GD.Print(
 			"ParticleCapacity=" +
@@ -524,8 +665,150 @@ internal sealed class SimulationProfiler
 		);
 
 		Reset();
+
 		return true;
 	}
+
+	// ============================================================
+	// Evaporation grid printing
+	// ============================================================
+
+	private void PrintEvaporationSpatialGrid(
+		Report report)
+	{
+		GD.Print(
+			"EvaporationSpatial=" +
+			report.EvaporationGridWidth +
+			"x" +
+			report.EvaporationGridHeight +
+			" (rows=Y, columns=X)"
+		);
+
+		for (
+			int y =
+				report.EvaporationGridHeight - 1;
+			y >= 0;
+			y--)
+		{
+			string row = "";
+
+			for (
+				int x = 0;
+				x < report.EvaporationGridWidth;
+				x++)
+			{
+				int index =
+					y *
+					report.EvaporationGridWidth +
+					x;
+
+				int count =
+					index >= 0 &&
+					index < report.EvaporationSpatialCounts.Length
+						? report.EvaporationSpatialCounts[index]
+						: 0;
+
+				row +=
+					count.ToString("D4") +
+					" ";
+			}
+
+			GD.Print(
+				"  " +
+				row
+			);
+		}
+
+		// Find the strongest concentration.
+		int highestIndex = -1;
+		int highestCount = 0;
+
+		for (
+			int i = 0;
+			i < report.EvaporationSpatialCounts.Length;
+			i++)
+		{
+			if (
+				report.EvaporationSpatialCounts[i] >
+				highestCount)
+			{
+				highestCount =
+					report.EvaporationSpatialCounts[i];
+
+				highestIndex =
+					i;
+			}
+		}
+
+		if (
+			highestIndex < 0)
+		{
+			return;
+		}
+
+		int cellX =
+			highestIndex %
+			report.EvaporationGridWidth;
+
+		int cellY =
+			highestIndex /
+			report.EvaporationGridWidth;
+
+		float cellWidth =
+			(
+				report.WorldMaxX -
+				report.WorldMinX
+			) /
+			report.EvaporationGridWidth;
+
+		float cellHeight =
+			(
+				report.WorldMaxY -
+				report.WorldMinY
+			) /
+			report.EvaporationGridHeight;
+
+		float cellMinX =
+			report.WorldMinX +
+			cellX *
+			cellWidth;
+
+		float cellMaxX =
+			cellMinX +
+			cellWidth;
+
+		float cellMinY =
+			report.WorldMinY +
+			cellY *
+			cellHeight;
+
+		float cellMaxY =
+			cellMinY +
+			cellHeight;
+
+		GD.Print(
+			"EvaporationHighestCell=" +
+			"(" +
+			cellX +
+			"," +
+			cellY +
+			") Count=" +
+			highestCount +
+			" Bounds=(" +
+			cellMinX.ToString("F1") +
+			"," +
+			cellMinY.ToString("F1") +
+			") -> (" +
+			cellMaxX.ToString("F1") +
+			"," +
+			cellMaxY.ToString("F1") +
+			")"
+		);
+	}
+
+	// ============================================================
+	// Reset
+	// ============================================================
 
 	private void Reset()
 	{

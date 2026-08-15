@@ -12,3 +12,5 @@ res://Scripts/ui/UiWindowManager.cs
 res://Scripts/ui/UiToggleButton.cs
 res://Scripts/ui/StatisticsGraph.cs
 res://Scripts/ui/StatisticsWindow.cs
+res://Scripts/simulation/AntiLagController.cs
+res://Scripts/simulation/SimulationProfiler.cs
