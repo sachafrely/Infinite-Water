@@ -1,0 +1,540 @@
+[18:48, 15.8.2026] Sacha: Infinite Water — General Roadmap
+
+This document describes the planned features, fixes, UI improvements, and technical work for Infinite Water.
+
+The roadmap is organized by area so that upcoming work is easier to overview and prioritize.
+
+«Note: None of the previously listed UI phases should currently be considered completed. They remain part of the roadmap where applicable.»
+
+---
+
+Asset Notes
+
+Buttons, symbols, and the rain amount display use sprites from the pixel-button tileset:
+
+idle-water/pixelbuttons/
+
+Specifically:
+
+- Tilt button and directional arrow — "idle-water/pixelbuttons/00.png"
+- Other buttons and HUD symbols — additional sheets in the same "pixelbuttons" folder
+
+When adding new HUD elements, use assets from these tilesets first before introducin…
+[18:56, 15.8.2026] Sacha: Infinite Water — General Roadmap
+
+This document describes the planned features, fixes, UI improvements, gameplay systems, and technical work for Infinite Water.
+
+The roadmap is ordered by implementation priority and dependencies, so the top of the roadmap represents the work that should be tackled first.
+
+«Important: None of the previously listed UI phases are considered completed. All of them remain planned work.»
+
+---
+
+Current Implementation Order
+
+The immediate development order is:
+
+1. Graph UI button
+2. Graph UI background
+3. UI state/controller
+4. Settings window
+5. Reduce simulation size
+6. Tilt settings
+7. Tilt mechanics
+8. Pumps
+9. Rain amount display
+10. Economy / Sell Energy
+11. Wheel progression
+12. Wheel upgrades
+13. Sound and sound settings
+14. General optimization
+
+Some tasks can be worked on independently later, but this is the preferred order for the next development stages.
+
+---
+
+1. Graph UI
+
+1.1 Implement graph UI button
+
+Create the button used to open and close the graph.
+
+Tasks
+
+- Add the graph button to the HUD.
+- Use an appropriate sprite from "idle-water/pixelbuttons/".
+- Position the button consistently with the existing HUD.
+- Make the button visually match the rest of the UI.
+- Connect the button to opening/closing the graph.
+- Prepare the button for integration with the central UI state system.
+
+Acceptance criteria
+
+- Graph button is visible in the correct HUD position.
+- Button uses the existing pixel-art UI style.
+- Pressing the button opens/closes the graph.
+- Button does not interfere with other HUD controls.
+
+---
+
+1.2 Add background to graph UI
+
+Add a dedicated background behind the graph.
+
+Tasks
+
+- Create/add a pixel-art-compatible graph background.
+- Place it behind the graph contents.
+- Make the graph readable against the simulation.
+- Match the existing UI style.
+- Ensure the background covers the complete graph area.
+- Ensure the background works with the existing and future graph elements.
+
+Acceptance criteria
+
+- Graph has a clearly defined background.
+- Graph remains readable in all simulation conditions.
+- Background fits the pixel-art style.
+- Background does not interfere with graph data or controls.
+
+---
+
+2. Core UI Infrastructure
+
+2.1 Implement UI state/controller
+
+Create the central "UiStateController" for managing UI panels.
+
+Suggested state
+
+- "isGraphOpen"
+- "isSettingsOpen"
+
+Suggested methods
+
+- "ToggleGraph()"
+- "ToggleSettings()"
+- "OpenGraph()"
+- "OpenSettings()"
+- "CloseAllPanels()"
+
+Acceptance criteria
+
+- UI state is controlled from one central location.
+- Graph and settings cannot be open simultaneously.
+- Opening one panel closes the conflicting panel.
+
+Dependency
+
+The graph button and graph background should be implemented first. The controller then provides the proper centralized state management for them and the future settings panel.
+
+---
+
+3. Settings
+
+3.1 Implement settings window
+
+Create the settings panel.
+
+This is an important foundation for later gameplay settings, particularly tilt and sound.
+
+Initial settings
+
+The panel should eventually contain:
+
+- Tilt
+- Sound
+- Other settings added later
+
+Tasks
+
+- Add the settings button.
+- Create the settings panel.
+- Connect it to "UiStateController".
+- Allow the panel to be opened and closed.
+- Ensure it cannot be open simultaneously with the graph.
+
+Acceptance criteria
+
+- Settings button opens the settings panel.
+- Settings panel can be closed.
+- Graph and settings are mutually exclusive.
+- Settings can be expanded with additional options later.
+
+---
+
+4. Simulation Layout
+
+4.1 Make simulation area smaller
+
+Reduce the simulation area to make room for the bottom UI.
+
+Tasks
+
+- Reduce the simulation height by approximately 40–70 pixels.
+- Determine the exact reduction based on the final bottom UI size.
+- Adjust simulation/world boundaries accordingly.
+- Keep the simulation correctly aligned within the screen.
+- Ensure wheels and environment geometry remain correctly positioned.
+- Avoid unnecessary empty space between the simulation and bottom UI.
+
+Acceptance criteria
+
+- Bottom UI fits without overlapping the simulation.
+- Simulation remains visually balanced.
+- Water and wheels remain correctly positioned.
+- No important gameplay area is unintentionally cropped.
+
+---
+
+5. Tilt System
+
+«Dependency: The settings window must exist before tilt settings can be implemented.»
+
+5.1 Implement tilt settings
+
+Add tilt configuration to the settings panel.
+
+Tasks
+
+- Add a tilt-angle control.
+- Use a slider ranging approximately from -45° to +45°.
+- Display the current angle if appropriate.
+- Provide a way to return to neutral tilt.
+- Store the selected value in the appropriate settings/state system.
+
+Acceptance criteria
+
+- Player can change the tilt angle from the settings panel.
+- The selected value is correctly stored.
+- Neutral tilt can be restored.
+
+---
+
+5.2 Implement tilt mechanics
+
+Connect the configured tilt angle to the fluid simulation.
+
+Tasks
+
+- Add a tilt button to the HUD.
+- Add the directional arrow using "idle-water/pixelbuttons/00.png".
+- Convert the selected angle into a gravity direction vector.
+- Pass the modified gravity direction to the fluid solver.
+- Update the simulation when tilt changes.
+- Ensure neutral tilt produces normal downward gravity.
+
+Acceptance criteria
+
+- Water flows in the expected direction when tilted.
+- Changing the tilt updates the simulation correctly.
+- Neutral tilt restores normal gravity.
+- HUD tilt controls correctly reflect the current state.
+
+Dependency
+
+Graph UI
+    ↓
+UI State Controller
+    ↓
+Settings Window
+    ↓
+Tilt Settings
+    ↓
+Tilt Mechanics
+
+---
+
+6. Pumps
+
+6.1 Implement pumps
+
+Add pumps as interactive objects that can move water through the simulation.
+
+Tasks
+
+- Design the basic pump behavior.
+- Create the pump object.
+- Define how the pump interacts with particles.
+- Define the direction in which the pump moves water.
+- Add its visual representation.
+- Integrate pump behavior with the simulation and collision systems.
+- Determine whether pumps require energy or another gameplay resource.
+- Ensure pumps do not create excessive simulation overhead.
+
+Acceptance criteria
+
+- A pump can be activated/used in the simulation.
+- The pump visibly moves water.
+- Pump behavior is stable.
+- Pumps interact correctly with the existing environment and wheels.
+
+---
+
+7. Rain HUD
+
+7.1 Implement rain amount display
+
+Add a dedicated HUD display for the current rain amount.
+
+Tasks
+
+- Use the appropriate pixel-button/HUD assets.
+- Display the current rain percentage.
+- Keep the value synchronized with the simulation.
+- Ensure it remains readable during gameplay.
+
+Acceptance criteria
+
+- Rain amount is always visible when appropriate.
+- Displayed value matches the actual simulation rain amount.
+- Display fits correctly within the HUD.
+
+---
+
+8. Economy
+
+8.1 Implement money and energy system
+
+Create a dedicated economy model/service for gameplay values.
+
+Core values
+
+- "energy"
+- "money"
+
+Conversion
+
+100 Energy = $1
+
+Suggested method
+
+"SellEnergy(amount)"
+
+This should handle:
+
+- Validation
+- Energy deduction
+- Money addition
+- UI updates
+- Future persistence
+
+Acceptance criteria
+
+- Energy can be converted into money.
+- Correct amounts are deducted and added.
+- Invalid conversions are rejected.
+- Economy state can later be persisted.
+
+---
+
+9. Wheel Progression
+
+9.1 Start with one wheel; make 5 additional wheels unlockable
+
+The initial game should contain one active water wheel.
+
+Five additional wheels can then be unlocked through progression.
+
+Tasks
+
+- Start a new game with exactly one active wheel.
+- Define unlock requirements for five additional wheels.
+- Define the money milestones.
+- Add unlock logic.
+- Add additional wheels to the scene when unlocked.
+- Persist unlock progress.
+
+Acceptance criteria
+
+- New game starts with one wheel.
+- Five additional wheels can be unlocked.
+- Each unlock occurs at the intended milestone.
+- Unlock progress persists between sessions.
+- Each active wheel contributes to energy production.
+
+---
+
+9.2 Implement wheel upgrades
+
+Allow players to spend money to improve wheel performance.
+
+Initial upgrade
+
+Increase wheel friction / particle interaction so that the wheel extracts more torque from passing water.
+
+Tasks
+
+- Define the upgrade value.
+- Add an upgrade button for each wheel.
+- Disable the button when the player cannot afford it.
+- Apply the upgraded value through the wheel/simulation system.
+- Persist upgrade state.
+
+Acceptance criteria
+
+- Purchasing an upgrade changes wheel behavior.
+- An upgraded wheel produces more energy under equivalent conditions.
+- Upgrade state persists after restarting the game.
+
+---
+
+10. Audio
+
+10.1 Implement sound and sound settings
+
+Add ambient, gameplay, and UI audio.
+
+Tasks
+
+- Create a sound manager responsible for audio playback.
+- Add sound settings to the settings panel.
+- Add:
+  - Master volume
+  - Music volume
+  - SFX volume
+- Add water/rain sounds.
+- Add wheel sounds.
+- Add UI interaction sounds.
+- Persist audio settings.
+
+Acceptance criteria
+
+- Audio starts correctly.
+- Volume changes apply immediately.
+- Muting works correctly.
+- Settings persist across sessions.
+
+---
+
+11. Simulation Stability
+
+11.1 Fix water still accumulating somewhere
+
+Diagnose and resolve the persistent water accumulation bug.
+
+Investigation
+
+Temporarily render the water simulation in front of the other textures so accumulation areas are easy to identify.
+
+Investigate possible causes such as:
+
+- Boundary leaks
+- Particles becoming permanently stuck
+- Sleep logic failing to wake particles
+- Pixel occupancy errors
+- Grid off-by-one errors
+- Collision edge cases
+- Particles becoming trapped around wheels
+- Particles getting stuck against environment geometry
+
+Acceptance criteria
+
+- No unexplained water deposits continue growing.
+- A long-running simulation remains stable.
+- The fix does not introduce new fluid or collision problems.
+
+---
+
+12. General Optimization
+
+12.1 Optimize simulation performance
+
+Continue profiling and improving performance for lower-end devices.
+
+Main areas
+
+- PBF solver
+- Spatial hash
+- Particle sleeping/waking
+- Wheel collision
+- Environment collision
+- Pixel occupancy
+- Density field
+- Fluid renderer
+- Texture uploads
+- Draw calls
+- Debug rendering
+
+Possible improvements
+
+- Spatial-hash tuning
+- Local collision filtering
+- Sleep-threshold adjustments
+- Avoid unnecessary grid rebuilding
+- Reduce allocations
+- Reduce draw calls
+- Reduce worst-case particle counts
+- Add quality settings if necessary
+
+Acceptance criteria
+
+- Stable performance on the target Android hardware.
+- No major FPS drops when multiple wheels or interactive objects are active.
+- Fluid behavior remains correct after optimization.
+
+---
+
+13. Later Polish
+
+Potential future work:
+
+- Additional pump types
+- More wheel upgrades
+- Additional interactive water objects
+- More environmental interactions
+- Additional UI polish
+- Additional sound effects
+- Visual effects
+- Progression balancing
+- Economy balancing
+- Save/load improvements
+- Android-specific optimization
+
+---
+
+Basic Manual QA Checklist
+
+Graph & UI
+
+- [ ] Graph button is visible and functional.
+- [ ] Graph background is visible and correctly positioned.
+- [ ] Graph remains readable against the simulation.
+- [ ] UI state is centrally managed.
+- [ ] Settings panel opens and closes correctly.
+- [ ] Graph and settings cannot be open simultaneously.
+- [ ] Rain amount display is visible and updates correctly.
+- [ ] Bottom UI does not overlap the simulation.
+- [ ] Simulation area has the intended reduced height.
+
+Tilt
+
+- [ ] Tilt setting is available in the settings panel.
+- [ ] Tilt angle can be changed.
+- [ ] Tilt changes the direction of water flow.
+- [ ] Tilt can be reset to neutral.
+- [ ] HUD tilt controls correctly reflect the current state.
+
+Gameplay
+
+- [ ] Pumps move water correctly.
+- [ ] New game starts with one wheel.
+- [ ] Five additional wheels can be unlocked.
+- [ ] Wheel upgrades affect wheel performance.
+- [ ] Energy and money conversion works correctly.
+
+Audio
+
+- [ ] Master volume works.
+- [ ] Music volume works.
+- [ ] SFX volume works.
+- [ ] Audio can be muted.
+- [ ] Audio settings persist.
+
+Simulation
+
+- [ ] No unexpected water accumulation after a long session.
+- [ ] Pumps do not destabilize the simulation.
+- [ ] Wheels continue to interact correctly with water.
+- [ ] Reduced simulation size does not cause boundary problems.
+- [ ] Performance remains acceptable on Android.

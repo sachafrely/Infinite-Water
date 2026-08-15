@@ -1,5 +1,7 @@
-Node
 Control
+VBoxContainer
+Node
+PanelContainer
 Node2D
 Sprite2D
 TileMapLayer
