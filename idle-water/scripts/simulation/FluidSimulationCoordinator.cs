@@ -1,26 +1,33 @@
 /// <summary>
-/// FluidSimulationCoordinator — SCAFFOLDING PLACEHOLDER
-///
-/// Intended responsibility (Phase 3 migration target):
-///   Owns the high-level simulation update loop and wires the individual
-///   sub-modules together each physics tick.
-///
-/// What will live here:
-///   - Call sequence: neighbor search → density constraints → lambda solve →
-///     position deltas → integration → collision → boundary.
-///   - Dependency injection / initialization of solver sub-modules.
-///   - Propagation of SimulationStepContext to each module.
-///
-/// What will NOT live here:
-///   - Low-level PBF math (stays in simulation/solvers/pbf/).
-///   - Scene-tree wiring / Godot Node lifecycle (_Ready, _Process) — those
-///     remain in FluidSimulator.cs.
-///   - Rendering or HUD concerns.
-///
-/// Current state: EMPTY SCAFFOLD — no logic has been migrated yet.
-/// See docs/architecture.md and docs/refactor-plan.md for the migration plan.
+/// Coordinates one fluid simulation step.
 /// </summary>
-internal static class FluidSimulationCoordinator
+internal sealed class FluidSimulationCoordinator
 {
-	// TODO (Phase 3): inject modules and coordinate per-step execution.
+	private readonly PbfSolver solver;
+
+	/// <summary>
+	/// Creates a coordinator for the active PBF solver.
+	/// </summary>
+	public FluidSimulationCoordinator(
+		PbfSolver solver)
+	{
+		this.solver =
+			solver;
+	}
+
+	/// <summary>
+	/// Executes the solver-owned simulation pipeline for one step.
+	/// </summary>
+	public void Step(
+		ParticleData particles,
+		float dt)
+	{
+		// The detailed sub-pass order remains inside PbfSolver:
+		// neighbor search -> density constraints -> lambda solve ->
+		// position deltas -> integration -> collision -> boundary.
+		solver.Solve(
+			particles,
+			dt
+		);
+	}
 }
