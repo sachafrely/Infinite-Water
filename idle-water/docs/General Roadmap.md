@@ -1,178 +1,122 @@
-# UI Implementation Plan
+# General Roadmap
 
-This plan sequences the requested UI work with minimal coupling and clear acceptance gates.
+This document describes the planned features and improvements for Infinite Water, ordered by priority. It replaces the earlier UI Implementation Plan and now covers the full scope of upcoming work.
 
-## Phase 1 — Introduce central UI state/controller
+---
 
-### Goal
-Create one place that owns panel visibility and shared UI interaction rules.
+## Asset Notes
 
-### UI elements involved
-- Graph toggle button (sprite button)
-- Graph panel/window
-- Settings button (sprite button)
-- Settings window/panel
+Buttons, symbols, and the rain amount display use sprites from the pixel-button tileset located at:
 
-### Data/state needed
-- `bool isGraphOpen`
-- `bool isSettingsOpen`
-- Optional enum for active exclusive panel (e.g. `None`, `Graph`, `Settings`)
-- References to graph panel node, settings panel node, and both buttons
+```
+idle-water/pixelbuttons/
+```
 
-### Interaction rules
-- Controller methods handle all panel open/close transitions.
-- UI elements should not directly manipulate each other; they call controller actions.
+Specifically:
+- **Tilt button and directional arrow** — `idle-water/pixelbuttons/00.png`
+- All other buttons and HUD symbols — additional sheets in the same `pixelbuttons` folder.
 
-### Definition of done / acceptance criteria
-- A single controller node/script drives visibility for graph and settings panels.
-- Existing scenes continue to load without runtime errors.
-- No duplicated open/close logic spread across unrelated scripts.
+When adding new HUD elements, pull assets from these tilesets first before introducing external art.
 
-## Phase 2 — Graph togglable with sprite button
+---
 
-### Goal
-Allow opening/closing the graph via a sprite-based button from the start.
+## Completed Work
 
-### UI elements involved
-- Graph button using provided sprite assets (normal/hover/pressed if available)
-- Graph panel/window
+The following phases from the earlier UI plan have been addressed in previous PRs:
 
-### Data/state needed
-- Button node reference
-- Graph panel reference
-- Controller state from Phase 1
+- Phase 1 — Central UI state/controller (`UiStateController`)
+- Phase 2 — Graph togglable with sprite button
+- Phase 3 — Rain amount display with sprite
+- Phase 4 — Settings button and settings window
+- Phase 5 — Graph/settings mutual exclusivity
+- Phase 6 — Money system + Sell Energy button
 
-### Interaction rules
-- Pressing graph button toggles graph visibility.
-- If settings is open, opening graph closes settings first (mutual exclusivity handled by controller).
+---
 
-### Definition of done / acceptance criteria
-- Graph opens and closes reliably with repeated clicks.
-- Sprite visuals are used for the button (not temporary text-only UI).
-- Graph can be opened from default game state without errors.
+## Next Roadmap Points
 
-## Phase 3 — Rain amount display with sprite
+### 1. Implement tilt and tilt settings
 
-### Goal
-Display rain amount with the provided sprite-based UI element.
+Add gravity-tilt mechanics so the fluid simulation responds to a configurable tilt angle.
 
-### UI elements involved
-- Rain icon/background sprite
-- Rain amount label/value overlay (or sprite digits if desired later)
+- Add a tilt button and a directional arrow to the HUD using assets from `idle-water/pixelbuttons/00.png`.
+- Expose a tilt angle setting in the settings panel (e.g. a slider from -45 to +45 degrees).
+- Pass the tilt angle to the solver as a modified gravity direction vector.
+- Acceptance criteria: tilting the level causes water to flow in the expected direction; resetting tilt returns water to neutral gravity.
 
-### Data/state needed
-- Source rain value (current percent/amount)
-- Formatting rule (e.g. integer percent)
-- Node refs for rain icon and value text/visual
+### 2. Implement sound and sound settings
 
-### Interaction rules
-- Rain display updates whenever rain amount changes (or every frame if already done elsewhere).
-- Display remains visible regardless of graph/settings panel state.
+Add ambient and event-driven audio to enrich the experience.
 
-### Definition of done / acceptance criteria
-- Rain sprite is visible in HUD.
-- Value reflects runtime rain amount correctly.
-- No flicker, stale values, or null-reference errors on startup.
+- Integrate a sound manager node that owns all audio playback.
+- Add a sound settings section to the existing settings panel (master volume, music volume, SFX volume).
+- Wire water sounds to particle density thresholds and wheel rotation events.
+- Acceptance criteria: sounds play at startup; volume sliders update audio in real time; muting is persisted across sessions.
 
-## Phase 4 — Settings button and settings window
+### 3. Start with one wheel; make 5 additional wheels unlockable
 
-### Goal
-Add a sprite-based settings button that opens/closes a settings window.
+Scope the initial experience to a single water wheel and add a progression unlock system.
 
-### UI elements involved
-- Settings sprite button
-- Settings panel/window container
+- Default scene ships with exactly one active wheel.
+- Define an unlock table for five additional wheels (e.g. unlocked by accumulated money milestones).
+- Each unlocked wheel appears in the scene and contributes to energy production.
+- Acceptance criteria: new game has one wheel; wheels unlock at the correct money thresholds; unlocked wheels persist across sessions.
 
-### Data/state needed
-- Settings panel reference
-- Controller state from Phase 1
-- Optional settings model for values shown in panel
+### 4. Implement wheel upgrades
 
-### Interaction rules
-- Pressing settings button toggles settings panel.
-- If graph is open, opening settings closes graph first (controller-managed exclusivity).
+Allow players to spend money to improve wheel performance.
 
-### Definition of done / acceptance criteria
-- Settings panel opens/closes from the button.
-- Sprite assets are used for settings button.
-- Opening settings from all normal game states is stable.
+- First upgrade: increase wheel friction (higher drag on passing particles => more torque extracted).
+- Expose an upgrade button per wheel in the UI (disabled when unaffordable).
+- Apply the upgraded friction constant in `FluidPolygonCollider` / `WaterWheelManager` when the upgrade is active.
+- Acceptance criteria: purchasing friction upgrade visibly increases angular velocity for the same rain rate; upgrade state persists across sessions.
 
-## Phase 5 — Enforce graph/settings mutual exclusivity
+### 5. Fix water still accumulating somewhere
 
-### Goal
-Guarantee graph and settings cannot be open at the same time.
+Diagnose and resolve the persistent water accumulation bug.
 
-### UI elements involved
-- Graph button + panel
-- Settings button + panel
+- **Debug aid**: temporarily set the water simulation render layer in front of all other textures so accumulation spots are immediately visible.
+- Identify the source (boundary leak, sleep logic not waking stuck particles, pixel-occupancy grid off-by-one, etc.).
+- Apply a targeted fix and restore the normal render order.
+- Acceptance criteria: long-running sessions (10+ minutes) do not show growing water deposits in unexpected locations.
 
-### Data/state needed
-- Centralized exclusive-panel state in controller
-- Single helper methods such as `OpenGraph()`, `OpenSettings()`, `CloseAllPanels()`
+### 6. Add sound and sound settings *(see also item 2)*
 
-### Interaction rules
-- `OpenGraph()` always closes settings before opening graph.
-- `OpenSettings()` always closes graph before opening settings.
-- Closing one panel does not auto-open the other.
+> This item is intentionally listed separately to capture any sound work deferred from item 2 (e.g. wheel-specific audio, rain intensity audio cues, or UI sound effects added later in the project).
 
-### Definition of done / acceptance criteria
-- Manual toggling never results in both panels visible together.
-- Rapid click sequences still preserve exclusivity.
-- Panel state remains consistent after scene reload if persistence is used.
+- Complete any remaining audio integration not addressed in item 2.
+- Ensure all new sounds added for tilt, unlocks, and upgrades (items 1-4) are covered.
 
-## Phase 6 — Money system + Sell Energy button
+### 7. General optimization
 
-### Goal
-Implement a money progression loop tied to generated energy and a `Sell Energy` action.
+Profile and improve performance for lower-end devices.
 
-### UI elements involved
-- Money display (label/sprite-backed HUD element)
-- `Sell Energy` button
-- Optional confirmation/feedback text
+- Run the Godot profiler and identify the heaviest per-frame operations.
+- Evaluate and apply spatial-hash tuning, sleep-threshold adjustments, and draw-call batching.
+- Consider reducing worst-case particle count or adding a quality setting.
+- Acceptance criteria: stable 60 fps on a mid-range Android device with default rain settings; no regressions in fluid behavior.
 
-### Data/state needed
-- `float` or `double energy`
-- `int` or `double money`
-- Conversion rule (e.g. money gained per sold energy unit)
-- Sell constraints (minimum sell amount, sell-all vs fixed chunk)
+---
 
-### Interaction rules
-- Clicking `Sell Energy` reduces stored energy and increases money per conversion rules.
-- Disable button or no-op when energy is insufficient.
-- HUD updates immediately after a sell action.
+## Suggested State Model (reference)
 
-### Definition of done / acceptance criteria
-- Money value persists during play session and updates on sell.
-- Energy decreases correctly when sold.
-- Button behavior is deterministic and guarded against invalid sells.
-
-## Suggested state model
-
-Use a dedicated UI controller (e.g. `UiStateController`) that owns:
+Use a dedicated UI controller (`UiStateController`) that owns:
 - Panel state: `isGraphOpen`, `isSettingsOpen`
-- Optional derived property: `activeExclusivePanel`
-- Public intent methods: `ToggleGraph()`, `ToggleSettings()`, `OpenGraph()`, `OpenSettings()`, `CloseGraph()`, `CloseSettings()`
+- Public intent methods: `ToggleGraph()`, `ToggleSettings()`, `OpenGraph()`, `OpenSettings()`, `CloseAllPanels()`
 
 Use a dedicated economy model/service for gameplay values:
-- `energy`
-- `money`
-- `SellEnergy(amount)` method containing conversion + validation logic
+- `energy`, `money`
+- `SellEnergy(amount)` — conversion + validation logic
 
-## Sprite asset integration checklist
+---
 
-- Import graph button sprites and verify filter/compression settings match pixel-art style.
-- Import settings button sprites with consistent sizing/anchor strategy.
-- Import rain amount sprite/icon and verify layering over HUD background.
-- Confirm pressed/hover/disabled states are wired where available.
-- Verify all sprite references are assigned in scene/prefab and survive reload.
+## Basic Manual QA Checklist
 
-## Basic manual QA checklist
-
-- Graph button toggles graph on/off repeatedly without errors.
-- Settings button toggles settings on/off repeatedly without errors.
-- Opening graph while settings is open closes settings first.
-- Opening settings while graph is open closes graph first.
-- Rain display sprite is visible and rain value updates correctly.
-- `Sell Energy` increases money and decreases energy according to conversion rules.
-- `Sell Energy` is blocked or safely ignored when energy is insufficient.
-- UI still behaves correctly after pausing/resuming or scene reload (if applicable).
+- Graph and settings panels cannot be open simultaneously.
+- Rain display sprite is visible and updates correctly.
+- `Sell Energy` increases money and decreases energy per conversion rules.
+- Tilt slider changes water flow direction in real time.
+- Volume sliders update audio without restarting the scene.
+- Wheel unlock milestones trigger at correct money values.
+- Wheel upgrade persists after closing and reopening the app.
+- No unexpected water accumulation after a 10-minute session.

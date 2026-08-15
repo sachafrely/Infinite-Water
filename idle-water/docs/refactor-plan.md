@@ -116,3 +116,46 @@ scripts/ui/TileMapPhysicsDebugDraw.cs       — _Draw, DebugEdge
    tested by the existing collider-generation path.
 6. After each step: run the Godot project, verify fluid simulation still runs
    and no `NullReferenceException` appears.
+
+---
+
+## Next Refactor Candidates
+
+The following files were identified in a follow-up review pass as good targets after the original top-3 are addressed.
+
+| Rank | File | Lines | Rationale |
+|------|------|-------|-----------|
+| 4 | `scripts/rendering/StatisticsGraph.cs` | 1 619 | Mixes graph layout constants, two distinct data series (top + bottom graph), drawing logic, and sample management. Each concern can become a separate partial-class file or a small helper class. |
+| 5 | `scripts/simulation/FluidPolygonCollider.cs` | 900 | Contains wheel physics state (`FluidWheelState`), polygon collision geometry, and torque/energy calculations in one file. `FluidWheelState` is a standalone value type that belongs in `scripts/data/` or `scripts/simulation/particles/`. |
+| 6 | `scripts/core/FrameProfiler.cs` | 769 | Combines timing-bucket logic, rolling-average computation, and GDScript-facing export properties. Splitting the math utilities from the Godot node lifecycle would make both halves unit-testable. |
+| 7 | `scripts/rendering/WaterWheelVisual.cs` | 744 | Visual presentation of the water wheel is currently entangled with wheel-state queries. Extracting a thin `WheelStateReader` interface would decouple simulation data from rendering code. |
+| 8 | `scripts/simulation/RainSystem.cs` | 642 | Rain spawn logic, transition easing, and anti-lag gate already exist as a separate file but still contain inline constants and pixel-grid lookups. Extracting constants to `SimulationConstants` and the pixel helpers to `PixelOccupancyGrid` would reduce coupling. |
+
+### Recommended Split for `StatisticsGraph.cs`
+
+```
+scripts/rendering/StatisticsGraph.cs          — _Ready, _Process, node wiring (entry point only)
+scripts/rendering/TopGraphRenderer.cs         — Top graph draw methods + GraphSample data
+scripts/rendering/BottomGraphRenderer.cs      — Bottom graph draw methods + RainEnergySample data
+scripts/data/GraphConstants.cs               — All const layout values (margins, widths, titles)
+```
+
+### Recommended Split for `FluidPolygonCollider.cs`
+
+```
+scripts/data/FluidWheelState.cs              — Pure value-type wheel state (angle, velocity, torque)
+scripts/simulation/FluidPolygonCollider.cs   — Polygon geometry and collision only (reduced file)
+```
+
+### Recommended Split for `FrameProfiler.cs`
+
+```
+scripts/core/FrameProfiler.cs               — Godot Node2D lifecycle, export properties
+scripts/utils/RollingAverageBuffer.cs       — Timing bucket math, rolling averages
+```
+
+### General Guidance
+
+- All splits above should use `partial class` as a zero-risk first step.
+- No public API changes are required for any of these splits.
+- Priority order: `StatisticsGraph` (largest, clearest split boundary) then `FluidPolygonCollider` (unlocks cleaner wheel-upgrade implementation in roadmap item 4).
