@@ -5,3 +5,6 @@ res://Scripts/simulation/TileMapPhysics.cs
 res://Scripts/simulation/FluidSimulator.cs
 res://Scripts/rendering/FluidRenderer.cs
 res://Scripts/rendering/WaterWheelVisual.cs
+res://Scripts/ui/rendered_window_background.cs
+res://Scripts/ui/RenderedWindowBackground.cs
+res://Scripts/simulation/RainSystem.cs

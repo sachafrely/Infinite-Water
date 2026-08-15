@@ -58,7 +58,7 @@ internal sealed class RainSystem
 
 	public const float RainVelocityX = 0.0f;
 
-	public const float RainVelocityY = 200.0f;
+	public const float RainVelocityY = 400.0f;
 
 	// ============================================================
 	// Dependencies

@@ -24,17 +24,17 @@ public partial class StatisticsGraph : Control
 
 	private const int MaxRainEnergySamples = 120;
 
-	private const float GraphSpacing = 20.0f;
+	private const float GraphSpacing = 10.0f;
 
-	private const float GraphMarginLeft = 75.0f;
+	private const float GraphMarginLeft = 55.0f;
 	private const float GraphMarginRight = 35.0f;
 	private const float GraphMarginTop = 45.0f;
 	private const float GraphMarginBottom = 15.0f;
 
-	private const float SecondGraphMarginLeft = 75.0f;
+	private const float SecondGraphMarginLeft = 55.0f;
 	private const float SecondGraphMarginRight = 35.0f;
 	private const float SecondGraphMarginTop = 35.0f;
-	private const float SecondGraphMarginBottom = 40.0f;
+	private const float SecondGraphMarginBottom = 20.0f;
 
 	private const float GraphBorderWidth = 2.0f;
 	private const float GridLineWidth = 1.0f;

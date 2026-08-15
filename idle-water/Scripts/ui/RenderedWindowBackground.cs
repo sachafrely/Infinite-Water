@@ -66,6 +66,11 @@ public partial class RenderedWindowBackground : Control
 
 	public override void _Draw()
 	{
+			DrawRect(
+	new Rect2(0, 0, Size.X, Size.Y),
+	Colors.Red,
+	true
+);
 		if (Size.X <= 0.0f || Size.Y <= 0.0f)
 			return;
 

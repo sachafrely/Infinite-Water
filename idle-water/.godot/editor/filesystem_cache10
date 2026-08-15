@@ -1,11 +1,9 @@
 9cad1ddce9e5a63143ba340c9520626b
-::res://::1786826663
+::res://::1786826682
 export_presets.cfg::TextFile::-1::1786739777::0::1::::<><><>0<>0<><>::
 icon.svg::CompressedTexture2D::6269370588664782730::1786113595::1786796455::1::::<><><>0<>0<>f9e22cb99bc16227c55628614734dd1b<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
-::res://assets/::1786826644
+::res://assets/::1786826673
 ::res://assets/audio/::1786826483
-::res://assets/pixelbuttons/::1786826662
-All.png::CompressedTexture2D::5995410439806836932::1786809637::1786826645::1::::<><><>0<>0<>62d166cdaefe7182112984c78d3a6b06<>res://.godot/imported/All.png-32703cbb4b5c70459eba31b9337b3119.ctex::
 ::res://assets/sprites/::1786826650
 ::res://assets/sprites/background/::1786826590
 Background.png::CompressedTexture2D::7560526823451210130::1786638985::1786826590::1::::<><><>0<>0<>39954809f5c12a1ec74286217a031e7d<>res://.godot/imported/Background.png-a83077430cd74d16ba7de38e490f4bca.ctex::
@@ -24,7 +22,7 @@ Background.png::CompressedTexture2D::7560526823451210130::1786638985::1786826590
 Trap.png::CompressedTexture2D::3492661536151332200::1786458958::1786826632::1::::<><><>0<>0<>0194cdb1358c904efe0adf13c8b4b37a<>res://.godot/imported/Trap.png-dea3c24c95f470cfd08613a76c9d2d42.ctex::
 ::res://assets/sprites/tilesets/::1786826526
 Tileset.png::CompressedTexture2D::5023634163739495407::1786740065::1786826526::1::::<><><>0<>0<>774f952812b9a9b98f4b35aa40326b01<>res://.godot/imported/Tileset.png-790fe2578093b44d6dc7185429dbcd73.ctex::
-::res://assets/sprites/ui/::1786826662
+::res://assets/sprites/ui/::1786826663
 00.png::CompressedTexture2D::3799189824372436945::1786809637::1786826663::1::::<><><>0<>0<>a2b5d653fc965d4e67d16ec43465d546<>res://.godot/imported/00.png-28110dc209eadd4dcdfc43b187c02bd8.ctex::
 01.png::CompressedTexture2D::5334532424896283358::1786809637::1786826663::1::::<><><>0<>0<>d083cef5898c5c2b7adf648031f50530<>res://.godot/imported/01.png-88bc564b16267fc8fba8db21db23015d.ctex::
 02.png::CompressedTexture2D::9207975209561725618::1786809637::1786826663::1::::<><><>0<>0<>7c4b394fb791b5a02c08ee2a5f9bb1b3<>res://.godot/imported/02.png-a657f149def393bbe9edd9f4dccc7eda.ctex::
@@ -38,15 +36,8 @@ architecture.md::TextFile::-1::1786806180::0::1::::<><><>0<>0<><>::
 refactor-plan.md::TextFile::-1::1786810550::0::1::::<><><>0<>0<><>::
 roadmap.txt::TextFile::-1::1786813140::0::1::::<><><>0<>0<><>::
 SPECIAL THANKS.txt::TextFile::-1::1786809637::0::1::::<><><>0<>0<><>::
-::res://Plains parallax separate layers/::1786796456
-clouds.png::CompressedTexture2D::1848856613818265923::1786378388::1786796456::1::::<><><>0<>0<>af1fac7a7632f4644cbf6d3c5057b367<>res://.godot/imported/clouds.png-fa476bacf7cd3be2e5a80d9bfce23e4b.ctex::
-forest.png::CompressedTexture2D::7477524368966147054::1786378388::1786796455::1::::<><><>0<>0<>9e0368acfb74684ca796fb5ce4ec8292<>res://.godot/imported/forest.png-3a58a62f40f4891a5895edde380f7b2d.ctex::
-grass.png::CompressedTexture2D::2956374789328160416::1786378389::1786796455::1::::<><><>0<>0<>153ce8d46f447efa5c8b809f2cb40dfe<>res://.godot/imported/grass.png-bbb7f5c3fe0e4a201aa2ddbaefc6d065.ctex::
-hill.png::CompressedTexture2D::9058007534306888929::1786378389::1786796455::1::::<><><>0<>0<>40436514ed8fe9a18f1507769d472fd2<>res://.godot/imported/hill.png-64d7e91d1aa376a0ba8c9fcf086c62ef.ctex::
-plains.png::CompressedTexture2D::6904398904098968565::1786378389::1786796455::1::::<><><>0<>0<>c99aa57839aa98a95e9bdc23b4a5cd2d<>res://.godot/imported/plains.png-37f1dc9063ae01b24bb124533049048b.ctex::
-sky.png::CompressedTexture2D::2443344942630013571::1786378389::1786796455::1::::<><><>0<>0<>4bd017e4a0349d0bbe9b3a9f6dfd94e9<>res://.godot/imported/sky.png-39cb9468621bbe886ee0ceaaff26d70d.ctex::
-::res://Scenes/::1786826607
-Main.tscn::PackedScene::4246241242636851641::1786826607::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://assets/sprites/background/Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://assets/sprites/tilesets/Tileset.png<>uid://k6081dvmnuws::::res://assets/sprites/decorations/20.png<>uid://dxn2tnelhfpsr::::res://Scripts/rendering/StatisticsGraph.cs<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://assets/sprites/decorations/8.png<>uid://guq02oiwrevb::::res://assets/sprites/decorations/22.png<>uid://jnjp4yns5al3::::res://assets/sprites/decorations/18.png<>uid://b6b7fs31sqmaf::::res://assets/sprites/decorations/26.png<>uid://07lvxomyo7se::::res://assets/sprites/decorations/15.png<>uid://beuk4em8qf13n::::res://assets/sprites/decorations/5.png<>uid://idpd20skc4op::::res://assets/sprites/decorations/9.png<>uid://0gqfrx74wbgl::::res://assets/sprites/decorations/14.png<>uid://7mdjqr6jnedr::::res://Scripts/ui/rendered_window_background.cs
+::res://Scenes/::1786827801
+Main.tscn::PackedScene::4246241242636851641::1786827901::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://assets/sprites/background/Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://assets/sprites/tilesets/Tileset.png<>uid://k6081dvmnuws::::res://assets/sprites/decorations/20.png<>uid://dxn2tnelhfpsr::::res://Scripts/rendering/StatisticsGraph.cs<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://assets/sprites/decorations/8.png<>uid://guq02oiwrevb::::res://assets/sprites/decorations/22.png<>uid://jnjp4yns5al3::::res://assets/sprites/decorations/18.png<>uid://b6b7fs31sqmaf::::res://assets/sprites/decorations/26.png<>uid://07lvxomyo7se::::res://assets/sprites/decorations/15.png<>uid://beuk4em8qf13n::::res://assets/sprites/decorations/5.png<>uid://idpd20skc4op::::res://assets/sprites/decorations/9.png<>uid://0gqfrx74wbgl::::res://assets/sprites/decorations/14.png<>uid://7mdjqr6jnedr::::res://Scripts/ui/rendered_window_background.cs
 ::res://Scripts/::1786803057
 ::res://Scripts/core/::1786806180
 FrameProfiler.cs::CSharpScript::9178817618753722961::1786803057::0::1::::<>Node<><>0<>0<><>::
@@ -54,9 +45,9 @@ SimulationConstants.cs::CSharpScript::5199576297924703403::1786804099::0::1::::<
 SimulationDebug.cs::CSharpScript::2740126471432067307::1786804099::0::1::::<><><>0<>0<><>::
 ::res://Scripts/data/::1786803057
 ::res://Scripts/input/::1786803057
-::res://Scripts/rendering/::1786809637
+::res://Scripts/rendering/::1786827398
 FluidRenderer.cs::CSharpScript::7921401691133765954::1786809637::0::1::::<>Node2D<><>0<>0<><>::
-StatisticsGraph.cs::CSharpScript::8802116343937840681::1786803057::0::1::::<>Control<><>0<>0<><>::
+StatisticsGraph.cs::CSharpScript::8802116343937840681::1786827398::0::1::::<>Control<><>0<>0<><>::
 WaterWheelVisual.cs::CSharpScript::3148581498361463953::1786803057::0::1::::<>Node2D<><>0<>0<><>::
 ::res://Scripts/services/::1786802957
 ::res://Scripts/simulation/::1786807392
@@ -109,6 +100,6 @@ PbfState.cs::CSharpScript::8021265557473124243::1786806180::0::1::::<><><>0<>0<>
 ISolver.cs::CSharpScript::8876761352774482908::1786804100::0::1::::<><><>0<>0<><>::
 SolverConfig.cs::CSharpScript::881408952242810574::1786806180::0::1::::<><><>0<>0<><>::
 ::res://Scripts/systems/::1786802957
-::res://Scripts/ui/::1786816361
-rendered_window_background.cs::CSharpScript::2271014620645515295::1786816361::0::1::::<><><>0<>0<><>::
+::res://Scripts/ui/::1786827801
+RenderedWindowBackground.cs::CSharpScript::2271014620645515295::1786827801::0::1::::<><><>0<>0<><>::
 ::res://Scripts/utils/::1786802957

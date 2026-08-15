@@ -35,7 +35,7 @@ Current Implementation Order
 The immediate development order is:
 
 1. Graph UI button
-2. Graph UI background
+2. Graph UI background DONE
 3. UI state/controller
 4. Settings window
 5. Reduce simulation size
@@ -48,6 +48,7 @@ The immediate development order is:
 12. Wheel upgrades
 13. Sound and sound settings
 14. General optimization
+14.1 Water still getting accumulated somewhere
 
 Some tasks can be worked on independently later, but this is the preferred order for the next development stages.
 
