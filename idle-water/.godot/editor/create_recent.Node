@@ -1,5 +1,6 @@
-MarginContainer
 Control
+Panel
+MarginContainer
 VBoxContainer
 Node
 PanelContainer
