@@ -105,7 +105,7 @@ Use a dedicated UI controller (`UiStateController`) that owns:
 - Public intent methods: `ToggleGraph()`, `ToggleSettings()`, `OpenGraph()`, `OpenSettings()`, `CloseAllPanels()`
 
 Use a dedicated economy model/service for gameplay values:
-- `energy`, `money`
+- `energy`, `money` 100 Energy gives 1 Dollar.
 - `SellEnergy(amount)` — conversion + validation logic
 
 ---
