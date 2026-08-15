@@ -589,7 +589,8 @@ public partial class FluidSimulator : Node2D
 
 		if (
 			rainEnergyGraphTotalFrames <=
-			RainEnergyGraphInitialDelayFrames)
+			RainEnergyGraphInitialDelayFrames -
+			RainEnergyGraphIntervalFrames)
 		{
 			return;
 		}

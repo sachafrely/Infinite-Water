@@ -1,12 +1,14 @@
 {
   "version": 2,
-  "dgSpecHash": "TAbl2EtPGME=",
+  "dgSpecHash": "SAwEcB3JSW4=",
   "success": true,
   "projectFilePath": "/home/runner/work/Infinite-Water/Infinite-Water/idle-water/IdleWater.csproj",
   "expectedPackageFiles": [
-    "/home/runner/.nuget/packages/godot.sourcegenerators/4.7.1/godot.sourcegenerators.4.7.1.nupkg.sha512",
-    "/home/runner/.nuget/packages/godotsharp/4.7.1/godotsharp.4.7.1.nupkg.sha512",
-    "/home/runner/.nuget/packages/godotsharpeditor/4.7.1/godotsharpeditor.4.7.1.nupkg.sha512"
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/godot.sourcegenerators/4.7.1/godot.sourcegenerators.4.7.1.nupkg.sha512",
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/godotsharp/4.7.1/godotsharp.4.7.1.nupkg.sha512",
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/godotsharpeditor/4.7.1/godotsharpeditor.4.7.1.nupkg.sha512",
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/microsoft.netcore.app.ref/8.0.29/microsoft.netcore.app.ref.8.0.29.nupkg.sha512",
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/8.0.29/microsoft.aspnetcore.app.ref.8.0.29.nupkg.sha512"
   ],
   "logs": []
 }

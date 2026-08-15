@@ -81,7 +81,7 @@ internal sealed class AntiLagController
 		evaporatedParticlesThisCleanup;
 
 	/// <summary>
-	/// Gets the number of completed anti-lag cleanups started so far.
+	/// Gets the number of anti-lag cleanups started so far.
 	/// </summary>
 	public int AntiLagCleanupCount =>
 		antiLagCleanupCount;
