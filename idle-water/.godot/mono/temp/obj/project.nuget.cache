@@ -1,15 +1,14 @@
 {
   "version": 2,
-  "dgSpecHash": "aBaFIQTX/yI=",
+  "dgSpecHash": "SAwEcB3JSW4=",
   "success": true,
-  "projectFilePath": "C:\\Users\\ll\\Documents\\GITHUB\\IdleWater\\idle-water\\IdleWater.csproj",
+  "projectFilePath": "/home/runner/work/Infinite-Water/Infinite-Water/idle-water/IdleWater.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\ll\\.nuget\\packages\\godot.sourcegenerators\\4.7.1\\godot.sourcegenerators.4.7.1.nupkg.sha512",
-    "C:\\Users\\ll\\.nuget\\packages\\godotsharp\\4.7.1\\godotsharp.4.7.1.nupkg.sha512",
-    "C:\\Users\\ll\\.nuget\\packages\\godotsharpeditor\\4.7.1\\godotsharpeditor.4.7.1.nupkg.sha512",
-    "C:\\Users\\ll\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.29\\microsoft.netcore.app.ref.8.0.29.nupkg.sha512",
-    "C:\\Users\\ll\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.29\\microsoft.windowsdesktop.app.ref.8.0.29.nupkg.sha512",
-    "C:\\Users\\ll\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.29\\microsoft.aspnetcore.app.ref.8.0.29.nupkg.sha512"
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/godot.sourcegenerators/4.7.1/godot.sourcegenerators.4.7.1.nupkg.sha512",
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/godotsharp/4.7.1/godotsharp.4.7.1.nupkg.sha512",
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/godotsharpeditor/4.7.1/godotsharpeditor.4.7.1.nupkg.sha512",
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/microsoft.netcore.app.ref/8.0.29/microsoft.netcore.app.ref.8.0.29.nupkg.sha512",
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/8.0.29/microsoft.aspnetcore.app.ref.8.0.29.nupkg.sha512"
   ],
   "logs": []
 }

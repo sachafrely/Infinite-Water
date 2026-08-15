@@ -43,6 +43,7 @@ public partial class FluidRenderer : Node2D
 	// ============================================================
 
 	private const int RenderEveryNFrames = 2;
+	private const int ProfilerSampleWindow = 600;
 
 	private int renderFrameCounter;
 
@@ -492,29 +493,12 @@ void fragment()
 		ParticleData particles,
 		DensityField densityField)
 	{
-		renderFrameCounter++;
-
-		if (
-			renderFrameCounter <
-			RenderEveryNFrames
-		)
+		if (ShouldSkipRenderFrame())
 		{
-			LastTotalMs = 0.0;
-			LastBuildPixelsMs = 0.0;
-			LastSurfaceGlowMs = 0.0;
-			LastFillBytesMs = 0.0;
-			LastTextureUploadMs = 0.0;
-
 			return;
 		}
 
-		renderFrameCounter = 0;
-
-		LastTotalMs = 0.0;
-		LastBuildPixelsMs = 0.0;
-		LastSurfaceGlowMs = 0.0;
-		LastFillBytesMs = 0.0;
-		LastTextureUploadMs = 0.0;
+		ResetLastFrameMetrics();
 
 		if (!densityField.HasDensity)
 		{
@@ -534,6 +518,38 @@ void fragment()
 		LastTotalMs =
 			totalTimer.Elapsed.TotalMilliseconds;
 
+		AccumulateProfilerMetrics();
+		TryFlushProfiler(particles);
+	}
+
+	private bool ShouldSkipRenderFrame()
+	{
+		renderFrameCounter++;
+
+		if (
+			renderFrameCounter <
+			RenderEveryNFrames
+		)
+		{
+			ResetLastFrameMetrics();
+			return true;
+		}
+
+		renderFrameCounter = 0;
+		return false;
+	}
+
+	private void ResetLastFrameMetrics()
+	{
+		LastTotalMs = 0.0;
+		LastBuildPixelsMs = 0.0;
+		LastSurfaceGlowMs = 0.0;
+		LastFillBytesMs = 0.0;
+		LastTextureUploadMs = 0.0;
+	}
+
+	private void AccumulateProfilerMetrics()
+	{
 		profilerTotalMs +=
 			LastTotalMs;
 
@@ -550,48 +566,60 @@ void fragment()
 			LastTextureUploadMs;
 
 		profilerFrameCount++;
+	}
 
+	private void TryFlushProfiler(
+		ParticleData particles)
+	{
 		if (
-			profilerFrameCount >=
-			600
+			profilerFrameCount <
+			ProfilerSampleWindow
 		)
 		{
-			const double profilerSamples = 600.0;
-
-			GD.Print(
-				"Pixel Water profiler " +
-				"(avg ms over 600 render updates): " +
-				"Particles=" +
-				particles.Count +
-				" BuildPixels=" +
-				(profilerBuildPixelsMs / profilerSamples)
-					.ToString("F3") +
-				"ms SurfaceGlow=" +
-				(profilerSurfaceGlowMs / profilerSamples)
-					.ToString("F3") +
-				"ms FillBytes=" +
-				(profilerFillBytesMs / profilerSamples)
-					.ToString("F3") +
-				"ms TextureUpload=" +
-				(profilerTextureUploadMs / profilerSamples)
-					.ToString("F3") +
-				"ms Total=" +
-				(profilerTotalMs / profilerSamples)
-					.ToString("F3") +
-				"ms PixelCount=" +
-				(pixelWidth * pixelHeight) +
-				" PixelSize=" +
-				PixelSize
-			);
-
-			profilerTotalMs = 0.0;
-			profilerImageMs = 0.0;
-			profilerBuildPixelsMs = 0.0;
-			profilerSurfaceGlowMs = 0.0;
-			profilerFillBytesMs = 0.0;
-			profilerTextureUploadMs = 0.0;
-			profilerFrameCount = 0;
+			return;
 		}
+
+		const double profilerSamples =
+			ProfilerSampleWindow;
+
+		GD.Print(
+			"Pixel Water profiler " +
+			$"(avg ms over {ProfilerSampleWindow} render updates): " +
+			"Particles=" +
+			particles.Count +
+			" BuildPixels=" +
+			(profilerBuildPixelsMs / profilerSamples)
+				.ToString("F3") +
+			"ms SurfaceGlow=" +
+			(profilerSurfaceGlowMs / profilerSamples)
+				.ToString("F3") +
+			"ms FillBytes=" +
+			(profilerFillBytesMs / profilerSamples)
+				.ToString("F3") +
+			"ms TextureUpload=" +
+			(profilerTextureUploadMs / profilerSamples)
+				.ToString("F3") +
+			"ms Total=" +
+			(profilerTotalMs / profilerSamples)
+				.ToString("F3") +
+			"ms PixelCount=" +
+			(pixelWidth * pixelHeight) +
+			" PixelSize=" +
+			PixelSize
+		);
+
+		ResetProfilerMetrics();
+	}
+
+	private void ResetProfilerMetrics()
+	{
+		profilerTotalMs = 0.0;
+		profilerImageMs = 0.0;
+		profilerBuildPixelsMs = 0.0;
+		profilerSurfaceGlowMs = 0.0;
+		profilerFillBytesMs = 0.0;
+		profilerTextureUploadMs = 0.0;
+		profilerFrameCount = 0;
 	}
 
 	// ============================================================
@@ -622,63 +650,9 @@ void fragment()
 		float[] values =
 			densityField.GetValues();
 
-		// --------------------------------------------------------
-		// Active density region
-		// --------------------------------------------------------
-
-		int minX =
-			densityField.ActiveMinX;
-
-		if (minX < 0)
-			minX = 0;
-
-		int maxX =
-			densityField.ActiveMaxX;
-
-		if (maxX >= width)
-			maxX = width - 1;
-
-		int minY =
-			densityField.ActiveMinY;
-
-		if (minY < 0)
-			minY = 0;
-
-		int maxY =
-			densityField.ActiveMaxY;
-
-		if (maxY >= height)
-			maxY = height - 1;
-
-		// --------------------------------------------------------
-		// PixelScale == 1
-		//
-		// Density coordinates and pixel coordinates are identical.
-		// --------------------------------------------------------
-
-		int firstPixelX =
-			minX;
-
-		int lastPixelX =
-			maxX;
-
-		int firstPixelY =
-			minY;
-
-		int lastPixelY =
-			maxY;
-
-		activePixelMinX =
-			firstPixelX;
-
-		activePixelMaxX =
-			lastPixelX;
-
-		activePixelMinY =
-			firstPixelY;
-
-		activePixelMaxY =
-			lastPixelY;
+		UpdateActivePixelRegion(
+			densityField
+		);
 
 		// --------------------------------------------------------
 		// Build timer starts before previous-region clearing,
@@ -693,122 +667,10 @@ void fragment()
 			ClearPreviousPixelRegion();
 		}
 
-		// --------------------------------------------------------
-		// Fast pixel conversion
-		// --------------------------------------------------------
-
-		int localWidth =
-			lastPixelX -
-			firstPixelX +
-			1;
-
-		for (
-			int py = firstPixelY;
-			py <= lastPixelY;
-			py++
-		)
-		{
-			int row =
-				py * width;
-
-			int pixelIndex =
-				py * pixelWidth +
-				firstPixelX;
-
-			int sourceIndex =
-				row +
-				firstPixelX;
-
-			int endIndex =
-				pixelIndex +
-				localWidth;
-
-			for (
-				;
-				pixelIndex < endIndex;
-				pixelIndex++,
-				sourceIndex++
-			)
-			{
-				float density =
-					values[sourceIndex];
-
-				if (
-					density <
-					SurfaceThreshold
-				)
-				{
-					continue;
-				}
-
-				// ------------------------------------------------
-				// Water
-				// ------------------------------------------------
-
-				pixelWater[pixelIndex] =
-					true;
-
-				// ------------------------------------------------
-				// PixelScale == 1 means:
-				//
-				// averageDensity = density
-				// maximumDensity = density
-				//
-				// ------------------------------------------------
-
-				float depth =
-					density /
-					1.5f;
-
-				if (depth > 1.0f)
-					depth = 1.0f;
-
-				if (depth < 0.0f)
-					depth = 0.0f;
-
-				// ------------------------------------------------
-				// Surface
-				// ------------------------------------------------
-
-				float surface =
-					1.0f -
-					(
-						density -
-						SurfaceThreshold
-					) /
-					0.45f;
-
-				if (surface > 1.0f)
-					surface = 1.0f;
-
-				if (surface < 0.0f)
-					surface = 0.0f;
-
-				surface *=
-					surface;
-
-				pixelDepth[pixelIndex] =
-					depth;
-
-				pixelSurface[pixelIndex] =
-					surface;
-			}
-		}
-
-		previousPixelMinX =
-			firstPixelX;
-
-		previousPixelMaxX =
-			lastPixelX;
-
-		previousPixelMinY =
-			firstPixelY;
-
-		previousPixelMaxY =
-			lastPixelY;
-
-		hasPreviousPixelRegion =
-			true;
+		BuildPixelsFromDensity(
+			values
+		);
+		CacheCurrentAsPreviousPixelRegion();
 
 		buildPixelsTimer.Stop();
 
@@ -874,6 +736,159 @@ void fragment()
 
 		profilerImageMs +=
 			imageTimer.Elapsed.TotalMilliseconds;
+	}
+
+	private void UpdateActivePixelRegion(
+		DensityField densityField)
+	{
+		int minX =
+			densityField.ActiveMinX;
+
+		if (minX < 0)
+			minX = 0;
+
+		int maxX =
+			densityField.ActiveMaxX;
+
+		if (maxX >= width)
+			maxX = width - 1;
+
+		int minY =
+			densityField.ActiveMinY;
+
+		if (minY < 0)
+			minY = 0;
+
+		int maxY =
+			densityField.ActiveMaxY;
+
+		if (maxY >= height)
+			maxY = height - 1;
+
+		activePixelMinX =
+			minX;
+		activePixelMaxX =
+			maxX;
+		activePixelMinY =
+			minY;
+		activePixelMaxY =
+			maxY;
+	}
+
+	private void BuildPixelsFromDensity(
+		float[] values)
+	{
+		int firstPixelX =
+			activePixelMinX;
+
+		int lastPixelX =
+			activePixelMaxX;
+
+		int firstPixelY =
+			activePixelMinY;
+
+		int lastPixelY =
+			activePixelMaxY;
+
+		int localWidth =
+			lastPixelX -
+			firstPixelX +
+			1;
+
+		for (
+			int py = firstPixelY;
+			py <= lastPixelY;
+			py++
+		)
+		{
+			int row =
+				py * width;
+
+			int pixelIndex =
+				py * pixelWidth +
+				firstPixelX;
+
+			int sourceIndex =
+				row +
+				firstPixelX;
+
+			int endIndex =
+				pixelIndex +
+				localWidth;
+
+			for (
+				;
+				pixelIndex < endIndex;
+				pixelIndex++,
+				sourceIndex++
+			)
+			{
+				float density =
+					values[sourceIndex];
+
+				if (
+					density <
+					SurfaceThreshold
+				)
+				{
+					continue;
+				}
+
+				pixelWater[pixelIndex] =
+					true;
+
+				float depth =
+					density /
+					1.5f;
+
+				if (depth > 1.0f)
+					depth = 1.0f;
+
+				if (depth < 0.0f)
+					depth = 0.0f;
+
+				float surface =
+					1.0f -
+					(
+						density -
+						SurfaceThreshold
+					) /
+					0.45f;
+
+				if (surface > 1.0f)
+					surface = 1.0f;
+
+				if (surface < 0.0f)
+					surface = 0.0f;
+
+				surface *=
+					surface;
+
+				pixelDepth[pixelIndex] =
+					depth;
+
+				pixelSurface[pixelIndex] =
+					surface;
+			}
+		}
+	}
+
+	private void CacheCurrentAsPreviousPixelRegion()
+	{
+		previousPixelMinX =
+			activePixelMinX;
+
+		previousPixelMaxX =
+			activePixelMaxX;
+
+		previousPixelMinY =
+			activePixelMinY;
+
+		previousPixelMaxY =
+			activePixelMaxY;
+
+		hasPreviousPixelRegion =
+			true;
 	}
 
 	// ============================================================

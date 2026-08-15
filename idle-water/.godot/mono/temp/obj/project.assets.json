@@ -88,19 +88,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\ll\\.nuget\\packages\\": {}
+    "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\ll\\Documents\\GITHUB\\IdleWater\\idle-water\\IdleWater.csproj",
+      "projectUniqueName": "/home/runner/work/Infinite-Water/Infinite-Water/idle-water/IdleWater.csproj",
       "projectName": "IdleWater",
-      "projectPath": "C:\\Users\\ll\\Documents\\GITHUB\\IdleWater\\idle-water\\IdleWater.csproj",
-      "packagesPath": "C:\\Users\\ll\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\ll\\Documents\\GITHUB\\IdleWater\\idle-water\\.godot\\mono\\temp\\obj\\",
+      "projectPath": "/home/runner/work/Infinite-Water/Infinite-Water/idle-water/IdleWater.csproj",
+      "packagesPath": "/tmp/codeql-scratch-fbd251409bbb0bb1/dbs/csharp/working/packages",
+      "outputPath": "/home/runner/work/Infinite-Water/Infinite-Water/idle-water/.godot/mono/temp/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\ll\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "/home/runner/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
@@ -168,10 +168,6 @@
           {
             "name": "Microsoft.NETCore.App.Ref",
             "version": "[8.0.29, 8.0.29]"
-          },
-          {
-            "name": "Microsoft.WindowsDesktop.App.Ref",
-            "version": "[8.0.29, 8.0.29]"
           }
         ],
         "frameworkReferences": {
@@ -179,7 +175,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.302/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.302/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
