@@ -1,10 +1,10 @@
-PanelContainer
 Control
 Node2D
+Node
+PanelContainer
 Panel
 MarginContainer
 VBoxContainer
-Node
 Sprite2D
 TileMapLayer
 Line2D

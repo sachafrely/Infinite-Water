@@ -8,3 +8,7 @@ res://Scripts/rendering/WaterWheelVisual.cs
 res://Scripts/ui/rendered_window_background.cs
 res://Scripts/ui/RenderedWindowBackground.cs
 res://Scripts/simulation/RainSystem.cs
+res://Scripts/ui/UiWindowManager.cs
+res://Scripts/ui/UiToggleButton.cs
+res://Scripts/ui/StatisticsGraph.cs
+res://Scripts/ui/StatisticsWindow.cs

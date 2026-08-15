@@ -5,17 +5,20 @@
 [ext_resource type="Script" uid="uid://cewbcpoc0l1qw" path="res://Scripts/simulation/TileMapPhysics.cs" id="2_kln2b"]
 [ext_resource type="Texture2D" uid="uid://cdtqrx7f0a4ch" path="res://assets/sprites/tilesets/Tileset.png" id="3_50glp"]
 [ext_resource type="Texture2D" uid="uid://k6081dvmnuws" path="res://assets/sprites/decorations/20.png" id="4_v1gob"]
-[ext_resource type="Script" uid="uid://dxn2tnelhfpsr" path="res://Scripts/rendering/StatisticsGraph.cs" id="7_jw32o"]
+[ext_resource type="Script" uid="uid://dxn2tnelhfpsr" path="res://Scripts/ui/StatisticsGraph.cs" id="7_jw32o"]
 [ext_resource type="Script" uid="uid://d31j1xvdj6522" path="res://Scripts/core/FrameProfiler.cs" id="9_vy5pj"]
 [ext_resource type="Texture2D" uid="uid://diwtbhnepb81v" path="res://assets/sprites/decorations/8.png" id="13_h1m7h"]
+[ext_resource type="Script" uid="uid://km0yghtkadt1" path="res://Scripts/ui/StatisticsWindow.cs" id="15_0sclb"]
 [ext_resource type="Texture2D" uid="uid://guq02oiwrevb" path="res://assets/sprites/decorations/22.png" id="15_2w5on"]
 [ext_resource type="Texture2D" uid="uid://jnjp4yns5al3" path="res://assets/sprites/decorations/18.png" id="15_346fj"]
 [ext_resource type="Texture2D" uid="uid://b6b7fs31sqmaf" path="res://assets/sprites/decorations/26.png" id="15_h1m7h"]
 [ext_resource type="Texture2D" uid="uid://07lvxomyo7se" path="res://assets/sprites/decorations/15.png" id="16_0sclb"]
 [ext_resource type="Texture2D" uid="uid://beuk4em8qf13n" path="res://assets/sprites/decorations/5.png" id="16_2w5on"]
+[ext_resource type="Script" uid="uid://btjayvbdsd16t" path="res://Scripts/ui/UiToggleButton.cs" id="16_346fj"]
 [ext_resource type="Texture2D" uid="uid://idpd20skc4op" path="res://assets/sprites/decorations/9.png" id="17_346fj"]
 [ext_resource type="Texture2D" uid="uid://0gqfrx74wbgl" path="res://assets/sprites/decorations/14.png" id="17_sxkr1"]
 [ext_resource type="Script" uid="uid://7mdjqr6jnedr" path="res://Scripts/ui/RenderedWindowBackground.cs" id="18_0sclb"]
+[ext_resource type="Script" uid="uid://diodqrojkp676" path="res://Scripts/ui/UiWindowManager.cs" id="18_sxkr1"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vy5pj"]
 texture = ExtResource("3_50glp")
@@ -419,6 +422,7 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_erwvk")
 [node name="WindowBackground" type="Control" parent="CenterUI/PanelContainer" unique_id=160082409]
 z_index = 95
 layout_mode = 2
+mouse_filter = 2
 script = ExtResource("18_0sclb")
 
 [node name="MarginContainer" type="MarginContainer" parent="CenterUI/PanelContainer" unique_id=299561062]
@@ -427,13 +431,23 @@ layout_mode = 2
 [node name="Content" type="VBoxContainer" parent="CenterUI/PanelContainer/MarginContainer" unique_id=1600717048]
 layout_mode = 2
 
-[node name="StatisticsGraph" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1260497483]
-z_index = 100
+[node name="SettingsWindow" type="Node2D" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1683841450]
+
+[node name="StatisticsWindow" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1965062047]
 layout_mode = 2
+script = ExtResource("15_0sclb")
+
+[node name="StatisticsGraph" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content/StatisticsWindow" unique_id=1260497483]
+z_index = 100
+anchors_preset = 0
+offset_top = -4.0
+offset_right = 720.0
+offset_bottom = -4.0
 mouse_filter = 2
 script = ExtResource("7_jw32o")
 
 [node name="BottomUI" type="Control" parent="." unique_id=1677817209]
+z_index = 200
 layout_mode = 3
 anchors_preset = 0
 offset_top = 1160.0
@@ -441,5 +455,20 @@ offset_right = 720.0
 offset_bottom = 1280.0
 mouse_filter = 2
 
+[node name="StatisticsButton" type="Control" parent="BottomUI" unique_id=1991513535]
+anchors_preset = 0
+offset_left = 320.0
+offset_right = 520.0
+offset_bottom = 120.0
+script = ExtResource("16_346fj")
+
+[node name="SettingsButton" type="Control" parent="BottomUI" unique_id=1302883395]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
 [node name="FrameProfiler" type="Node" parent="." unique_id=1715470360]
 script = ExtResource("9_vy5pj")
+
+[node name="UiWindowManager" type="Node" parent="." unique_id=656663835]
+script = ExtResource("18_sxkr1")
