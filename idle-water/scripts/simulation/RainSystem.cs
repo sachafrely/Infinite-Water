@@ -12,13 +12,9 @@ internal sealed class RainSystem
 	internal readonly struct RainSpawnRequest
 	{
 		public readonly float X;
-
 		public readonly float Y;
-
 		public readonly float VelocityX;
-
 		public readonly float VelocityY;
-
 		public readonly int PixelIndex;
 
 		public RainSpawnRequest(
@@ -43,31 +39,32 @@ internal sealed class RainSystem
 	public const float RainAmount = 120.0f;
 
 	public const int RainMinimumPercent = 0;
-
 	public const int RainMaximumPercent = 100;
-
 	public const int RainPercentStep = 10;
 
 	public const float RainMinimumDuration = 13.0f;
-
 	public const float RainMaximumDuration = 29.0f;
-
 	public const float RainTransitionDuration = 10.0f;
 
 	public const float RainSpawnY = -40.0f;
 
 	public const float RainVelocityX = 0.0f;
+	public const float RainVelocityY = 300.0f;
 
-	public const float RainVelocityY = 400.0f;
+	// ============================================================
+	// Diagnostics
+	// ============================================================
+
+	private const int DiagnosticMaxSpawnPrints = 10;
+
+	private int diagnosticSpawnPrintCount = 0;
 
 	// ============================================================
 	// Dependencies
 	// ============================================================
 
 	private readonly Node owner;
-
 	private readonly float worldMinX;
-
 	private readonly float worldMaxX;
 
 	// ============================================================
@@ -85,9 +82,7 @@ internal sealed class RainSystem
 		new RandomNumberGenerator();
 
 	private long totalRainSpawns = 0;
-
 	private long rainRejectedByCapacity = 0;
-
 	private long rainRejectedByDensity = 0;
 
 	// ============================================================
@@ -95,25 +90,18 @@ internal sealed class RainSystem
 	// ============================================================
 
 	private CanvasLayer rainHudLayer;
-
 	private Label rainHudLabel;
 
 	// ============================================================
 	// Coordination
 	// ============================================================
 
-	/// <summary>
-	/// Gets or sets the anti-lag controller observed by the rain system.
-	/// </summary>
 	public AntiLagController AntiLagController
 	{
 		private get;
 		set;
 	}
 
-	/// <summary>
-	/// Gets the current rain percentage.
-	/// </summary>
 	public float CurrentRainPercent
 	{
 		get
@@ -122,14 +110,10 @@ internal sealed class RainSystem
 		}
 		internal set
 		{
-			currentRainPercent =
-				value;
+			currentRainPercent = value;
 		}
 	}
 
-	/// <summary>
-	/// Gets the target rain percentage.
-	/// </summary>
 	public float TargetRainPercent
 	{
 		get
@@ -138,14 +122,10 @@ internal sealed class RainSystem
 		}
 		internal set
 		{
-			targetRainPercent =
-				value;
+			targetRainPercent = value;
 		}
 	}
 
-	/// <summary>
-	/// Gets or sets the transition start percentage.
-	/// </summary>
 	public float RainTransitionStartPercent
 	{
 		get
@@ -154,14 +134,10 @@ internal sealed class RainSystem
 		}
 		internal set
 		{
-			rainTransitionStartPercent =
-				value;
+			rainTransitionStartPercent = value;
 		}
 	}
 
-	/// <summary>
-	/// Gets or sets the transition timer.
-	/// </summary>
 	public float RainTransitionTimer
 	{
 		get
@@ -170,14 +146,10 @@ internal sealed class RainSystem
 		}
 		internal set
 		{
-			rainTransitionTimer =
-				value;
+			rainTransitionTimer = value;
 		}
 	}
 
-	/// <summary>
-	/// Gets or sets the rain phase timer.
-	/// </summary>
 	public float RainPhaseTimer
 	{
 		get
@@ -186,26 +158,16 @@ internal sealed class RainSystem
 		}
 		internal set
 		{
-			rainPhaseTimer =
-				value;
+			rainPhaseTimer = value;
 		}
 	}
 
-	/// <summary>
-	/// Gets the total number of accepted rain spawns.
-	/// </summary>
 	public long TotalRainSpawns =>
 		totalRainSpawns;
 
-	/// <summary>
-	/// Gets the number of rain spawns rejected by capacity.
-	/// </summary>
 	public long RainRejectedByCapacity =>
 		rainRejectedByCapacity;
 
-	/// <summary>
-	/// Gets the number of rain spawns rejected by density.
-	/// </summary>
 	public long RainRejectedByDensity =>
 		rainRejectedByDensity;
 
@@ -213,33 +175,54 @@ internal sealed class RainSystem
 	// Construction
 	// ============================================================
 
-	/// <summary>
-	/// Creates a rain system for the simulation world.
-	/// </summary>
 	public RainSystem(
 		Node owner,
 		float worldMinX,
 		float worldMaxX)
 	{
-		this.owner =
-			owner;
+		this.owner = owner;
 
-		this.worldMinX =
-			worldMinX;
-
-		this.worldMaxX =
-			worldMaxX;
+		this.worldMinX = worldMinX;
+		this.worldMaxX = worldMaxX;
 
 		rainRandom.Randomize();
+
+		// --------------------------------------------------------
+		// Diagnostic: rain coordinate space.
+		// --------------------------------------------------------
+
+		GD.Print(
+			"========== RAIN SPACE DIAGNOSTIC =========="
+		);
+
+		GD.Print(
+			"Rain spawn X range: " +
+			worldMinX.ToString("F1") +
+			" -> " +
+			worldMaxX.ToString("F1")
+		);
+
+		GD.Print(
+			"Rain spawn Y: " +
+			RainSpawnY.ToString("F1")
+		);
+
+		GD.Print(
+			"Rain velocity: " +
+			RainVelocityX.ToString("F1") +
+			", " +
+			RainVelocityY.ToString("F1")
+		);
+
+		GD.Print(
+			"============================================"
+		);
 	}
 
 	// ============================================================
 	// Setup
 	// ============================================================
 
-	/// <summary>
-	/// Initializes the first rain phase.
-	/// </summary>
 	public void InitializeDynamicRain()
 	{
 		int stepCount =
@@ -261,17 +244,10 @@ internal sealed class RainSystem
 			randomStep *
 			RainPercentStep;
 
-		currentRainPercent =
-			initialRainPercent;
-
-		targetRainPercent =
-			initialRainPercent;
-
-		rainTransitionStartPercent =
-			initialRainPercent;
-
-		rainTransitionTimer =
-			RainTransitionDuration;
+		currentRainPercent = initialRainPercent;
+		targetRainPercent = initialRainPercent;
+		rainTransitionStartPercent = initialRainPercent;
+		rainTransitionTimer = RainTransitionDuration;
 
 		rainPhaseTimer =
 			rainRandom.RandfRange(
@@ -288,16 +264,12 @@ internal sealed class RainSystem
 		);
 	}
 
-	/// <summary>
-	/// Creates the rain HUD nodes.
-	/// </summary>
 	public void SetupRainHud()
 	{
 		rainHudLayer =
 			new CanvasLayer();
 
-		rainHudLayer.Layer =
-			20;
+		rainHudLayer.Layer = 20;
 
 		rainHudLabel =
 			new Label();
@@ -325,13 +297,9 @@ internal sealed class RainSystem
 		);
 	}
 
-	/// <summary>
-	/// Updates the rain HUD text.
-	/// </summary>
 	public void UpdateRainHud()
 	{
-		if (
-			rainHudLabel == null)
+		if (rainHudLabel == null)
 		{
 			return;
 		}
@@ -360,9 +328,6 @@ internal sealed class RainSystem
 	// Dynamic rain control
 	// ============================================================
 
-	/// <summary>
-	/// Selects a new rain phase.
-	/// </summary>
 	public void SelectNewRainPhase()
 	{
 		int stepCount =
@@ -387,8 +352,7 @@ internal sealed class RainSystem
 			randomStep *
 			RainPercentStep;
 
-		rainTransitionTimer =
-			0.0f;
+		rainTransitionTimer = 0.0f;
 
 		rainPhaseTimer =
 			rainRandom.RandfRange(
@@ -407,9 +371,6 @@ internal sealed class RainSystem
 		);
 	}
 
-	/// <summary>
-	/// Updates rain phase progression when anti-lag is not active.
-	/// </summary>
 	public void UpdateDynamicRain(
 		float dt)
 	{
@@ -420,12 +381,9 @@ internal sealed class RainSystem
 			return;
 		}
 
-		rainPhaseTimer -=
-			dt;
+		rainPhaseTimer -= dt;
 
-		if (
-			rainPhaseTimer <=
-			0.0f)
+		if (rainPhaseTimer <= 0.0f)
 		{
 			SelectNewRainPhase();
 		}
@@ -434,8 +392,7 @@ internal sealed class RainSystem
 			rainTransitionTimer <
 			RainTransitionDuration)
 		{
-			rainTransitionTimer +=
-				dt;
+			rainTransitionTimer += dt;
 
 			if (
 				rainTransitionTimer >
@@ -463,9 +420,6 @@ internal sealed class RainSystem
 		}
 	}
 
-	/// <summary>
-	/// Returns a random rain percent on the configured step grid.
-	/// </summary>
 	public int GetRandomRainPercent()
 	{
 		int stepCount =
@@ -488,9 +442,6 @@ internal sealed class RainSystem
 			RainPercentStep;
 	}
 
-	/// <summary>
-	/// Returns a random phase duration using the original rain range.
-	/// </summary>
 	public float GetRandomPhaseDuration()
 	{
 		return rainRandom.RandfRange(
@@ -499,26 +450,20 @@ internal sealed class RainSystem
 		);
 	}
 
-	/// <summary>
-	/// Clears the spawn accumulator.
-	/// </summary>
 	public void ResetSpawnAccumulator()
 	{
-		rainSpawnAccumulator =
-			0.0f;
+		rainSpawnAccumulator = 0.0f;
 	}
 
-	/// <summary>
-	/// Records a capacity rejection.
-	/// </summary>
 	public void RegisterCapacityRejection()
 	{
 		rainRejectedByCapacity++;
 	}
 
-	/// <summary>
-	/// Plans rain spawns for the current frame.
-	/// </summary>
+	// ============================================================
+	// Spawn planning
+	// ============================================================
+
 	public void PrepareRainSpawnRequests(
 		float dt,
 		int particleCount,
@@ -528,9 +473,7 @@ internal sealed class RainSystem
 	{
 		spawnRequests.Clear();
 
-		UpdateDynamicRain(
-			dt
-		);
+		UpdateDynamicRain(dt);
 
 		if (
 			AntiLagController != null &&
@@ -543,12 +486,9 @@ internal sealed class RainSystem
 			RainAmount *
 			(currentRainPercent / 50.0f);
 
-		if (
-			particleCount >=
-			particleCapacity)
+		if (particleCount >= particleCapacity)
 		{
 			rainRejectedByCapacity++;
-
 			return;
 		}
 
@@ -559,14 +499,12 @@ internal sealed class RainSystem
 		int spawnCount =
 			(int)rainSpawnAccumulator;
 
-		if (
-			spawnCount <= 0)
+		if (spawnCount <= 0)
 		{
 			return;
 		}
 
-		rainSpawnAccumulator -=
-			spawnCount;
+		rainSpawnAccumulator -= spawnCount;
 
 		int simulatedParticleCount =
 			particleCount;
@@ -581,7 +519,6 @@ internal sealed class RainSystem
 				particleCapacity)
 			{
 				rainRejectedByCapacity++;
-
 				break;
 			}
 
@@ -594,6 +531,30 @@ internal sealed class RainSystem
 			float y =
 				RainSpawnY;
 
+			// ----------------------------------------------------
+			// Diagnostic: actual spawn coordinates.
+			// ----------------------------------------------------
+
+			if (
+				diagnosticSpawnPrintCount <
+				DiagnosticMaxSpawnPrints)
+			{
+				GD.Print(
+					"RAIN SPAWN DIAGNOSTIC #" +
+					(diagnosticSpawnPrintCount + 1) +
+					": X=" +
+					x.ToString("F1") +
+					" Y=" +
+					y.ToString("F1") +
+					" Range=" +
+					worldMinX.ToString("F1") +
+					" -> " +
+					worldMaxX.ToString("F1")
+				);
+
+				diagnosticSpawnPrintCount++;
+			}
+
 			int pixelIndex;
 
 			if (
@@ -604,7 +565,6 @@ internal sealed class RainSystem
 				))
 			{
 				rainRejectedByDensity++;
-
 				continue;
 			}
 
@@ -622,17 +582,17 @@ internal sealed class RainSystem
 		}
 	}
 
-	/// <summary>
-	/// Commits one successful rain spawn.
-	/// </summary>
+	// ============================================================
+	// Successful spawn
+	// ============================================================
+
 	public void RegisterSuccessfulRainSpawn(
 		int pixelIndex,
 		PixelOccupancyGrid occupancyGrid)
 	{
 		totalRainSpawns++;
 
-		if (
-			pixelIndex >= 0)
+		if (pixelIndex >= 0)
 		{
 			occupancyGrid.RegisterParticlePixel(
 				pixelIndex

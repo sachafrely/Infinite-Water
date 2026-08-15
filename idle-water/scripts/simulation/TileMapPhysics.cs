@@ -5,21 +5,48 @@ using Godot;
 /// <summary>
 /// Generates PBF collision geometry from the visual Environment TileMapLayer.
 ///
-/// Collision model:
+/// Pipeline:
 ///
-///     visual tile pixels
-///          ↓
+///     Environment TileMapLayer
+///              ↓
 ///     solid pixel mask
-///          ↓
+///              ↓
 ///     horizontal solid runs
-///          ↓
+///              ↓
 ///     vertical run merging
-///          ↓
-///     convex filled rectangle colliders
+///              ↓
+///     adjacent rectangle merging
+///              ↓
+///     simulation-space rectangles
+///              ↓
+///     FluidPolygonCollider
 ///
-/// The collision represents the actual solid visual area.
-/// No dilation, thickness, contour extension, or artificial
-/// collision geometry is added.
+/// Important:
+///
+/// The Environment TileMapLayer lives in the main scene canvas.
+/// The simulation lives inside a SubViewport.
+///
+/// Coordinate conversion:
+///
+///     Environment local
+///          ↓
+///     main canvas/global coordinates
+///          ↓
+///     GameView local
+///          ↓
+///     SubViewport coordinates
+///          ↓
+///     Camera/simulation coordinates
+///          ↓
+///     PBF simulation coordinates
+///
+/// This version uses Godot 4 Transform2D multiplication instead of
+/// the non-existent TransformPoint() method.
+///
+/// Collision geometry is generated only once unless Rebuild() or
+/// GenerateColliders() is explicitly called.
+///
+/// No FluidPolygonCollider.Polygon property is required.
 /// </summary>
 [Tool]
 public partial class TileMapPhysics : Node2D
@@ -39,7 +66,32 @@ public partial class TileMapPhysics : Node2D
 	public bool DebugOutput { get; set; } = true;
 
 	[Export]
-	public bool ShowDebugGeometry { get; set; } = true;
+	public bool ShowDebugGeometry { get; set; } = false;
+
+	// ============================================================
+	// Diagnostics
+	// ============================================================
+
+	[Export]
+	public bool DiagnosticOutput { get; set; } = true;
+
+	[Export]
+	public int DiagnosticXBuckets { get; set; } = 10;
+
+	[Export]
+	public int DiagnosticLeftRectangleCount { get; set; } = 20;
+
+	[Export]
+	public float DiagnosticWorldMinX { get; set; } = 260.0f;
+
+	[Export]
+	public float DiagnosticWorldMaxX { get; set; } = 1180.0f;
+
+	[Export]
+	public float DiagnosticWorldMinY { get; set; } = -200.0f;
+
+	[Export]
+	public float DiagnosticWorldMaxY { get; set; } = 820.0f;
 
 	[Export]
 	public Color DebugColor { get; set; } =
@@ -50,21 +102,21 @@ public partial class TileMapPhysics : Node2D
 			0.9f
 		);
 
+	// ============================================================
+	// Viewport references
+	// ============================================================
+
 	[Export]
 	public NodePath GameViewPath { get; set; } =
 		new NodePath("../GameView");
 
 	[Export]
 	public NodePath SimulationViewportPath { get; set; } =
-		new NodePath(
-			"../GameView/SimulationViewport"
-		);
+		new NodePath("../GameView/SimulationViewport");
 
 	[Export]
 	public NodePath CameraPath { get; set; } =
-		new NodePath(
-			"../GameView/SimulationViewport/Camera2D"
-		);
+		new NodePath("../GameView/SimulationViewport/Camera2D");
 
 	// ============================================================
 	// Texture classification
@@ -101,11 +153,6 @@ public partial class TileMapPhysics : Node2D
 	[Export]
 	public int MaximumSolidColliders { get; set; } = 5000;
 
-	/// <summary>
-	/// Kept for scene compatibility.
-	/// The new run-based decomposition already performs
-	/// aggressive merging.
-	/// </summary>
 	[Export]
 	public bool MergeSolidRegions { get; set; } = true;
 
@@ -125,13 +172,11 @@ public partial class TileMapPhysics : Node2D
 	// Generated collision
 	// ============================================================
 
-	private readonly List<FluidPolygonCollider>
-		generatedColliders =
-			new List<FluidPolygonCollider>();
+	private readonly List<FluidPolygonCollider> generatedColliders =
+		new List<FluidPolygonCollider>();
 
-	private readonly List<DebugEdge>
-		debugEdges =
-			new List<DebugEdge>();
+	private readonly List<DebugEdge> debugEdges =
+		new List<DebugEdge>();
 
 	private bool generated;
 	private bool generating;
@@ -140,10 +185,10 @@ public partial class TileMapPhysics : Node2D
 	// Debug edge
 	// ============================================================
 
-	private struct DebugEdge
+	private readonly struct DebugEdge
 	{
-		public Vector2 A;
-		public Vector2 B;
+		public readonly Vector2 A;
+		public readonly Vector2 B;
 
 		public DebugEdge(
 			Vector2 a,
@@ -182,10 +227,10 @@ public partial class TileMapPhysics : Node2D
 	// Horizontal run
 	// ============================================================
 
-	private struct SolidRun
+	private readonly struct SolidRun
 	{
-		public int X;
-		public int Width;
+		public readonly int X;
+		public readonly int Width;
 
 		public SolidRun(
 			int x,
@@ -193,6 +238,51 @@ public partial class TileMapPhysics : Node2D
 		{
 			X = x;
 			Width = width;
+		}
+	}
+
+	// ============================================================
+	// Run key
+	// ============================================================
+
+	private readonly struct RunKey :
+		IEquatable<RunKey>
+	{
+		public readonly int X;
+		public readonly int Width;
+
+		public RunKey(
+			int x,
+			int width)
+		{
+			X = x;
+			Width = width;
+		}
+
+		public bool Equals(
+			RunKey other)
+		{
+			return
+				X == other.X &&
+				Width == other.Width;
+		}
+
+		public override bool Equals(
+			object obj)
+		{
+			return
+				obj is RunKey &&
+				Equals((RunKey)obj);
+		}
+
+		public override int GetHashCode()
+		{
+			unchecked
+			{
+				return
+					(X * 397) ^
+					Width;
+			}
 		}
 	}
 
@@ -222,6 +312,11 @@ public partial class TileMapPhysics : Node2D
 		);
 
 		GD.Print(
+			"DiagnosticOutput: " +
+			DiagnosticOutput
+		);
+
+		GD.Print(
 			"Collision mode: SOLID REGION / RUN MERGING"
 		);
 
@@ -239,8 +334,7 @@ public partial class TileMapPhysics : Node2D
 		if (generating)
 			return;
 
-		environment =
-			GetEnvironment();
+		environment = GetEnvironment();
 
 		if (environment == null)
 		{
@@ -251,10 +345,6 @@ public partial class TileMapPhysics : Node2D
 
 			return;
 		}
-
-		// --------------------------------------------------------
-		// Rendering order.
-		// --------------------------------------------------------
 
 		environment.ZIndex = 20;
 
@@ -280,10 +370,6 @@ public partial class TileMapPhysics : Node2D
 
 		if (solver == null)
 		{
-			GD.PushWarning(
-				"TileMapPhysics: PbfSolver is not ready yet."
-			);
-
 			CallDeferred(
 				nameof(Initialize)
 			);
@@ -293,10 +379,7 @@ public partial class TileMapPhysics : Node2D
 
 		FindViewportMapping();
 
-		if (
-			gameView == null ||
-			simulationViewport == null ||
-			simulationCamera == null)
+		if (!HasValidViewportMapping())
 		{
 			GD.PushError(
 				"TileMapPhysics: Could not establish " +
@@ -334,16 +417,10 @@ public partial class TileMapPhysics : Node2D
 		if (!ShowDebugGeometry)
 			return;
 
-		if (
-			gameView == null ||
-			simulationViewport == null ||
-			simulationCamera == null)
-		{
+		if (!HasValidViewportMapping())
 			return;
-		}
 
-		foreach (
-			DebugEdge edge in debugEdges)
+		foreach (DebugEdge edge in debugEdges)
 		{
 			Vector2 a =
 				SimulationToThisLocal(
@@ -359,7 +436,7 @@ public partial class TileMapPhysics : Node2D
 				a,
 				b,
 				DebugColor,
-				2.0f,
+				1.0f,
 				true
 			);
 		}
@@ -405,13 +482,10 @@ public partial class TileMapPhysics : Node2D
 			}
 		}
 
-		foreach (
-			Node child in node.GetChildren())
+		foreach (Node child in node.GetChildren())
 		{
 			TileMapLayer result =
-				FindTileMapLayer(
-					child
-				);
+				FindTileMapLayer(child);
 
 			if (result != null)
 			{
@@ -428,6 +502,14 @@ public partial class TileMapPhysics : Node2D
 
 	private void FindViewportMapping()
 	{
+		gameView = null;
+		simulationViewport = null;
+		simulationCamera = null;
+
+		// --------------------------------------------------------
+		// GameView
+		// --------------------------------------------------------
+
 		if (
 			GameViewPath != null &&
 			!GameViewPath.IsEmpty)
@@ -452,6 +534,10 @@ public partial class TileMapPhysics : Node2D
 				);
 		}
 
+		// --------------------------------------------------------
+		// Simulation viewport
+		// --------------------------------------------------------
+
 		if (
 			SimulationViewportPath != null &&
 			!SimulationViewportPath.IsEmpty)
@@ -472,8 +558,7 @@ public partial class TileMapPhysics : Node2D
 			simulationViewport == null &&
 			gameView != null)
 		{
-			foreach (
-				Node child in gameView.GetChildren())
+			foreach (Node child in gameView.GetChildren())
 			{
 				if (child is SubViewport)
 				{
@@ -484,6 +569,10 @@ public partial class TileMapPhysics : Node2D
 				}
 			}
 		}
+
+		// --------------------------------------------------------
+		// Camera
+		// --------------------------------------------------------
 
 		if (
 			CameraPath != null &&
@@ -526,6 +615,24 @@ public partial class TileMapPhysics : Node2D
 				)
 			);
 
+			if (gameView != null)
+			{
+				GD.Print(
+					"  GameView GlobalPosition: " +
+					gameView.GlobalPosition
+				);
+
+				GD.Print(
+					"  GameView Size: " +
+					gameView.Size
+				);
+
+				GD.Print(
+					"  GameView Scale: " +
+					gameView.Scale
+				);
+			}
+
 			GD.Print(
 				"  SimulationViewport: " +
 				(
@@ -535,6 +642,14 @@ public partial class TileMapPhysics : Node2D
 				)
 			);
 
+			if (simulationViewport != null)
+			{
+				GD.Print(
+					"  SimulationViewport Size: " +
+					simulationViewport.Size
+				);
+			}
+
 			GD.Print(
 				"  Camera: " +
 				(
@@ -543,7 +658,27 @@ public partial class TileMapPhysics : Node2D
 						: "NULL"
 				)
 			);
+
+			if (simulationCamera != null)
+			{
+				GD.Print(
+					"  Camera Screen Center: " +
+					simulationCamera.GetScreenCenterPosition()
+				);
+			}
 		}
+	}
+
+	private bool HasValidViewportMapping()
+	{
+		return
+			gameView != null &&
+			simulationViewport != null &&
+			simulationCamera != null &&
+			gameView.Size.X > 0.0f &&
+			gameView.Size.Y > 0.0f &&
+			simulationViewport.Size.X > 0 &&
+			simulationViewport.Size.Y > 0;
 	}
 
 	private static T FindNodeOfType<T>(
@@ -555,13 +690,10 @@ public partial class TileMapPhysics : Node2D
 			return (T)node;
 		}
 
-		foreach (
-			Node child in node.GetChildren())
+		foreach (Node child in node.GetChildren())
 		{
 			T result =
-				FindNodeOfType<T>(
-					child
-				);
+				FindNodeOfType<T>(child);
 
 			if (result != null)
 			{
@@ -584,7 +716,7 @@ public partial class TileMapPhysics : Node2D
 
 		if (result == null)
 		{
-			GD.PushError(
+			GD.PushWarning(
 				"TileMapPhysics: PbfSolver is not " +
 				"available on FluidSimulator yet."
 			);
@@ -599,12 +731,16 @@ public partial class TileMapPhysics : Node2D
 
 	public void GenerateColliders()
 	{
+		if (generating)
+			return;
+
 		GD.Print(
 			"========== GENERATE SOLID COLLIDERS =========="
 		);
 
-		if (generating)
-			return;
+		// --------------------------------------------------------
+		// Resolve references
+		// --------------------------------------------------------
 
 		if (environment == null)
 		{
@@ -644,10 +780,7 @@ public partial class TileMapPhysics : Node2D
 
 		FindViewportMapping();
 
-		if (
-			gameView == null ||
-			simulationViewport == null ||
-			simulationCamera == null)
+		if (!HasValidViewportMapping())
 		{
 			GD.PushError(
 				"TileMapPhysics: Viewport mapping is invalid."
@@ -656,28 +789,30 @@ public partial class TileMapPhysics : Node2D
 			return;
 		}
 
+		// --------------------------------------------------------
+		// Begin generation
+		// --------------------------------------------------------
+
 		generating = true;
 		generated = false;
-
-		// --------------------------------------------------------
-		// Remove old collision.
-		// --------------------------------------------------------
 
 		solver.ClearPolygonColliders();
 
 		generatedColliders.Clear();
 		debugEdges.Clear();
 
-		GD.Print(
-			"TileMapPhysics: Building solid terrain mask..."
-		);
+		// --------------------------------------------------------
+		// Build mask
+		// --------------------------------------------------------
 
-		// --------------------------------------------------------
-		// Build occupied pixel mask.
-		// --------------------------------------------------------
+		ulong maskStart =
+			Time.GetTicksMsec();
 
 		HashSet<Vector2I> solidPixels =
 			BuildGlobalSolidMask();
+
+		ulong maskEnd =
+			Time.GetTicksMsec();
 
 		if (solidPixels.Count == 0)
 		{
@@ -690,14 +825,27 @@ public partial class TileMapPhysics : Node2D
 			return;
 		}
 
+		if (DiagnosticOutput)
+		{
+			PrintSolidMaskDiagnostics(
+				solidPixels
+			);
+		}
+
 		// --------------------------------------------------------
-		// Convert mask into merged rectangles.
+		// Build rectangles
 		// --------------------------------------------------------
+
+		ulong rectangleStart =
+			Time.GetTicksMsec();
 
 		List<SolidRectangle> rectangles =
 			BuildSolidRectangles(
 				solidPixels
 			);
+
+		ulong rectangleEnd =
+			Time.GetTicksMsec();
 
 		if (DebugOutput)
 		{
@@ -712,97 +860,70 @@ public partial class TileMapPhysics : Node2D
 			);
 		}
 
+		if (DiagnosticOutput)
+		{
+			PrintRectangleDiagnostics(
+				rectangles
+			);
+
+			PrintSimulationBoundsDiagnostics(
+				rectangles
+			);
+		}
+
 		// --------------------------------------------------------
-		// Create colliders.
+		// Create colliders
 		// --------------------------------------------------------
+
+		ulong colliderStart =
+			Time.GetTicksMsec();
 
 		int generatedCount = 0;
 
-		foreach (
-			SolidRectangle rectangle in rectangles)
+		foreach (SolidRectangle rectangle in rectangles)
 		{
 			if (
 				generatedCount >=
 				MaximumSolidColliders)
 			{
 				GD.PushWarning(
-					"TileMapPhysics: MaximumSolidColliders " +
-					"reached."
+					"TileMapPhysics: MaximumSolidColliders reached."
 				);
 
 				break;
 			}
 
-			Vector2 topLeft =
-				new Vector2(
-					rectangle.X,
-					rectangle.Y
-				);
-
-			Vector2 bottomRight =
-				new Vector2(
-					rectangle.X +
-					rectangle.Width,
-					rectangle.Y +
-					rectangle.Height
-				);
-
-			Vector2 simulationTopLeft =
-				ToSimulationSpace(
-					topLeft
-				);
-
-			Vector2 simulationBottomRight =
-				ToSimulationSpace(
-					bottomRight
-				);
-
-			float minX =
-				Mathf.Min(
-					simulationTopLeft.X,
-					simulationBottomRight.X
-				);
-
-			float maxX =
-				Mathf.Max(
-					simulationTopLeft.X,
-					simulationBottomRight.X
-				);
-
-			float minY =
-				Mathf.Min(
-					simulationTopLeft.Y,
-					simulationBottomRight.Y
-				);
-
-			float maxY =
-				Mathf.Max(
-					simulationTopLeft.Y,
-					simulationBottomRight.Y
-				);
+			if (
+				rectangle.Width <
+				MinimumRectangleWidth ||
+				rectangle.Height <
+				MinimumRectangleHeight)
+			{
+				continue;
+			}
 
 			if (
-				maxX - minX <= 0.001f ||
-				maxY - minY <= 0.001f)
+				!TryCreateSimulationRectangle(
+					rectangle,
+					out Vector2 min,
+					out Vector2 max
+				))
 			{
 				continue;
 			}
 
 			Vector2[] polygon =
 			{
-				new Vector2(minX, minY),
-				new Vector2(minX, maxY),
-				new Vector2(maxX, maxY),
-				new Vector2(maxX, minY)
+				new Vector2(min.X, min.Y),
+				new Vector2(min.X, max.Y),
+				new Vector2(max.X, max.Y),
+				new Vector2(max.X, min.Y)
 			};
 
-			if (
-				PolygonArea(polygon) >
-				0.0f)
+			// FluidPolygonCollider expects clockwise polygons.
+			if (PolygonArea(polygon) > 0.0f)
 			{
-				Array.Reverse(
-					polygon
-				);
+				Array.Reverse(polygon);
 			}
 
 			FluidPolygonCollider collider =
@@ -821,8 +942,11 @@ public partial class TileMapPhysics : Node2D
 			generatedCount++;
 		}
 
+		ulong colliderEnd =
+			Time.GetTicksMsec();
+
 		// --------------------------------------------------------
-		// Debug boundary.
+		// Debug boundary
 		// --------------------------------------------------------
 
 		if (ShowDebugGeometry)
@@ -836,6 +960,10 @@ public partial class TileMapPhysics : Node2D
 			generatedColliders.Count > 0;
 
 		generating = false;
+
+		// --------------------------------------------------------
+		// Result
+		// --------------------------------------------------------
 
 		if (DebugOutput)
 		{
@@ -884,7 +1012,825 @@ public partial class TileMapPhysics : Node2D
 			);
 		}
 
+		if (DiagnosticOutput)
+		{
+			ulong total =
+				(maskEnd - maskStart) +
+				(rectangleEnd - rectangleStart) +
+				(colliderEnd - colliderStart);
+
+			GD.Print(
+				"========== TILEMAP PHYSICS DIAGNOSTICS =========="
+			);
+
+			GD.Print(
+				"Mask build: " +
+				(maskEnd - maskStart) +
+				" ms"
+			);
+
+			GD.Print(
+				"Rectangle build: " +
+				(rectangleEnd - rectangleStart) +
+				" ms"
+			);
+
+			GD.Print(
+				"Collider creation: " +
+				(colliderEnd - colliderStart) +
+				" ms"
+			);
+
+			GD.Print(
+				"TOTAL GENERATION: " +
+				total +
+				" ms"
+			);
+
+			PrintRectangleStatistics(
+				rectangles,
+				solidPixels.Count
+			);
+
+			GD.Print(
+				"================================================="
+			);
+		}
+
 		QueueRedraw();
+	}
+
+	// ============================================================
+	// Simulation rectangle conversion
+	// ============================================================
+
+	private bool TryCreateSimulationRectangle(
+		SolidRectangle rectangle,
+		out Vector2 min,
+		out Vector2 max)
+	{
+		min = Vector2.Zero;
+		max = Vector2.Zero;
+
+		Vector2 topLeft =
+			new Vector2(
+				rectangle.X,
+				rectangle.Y
+			);
+
+		Vector2 bottomRight =
+			new Vector2(
+				rectangle.X + rectangle.Width,
+				rectangle.Y + rectangle.Height
+			);
+
+		Vector2 a =
+			ToSimulationSpace(topLeft);
+
+		Vector2 b =
+			ToSimulationSpace(bottomRight);
+
+		min = new Vector2(
+			Mathf.Min(a.X, b.X),
+			Mathf.Min(a.Y, b.Y)
+		);
+
+		max = new Vector2(
+			Mathf.Max(a.X, b.X),
+			Mathf.Max(a.Y, b.Y)
+		);
+
+		if (
+			max.X - min.X <= 0.001f ||
+			max.Y - min.Y <= 0.001f)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	// ============================================================
+	// Solid mask diagnostics
+	// ============================================================
+
+	private void PrintSolidMaskDiagnostics(
+		HashSet<Vector2I> solidPixels)
+	{
+		if (
+			solidPixels == null ||
+			solidPixels.Count == 0)
+		{
+			return;
+		}
+
+		int minX = int.MaxValue;
+		int maxX = int.MinValue;
+		int minY = int.MaxValue;
+		int maxY = int.MinValue;
+
+		foreach (Vector2I p in solidPixels)
+		{
+			minX = Mathf.Min(minX, p.X);
+			maxX = Mathf.Max(maxX, p.X);
+			minY = Mathf.Min(minY, p.Y);
+			maxY = Mathf.Max(maxY, p.Y);
+		}
+
+		Vector2 simulationMin =
+			ToSimulationSpace(
+				new Vector2(
+					minX,
+					minY
+				)
+			);
+
+		Vector2 simulationMax =
+			ToSimulationSpace(
+				new Vector2(
+					maxX + 1,
+					maxY + 1
+				)
+			);
+
+		float simulationMinX =
+			Mathf.Min(
+				simulationMin.X,
+				simulationMax.X
+			);
+
+		float simulationMaxX =
+			Mathf.Max(
+				simulationMin.X,
+				simulationMax.X
+			);
+
+		float simulationMinY =
+			Mathf.Min(
+				simulationMin.Y,
+				simulationMax.Y
+			);
+
+		float simulationMaxY =
+			Mathf.Max(
+				simulationMin.Y,
+				simulationMax.Y
+			);
+
+		GD.Print(
+			"========== SOLID MASK DIAGNOSTIC =========="
+		);
+
+		GD.Print(
+			"TileMap solid bounds: " +
+			"X=" +
+			minX +
+			".." +
+			maxX +
+			" Y=" +
+			minY +
+			".." +
+			maxY
+		);
+
+		GD.Print(
+			"Simulation solid bounds: " +
+			"X=" +
+			simulationMinX.ToString("F1") +
+			".." +
+			simulationMaxX.ToString("F1") +
+			" Y=" +
+			simulationMinY.ToString("F1") +
+			".." +
+			simulationMaxY.ToString("F1")
+		);
+
+		GD.Print(
+			"Simulation viewport X: 0.." +
+			simulationViewport.Size.X
+		);
+
+		GD.Print(
+			"Simulation viewport Y: 0.." +
+			simulationViewport.Size.Y
+		);
+
+		GD.Print(
+			"Configured simulation world: " +
+			"X=" +
+			DiagnosticWorldMinX.ToString("F1") +
+			".." +
+			DiagnosticWorldMaxX.ToString("F1") +
+			" Y=" +
+			DiagnosticWorldMinY.ToString("F1") +
+			".." +
+			DiagnosticWorldMaxY.ToString("F1")
+		);
+
+		GD.Print(
+			"Solid pixel count: " +
+			solidPixels.Count
+		);
+
+		PrintSolidPixelXBuckets(
+			solidPixels,
+			minX,
+			maxX
+		);
+
+		int leftInspectionMax =
+			minX +
+			Mathf.Max(
+				16,
+				(maxX - minX) / 10
+			);
+
+		int leftCount = 0;
+
+		foreach (Vector2I p in solidPixels)
+		{
+			if (p.X <= leftInspectionMax)
+			{
+				leftCount++;
+			}
+		}
+
+		float leftPercent =
+			solidPixels.Count > 0
+				? 100.0f *
+				  leftCount /
+				  solidPixels.Count
+				: 0.0f;
+
+		GD.Print(
+			"Left terrain region: X=" +
+			minX +
+			".." +
+			leftInspectionMax
+		);
+
+		GD.Print(
+			"Left terrain pixels: " +
+			leftCount +
+			" (" +
+			leftPercent.ToString("F2") +
+			"%)"
+		);
+
+		Vector2 leftSimulation =
+			ToSimulationSpace(
+				new Vector2(
+					minX,
+					(minY + maxY) * 0.5f
+				)
+			);
+
+		GD.Print(
+			"Left terrain representative simulation X: " +
+			leftSimulation.X.ToString("F2")
+		);
+
+		if (
+			leftSimulation.X <
+			DiagnosticWorldMinX)
+		{
+			GD.Print(
+				"WARNING: Left terrain is outside the configured " +
+				"simulation-world minimum X."
+			);
+		}
+
+		GD.Print(
+			"============================================"
+		);
+	}
+
+	// ============================================================
+	// Solid X distribution
+	// ============================================================
+
+	private void PrintSolidPixelXBuckets(
+		HashSet<Vector2I> solidPixels,
+		int minX,
+		int maxX)
+	{
+		int bucketCount =
+			Mathf.Clamp(
+				DiagnosticXBuckets,
+				2,
+				32
+			);
+
+		int[] buckets =
+			new int[bucketCount];
+
+		int range =
+			Mathf.Max(
+				1,
+				maxX - minX + 1
+			);
+
+		foreach (Vector2I p in solidPixels)
+		{
+			int index =
+				(int)(
+					(long)(p.X - minX) *
+					bucketCount /
+					range
+				);
+
+			index =
+				Mathf.Clamp(
+					index,
+					0,
+					bucketCount - 1
+				);
+
+			buckets[index]++;
+		}
+
+		GD.Print(
+			"Solid pixel X distribution:"
+		);
+
+		for (
+			int i = 0;
+			i < bucketCount;
+			i++)
+		{
+			int bucketMin =
+				minX +
+				range *
+				i /
+				bucketCount;
+
+			int bucketMax =
+				minX +
+				range *
+				(i + 1) /
+				bucketCount -
+				1;
+
+			GD.Print(
+				"  X " +
+				bucketMin +
+				".." +
+				bucketMax +
+				": " +
+				buckets[i] +
+				" pixels"
+			);
+		}
+	}
+
+	// ============================================================
+	// Rectangle diagnostics
+	// ============================================================
+
+	private void PrintRectangleDiagnostics(
+		List<SolidRectangle> rectangles)
+	{
+		if (
+			rectangles == null ||
+			rectangles.Count == 0)
+		{
+			return;
+		}
+
+		GD.Print(
+			"========== COLLISION RECTANGLE DIAGNOSTIC =========="
+		);
+
+		List<int> leftIndices =
+			new List<int>(
+				rectangles.Count
+			);
+
+		for (
+			int i = 0;
+			i < rectangles.Count;
+			i++)
+		{
+			leftIndices.Add(i);
+		}
+
+		leftIndices.Sort(
+			(a, b) =>
+			{
+				int result =
+					rectangles[a].X.CompareTo(
+						rectangles[b].X
+					);
+
+				if (result != 0)
+					return result;
+
+				return rectangles[a].Y.CompareTo(
+					rectangles[b].Y
+				);
+			}
+		);
+
+		int printCount =
+			Mathf.Min(
+				DiagnosticLeftRectangleCount,
+				leftIndices.Count
+			);
+
+		GD.Print(
+			"Leftmost generated rectangles:"
+		);
+
+		for (
+			int n = 0;
+			n < printCount;
+			n++)
+		{
+			SolidRectangle r =
+				rectangles[leftIndices[n]];
+
+			Vector2 a =
+				ToSimulationSpace(
+					new Vector2(
+						r.X,
+						r.Y
+					)
+				);
+
+			Vector2 b =
+				ToSimulationSpace(
+					new Vector2(
+						r.X + r.Width,
+						r.Y + r.Height
+					)
+				);
+
+			float minX = Mathf.Min(a.X, b.X);
+			float maxX = Mathf.Max(a.X, b.X);
+			float minY = Mathf.Min(a.Y, b.Y);
+			float maxY = Mathf.Max(a.Y, b.Y);
+
+			GD.Print(
+				"  #" +
+				n +
+				" Tile=(" +
+				r.X +
+				"," +
+				r.Y +
+				") size=(" +
+				r.Width +
+				"x" +
+				r.Height +
+				") Simulation=(" +
+				minX.ToString("F1") +
+				".." +
+				maxX.ToString("F1") +
+				"," +
+				minY.ToString("F1") +
+				".." +
+				maxY.ToString("F1") +
+				")"
+			);
+		}
+
+		int minRectX = int.MaxValue;
+		int maxRectX = int.MinValue;
+
+		foreach (SolidRectangle r in rectangles)
+		{
+			minRectX =
+				Mathf.Min(
+					minRectX,
+					r.X
+				);
+
+			maxRectX =
+				Mathf.Max(
+					maxRectX,
+					r.X + r.Width
+				);
+		}
+
+		int rectRange =
+			Mathf.Max(
+				1,
+				maxRectX - minRectX
+			);
+
+		int leftThreshold =
+			minRectX +
+			Mathf.Max(
+				16,
+				rectRange / 10
+			);
+
+		int leftRectangles = 0;
+		float leftArea = 0.0f;
+		float totalArea = 0.0f;
+
+		foreach (SolidRectangle r in rectangles)
+		{
+			float area =
+				r.Width *
+				r.Height;
+
+			totalArea += area;
+
+			if (r.X <= leftThreshold)
+			{
+				leftRectangles++;
+				leftArea += area;
+			}
+		}
+
+		float leftRectanglePercent =
+			rectangles.Count > 0
+				? 100.0f *
+				  leftRectangles /
+				  rectangles.Count
+				: 0.0f;
+
+		float leftAreaPercent =
+			totalArea > 0.0f
+				? 100.0f *
+				  leftArea /
+				  totalArea
+				: 0.0f;
+
+		GD.Print(
+			"Rectangle tile X bounds: " +
+			minRectX +
+			".." +
+			maxRectX
+		);
+
+		GD.Print(
+			"Left-side threshold: X <= " +
+			leftThreshold
+		);
+
+		GD.Print(
+			"Left-side rectangles: " +
+			leftRectangles +
+			" (" +
+			leftRectanglePercent.ToString("F2") +
+			"%)"
+		);
+
+		GD.Print(
+			"Left-side rectangle area: " +
+			leftArea.ToString("F0") +
+			" (" +
+			leftAreaPercent.ToString("F2") +
+			"%)"
+		);
+
+		int verticalLikeRectangles = 0;
+
+		foreach (SolidRectangle r in rectangles)
+		{
+			if (
+				r.Height >= 4 * r.Width &&
+				r.X <= leftThreshold)
+			{
+				verticalLikeRectangles++;
+			}
+		}
+
+		GD.Print(
+			"Left-side tall/vertical rectangles: " +
+			verticalLikeRectangles
+		);
+
+		GD.Print(
+			"===================================================="
+		);
+	}
+
+	// ============================================================
+	// Simulation bounds diagnostics
+	// ============================================================
+
+	private void PrintSimulationBoundsDiagnostics(
+		List<SolidRectangle> rectangles)
+	{
+		if (
+			rectangles == null ||
+			rectangles.Count == 0)
+		{
+			return;
+		}
+
+		float minX = float.MaxValue;
+		float maxX = float.MinValue;
+		float minY = float.MaxValue;
+		float maxY = float.MinValue;
+
+		int outsideCount = 0;
+		int outsideLeft = 0;
+		int outsideRight = 0;
+		int outsideTop = 0;
+		int outsideBottom = 0;
+
+		foreach (SolidRectangle r in rectangles)
+		{
+			Vector2 a =
+				ToSimulationSpace(
+					new Vector2(
+						r.X,
+						r.Y
+					)
+				);
+
+			Vector2 b =
+				ToSimulationSpace(
+					new Vector2(
+						r.X + r.Width,
+						r.Y + r.Height
+					)
+				);
+
+			float rectMinX = Mathf.Min(a.X, b.X);
+			float rectMaxX = Mathf.Max(a.X, b.X);
+			float rectMinY = Mathf.Min(a.Y, b.Y);
+			float rectMaxY = Mathf.Max(a.Y, b.Y);
+
+			minX = Mathf.Min(minX, rectMinX);
+			maxX = Mathf.Max(maxX, rectMaxX);
+			minY = Mathf.Min(minY, rectMinY);
+			maxY = Mathf.Max(maxY, rectMaxY);
+
+			bool left =
+				rectMinX <
+				DiagnosticWorldMinX;
+
+			bool right =
+				rectMaxX >
+				DiagnosticWorldMaxX;
+
+			bool top =
+				rectMinY <
+				DiagnosticWorldMinY;
+
+			bool bottom =
+				rectMaxY >
+				DiagnosticWorldMaxY;
+
+			if (
+				left ||
+				right ||
+				top ||
+				bottom)
+			{
+				outsideCount++;
+
+				if (left)
+					outsideLeft++;
+
+				if (right)
+					outsideRight++;
+
+				if (top)
+					outsideTop++;
+
+				if (bottom)
+					outsideBottom++;
+			}
+		}
+
+		GD.Print(
+			"========== SIMULATION COLLISION BOUNDS =========="
+		);
+
+		GD.Print(
+			"Generated collider simulation bounds: " +
+			"X=" +
+			minX.ToString("F1") +
+			".." +
+			maxX.ToString("F1") +
+			" Y=" +
+			minY.ToString("F1") +
+			".." +
+			maxY.ToString("F1")
+		);
+
+		GD.Print(
+			"Expected simulation bounds: " +
+			"X=" +
+			DiagnosticWorldMinX.ToString("F1") +
+			".." +
+			DiagnosticWorldMaxX.ToString("F1") +
+			" Y=" +
+			DiagnosticWorldMinY.ToString("F1") +
+			".." +
+			DiagnosticWorldMaxY.ToString("F1")
+		);
+
+		GD.Print(
+			"Rectangles outside expected world: " +
+			outsideCount +
+			"/" +
+			rectangles.Count
+		);
+
+		GD.Print(
+			"  Outside left: " +
+			outsideLeft
+		);
+
+		GD.Print(
+			"  Outside right: " +
+			outsideRight
+		);
+
+		GD.Print(
+			"  Outside top: " +
+			outsideTop
+		);
+
+		GD.Print(
+			"  Outside bottom: " +
+			outsideBottom
+		);
+
+		GD.Print(
+			"================================================="
+		);
+	}
+
+	// ============================================================
+	// Rectangle statistics
+	// ============================================================
+
+	private void PrintRectangleStatistics(
+		List<SolidRectangle> rectangles,
+		int solidPixelCount)
+	{
+		if (
+			rectangles == null ||
+			rectangles.Count == 0)
+		{
+			return;
+		}
+
+		float minWidth = float.MaxValue;
+		float maxWidth = float.MinValue;
+		float minHeight = float.MaxValue;
+		float maxHeight = float.MinValue;
+
+		float totalWidth = 0.0f;
+		float totalHeight = 0.0f;
+		float totalArea = 0.0f;
+
+		foreach (SolidRectangle r in rectangles)
+		{
+			float width = r.Width;
+			float height = r.Height;
+			float area = width * height;
+
+			minWidth = Mathf.Min(minWidth, width);
+			maxWidth = Mathf.Max(maxWidth, width);
+
+			minHeight = Mathf.Min(minHeight, height);
+			maxHeight = Mathf.Max(maxHeight, height);
+
+			totalWidth += width;
+			totalHeight += height;
+			totalArea += area;
+		}
+
+		float count = rectangles.Count;
+
+		GD.Print(
+			"Collider width min/avg/max: " +
+			minWidth.ToString("F2") +
+			" / " +
+			(totalWidth / count).ToString("F2") +
+			" / " +
+			maxWidth.ToString("F2")
+		);
+
+		GD.Print(
+			"Collider height min/avg/max: " +
+			minHeight.ToString("F2") +
+			" / " +
+			(totalHeight / count).ToString("F2") +
+			" / " +
+			maxHeight.ToString("F2")
+		);
+
+		GD.Print(
+			"Approx collider area: " +
+			totalArea.ToString("F0")
+		);
+
+		GD.Print(
+			"Solid pixels / rectangle: " +
+			(
+				solidPixelCount /
+				count
+			).ToString("F2")
+		);
 	}
 
 	// ============================================================
@@ -921,21 +1867,16 @@ public partial class TileMapPhysics : Node2D
 		int ignoredBackgroundPixels = 0;
 		int ignoredTransparentPixels = 0;
 
-		foreach (
-			Vector2I cell in cells)
+		foreach (Vector2I cell in cells)
 		{
 			int sourceId =
-				environment.GetCellSourceId(
-					cell
-				);
+				environment.GetCellSourceId(cell);
 
 			if (sourceId < 0)
 				continue;
 
 			Vector2I atlasCoords =
-				environment.GetCellAtlasCoords(
-					cell
-				);
+				environment.GetCellAtlasCoords(cell);
 
 			if (
 				atlasCoords.X < 0 ||
@@ -945,9 +1886,7 @@ public partial class TileMapPhysics : Node2D
 			}
 
 			TileSetSource source =
-				tileSet.GetSource(
-					sourceId
-				);
+				tileSet.GetSource(sourceId);
 
 			if (!(source is TileSetAtlasSource))
 				continue;
@@ -978,8 +1917,7 @@ public partial class TileMapPhysics : Node2D
 				if (image == null)
 					continue;
 
-				imageCache[sourceId] =
-					image;
+				imageCache[sourceId] = image;
 			}
 
 			Rect2I region =
@@ -1015,37 +1953,22 @@ public partial class TileMapPhysics : Node2D
 
 			float scaleX =
 				tileSize.X /
-				Mathf.Max(
-					1,
-					width
-				);
+				Mathf.Max(1, width);
 
 			float scaleY =
 				tileSize.Y /
-				Mathf.Max(
-					1,
-					height
-				);
+				Mathf.Max(1, height);
 
 			Vector2 cellCenter =
-				environment.MapToLocal(
-					cell
-				);
+				environment.MapToLocal(cell);
 
 			Vector2 tileTopLeft =
 				cellCenter -
-				tileSize *
-				0.5f;
+				tileSize * 0.5f;
 
-			for (
-				int y = 0;
-				y < height;
-				y++)
+			for (int y = 0; y < height; y++)
 			{
-				for (
-					int x = 0;
-					x < width;
-					x++)
+				for (int x = 0; x < width; x++)
 				{
 					Color pixel =
 						image.GetPixel(
@@ -1063,9 +1986,7 @@ public partial class TileMapPhysics : Node2D
 
 					if (
 						UseEmptyColorKey &&
-						IsEmptyBackgroundPixel(
-							pixel
-						))
+						IsEmptyBackgroundPixel(pixel))
 					{
 						ignoredBackgroundPixels++;
 						continue;
@@ -1170,32 +2091,24 @@ public partial class TileMapPhysics : Node2D
 		List<SolidRectangle> rectangles =
 			new List<SolidRectangle>();
 
-		if (solid.Count == 0)
+		if (
+			solid == null ||
+			solid.Count == 0)
+		{
 			return rectangles;
-
-		// --------------------------------------------------------
-		// Find bounds.
-		// --------------------------------------------------------
+		}
 
 		int minX = int.MaxValue;
 		int minY = int.MaxValue;
 		int maxX = int.MinValue;
 		int maxY = int.MinValue;
 
-		foreach (
-			Vector2I p in solid)
+		foreach (Vector2I p in solid)
 		{
-			if (p.X < minX)
-				minX = p.X;
-
-			if (p.Y < minY)
-				minY = p.Y;
-
-			if (p.X > maxX)
-				maxX = p.X;
-
-			if (p.Y > maxY)
-				maxY = p.Y;
+			minX = Mathf.Min(minX, p.X);
+			minY = Mathf.Min(minY, p.Y);
+			maxX = Mathf.Max(maxX, p.X);
+			maxY = Mathf.Max(maxY, p.Y);
 		}
 
 		int width =
@@ -1208,18 +2121,13 @@ public partial class TileMapPhysics : Node2D
 			minY +
 			1;
 
-		// --------------------------------------------------------
-		// Occupancy grid.
-		// --------------------------------------------------------
-
 		bool[,] occupied =
 			new bool[
 				width,
 				height
 			];
 
-		foreach (
-			Vector2I p in solid)
+		foreach (Vector2I p in solid)
 		{
 			occupied[
 				p.X - minX,
@@ -1227,63 +2135,22 @@ public partial class TileMapPhysics : Node2D
 			] = true;
 		}
 
-		// --------------------------------------------------------
-		// Run-based decomposition.
-		//
-		// Instead of consuming one arbitrary rectangle at a time,
-		// first convert every row into maximal horizontal runs.
-		//
-		// Example:
-		//
-		// #######
-		// #######
-		// #######
-		//
-		// becomes one rectangle instead of several independent
-		// rectangles.
-		//
-		// More importantly, detailed tiles with many separate
-		// pixels get consolidated wherever their horizontal shape
-		// is identical.
-		// --------------------------------------------------------
-
-		List<SolidRun>[] rows =
-			new List<SolidRun>[height];
+		Dictionary<RunKey, int> active =
+			new Dictionary<RunKey, int>();
 
 		for (int y = 0; y < height; y++)
 		{
-			rows[y] =
+			List<SolidRun> runs =
 				BuildHorizontalRuns(
 					occupied,
 					y,
 					width
 				);
-		}
-
-		// --------------------------------------------------------
-		// Active rectangles.
-		//
-		// A rectangle remains active while the next row contains
-		// an identical run at the same X and width.
-		// --------------------------------------------------------
-
-		Dictionary<RunKey, int>
-			active =
-				new Dictionary<RunKey, int>();
-
-		for (
-			int y = 0;
-			y < height;
-			y++)
-		{
-			List<SolidRun> runs =
-				rows[y];
 
 			HashSet<RunKey> continued =
 				new HashSet<RunKey>();
 
-			foreach (
-				SolidRun run in runs)
+			foreach (SolidRun run in runs)
 			{
 				RunKey key =
 					new RunKey(
@@ -1291,60 +2158,40 @@ public partial class TileMapPhysics : Node2D
 						run.Width
 					);
 
-				int rectangleIndex;
-
 				if (
 					active.TryGetValue(
 						key,
-						out rectangleIndex))
+						out int rectangleIndex
+					))
 				{
 					SolidRectangle rectangle =
-						rectangles[
-							rectangleIndex
-						];
+						rectangles[rectangleIndex];
 
-					if (
-						rectangle.Y +
-						rectangle.Height ==
-						minY + y)
-					{
-						rectangle.Height++;
+					rectangle.Height++;
 
-						rectangles[
-							rectangleIndex
-						] = rectangle;
+					rectangles[rectangleIndex] =
+						rectangle;
 
-						continued.Add(
-							key
+					continued.Add(key);
+				}
+				else
+				{
+					SolidRectangle rectangle =
+						new SolidRectangle(
+							minX + run.X,
+							minY + y,
+							run.Width,
+							1
 						);
 
-						continue;
-					}
+					rectangles.Add(rectangle);
+
+					active[key] =
+						rectangles.Count - 1;
+
+					continued.Add(key);
 				}
-
-				SolidRectangle newRectangle =
-					new SolidRectangle(
-						minX + run.X,
-						minY + y,
-						run.Width,
-						1
-					);
-
-				rectangles.Add(
-					newRectangle
-				);
-
-				active[key] =
-					rectangles.Count - 1;
-
-				continued.Add(
-					key
-				);
 			}
-
-			// ----------------------------------------------------
-			// Remove active runs which did not continue.
-			// ----------------------------------------------------
 
 			if (active.Count > 0)
 			{
@@ -1352,33 +2199,21 @@ public partial class TileMapPhysics : Node2D
 					new List<RunKey>();
 
 				foreach (
-					KeyValuePair<
-						RunKey,
-						int> pair
-						in active)
+					KeyValuePair<RunKey, int> pair
+					in active)
 				{
 					if (!continued.Contains(pair.Key))
 					{
-						expired.Add(
-							pair.Key
-						);
+						expired.Add(pair.Key);
 					}
 				}
 
-				foreach (
-					RunKey key in expired)
+				foreach (RunKey key in expired)
 				{
 					active.Remove(key);
 				}
 			}
 		}
-
-		// --------------------------------------------------------
-		// Optional second merge pass.
-		//
-		// This can combine rectangles that became adjacent after
-		// the run-based vertical merging.
-		// --------------------------------------------------------
 
 		if (MergeSolidRegions)
 		{
@@ -1389,53 +2224,6 @@ public partial class TileMapPhysics : Node2D
 		}
 
 		return rectangles;
-	}
-
-	// ============================================================
-	// Run key
-	// ============================================================
-
-	private readonly struct RunKey :
-		IEquatable<RunKey>
-	{
-		public readonly int X;
-		public readonly int Width;
-
-		public RunKey(
-			int x,
-			int width)
-		{
-			X = x;
-			Width = width;
-		}
-
-		public bool Equals(
-			RunKey other)
-		{
-			return
-				X == other.X &&
-				Width == other.Width;
-		}
-
-		public override bool Equals(
-			object obj)
-		{
-			return
-				obj is RunKey &&
-				Equals(
-					(RunKey)obj
-				);
-		}
-
-		public override int GetHashCode()
-		{
-			unchecked
-			{
-				return
-					(X * 397) ^
-					Width;
-			}
-		}
 	}
 
 	// ============================================================
@@ -1461,8 +2249,7 @@ public partial class TileMapPhysics : Node2D
 				continue;
 			}
 
-			int start =
-				x;
+			int start = x;
 
 			while (
 				x < width &&
@@ -1471,13 +2258,10 @@ public partial class TileMapPhysics : Node2D
 				x++;
 			}
 
-			int runWidth =
-				x - start;
-
 			runs.Add(
 				new SolidRun(
 					start,
-					runWidth
+					x - start
 				)
 			);
 		}
@@ -1493,139 +2277,179 @@ public partial class TileMapPhysics : Node2D
 		MergeAdjacentRectangles(
 			List<SolidRectangle> source)
 	{
-		if (source.Count <= 1)
+		if (
+			source == null ||
+			source.Count <= 1)
+		{
 			return source;
+		}
 
-		List<SolidRectangle> result =
+		List<SolidRectangle> working =
 			new List<SolidRectangle>(
 				source
 			);
 
 		bool changed = true;
 
-		// Allow more passes than the old version because the
-		// run-based decomposition has already reduced the number
-		// of rectangles substantially.
-		int safety =
-			Mathf.Min(
-				128,
-				Mathf.Max(
-					1,
-					result.Count
-				)
-			);
-
-		while (
-			changed &&
-			safety-- > 0)
+		while (changed)
 		{
 			changed = false;
 
+			// ----------------------------------------------------
+			// Horizontal merge
+			//
+			// Rectangles can merge when:
+			//
+			//     same Y
+			//     same Height
+			//     left.X + left.Width == right.X
+			//
+			// We sort by Y, Height, X first, which makes adjacent
+			// rectangles naturally appear next to one another.
+			// ----------------------------------------------------
+
+			working.Sort(
+				(a, b) =>
+				{
+					int result =
+						a.Y.CompareTo(b.Y);
+
+					if (result != 0)
+						return result;
+
+					result =
+						a.Height.CompareTo(
+							b.Height
+						);
+
+					if (result != 0)
+						return result;
+
+					return a.X.CompareTo(b.X);
+				}
+			);
+
+			List<SolidRectangle> horizontal =
+				new List<SolidRectangle>(
+					working.Count
+				);
+
 			for (
 				int i = 0;
-				i < result.Count &&
-				!changed;
+				i < working.Count;
 				i++)
 			{
-				SolidRectangle a =
-					result[i];
+				SolidRectangle current =
+					working[i];
 
-				for (
-					int j = i + 1;
-					j < result.Count;
-					j++)
+				if (horizontal.Count > 0)
 				{
-					SolidRectangle b =
-						result[j];
+					int lastIndex =
+						horizontal.Count - 1;
 
-					// ------------------------------------------------
-					// Horizontal merge.
-					// ------------------------------------------------
-
-					if (
-						a.Y == b.Y &&
-						a.Height == b.Height)
-					{
-						if (
-							a.X +
-							a.Width ==
-							b.X)
-						{
-							a.Width +=
-								b.Width;
-
-							result[i] = a;
-							result.RemoveAt(j);
-
-							changed = true;
-							break;
-						}
-
-						if (
-							b.X +
-							b.Width ==
-							a.X)
-						{
-							a.X =
-								b.X;
-
-							a.Width +=
-								b.Width;
-
-							result[i] = a;
-							result.RemoveAt(j);
-
-							changed = true;
-							break;
-						}
-					}
-
-					// ------------------------------------------------
-					// Vertical merge.
-					// ------------------------------------------------
+					SolidRectangle previous =
+						horizontal[lastIndex];
 
 					if (
-						a.X == b.X &&
-						a.Width == b.Width)
+						previous.Y == current.Y &&
+						previous.Height == current.Height &&
+						previous.X + previous.Width == current.X)
 					{
-						if (
-							a.Y +
-							a.Height ==
-							b.Y)
-						{
-							a.Height +=
-								b.Height;
+						previous.Width +=
+							current.Width;
 
-							result[i] = a;
-							result.RemoveAt(j);
+						horizontal[lastIndex] =
+							previous;
 
-							changed = true;
-							break;
-						}
+						changed = true;
 
-						if (
-							b.Y +
-							b.Height ==
-							a.Y)
-						{
-							a.Y =
-								b.Y;
-
-							a.Height +=
-								b.Height;
-
-							result[i] = a;
-							result.RemoveAt(j);
-
-							changed = true;
-							break;
-						}
+						continue;
 					}
 				}
+
+				horizontal.Add(current);
 			}
+
+			working = horizontal;
+
+			// ----------------------------------------------------
+			// Vertical merge
+			//
+			// Rectangles can merge when:
+			//
+			//     same X
+			//     same Width
+			//     top.Y + top.Height == bottom.Y
+			//
+			// Sort by X, Width, Y first.
+			// ----------------------------------------------------
+
+			working.Sort(
+				(a, b) =>
+				{
+					int result =
+						a.X.CompareTo(b.X);
+
+					if (result != 0)
+						return result;
+
+					result =
+						a.Width.CompareTo(
+							b.Width
+						);
+
+					if (result != 0)
+						return result;
+
+					return a.Y.CompareTo(b.Y);
+				}
+			);
+
+			List<SolidRectangle> vertical =
+				new List<SolidRectangle>(
+					working.Count
+				);
+
+			for (
+				int i = 0;
+				i < working.Count;
+				i++)
+			{
+				SolidRectangle current =
+					working[i];
+
+				if (vertical.Count > 0)
+				{
+					int lastIndex =
+						vertical.Count - 1;
+
+					SolidRectangle previous =
+						vertical[lastIndex];
+
+					if (
+						previous.X == current.X &&
+						previous.Width == current.Width &&
+						previous.Y + previous.Height == current.Y)
+					{
+						previous.Height +=
+							current.Height;
+
+						vertical[lastIndex] =
+							previous;
+
+						changed = true;
+
+						continue;
+					}
+				}
+
+				vertical.Add(current);
+			}
+
+			working = vertical;
 		}
 
-		return result;
+		return working;
 	}
 
 	// ============================================================
@@ -1637,13 +2461,14 @@ public partial class TileMapPhysics : Node2D
 	{
 		debugEdges.Clear();
 
-		foreach (
-			Vector2I p in solid)
+		if (solid == null)
+			return;
+
+		foreach (Vector2I p in solid)
 		{
 			int x = p.X;
 			int y = p.Y;
 
-			// Top.
 			if (
 				!solid.Contains(
 					new Vector2I(
@@ -1664,7 +2489,6 @@ public partial class TileMapPhysics : Node2D
 				);
 			}
 
-			// Right.
 			if (
 				!solid.Contains(
 					new Vector2I(
@@ -1685,7 +2509,6 @@ public partial class TileMapPhysics : Node2D
 				);
 			}
 
-			// Bottom.
 			if (
 				!solid.Contains(
 					new Vector2I(
@@ -1706,7 +2529,6 @@ public partial class TileMapPhysics : Node2D
 				);
 			}
 
-			// Left.
 			if (
 				!solid.Contains(
 					new Vector2I(
@@ -1813,21 +2635,128 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// TileMap -> Simulation
+	// Environment → main canvas
 	// ============================================================
 
-	private Vector2
-		ToSimulationSpace(
-			Vector2 tileMapLocal)
+	private Vector2 EnvironmentToGlobal(
+		Vector2 tileMapLocal)
 	{
-		Vector2 mainViewportPoint =
-			environment.ToGlobal(
+		return environment.ToGlobal(
+			tileMapLocal
+		);
+	}
+
+	// ============================================================
+	// Main canvas → GameView local
+	// ============================================================
+
+	private Vector2 GlobalToGameView(
+		Vector2 globalPoint)
+	{
+		if (gameView == null)
+			return globalPoint;
+
+		// Godot 4 C#:
+		//
+		// Transform2D does not provide TransformPoint().
+		//
+		// Transforming a Vector2 is done with:
+		//
+		//     transform * point
+		//
+		Transform2D inverse =
+			gameView
+				.GetGlobalTransformWithCanvas()
+				.AffineInverse();
+
+		return inverse * globalPoint;
+	}
+
+	// ============================================================
+	// GameView → SubViewport
+	// ============================================================
+
+	private Vector2 GameViewToViewport(
+		Vector2 gameViewPoint)
+	{
+		Vector2 gameSize =
+			gameView.Size;
+
+		Vector2 viewportSize =
+			new Vector2(
+				simulationViewport.Size.X,
+				simulationViewport.Size.Y
+			);
+
+		if (
+			gameSize.X <= 0.001f ||
+			gameSize.Y <= 0.001f)
+		{
+			return gameViewPoint;
+		}
+
+		float normalizedX =
+			gameViewPoint.X /
+			gameSize.X;
+
+		float normalizedY =
+			gameViewPoint.Y /
+			gameSize.Y;
+
+		return new Vector2(
+			normalizedX * viewportSize.X,
+			normalizedY * viewportSize.Y
+		);
+	}
+
+	// ============================================================
+	// TileMap → Simulation
+	// ============================================================
+
+	/// <summary>
+	/// Converts Environment TileMap local coordinates into the
+	/// simulation's PBF coordinate system.
+	///
+	/// This is the critical mapping used by collision generation.
+	/// </summary>
+	private Vector2 ToSimulationSpace(
+		Vector2 tileMapLocal)
+	{
+		if (!HasValidViewportMapping())
+		{
+			return tileMapLocal;
+		}
+
+		// --------------------------------------------------------
+		// 1. Environment local → main canvas/global.
+		// --------------------------------------------------------
+
+		Vector2 globalPoint =
+			EnvironmentToGlobal(
 				tileMapLocal
 			);
 
+		// --------------------------------------------------------
+		// 2. Main canvas/global → GameView local.
+		// --------------------------------------------------------
+
+		Vector2 gameViewPoint =
+			GlobalToGameView(
+				globalPoint
+			);
+
+		// --------------------------------------------------------
+		// 3. GameView local → SubViewport coordinates.
+		// --------------------------------------------------------
+
 		Vector2 viewportPoint =
-			mainViewportPoint -
-			gameView.GlobalPosition;
+			GameViewToViewport(
+				gameViewPoint
+			);
+
+		// --------------------------------------------------------
+		// 4. SubViewport screen coordinates → simulation world.
+		// --------------------------------------------------------
 
 		Vector2 viewportSize =
 			new Vector2(
@@ -1851,13 +2780,18 @@ public partial class TileMapPhysics : Node2D
 	}
 
 	// ============================================================
-	// Simulation -> local
+	// Simulation → this node local
 	// ============================================================
 
 	private Vector2
 		SimulationToThisLocal(
 			Vector2 simulationPoint)
 	{
+		if (!HasValidViewportMapping())
+		{
+			return ToLocal(simulationPoint);
+		}
+
 		Vector2 viewportSize =
 			new Vector2(
 				simulationViewport.Size.X,
@@ -1878,17 +2812,43 @@ public partial class TileMapPhysics : Node2D
 				cameraCenter
 			);
 
-		Vector2 mainViewportPoint =
-			viewportPoint +
-			gameView.GlobalPosition;
+		Vector2 gameSize =
+			gameView.Size;
+
+		Vector2 gameViewPoint =
+			new Vector2(
+				viewportSize.X > 0.0f
+					? viewportPoint.X *
+					  gameSize.X /
+					  viewportSize.X
+					: viewportPoint.X,
+
+				viewportSize.Y > 0.0f
+					? viewportPoint.Y *
+					  gameSize.Y /
+					  viewportSize.Y
+					: viewportPoint.Y
+			);
+
+		Transform2D gameTransform =
+			gameView.GetGlobalTransformWithCanvas();
+
+		// Godot 4 C# Transform2D → Vector2:
+		//
+		//     transform * point
+		//
+		// NOT TransformPoint().
+		Vector2 globalPoint =
+			gameTransform *
+			gameViewPoint;
 
 		return ToLocal(
-			mainViewportPoint
+			globalPoint
 		);
 	}
 
 	// ============================================================
-	// Find fluid simulator
+	// Find FluidSimulator
 	// ============================================================
 
 	private static FluidSimulator
@@ -1900,13 +2860,10 @@ public partial class TileMapPhysics : Node2D
 			return (FluidSimulator)node;
 		}
 
-		foreach (
-			Node child in node.GetChildren())
+		foreach (Node child in node.GetChildren())
 		{
 			FluidSimulator result =
-				FindFluidSimulator(
-					child
-				);
+				FindFluidSimulator(child);
 
 			if (result != null)
 			{
@@ -1956,6 +2913,7 @@ public partial class TileMapPhysics : Node2D
 	public override void _ExitTree()
 	{
 		generated = false;
+		generating = false;
 
 		generatedColliders.Clear();
 		debugEdges.Clear();
