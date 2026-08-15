@@ -91,3 +91,6 @@ idle-water/
 7. **Namespace convention**: `IdleWater.Core`, `IdleWater.Systems`,
    `IdleWater.Services`, `IdleWater.UI`, `IdleWater.Data`,
    `IdleWater.Utils` — match the folder name.
+   **Important**: namespace migration must be done one class at a time.
+   All `partial` files for the same class must share the same namespace,
+   so update the original source file and every partial at the same time.

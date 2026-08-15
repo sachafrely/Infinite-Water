@@ -2,6 +2,11 @@
 /// All tuning constants for the PBF (Position-Based Fluids) solver.
 /// Extracted from PbfSolver.cs as a partial class to keep simulation
 /// parameters in one easy-to-find location.
+///
+/// NOTE: This file intentionally has no namespace to match the existing
+/// PbfSolver.cs (global namespace). Adding IdleWater.Data here will require
+/// a matching namespace change in PbfSolver.cs — do that as a single
+/// coordinated step in a future refactor PR.
 /// </summary>
 public partial class PbfSolver
 {
