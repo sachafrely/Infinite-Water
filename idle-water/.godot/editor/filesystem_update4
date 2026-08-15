@@ -1,7 +1,7 @@
-res://Scripts/Fluid/WaterWheelVisual.cs
-res://Scripts/Fluid/FluidRenderer.cs
-res://Scripts/FrameProfiler.cs
-res://Scripts/Fluid/StatisticsGraph.cs
-res://Scripts/Fluid/TileMapPhysics.cs
-res://Scripts/Fluid/FluidSimulator.cs
+res://scripts/Fluid/WaterWheelVisual.cs
+res://scripts/Fluid/FluidRenderer.cs
+res://scripts/FrameProfiler.cs
+res://scripts/Fluid/StatisticsGraph.cs
+res://scripts/Fluid/TileMapPhysics.cs
+res://scripts/Fluid/FluidSimulator.cs
 res://Scenes/Main.tscn
