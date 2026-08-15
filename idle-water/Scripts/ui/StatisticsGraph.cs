@@ -28,13 +28,20 @@ public partial class StatisticsGraph : Control
 
 	private const float GraphMarginLeft = 55.0f;
 	private const float GraphMarginRight = 35.0f;
-	private const float GraphMarginTop = 25.0f;
-	private const float GraphMarginBottom = 15.0f;
+
+	// Increased by 10 pixels.
+	private const float GraphMarginTop = 35.0f;
+
+	private const float GraphMarginBottom = 5.0f;
 
 	private const float SecondGraphMarginLeft = 55.0f;
 	private const float SecondGraphMarginRight = 35.0f;
+
 	private const float SecondGraphMarginTop = 25.0f;
-	private const float SecondGraphMarginBottom = 0.0f;
+
+	// Do not reserve unnecessary space underneath
+	// the second graph.
+	private const float SecondGraphMarginBottom = 40.0f;
 
 	private const float GraphBorderWidth = 2.0f;
 	private const float GridLineWidth = 1.0f;
@@ -46,10 +53,8 @@ public partial class StatisticsGraph : Control
 	// TOP GRAPH HISTORY
 	// ============================================================
 
-	// Maximum visible history in seconds.
 	private const float MaxTopGraphSeconds = 600.0f;
 
-	// The simulator normally adds one sample per frame.
 	private const int AssumedSamplesPerSecond = 60;
 
 	private const int MaxTopGraphSamples =
@@ -71,9 +76,6 @@ public partial class StatisticsGraph : Control
 	private const string RainEnergyGraphTitle =
 		"Energy Per Particle";
 
-	// IMPORTANT:
-	// The bottom graph X axis is ACTIVE PARTICLES,
-	// not rain percentage.
 	private const string RainEnergyGraphXAxis =
 		"Particles";
 
@@ -116,14 +118,8 @@ public partial class StatisticsGraph : Control
 
 	private struct RainEnergySample
 	{
-		// Kept for diagnostics/statistical information.
-		// It is NOT used as the bottom graph X axis.
 		public float AverageRain;
-
-		// Y axis of bottom graph.
 		public float AverageEnergy;
-
-		// X axis of bottom graph.
 		public float AverageParticles;
 
 		public RainEnergySample(
@@ -149,10 +145,7 @@ public partial class StatisticsGraph : Control
 	// BOTTOM GRAPH SCALING
 	// ============================================================
 
-	// IMPORTANT:
-	// This is now PARTICLE count, not rain percentage.
 	private float particleEnergyMaxParticles = 100.0f;
-
 	private float particleEnergyMaxEnergy = 1.0f;
 
 	// ============================================================
@@ -172,7 +165,6 @@ public partial class StatisticsGraph : Control
 
 	private int lastCachedWidth = -1;
 
-	// Rebuild only periodically instead of every frame.
 	private int samplesSinceCacheBuild = 0;
 
 	private const int CacheRebuildInterval = 30;
@@ -207,7 +199,6 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		// Keep only enough data for 600 seconds.
 		while (
 			samples.Count >
 			MaxTopGraphSamples)
@@ -346,11 +337,9 @@ public partial class StatisticsGraph : Control
 
 	private void RecalculateParticleEnergyGraphScale()
 	{
-		// X axis is now PARTICLES.
 		particleEnergyMaxParticles =
 			1.0f;
 
-		// Y axis is ENERGY.
 		particleEnergyMaxEnergy =
 			0.001f;
 
@@ -379,8 +368,6 @@ public partial class StatisticsGraph : Control
 			}
 		}
 
-		// Give the graph some breathing room above the
-		// highest measured value.
 		particleEnergyMaxParticles =
 			Mathf.Max(
 				particleEnergyMaxParticles * 1.15f,
@@ -421,10 +408,6 @@ public partial class StatisticsGraph : Control
 			return;
 		}
 
-		// --------------------------------------------------------
-		// Background
-		// --------------------------------------------------------
-
 		DrawRect(
 			graphRect,
 			new Color(
@@ -436,15 +419,7 @@ public partial class StatisticsGraph : Control
 			true
 		);
 
-		// --------------------------------------------------------
-		// Grid
-		// --------------------------------------------------------
-
 		DrawExistingGrid(graphRect);
-
-		// --------------------------------------------------------
-		// Border
-		// --------------------------------------------------------
 
 		DrawRect(
 			graphRect,
@@ -457,10 +432,6 @@ public partial class StatisticsGraph : Control
 			false,
 			GraphBorderWidth
 		);
-
-		// --------------------------------------------------------
-		// Title
-		// --------------------------------------------------------
 
 		DrawString(
 			ThemeDB.FallbackFont,
@@ -479,15 +450,7 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		// --------------------------------------------------------
-		// Legend
-		// --------------------------------------------------------
-
 		DrawTopGraphLegend(graphRect);
-
-		// --------------------------------------------------------
-		// X AXIS
-		// --------------------------------------------------------
 
 		DrawString(
 			ThemeDB.FallbackFont,
@@ -510,10 +473,6 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		// --------------------------------------------------------
-		// Y AXIS
-		// --------------------------------------------------------
-
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
@@ -532,15 +491,7 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		// --------------------------------------------------------
-		// TIME LABELS
-		// --------------------------------------------------------
-
 		DrawTopTimeLabels(graphRect);
-
-		// --------------------------------------------------------
-		// NO DATA
-		// --------------------------------------------------------
 
 		if (samples.Count == 0)
 		{
@@ -567,10 +518,6 @@ public partial class StatisticsGraph : Control
 			return;
 		}
 
-		// --------------------------------------------------------
-		// CACHE
-		// --------------------------------------------------------
-
 		int graphWidth =
 			Mathf.Max(
 				(int)graphRect.Size.X,
@@ -588,10 +535,6 @@ public partial class StatisticsGraph : Control
 		{
 			BuildTopGraphCache(graphRect);
 		}
-
-		// --------------------------------------------------------
-		// THREE SERIES
-		// --------------------------------------------------------
 
 		if (
 			cachedParticlesPoints.Length >= 2)
@@ -1117,10 +1060,6 @@ public partial class StatisticsGraph : Control
 			return;
 		}
 
-		// --------------------------------------------------------
-		// Background
-		// --------------------------------------------------------
-
 		DrawRect(
 			graphRect,
 			new Color(
@@ -1132,15 +1071,7 @@ public partial class StatisticsGraph : Control
 			true
 		);
 
-		// --------------------------------------------------------
-		// Grid
-		// --------------------------------------------------------
-
 		DrawRainEnergyGrid(graphRect);
-
-		// --------------------------------------------------------
-		// Border
-		// --------------------------------------------------------
 
 		DrawRect(
 			graphRect,
@@ -1153,10 +1084,6 @@ public partial class StatisticsGraph : Control
 			false,
 			GraphBorderWidth
 		);
-
-		// --------------------------------------------------------
-		// Title
-		// --------------------------------------------------------
 
 		DrawString(
 			ThemeDB.FallbackFont,
@@ -1174,10 +1101,6 @@ public partial class StatisticsGraph : Control
 				0.9f
 			)
 		);
-
-		// --------------------------------------------------------
-		// X AXIS LABEL
-		// --------------------------------------------------------
 
 		DrawString(
 			ThemeDB.FallbackFont,
@@ -1200,10 +1123,6 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		// --------------------------------------------------------
-		// Y AXIS LABEL
-		// --------------------------------------------------------
-
 		DrawString(
 			ThemeDB.FallbackFont,
 			new Vector2(
@@ -1221,12 +1140,6 @@ public partial class StatisticsGraph : Control
 				0.75f
 			)
 		);
-
-		// --------------------------------------------------------
-		// X AXIS TICKS
-		//
-		// These now represent PARTICLE COUNT.
-		// --------------------------------------------------------
 
 		DrawString(
 			ThemeDB.FallbackFont,
@@ -1285,10 +1198,6 @@ public partial class StatisticsGraph : Control
 			)
 		);
 
-		// --------------------------------------------------------
-		// NO DATA
-		// --------------------------------------------------------
-
 		if (rainEnergySamples.Count < 1)
 		{
 			DrawString(
@@ -1313,15 +1222,6 @@ public partial class StatisticsGraph : Control
 
 			return;
 		}
-
-		// --------------------------------------------------------
-		// DOTS ONLY
-		//
-		// X = Average Active Particles
-		// Y = Average Energy
-		//
-		// Rain percentage is NOT used for positioning.
-		// --------------------------------------------------------
 
 		for (
 			int i = 0;
@@ -1456,13 +1356,25 @@ public partial class StatisticsGraph : Control
 				100.0f
 			);
 
+		// Allocate roughly half of the available vertical space
+		// to the top graph.
+		//
+		// The important difference is that the total layout is
+		// calculated from the actual Control height, rather than
+		// leaving a hidden fixed portion at the bottom.
+		float availableHeight =
+			Mathf.Max(
+				Size.Y -
+				GraphMarginTop -
+				GraphMarginBottom -
+				GraphSpacing -
+				SecondGraphMarginTop,
+				160.0f
+			);
+
 		float height =
 			Mathf.Max(
-				(Size.Y -
-				GraphSpacing) *
-				0.5f -
-				GraphMarginTop -
-				GraphMarginBottom,
+				availableHeight * 0.5f,
 				80.0f
 			);
 
@@ -1492,14 +1404,18 @@ public partial class StatisticsGraph : Control
 			GraphSpacing +
 			SecondGraphMarginTop;
 
-		float bottomSpace =
+		// Use EVERYTHING remaining below the second graph's top.
+		//
+		// There is deliberately no bottom reservation here.
+		// This makes the second graph extend all the way to the
+		// bottom edge of the StatisticsGraph Control.
+		float bottom =
 			Size.Y -
-			top -
 			SecondGraphMarginBottom;
 
 		float height =
 			Mathf.Max(
-				bottomSpace,
+				bottom - top,
 				80.0f
 			);
 

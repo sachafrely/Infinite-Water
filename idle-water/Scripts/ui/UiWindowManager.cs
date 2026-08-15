@@ -8,9 +8,15 @@ using Godot;
 ///
 /// Buttons live separately inside BottomUI.
 ///
-/// UiToggleButton supplies a NodePath/string identifying the window.
-/// This manager handles opening, closing, and ensuring that only one
-/// window is open at a time.
+/// Example:
+///
+/// StatisticsButton -> "StatisticsWindow"
+/// SettingsButton   -> "SettingsWindow"
+///
+/// Only one window can be open at a time.
+///
+/// The shared WindowBackground is shown while a window is open
+/// and hidden when no window is open.
 /// </summary>
 public partial class UiWindowManager : Node
 {
@@ -30,31 +36,49 @@ public partial class UiWindowManager : Node
 		CloseAllWindows();
 
 		GD.Print("========== UI WINDOW MANAGER READY ==========");
+
+		Node content = GetWindowContent();
+
+		if (content != null)
+		{
+			GD.Print(
+				$"UiWindowManager: Content found at '{content.GetPath()}'."
+			);
+		}
+		else
+		{
+			GD.PushError(
+				"UiWindowManager: Could not find window Content container."
+			);
+		}
 	}
 
 
 	// ============================================================
-	// Generic window API
+	// Toggle
 	// ============================================================
 
 	/// <summary>
-	/// Toggles a window using its NodePath.
+	/// Toggles a window by its name.
+	///
+	/// The name is resolved inside:
+	/// Main/CenterUI/PanelContainer/MarginContainer/Content
 	///
 	/// Example:
-	/// ToggleWindow("../CenterUI/PanelContainer/MarginContainer/Content/StatisticsWindow");
+	/// ToggleWindow("StatisticsWindow");
 	/// </summary>
-	public void ToggleWindow(string windowPath)
+	public void ToggleWindow(string windowName)
 	{
-		if (string.IsNullOrEmpty(windowPath))
+		if (string.IsNullOrWhiteSpace(windowName))
 		{
 			GD.PushWarning(
-				"UiWindowManager: ToggleWindow received an empty path."
+				"UiWindowManager: ToggleWindow received an empty window name."
 			);
 
 			return;
 		}
 
-		Node window = GetWindowFromPath(windowPath);
+		Node window = GetWindowByName(windowName);
 
 		if (window == null)
 			return;
@@ -64,7 +88,7 @@ public partial class UiWindowManager : Node
 
 
 	/// <summary>
-	/// Toggles a window using a Node reference.
+	/// Toggles a specific window.
 	/// </summary>
 	public void ToggleWindow(Node window)
 	{
@@ -77,28 +101,29 @@ public partial class UiWindowManager : Node
 			return;
 		}
 
-		// If this is already the active window,
-		// clicking its button closes it.
+		// Clicking the button of the currently open window
+		// closes it.
 		if (activeWindow == window)
 		{
 			CloseWindow(window);
 			return;
 		}
 
-		// Otherwise open it.
+		// Otherwise open the requested window.
 		OpenWindow(window);
 	}
 
 
-	/// <summary>
-	/// Opens a window using a NodePath.
-	/// </summary>
-	public void OpenWindow(string windowPath)
+	// ============================================================
+	// Open
+	// ============================================================
+
+	public void OpenWindow(string windowName)
 	{
-		if (string.IsNullOrEmpty(windowPath))
+		if (string.IsNullOrWhiteSpace(windowName))
 			return;
 
-		Node window = GetWindowFromPath(windowPath);
+		Node window = GetWindowByName(windowName);
 
 		if (window == null)
 			return;
@@ -108,7 +133,7 @@ public partial class UiWindowManager : Node
 
 
 	/// <summary>
-	/// Opens a window.
+	/// Opens a specific window.
 	///
 	/// Any currently open window is closed first.
 	/// </summary>
@@ -121,12 +146,16 @@ public partial class UiWindowManager : Node
 		if (activeWindow == window)
 			return;
 
-		// Close the previous window.
+		// Close the currently active window.
 		if (activeWindow != null)
 		{
-			CloseWindow(activeWindow);
+			SetWindowVisible(activeWindow, false);
 		}
 
+		// Show the shared background.
+		SetWindowBackgroundVisible(true);
+
+		// Show the requested window.
 		SetWindowVisible(window, true);
 
 		activeWindow = window;
@@ -137,15 +166,16 @@ public partial class UiWindowManager : Node
 	}
 
 
-	/// <summary>
-	/// Closes a window using a NodePath.
-	/// </summary>
-	public void CloseWindow(string windowPath)
+	// ============================================================
+	// Close
+	// ============================================================
+
+	public void CloseWindow(string windowName)
 	{
-		if (string.IsNullOrEmpty(windowPath))
+		if (string.IsNullOrWhiteSpace(windowName))
 			return;
 
-		Node window = GetWindowFromPath(windowPath);
+		Node window = GetWindowByName(windowName);
 
 		if (window == null)
 			return;
@@ -167,6 +197,9 @@ public partial class UiWindowManager : Node
 		if (activeWindow == window)
 		{
 			activeWindow = null;
+
+			// No window is open anymore.
+			SetWindowBackgroundVisible(false);
 		}
 
 		GD.Print(
@@ -179,9 +212,6 @@ public partial class UiWindowManager : Node
 	// Active window
 	// ============================================================
 
-	/// <summary>
-	/// Closes whichever window is currently open.
-	/// </summary>
 	public void CloseActiveWindow()
 	{
 		if (activeWindow == null)
@@ -191,29 +221,41 @@ public partial class UiWindowManager : Node
 	}
 
 
+	// ============================================================
+	// Close all
+	// ============================================================
+
 	/// <summary>
-	/// Closes every window currently registered in the scene.
-	///
-	/// This intentionally searches the Content container instead
-	/// of maintaining a hardcoded list, so future windows can be
-	/// added without changing this method.
+	/// Closes all windows inside Content and hides the
+	/// shared background.
 	/// </summary>
 	public void CloseAllWindows()
 	{
 		Node content = GetWindowContent();
 
 		if (content == null)
+		{
+			SetWindowBackgroundVisible(false);
+			activeWindow = null;
 			return;
+		}
 
 		foreach (Node child in content.GetChildren())
 		{
 			if (child is CanvasItem canvasItem)
 			{
 				canvasItem.Visible = false;
+
+				GD.Print(
+					$"UiWindowManager: Closed startup window '{child.Name}'."
+				);
 			}
 		}
 
 		activeWindow = null;
+
+		// No window is open at startup.
+		SetWindowBackgroundVisible(false);
 	}
 
 
@@ -239,9 +281,9 @@ public partial class UiWindowManager : Node
 	}
 
 
-	public bool IsWindowOpen(string windowPath)
+	public bool IsWindowOpen(string windowName)
 	{
-		Node window = GetWindowFromPath(windowPath);
+		Node window = GetWindowByName(windowName);
 
 		return window != null && activeWindow == window;
 	}
@@ -251,21 +293,54 @@ public partial class UiWindowManager : Node
 	// Window lookup
 	// ============================================================
 
-	private Node GetWindowFromPath(string windowPath)
+	/// <summary>
+	/// Finds a window by name inside the Content container.
+	///
+	/// This is important:
+	///
+	/// UiWindowManager is located at:
+	/// Main/UiWindowManager
+	///
+	/// while StatisticsWindow is located at:
+	/// Main/CenterUI/PanelContainer/MarginContainer/Content/StatisticsWindow
+	///
+	/// Therefore "StatisticsWindow" cannot be resolved relative
+	/// to UiWindowManager directly.
+	/// </summary>
+	private Node GetWindowByName(string windowName)
 	{
-		Node window = GetNodeOrNull(windowPath);
+		Node content = GetWindowContent();
+
+		if (content == null)
+		{
+			GD.PushError(
+				"UiWindowManager: Could not find Content container."
+			);
+
+			return null;
+		}
+
+		Node window = content.GetNodeOrNull(windowName);
 
 		if (window == null)
 		{
 			GD.PushError(
-				$"UiWindowManager: Could not find window at path '{windowPath}'."
+				$"UiWindowManager: Could not find window " +
+				$"'{windowName}' inside '{content.GetPath()}'."
 			);
+
+			return null;
 		}
 
 		return window;
 	}
 
 
+	/// <summary>
+	/// Gets:
+	///
+	/// Main/CenterUI/PanelContainer/MarginContainer/Content
+	/// </summary>
 	private Node GetWindowContent()
 	{
 		return GetNodeOrNull(
@@ -275,7 +350,54 @@ public partial class UiWindowManager : Node
 
 
 	// ============================================================
-	// Visibility
+	// Shared window background
+	// ============================================================
+
+	/// <summary>
+	/// Gets:
+	///
+	/// Main/CenterUI/PanelContainer/WindowBackground
+	/// </summary>
+	private Node GetWindowBackground()
+	{
+		return GetNodeOrNull(
+			"../CenterUI/PanelContainer/WindowBackground"
+		);
+	}
+
+
+	/// <summary>
+	/// Shows or hides the shared window background.
+	/// </summary>
+	private void SetWindowBackgroundVisible(bool visible)
+	{
+		Node background = GetWindowBackground();
+
+		if (background == null)
+		{
+			GD.PushWarning(
+				"UiWindowManager: Could not find " +
+				"CenterUI/PanelContainer/WindowBackground."
+			);
+
+			return;
+		}
+
+		if (background is CanvasItem canvasItem)
+		{
+			canvasItem.Visible = visible;
+		}
+		else
+		{
+			GD.PushWarning(
+				"UiWindowManager: WindowBackground is not a CanvasItem."
+			);
+		}
+	}
+
+
+	// ============================================================
+	// Window visibility
 	// ============================================================
 
 	private void SetWindowVisible(Node window, bool visible)
