@@ -3,9 +3,8 @@
 This document defines the folder layout under `idle-water/scripts/` and the
 rules for placing code there during ongoing refactors.
 
-> **Current state (Phase 1)**: The folders exist as scaffolding. Existing
-> production code is still under `Scripts/Fluid/` and has not been moved.
-> Move code here incrementally, one responsibility group at a time.
+> **Current state (Phase 2)**: Production scripts are now normalized under the
+> canonical lowercase `scripts/` directory. `Scripts/` has been retired.
 
 ---
 
@@ -13,15 +12,18 @@ rules for placing code there during ongoing refactors.
 
 ```
 idle-water/
-├── Scripts/           ← Original location — keep untouched until Phase 2+
-│   └── Fluid/
-└── scripts/           ← New home for refactored code (lowercase, intentional)
-    ├── core/          ← Node lifecycle, main loop, primary entry points
-    ├── systems/       ← Self-contained simulation sub-systems
-    ├── services/      ← Stateless helpers and scene-tree utilities
-    ├── ui/            ← HUD, debug overlays, panel sync
-    ├── data/          ← Pure data: structs, constants, enums, config objects
-    └── utils/         ← Algorithms and math helpers with no Godot dependencies
+└── scripts/                 ← Canonical script root
+    ├── core/               ← Shared runtime utilities and entry helpers
+    ├── simulation/         ← Simulation nodes and orchestration
+    │   ├── solvers/        ← `PbfSolver` and extracted solver modules
+    │   └── particles/      ← Particle data models
+    ├── rendering/          ← Rendering and visualization scripts
+    ├── input/              ← Input-related scripts
+    ├── systems/            ← Existing subsystem modules
+    ├── services/           ← Existing service modules
+    ├── ui/                 ← Existing UI modules
+    ├── data/               ← Existing data modules
+    └── utils/              ← Existing utility modules
 ```
 
 ---
@@ -81,9 +83,8 @@ idle-water/
    class — no reference changes needed.
 3. **No behavior changes in move PRs.** If you spot a bug while moving
    code, open a separate issue/PR.
-4. **Keep existing `Scripts/` references working.** Do not rename or delete
-   files in `Scripts/Fluid/` until all callers are updated and the change
-   is verified in Godot.
+4. **Keep scene references aligned with moved scripts.** Update `.tscn`
+   `ext_resource` script paths in the same PR as file moves.
 5. **Test after every move.** Open the Godot project, run the scene, confirm
    the water simulation runs without errors in the Output panel.
 6. **Line-count budget per file: ~400 lines.** If a new file already
@@ -94,3 +95,13 @@ idle-water/
    **Important**: namespace migration must be done one class at a time.
    All `partial` files for the same class must share the same namespace,
    so update the original source file and every partial at the same time.
+
+---
+
+## PBFSolver split (first modular extraction)
+
+- `scripts/simulation/solvers/PbfSolver.cs` remains the public entry point.
+- Neighbor-search and neighbor-geometry cache logic is extracted to
+  `scripts/simulation/solvers/PbfNeighborSearch.cs`.
+- Density-constraint lambda computation is extracted to
+  `scripts/simulation/solvers/PbfDensityConstraints.cs`.
