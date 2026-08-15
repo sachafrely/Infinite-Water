@@ -3,40 +3,59 @@ using Godot;
 [Tool]
 public partial class RenderedWindowBackground : Control
 {
-	[Export] public int BorderWidth { get => _borderWidth; set { _borderWidth = Mathf.Max(0, value); QueueRedraw(); } }
-	[Export] public Color FillColor { get => _fillColor; set { _fillColor = value; QueueRedraw(); } }
-	[Export] public Color BorderColor { get => _borderColor; set { _borderColor = value; QueueRedraw(); } }
+	[Export]
+	public int BorderWidth
+	{
+		get => _borderWidth;
+		set
+		{
+			_borderWidth = Mathf.Max(0, value);
+			QueueRedraw();
+		}
+	}
 
-	[Export] public bool UseGradient { get => _useGradient; set { _useGradient = value; QueueRedraw(); } }
-	[Export] public Color GradientTop { get => _gradientTop; set { _gradientTop = value; QueueRedraw(); } }
-	[Export] public Color GradientBottom { get => _gradientBottom; set { _gradientBottom = value; QueueRedraw(); } }
-	[Export] public bool GradientVertical { get => _gradientVertical; set { _gradientVertical = value; QueueRedraw(); } }
+	[Export]
+	public Color FillColor
+	{
+		get => _fillColor;
+		set
+		{
+			_fillColor = value;
+			QueueRedraw();
+		}
+	}
 
-	[Export] public bool DrawShadow { get => _drawShadow; set { _drawShadow = value; QueueRedraw(); } }
-	[Export] public Vector2 ShadowOffset { get => _shadowOffset; set { _shadowOffset = value; QueueRedraw(); } }
-	[Export] public Color ShadowColor { get => _shadowColor; set { _shadowColor = value; QueueRedraw(); } }
+	[Export]
+	public Color BorderColor
+	{
+		get => _borderColor;
+		set
+		{
+			_borderColor = value;
+			QueueRedraw();
+		}
+	}
 
-	private int _borderWidth = 2;
-	private Color _fillColor = new("1a2230d9");
-	private Color _borderColor = new("7fa6c9ff");
-	private bool _useGradient = true;
-	private Color _gradientTop = new("243247dd");
-	private Color _gradientBottom = new("121a26dd");
-	private bool _gradientVertical = true;
-	private bool _drawShadow = true;
-	private Vector2 _shadowOffset = new(2, 2);
-	private Color _shadowColor = new(0, 0, 0, 0.35f);
+	private int _borderWidth = 3;
+
+	private Color _fillColor = new Color(
+		0.10f,
+		0.13f,
+		0.18f,
+		0.95f
+	);
+
+	private Color _borderColor = new Color(
+		0.50f,
+		0.65f,
+		0.80f,
+		1.0f
+	);
 
 	public override void _Ready()
 	{
 		MouseFilter = MouseFilterEnum.Ignore;
 		QueueRedraw();
-	}
-
-	public override void _Process(double delta)
-	{
-		if (Engine.IsEditorHint())
-			QueueRedraw(); // live in editor
 	}
 
 	public override void _Notification(int what)
@@ -47,40 +66,68 @@ public partial class RenderedWindowBackground : Control
 
 	public override void _Draw()
 	{
-		if (Size.X < 1 || Size.Y < 1) return;
+		if (Size.X <= 0.0f || Size.Y <= 0.0f)
+			return;
 
-		var r = new Rect2(Vector2.Zero, Size);
+		// Main background.
+		DrawRect(
+			new Rect2(Vector2.Zero, Size),
+			FillColor,
+			true
+		);
 
-		if (DrawShadow)
-			DrawRect(new Rect2(r.Position + ShadowOffset, r.Size), ShadowColor, true);
+		// Border.
+		if (BorderWidth > 0)
+		{
+			float w = BorderWidth;
 
-		if (UseGradient) DrawGradientRect(r, GradientTop, GradientBottom, GradientVertical);
-		else DrawRect(r, FillColor, true);
+			// Top
+			DrawRect(
+				new Rect2(
+					0,
+					0,
+					Size.X,
+					w
+				),
+				BorderColor,
+				true
+			);
 
-		if (BorderWidth > 0) DrawBorder(r, BorderColor, BorderWidth);
-	}
+			// Bottom
+			DrawRect(
+				new Rect2(
+					0,
+					Size.Y - w,
+					Size.X,
+					w
+				),
+				BorderColor,
+				true
+			);
 
-	private void DrawGradientRect(Rect2 r, Color c1, Color c2, bool vertical)
-	{
-		var points = new[] {
-			r.Position,
-			r.Position + new Vector2(r.Size.X, 0),
-			r.Position + r.Size,
-			r.Position + new Vector2(0, r.Size.Y)
-		};
+			// Left
+			DrawRect(
+				new Rect2(
+					0,
+					0,
+					w,
+					Size.Y
+				),
+				BorderColor,
+				true
+			);
 
-		var colors = vertical
-			? new[] { c1, c1, c2, c2 }
-			: new[] { c1, c2, c2, c1 };
-
-		DrawPolygon(points, colors);
-	}
-
-	private void DrawBorder(Rect2 r, Color c, int w)
-	{
-		DrawRect(new Rect2(r.Position, new Vector2(r.Size.X, w)), c, true); // top
-		DrawRect(new Rect2(r.Position + new Vector2(0, r.Size.Y - w), new Vector2(r.Size.X, w)), c, true); // bottom
-		DrawRect(new Rect2(r.Position, new Vector2(w, r.Size.Y)), c, true); // left
-		DrawRect(new Rect2(r.Position + new Vector2(r.Size.X - w, 0), new Vector2(w, r.Size.Y)), c, true); // right
+			// Right
+			DrawRect(
+				new Rect2(
+					Size.X - w,
+					0,
+					w,
+					Size.Y
+				),
+				BorderColor,
+				true
+			);
+		}
 	}
 }
