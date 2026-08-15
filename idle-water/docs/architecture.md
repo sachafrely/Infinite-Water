@@ -3,8 +3,11 @@
 This document defines the folder layout under `idle-water/scripts/` and the
 rules for placing code there during ongoing refactors.
 
-> **Current state (Phase 2)**: Production scripts are now normalized under the
-> canonical lowercase `scripts/` directory. `Scripts/` has been retired.
+> **Current state (Phase 3 — Scaffolding)**: Production scripts are normalized
+> under the canonical lowercase `scripts/` directory. `Scripts/` has been
+> retired.  Phase 3 adds folder structure and blank placeholder scripts that
+> describe the intended module split for `FluidSimulator` and `PbfSolver`.
+> **No logic has been migrated yet** — all runtime behaviour is unchanged.
 
 ---
 
@@ -13,10 +16,54 @@ rules for placing code there during ongoing refactors.
 ```
 idle-water/
 └── scripts/                 ← Canonical script root
-    ├── core/               ← Shared runtime utilities and entry helpers
+    ├── core/               ← Shared runtime utilities, constants, debug hooks
+    │   ├── FrameProfiler.cs
+    │   ├── SimulationConstants.cs   ← SCAFFOLD: shared cross-system constants
+    │   └── SimulationDebug.cs       ← SCAFFOLD: debug hook registry
     ├── simulation/         ← Simulation nodes and orchestration
-    │   ├── solvers/        ← `PbfSolver` and extracted solver modules
-    │   └── particles/      ← Particle data models
+    │   ├── FluidSimulator.cs        ← Live: Godot Node2D orchestrator (unchanged)
+    │   ├── TileMapPhysics.cs        ← Live (unchanged)
+    │   ├── DensityField.cs          ← Live (unchanged)
+    │   ├── EnergySystem.cs          ← Live (unchanged)
+    │   ├── FluidPolygonCollider.cs  ← Live (unchanged)
+    │   ├── FluidSimulationCoordinator.cs  ← SCAFFOLD: future simulation loop host
+    │   ├── SimulationStepContext.cs       ← SCAFFOLD: per-step shared context
+    │   ├── solvers/
+    │   │   ├── PbfSolver.cs         ← Live: current monolithic PBF entry point
+    │   │   ├── PbfConstants.cs      ← Live: PBF-only tuning constants (partial)
+    │   │   ├── PbfNeighborSearch.cs ← Live: neighbor index cache builder
+    │   │   ├── PbfDensityConstraints.cs ← Live: density/lambda kernel math
+    │   │   ├── SpatialHash.cs       ← Live: spatial hash grid
+    │   │   ├── shared/
+    │   │   │   ├── ISolver.cs       ← SCAFFOLD: solver interface contract
+    │   │   │   └── SolverConfig.cs  ← SCAFFOLD: shared config container
+    │   │   └── pbf/
+    │       │       ├── PbfSolverCoordinator.cs        ← SCAFFOLD: future PBF pipeline host
+    │   │       ├── PbfState.cs                    ← SCAFFOLD: per-step mutable arrays
+    │   │       ├── PbfNeighborSearchAdapter.cs    ← SCAFFOLD: neighbor search adapter
+    │   │       ├── PbfDensityConstraintsCoordinator.cs ← SCAFFOLD: density pass host
+    │   │       ├── PbfLambdaSolver.cs             ← SCAFFOLD: lambda computation pass
+    │   │       ├── PbfPositionDeltaSolver.cs      ← SCAFFOLD: delta accumulation pass
+    │   │       ├── PbfIntegrationStep.cs          ← SCAFFOLD: final position commit
+    │   │       ├── PbfBoundaryConstraints.cs      ← SCAFFOLD: boundary enforcement
+    │   │       └── PbfDebugStats.cs               ← SCAFFOLD: optional debug stats
+    │   ├── particles/
+    │   │   ├── ParticleData.cs      ← Live (unchanged)
+    │   │   ├── ParticleState.cs     ← SCAFFOLD: future authoritative position/vel arrays
+    │   │   └── ParticleAttributes.cs ← SCAFFOLD: future per-particle attribute arrays
+    │   ├── neighborhood/
+    │   │   ├── SpatialHashService.cs ← SCAFFOLD: clean neighbor query API wrapper
+    │   │   └── NeighborQuery.cs      ← SCAFFOLD: query input/result value type
+    │   ├── constraints/
+    │   │   ├── DensityConstraint.cs   ← SCAFFOLD: pure density constraint helpers
+    │   │   ├── BoundaryConstraint.cs  ← SCAFFOLD: boundary projection helpers
+    │   │   └── ViscosityConstraint.cs ← SCAFFOLD: future XSPH viscosity pass
+    │   ├── integration/
+    │   │   ├── VelocityIntegrator.cs  ← SCAFFOLD: pre-constraint velocity + prediction
+    │   │   └── PositionIntegrator.cs  ← SCAFFOLD: post-constraint position commit
+    │   └── collision/
+    │       ├── TileCollisionAdapter.cs     ← SCAFFOLD: tilemap collider grid adapter
+    │       └── GeometryCollisionAdapter.cs ← SCAFFOLD: polygon/wheel collider adapter
     ├── rendering/          ← Rendering and visualization scripts
     ├── input/              ← Input-related scripts
     ├── systems/            ← Existing subsystem modules
@@ -105,3 +152,62 @@ idle-water/
   `scripts/simulation/solvers/PbfNeighborSearch.cs`.
 - Density-constraint lambda computation is extracted to
   `scripts/simulation/solvers/PbfDensityConstraints.cs`.
+
+---
+
+## Phase 3 — Module Boundaries & Scaffolding (current phase)
+
+> **Status**: Placeholder files created. No logic migrated yet.
+
+### Module boundary rules
+
+| Module | Owns | Does NOT own |
+|--------|------|-------------|
+| `FluidSimulator.cs` | Godot Node2D lifecycle, scene wiring, HUD, rain, anti-lag, wheels | PBF math, neighbor search, collision internals |
+| `FluidSimulationCoordinator` | High-level per-tick call sequence | Scene tree, Godot types, rendering |
+| `PBFSolverCoordinator` | PBF sub-pass ordering | Any individual sub-pass math |
+| `PbfState` | Mutable per-step arrays (lambdas, deltas, density) | Persistent cross-frame state (→ ParticleState) |
+| `ParticleState` | Authoritative pos/vel arrays across frames | Per-step scratch (→ PbfState) |
+| `SpatialHashService` | Clean neighbor query API | Hash cell math (→ SpatialHash.cs) |
+| `TileCollisionAdapter` | Collider grid, tilemap-derived polygons | Tile scanning logic (→ TileMapPhysics.cs) |
+| `GeometryCollisionAdapter` | Arbitrary polygon + wheel collider registration | Collision resolution math (→ PbfBoundaryConstraints) |
+| `SimulationConstants` | Constants shared across ≥ 2 modules | PBF-only constants (→ PbfConstants.cs) |
+
+### How `FluidSimulator` and `PBFSolver` will be split
+
+**`FluidSimulator` (after migration)**
+- Remains the Godot `Node2D` entry point — keeps `_Ready`, `_PhysicsProcess`.
+- Creates and configures sub-modules but does not execute PBF math itself.
+- Delegates the physics tick to `FluidSimulationCoordinator.Step(context)`.
+
+**`PBFSolverCoordinator` (after migration)**
+- Owns the ordered call sequence for one PBF solve step.
+- Holds references to the sub-module instances.
+- `PbfSolver.cs` remains the live, callable entry point until the migration
+  is complete; `PBFSolverCoordinator` will replace it at the end of Phase 3.
+
+### What these scaffold files are NOT
+
+- They contain no simulation logic.
+- They define no methods or properties; any attempt to call a method that
+  does not yet exist will produce a compile error.
+- They exist solely to lock in the intended file/class names and module
+  responsibilities before logic migration begins.
+- Runtime behaviour is **100% unchanged** from Phase 2.
+
+### Next migration steps (recommended order)
+
+1. Convert `PbfSolver` and `FluidSimulator` to `partial class` (zero-risk).
+2. Move shared constants from `PbfConstants.cs` to `SimulationConstants`.
+3. Implement `SolverConfig` and thread it through `PBFSolverCoordinator`.
+4. Implement `PbfState` arrays; wire `PBFSolverCoordinator` to call the
+   existing static methods in `PbfNeighborSearch` and `PbfDensityConstraints`.
+5. Implement `TileCollisionAdapter` / `GeometryCollisionAdapter`; remove
+   the collider-grid code from `PbfSolver.cs`.
+6. Implement `VelocityIntegrator` / `PositionIntegrator`; extract from
+   the `Solve()` method in `PbfSolver.cs`.
+7. Implement `FluidSimulationCoordinator`; retire `_PhysicsProcess`
+   inline logic in `FluidSimulator.cs`.
+
+See `docs/refactor-plan.md` for the detailed line-level split plan for
+each of the three largest files.
