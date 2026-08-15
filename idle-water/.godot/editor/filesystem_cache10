@@ -1,5 +1,5 @@
 9cad1ddce9e5a63143ba340c9520626b
-::res://::1786807287
+::res://::1786809278
 1.png::CompressedTexture2D::5975387481206216462::1786534973::1786796455::1::::<><><>0<>0<>952551cb7cf6ff350d32eb49d4265a1c<>res://.godot/imported/1.png-515c813a180ba5fd2e61c8e75c4cac47.ctex::
 3.png::CompressedTexture2D::5409135633827123313::1786534965::1786796455::1::::<><><>0<>0<>2a0c8483b8fb30b31d9812642274d877<>res://.godot/imported/3.png-ab9dc1e38b41816b4ae4b69d0cb53034.ctex::
 20.png::CompressedTexture2D::767462373986431830::1786458956::1786796455::1::::<><><>0<>0<>50161a47b7dbf355078cca3ca080ac02<>res://.godot/imported/20.png-36af6081a23d42172c55702057faf7a0.ctex::
@@ -145,9 +145,21 @@ Card.png::CompressedTexture2D::1391584157772994301::1786458958::1786796456::1:::
 Chest.png::CompressedTexture2D::1176884378065357629::1786458958::1786796456::1::::<><><>0<>0<>37bf6066a6f77e7be28da4a7b6f6c1c2<>res://.godot/imported/Chest.png-414088609934c656f861f0508e202976.ctex::
 Money.png::CompressedTexture2D::9109716477810780203::1786458958::1786796456::1::::<><><>0<>0<>1efef3b896c0947160932d5963708d58<>res://.godot/imported/Money.png-44cbf1e6f854e2893ec6f63c477d0998.ctex::
 Trap.png::CompressedTexture2D::3492661536151332200::1786458958::1786796456::1::::<><><>0<>0<>a7aa56400f9eaa7d002ac6817bd617e9<>res://.godot/imported/Trap.png-9d6da659ecfe1f38547e7510480bce43.ctex::
-::res://docs/::1786806180
+::res://docs/::1786809131
 architecture.md::TextFile::-1::1786806180::0::1::::<><><>0<>0<><>::
+General Roadmap.md::TextFile::-1::1786808871::0::1::::<><><>0<>0<><>::
 refactor-plan.md::TextFile::-1::1786802957::0::1::::<><><>0<>0<><>::
+SPECIAL THANKS.txt::TextFile::-1::1786809528::0::1::::<><><>0<>0<><>::
+::res://pixelbuttons/::1786809303
+00.png::CompressedTexture2D::3799189824372436945::1786809303::1786809532::1::::<><><>0<>0<>f40abbff20bbe11bb710501b1a855b8e<>res://.godot/imported/00.png-47f2119fb6430fc86e3ec6ca963366ca.ctex::
+01.png::CompressedTexture2D::5334532424896283358::1786809303::1786809532::1::::<><><>0<>0<>a7bfa8dff9153b05e3a37ae5ccca3592<>res://.godot/imported/01.png-583831af979e837fe1bd9af7c7ab21a2.ctex::
+02.png::CompressedTexture2D::9207975209561725618::1786809303::1786809532::1::::<><><>0<>0<>3ce7f3c1a8d8c78cb95af980609c6b47<>res://.godot/imported/02.png-88636613216e1e15a08f3f0a63c40927.ctex::
+03.png::CompressedTexture2D::8546093249636649752::1786809303::1786809532::1::::<><><>0<>0<>37272f6c8591a841c5f2ebcdb2d3ab32<>res://.godot/imported/03.png-c6704c2dcf9de40344442864c347aeb1.ctex::
+04.png::CompressedTexture2D::2115882314847141862::1786809303::1786809532::1::::<><><>0<>0<>04ba327436db4981cf4c74620b1ea9cb<>res://.godot/imported/04.png-2e71c78e8d9a0a9927607340cc670359.ctex::
+05.png::CompressedTexture2D::5694200392409545732::1786809303::1786809532::1::::<><><>0<>0<>5799c3c685dd0170ba11ab9b5d3a1773<>res://.godot/imported/05.png-c6b5066a5c76ec432807a151da2eb696.ctex::
+06.png::CompressedTexture2D::2834340800288496751::1786809303::1786809532::1::::<><><>0<>0<>d5fb1a6889ec1babb9d269813b0f7a48<>res://.godot/imported/06.png-557089eeff6c6ded1d7e285c55b1ee95.ctex::
+07.png::CompressedTexture2D::2291047190412751271::1786809303::1786809532::1::::<><><>0<>0<>330ae2d500b734d2326b909d981d8b51<>res://.godot/imported/07.png-7232942476c9d2832aeead7425470cb5.ctex::
+All.png::CompressedTexture2D::5995410439806836932::1786809303::1786809532::1::::<><><>0<>0<>aee0aaeb6ba2d9e64658c0fcf60f1b96<>res://.godot/imported/All.png-fe0a00dfb407dd48ff6401b5713d7d85.ctex::
 ::res://Plains parallax separate layers/::1786796456
 clouds.png::CompressedTexture2D::1848856613818265923::1786378388::1786796456::1::::<><><>0<>0<>af1fac7a7632f4644cbf6d3c5057b367<>res://.godot/imported/clouds.png-fa476bacf7cd3be2e5a80d9bfce23e4b.ctex::
 forest.png::CompressedTexture2D::7477524368966147054::1786378388::1786796455::1::::<><><>0<>0<>9e0368acfb74684ca796fb5ce4ec8292<>res://.godot/imported/forest.png-3a58a62f40f4891a5895edde380f7b2d.ctex::
@@ -155,33 +167,33 @@ grass.png::CompressedTexture2D::2956374789328160416::1786378389::1786796455::1::
 hill.png::CompressedTexture2D::9058007534306888929::1786378389::1786796455::1::::<><><>0<>0<>40436514ed8fe9a18f1507769d472fd2<>res://.godot/imported/hill.png-64d7e91d1aa376a0ba8c9fcf086c62ef.ctex::
 plains.png::CompressedTexture2D::6904398904098968565::1786378389::1786796455::1::::<><><>0<>0<>c99aa57839aa98a95e9bdc23b4a5cd2d<>res://.godot/imported/plains.png-37f1dc9063ae01b24bb124533049048b.ctex::
 sky.png::CompressedTexture2D::2443344942630013571::1786378389::1786796455::1::::<><><>0<>0<>4bd017e4a0349d0bbe9b3a9f6dfd94e9<>res://.godot/imported/sky.png-39cb9468621bbe886ee0ceaaff26d70d.ctex::
-::res://Scenes/::1786806180
-Main.tscn::PackedScene::4246241242636851641::1786806180::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://Tileset.png<>uid://k6081dvmnuws::::res://20.png<>uid://dxn2tnelhfpsr::::res://Scripts/rendering/StatisticsGraph.cs<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://3 Objects/2 Decoration/8.png<>uid://guq02oiwrevb::::res://3 Objects/2 Decoration/22.png<>uid://jnjp4yns5al3::::res://3 Objects/2 Decoration/18.png<>uid://b6b7fs31sqmaf::::res://3 Objects/2 Decoration/26.png<>uid://07lvxomyo7se::::res://3 Objects/2 Decoration/15.png<>uid://beuk4em8qf13n::::res://3 Objects/1 Tube/5.png<>uid://q1dd4rj7tl2d::::res://4 Animated objects/Chest.png<>uid://idpd20skc4op::::res://3 Objects/1 Tube/9.png<>uid://0gqfrx74wbgl::::res://3 Objects/2 Decoration/14.png<>uid://bp04vi0q5blie::::res://4 Animated objects/Trap.png
+::res://Scenes/::1786807645
+Main.tscn::PackedScene::4246241242636851641::1786807645::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://Tileset.png<>uid://k6081dvmnuws::::res://20.png<>uid://dxn2tnelhfpsr::::res://Scripts/rendering/StatisticsGraph.cs<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://3 Objects/2 Decoration/8.png<>uid://guq02oiwrevb::::res://3 Objects/2 Decoration/22.png<>uid://jnjp4yns5al3::::res://3 Objects/2 Decoration/18.png<>uid://b6b7fs31sqmaf::::res://3 Objects/2 Decoration/26.png<>uid://07lvxomyo7se::::res://3 Objects/2 Decoration/15.png<>uid://beuk4em8qf13n::::res://3 Objects/1 Tube/5.png<>uid://q1dd4rj7tl2d::::res://4 Animated objects/Chest.png<>uid://idpd20skc4op::::res://3 Objects/1 Tube/9.png<>uid://0gqfrx74wbgl::::res://3 Objects/2 Decoration/14.png<>uid://bp04vi0q5blie::::res://4 Animated objects/Trap.png
 ::res://Scripts/::1786803057
 ::res://Scripts/core/::1786806180
-FrameProfiler.cs::CSharpScript::9178817618753722961::1786803057::0::1::::<><><>0<>0<><>::
+FrameProfiler.cs::CSharpScript::9178817618753722961::1786803057::0::1::::<>Node<><>0<>0<><>::
 SimulationConstants.cs::CSharpScript::5199576297924703403::1786804099::0::1::::<><><>0<>0<><>::
 SimulationDebug.cs::CSharpScript::2740126471432067307::1786804099::0::1::::<><><>0<>0<><>::
 ::res://Scripts/data/::1786803057
 ::res://Scripts/input/::1786803057
-::res://Scripts/rendering/::1786803057
-FluidRenderer.cs::CSharpScript::7921401691133765954::1786803057::0::1::::<><><>0<>0<><>::
-StatisticsGraph.cs::CSharpScript::8802116343937840681::1786803057::0::1::::<><><>0<>0<><>::
-WaterWheelVisual.cs::CSharpScript::3148581498361463953::1786803057::0::1::::<><><>0<>0<><>::
+::res://Scripts/rendering/::1786808872
+FluidRenderer.cs::CSharpScript::7921401691133765954::1786808872::0::1::::<>Node2D<><>0<>0<><>::
+StatisticsGraph.cs::CSharpScript::8802116343937840681::1786803057::0::1::::<>Control<><>0<>0<><>::
+WaterWheelVisual.cs::CSharpScript::3148581498361463953::1786803057::0::1::::<>Node2D<><>0<>0<><>::
 ::res://Scripts/services/::1786802957
-::res://Scripts/simulation/::1786807135
-AntiLagController.cs::CSharpScript::1740110381433673501::1786807135::0::1::::<><><>0<>0<><>::
+::res://Scripts/simulation/::1786807392
+AntiLagController.cs::CSharpScript::1740110381433673501::1786807392::0::1::::<><><>0<>0<><>::
 DensityField.cs::CSharpScript::7894761315659891054::1786803057::0::1::::<><><>0<>0<><>::
 EnergySystem.cs::CSharpScript::7745348140681013386::1786803057::0::1::::<><><>0<>0<><>::
 FluidPolygonCollider.cs::CSharpScript::8946972022009968635::1786803057::0::1::::<><><>0<>0<><>::
-FluidSimulationCoordinator.cs::CSharpScript::556074138176360256::1786807135::0::1::::<><><>0<>0<><>::
-FluidSimulator.cs::CSharpScript::4939193137455777346::1786807135::0::1::::<><><>0<>0<><>::
-PixelOccupancyGrid.cs::CSharpScript::449324995829212401::1786807135::0::1::::<><><>0<>0<><>::
-RainSystem.cs::CSharpScript::5827498214437352643::1786807135::0::1::::<><><>0<>0<><>::
-SimulationProfiler.cs::CSharpScript::2808677397490847669::1786807135::0::1::::<><><>0<>0<><>::
+FluidSimulationCoordinator.cs::CSharpScript::556074138176360256::1786807392::0::1::::<><><>0<>0<><>::
+FluidSimulator.cs::CSharpScript::4939193137455777346::1786807392::0::1::::<>Node2D<><>0<>0<><>::
+PixelOccupancyGrid.cs::CSharpScript::449324995829212401::1786807392::0::1::::<><><>0<>0<><>::
+RainSystem.cs::CSharpScript::5827498214437352643::1786807392::0::1::::<><><>0<>0<><>::
+SimulationProfiler.cs::CSharpScript::2808677397490847669::1786807392::0::1::::<><><>0<>0<><>::
 SimulationStepContext.cs::CSharpScript::8827990259277791662::1786804099::0::1::::<><><>0<>0<><>::
-TileMapPhysics.cs::CSharpScript::5099078150710479174::1786806180::0::1::::<><><>0<>0<><>::
-WaterWheelManager.cs::CSharpScript::455846312743294118::1786807135::0::1::::<><><>0<>0<><>::
+TileMapPhysics.cs::CSharpScript::5099078150710479174::1786806180::0::1::::<>Node2D<><>0<>1<><>::
+WaterWheelManager.cs::CSharpScript::455846312743294118::1786807392::0::1::::<><><>0<>0<><>::
 ::res://Scripts/simulation/collision/::1786806180
 GeometryCollisionAdapter.cs::CSharpScript::7442083644744902246::1786804099::0::1::::<><><>0<>0<><>::
 TileCollisionAdapter.cs::CSharpScript::9003007152309295871::1786804099::0::1::::<><><>0<>0<><>::
