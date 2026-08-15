@@ -14,77 +14,77 @@ public partial class PbfSolver
 	// Profiler
 	// ============================================================
 
-	private const int ProfilerIntervalFrames = 600;
+	internal const int ProfilerIntervalFrames = 600;
 
 	// ============================================================
 	// Wheel bounds
 	// ============================================================
 
-	private const float WheelBoundsExpansion = 2.5f;
+	internal const float WheelBoundsExpansion = 2.5f;
 
 	// ============================================================
 	// Simulation
 	// ============================================================
 
-	private const float Gravity = 300.0f;
+	internal const float Gravity = 300.0f;
 
-	private const float SmoothingRadius = 8.0f;
-	private const float SmoothingRadiusSquared = 64.0f;
-	private const float InverseSmoothingRadius = 1.0f / 8.0f;
+	internal const float SmoothingRadius = 8.0f;
+	internal const float SmoothingRadiusSquared = 64.0f;
+	internal const float InverseSmoothingRadius = 1.0f / 8.0f;
 
 	// ============================================================
 	// Density
 	// ============================================================
 
-	private const float RestDensity = 1.15f;
-	private const float InverseRestDensity = 1.0f / RestDensity;
-	private const float LambdaEpsilon = 0.00001f;
+	internal const float RestDensity = 1.15f;
+	internal const float InverseRestDensity = 1.0f / RestDensity;
+	internal const float LambdaEpsilon = 0.00001f;
 
 	// ============================================================
 	// PBF
 	// ============================================================
 
-	private const int MinIterations = 2;
-	private const int MaxIterations = 2;
+	internal const int MinIterations = 2;
+	internal const int MaxIterations = 2;
 
-	private const float DensityErrorThreshold = 0.90f;
-	private const float MaxCorrection = 0.5f;
-	private const float MaxCorrectionSquared = 0.25f;
+	internal const float DensityErrorThreshold = 0.90f;
+	internal const float MaxCorrection = 0.5f;
+	internal const float MaxCorrectionSquared = 0.25f;
 
 	// ============================================================
 	// Stability
 	// ============================================================
 
-	private const float VelocityDamping = 0.998f;
+	internal const float VelocityDamping = 0.998f;
 
 	// ============================================================
 	// Surface behavior
 	// ============================================================
 
-	private const float ImpactDamping = 0.10f;
-	private const float ImpactNormalEpsilon = 0.0001f;
+	internal const float ImpactDamping = 0.10f;
+	internal const float ImpactNormalEpsilon = 0.0001f;
 
-	private const float GroundDrag = 0.005f;
-	private const float GroundStick = 0.0f;
+	internal const float GroundDrag = 0.005f;
+	internal const float GroundStick = 0.0f;
 
-	private const float SurfaceGravityRetention = 0.85f;
+	internal const float SurfaceGravityRetention = 0.85f;
 
-	private const float HorizontalSurfaceNormalY = 0.92f;
+	internal const float HorizontalSurfaceNormalY = 0.92f;
 
 	// ============================================================
 	// Sleeping
 	// ============================================================
 
-	private const float SleepVelocityThreshold = 1.0f;
-	private const float WakeVelocityThreshold = 3.0f;
-	private const float SleepTime = 0.50f;
-	private const float SleepDampingStrength = 1.5f;
+	internal const float SleepVelocityThreshold = 1.0f;
+	internal const float WakeVelocityThreshold = 3.0f;
+	internal const float SleepTime = 0.50f;
+	internal const float SleepDampingStrength = 1.5f;
 
-	private const float SleepVelocityThresholdSquared =
+	internal const float SleepVelocityThresholdSquared =
 		SleepVelocityThreshold *
 		SleepVelocityThreshold;
 
-	private const float WakeVelocityThresholdSquared =
+	internal const float WakeVelocityThresholdSquared =
 		WakeVelocityThreshold *
 		WakeVelocityThreshold;
 
@@ -92,41 +92,41 @@ public partial class PbfSolver
 	// Current simulation world
 	// ============================================================
 
-	private const float MinX = -100.0f;
-	private const float MaxX = 920.0f;
+	internal const float MinX = -100.0f;
+	internal const float MaxX = 920.0f;
 
-	private const float MinY = -50.0f;
-	private const float MaxY = 1250.0f;
+	internal const float MinY = -50.0f;
+	internal const float MaxY = 1250.0f;
 
-	private const float BoundarySkin = 0.5f;
+	internal const float BoundarySkin = 0.5f;
 
-	private const float BoundaryRestitution = 0.03f;
-	private const float BoundaryFriction = 0.03f;
+	internal const float BoundaryRestitution = 0.03f;
+	internal const float BoundaryFriction = 0.03f;
 
-	private const float BoundaryVelocityEpsilon = 0.5f;
+	internal const float BoundaryVelocityEpsilon = 0.5f;
 
 	// ============================================================
 	// Polygon
 	// ============================================================
 
-	private const float PolygonParticleRadius = 2.5f;
+	internal const float PolygonParticleRadius = 2.5f;
 
-	private const float ColliderGridCellSize = 32.0f;
-	private const float ColliderGridExpansion = 1.0f;
+	internal const float ColliderGridCellSize = 32.0f;
+	internal const float ColliderGridExpansion = 1.0f;
 
 	// ============================================================
 	// Terrain optimization
 	// ============================================================
 
-	private const float SweptCollisionDistanceSquared = 9.0f;
+	internal const float SweptCollisionDistanceSquared = 9.0f;
 
-	private const float TerrainBoundsExtraMargin = 0.25f;
+	internal const float TerrainBoundsExtraMargin = 0.25f;
 
 	// ============================================================
 	// Neighbors
 	// ============================================================
 
-	private const int MaxNeighbors = 40;
+	internal const int MaxNeighbors = 40;
 
 	// ============================================================
 	// Pixel occupancy
@@ -151,16 +151,16 @@ public partial class PbfSolver
 	// clearing the entire array every invocation.
 	// ============================================================
 
-	private const int MaxParticlesPerPixel = 2;
+	internal const int MaxParticlesPerPixel = 2;
 
-	private const float ExactOverlapDistanceSquared =
+	internal const float ExactOverlapDistanceSquared =
 		0.000001f;
 
-	private const float ExactOverlapSeparation = 0.05f;
+	internal const float ExactOverlapSeparation = 0.05f;
 
 	// Maximum particle capacity is currently 4000.
 	// 16384 slots gives a very low load factor and fast probing.
-	private const int PixelOccupancyTableSize = 16384;
-	private const int PixelOccupancyTableMask =
+	internal const int PixelOccupancyTableSize = 16384;
+	internal const int PixelOccupancyTableMask =
 		PixelOccupancyTableSize - 1;
 }

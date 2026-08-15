@@ -1,25 +1,85 @@
 /// <summary>
-/// SolverConfig — SCAFFOLDING PLACEHOLDER
+/// SolverConfig — immutable configuration container for the PBF solver.
 ///
-/// Intended responsibility (Phase 3 migration target):
-///   Immutable configuration container passed to every solver module at
-///   initialization time.  Replaces the current scatter of private const
-///   fields across PbfSolver.cs.
+/// Centralises tuning parameters that are shared across two or more
+/// solver modules, eliminating the need to hard-code the same magic
+/// values in multiple places.
 ///
-/// What will live here:
-///   - Smoothing radius, rest density, gravity, world bounds.
-///   - Iteration limits, correction caps, damping factors.
-///   - Any tuning parameter that is shared across two or more solver modules.
-///
-/// What will NOT live here:
-///   - Per-step mutable state (belongs in PbfState / SimulationStepContext).
-///   - PBF-only constants that are never read by other modules
-///     (those stay in PbfConstants.cs).
-///
-/// Current state: EMPTY SCAFFOLD — no logic has been migrated yet.
-/// See docs/refactor-plan.md §1 for the constants-extraction plan.
+/// Usage: construct once from <see cref="PbfSolver"/> constants and pass
+/// to any module that needs configuration at initialization time.
+/// Per-step mutable state belongs in <see cref="PbfState"/>;
+/// PBF-only constants that are never read outside PBF modules remain
+/// in <c>PbfConstants.cs</c>.
 /// </summary>
 internal sealed class SolverConfig
 {
-	// TODO (Phase 3): add shared solver parameters as readonly properties.
+	// ============================================================
+	// Geometry
+	// ============================================================
+
+	public float SmoothingRadius { get; init; }
+	public float InverseSmoothingRadius { get; init; }
+
+	// ============================================================
+	// Density
+	// ============================================================
+
+	public float RestDensity { get; init; }
+	public float InverseRestDensity { get; init; }
+	public float LambdaEpsilon { get; init; }
+
+	// ============================================================
+	// PBF iteration
+	// ============================================================
+
+	public int MinIterations { get; init; }
+	public int MaxIterations { get; init; }
+	public float DensityErrorThreshold { get; init; }
+	public float MaxCorrection { get; init; }
+	public int MaxNeighbors { get; init; }
+
+	// ============================================================
+	// World
+	// ============================================================
+
+	public float Gravity { get; init; }
+	public float MinX { get; init; }
+	public float MaxX { get; init; }
+	public float MinY { get; init; }
+	public float MaxY { get; init; }
+	public float BoundarySkin { get; init; }
+
+	// ============================================================
+	// Factory — build from current PbfSolver constants
+	// ============================================================
+
+	/// <summary>
+	/// Creates a <see cref="SolverConfig"/> pre-populated with the
+	/// current values from <see cref="PbfSolver"/>'s constants.
+	///
+	/// TODO (Phase 4): Thread this config through module constructors so
+	/// sub-modules read from it instead of referencing <c>PbfSolver.X</c>
+	/// constants directly.  This will enable run-time configuration swaps
+	/// and easier unit-testing of individual pipeline stages.
+	/// </summary>
+	public static SolverConfig FromPbfConstants() =>
+		new SolverConfig
+		{
+			SmoothingRadius           = PbfSolver.SmoothingRadius,
+			InverseSmoothingRadius    = PbfSolver.InverseSmoothingRadius,
+			RestDensity               = PbfSolver.RestDensity,
+			InverseRestDensity        = PbfSolver.InverseRestDensity,
+			LambdaEpsilon             = PbfSolver.LambdaEpsilon,
+			MinIterations             = PbfSolver.MinIterations,
+			MaxIterations             = PbfSolver.MaxIterations,
+			DensityErrorThreshold     = PbfSolver.DensityErrorThreshold,
+			MaxCorrection             = PbfSolver.MaxCorrection,
+			MaxNeighbors              = PbfSolver.MaxNeighbors,
+			Gravity                   = PbfSolver.Gravity,
+			MinX                      = PbfSolver.MinX,
+			MaxX                      = PbfSolver.MaxX,
+			MinY                      = PbfSolver.MinY,
+			MaxY                      = PbfSolver.MaxY,
+			BoundarySkin              = PbfSolver.BoundarySkin,
+		};
 }

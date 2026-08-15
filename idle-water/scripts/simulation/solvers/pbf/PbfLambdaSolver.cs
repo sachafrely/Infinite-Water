@@ -1,22 +1,34 @@
 /// <summary>
-/// PbfLambdaSolver — SCAFFOLDING PLACEHOLDER
+/// PbfLambdaSolver — computes per-particle PBF constraint scalars (λ_i).
 ///
-/// Intended responsibility (Phase 3 migration target):
-///   Computes the PBF constraint scalar lambda for every particle from the
-///   density estimates stored in PbfState.
-///
-/// What will live here:
-///   - Per-particle lambda calculation: C_i / (|∇C_i|² + ε).
-///   - Reads: PbfState.particleDensity, neighbor data.
-///   - Writes: PbfState.lambdas.
-///
-/// What will NOT live here:
-///   - Gradient kernel math — extracted to PbfDensityConstraints.cs.
-///   - Position delta application — that is PbfPositionDeltaSolver's job.
-///
-/// Current state: EMPTY SCAFFOLD.
+/// Reads the neighbor geometry from <see cref="PbfState"/> and delegates
+/// the per-particle math to
+/// <c>scripts/simulation/solvers/PbfDensityConstraints.cs</c>.
+/// Writes the results back to <see cref="PbfState.Lambdas"/> and
+/// <see cref="PbfState.ParticleDensity"/>.
 /// </summary>
 internal static class PbfLambdaSolver
 {
-	// TODO (Phase 3): add lambda computation pass.
+	/// <summary>
+	/// Computes lambdas and density estimates for all particles.
+	/// </summary>
+	/// <returns>Maximum density error across all particles this iteration.</returns>
+	public static float ComputeLambdas(
+		int count,
+		PbfState state)
+	{
+		return PbfDensityConstraints.CalculateLambdas(
+			count,
+			state.NeighborStride,
+			state.NeighborCounts,
+			state.NeighborQ,
+			state.NeighborGradientScale,
+			state.NeighborDx,
+			state.NeighborDy,
+			state.ParticleDensity,
+			state.Lambdas,
+			PbfSolver.InverseRestDensity,
+			PbfSolver.LambdaEpsilon
+		);
+	}
 }

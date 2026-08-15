@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Godot;
 
 /// <summary>
@@ -580,26 +579,18 @@ public partial class TileMapPhysics : Node2D
 	private static PbfSolver GetSolver(
 		FluidSimulator fluidSimulator)
 	{
-		FieldInfo solverField =
-			typeof(FluidSimulator).GetField(
-				"solver",
-				BindingFlags.Instance |
-				BindingFlags.NonPublic
-			);
+		PbfSolver result =
+			fluidSimulator?.GetPbfSolver();
 
-		if (solverField == null)
+		if (result == null)
 		{
 			GD.PushError(
-				"TileMapPhysics: Could not access " +
-				"FluidSimulator.solver."
+				"TileMapPhysics: PbfSolver is not " +
+				"available on FluidSimulator yet."
 			);
-
-			return null;
 		}
 
-		return solverField.GetValue(
-			fluidSimulator
-		) as PbfSolver;
+		return result;
 	}
 
 	// ============================================================

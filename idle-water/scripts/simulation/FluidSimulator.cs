@@ -1514,6 +1514,17 @@ void fragment()
 	}
 
 	// ============================================================
+	// Solver access (direct typed API — replaces reflection)
+	// ============================================================
+
+	/// <summary>
+	/// Returns the active <see cref="PbfSolver"/>, or <c>null</c> if it has
+	/// not been created yet (call after <c>_Ready</c> has completed).
+	/// Prefer this over reflection-based lookups.
+	/// </summary>
+	public PbfSolver GetPbfSolver() => solver;
+
+	// ============================================================
 	// Public energy access
 	// ============================================================
 

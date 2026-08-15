@@ -3,11 +3,11 @@
 This document defines the folder layout under `idle-water/scripts/` and the
 rules for placing code there during ongoing refactors.
 
-> **Current state (Phase 3 — Scaffolding)**: Production scripts are normalized
-> under the canonical lowercase `scripts/` directory. `Scripts/` has been
-> retired.  Phase 3 adds folder structure and blank placeholder scripts that
-> describe the intended module split for `FluidSimulator` and `PbfSolver`.
-> **No logic has been migrated yet** — all runtime behaviour is unchanged.
+> **Current state (Phase 3 — Module Extraction complete)**: Production scripts
+> are normalized under the canonical lowercase `scripts/` directory.
+> `Scripts/` has been retired.  Phase 3 extracted PBF solver internals into
+> focused modules and wired the coordinator.  See the **Phase 3 results**
+> section below for what was extracted, what remains, and next steps.
 
 ---
 
@@ -155,59 +155,53 @@ idle-water/
 
 ---
 
-## Phase 3 — Module Boundaries & Scaffolding (current phase)
+## Phase 3 — Module Boundaries & Extraction (complete)
 
-> **Status**: Placeholder files created. No logic migrated yet.
+> **Status**: PBFSolver decomposition complete.  All scaffold files populated
+> with real logic extracted from the original `PbfSolver.cs`.
 
-### Module boundary rules
+### What was extracted in Phase 3
 
-| Module | Owns | Does NOT own |
-|--------|------|-------------|
-| `FluidSimulator.cs` | Godot Node2D lifecycle, scene wiring, HUD, rain, anti-lag, wheels | PBF math, neighbor search, collision internals |
-| `FluidSimulationCoordinator` | High-level per-tick call sequence | Scene tree, Godot types, rendering |
-| `PBFSolverCoordinator` | PBF sub-pass ordering | Any individual sub-pass math |
-| `PbfState` | Mutable per-step arrays (lambdas, deltas, density) | Persistent cross-frame state (→ ParticleState) |
-| `ParticleState` | Authoritative pos/vel arrays across frames | Per-step scratch (→ PbfState) |
-| `SpatialHashService` | Clean neighbor query API | Hash cell math (→ SpatialHash.cs) |
-| `TileCollisionAdapter` | Collider grid, tilemap-derived polygons | Tile scanning logic (→ TileMapPhysics.cs) |
-| `GeometryCollisionAdapter` | Arbitrary polygon + wheel collider registration | Collision resolution math (→ PbfBoundaryConstraints) |
-| `SimulationConstants` | Constants shared across ≥ 2 modules | PBF-only constants (→ PbfConstants.cs) |
+| Module | Extracted responsibility |
+|--------|--------------------------|
+| `PbfState` | All mutable per-step arrays (neighbor cache, lambdas, density, sleep, impact normals, pixel occupancy table). |
+| `PbfNeighborSearchAdapter` | Thin adapter over `PbfNeighborSearch` static class; populates `PbfState` neighbor arrays. |
+| `PbfDensityConstraintsCoordinator` | Orchestrates the density pass; delegates to `PbfLambdaSolver`. |
+| `PbfLambdaSolver` | Wraps `PbfDensityConstraints.CalculateLambdas`; writes lambdas + density into `PbfState`. |
+| `PbfPositionDeltaSolver` | Position-correction accumulation loop + pixel-occupancy overlap correction (including full hash table helpers). |
+| `PbfBoundaryConstraints` | World AABB clamping; writes impact normals to `PbfState`. |
+| `PbfIntegrationStep` | Velocity derivation, boundary velocity effects, surface flow, impact damping, sleep behaviour, position commit. |
+| `PbfDebugStats` | Profiler output and particle packing statistics. |
+| `PbfSolverCoordinator` | Ordered sub-pass orchestration for one full PBF tick. |
+| `SolverConfig` | Immutable config container with `FromPbfConstants()` factory; ready for future dependency-injection use. |
+| `PbfConstants.cs` | Changed from `private const` to `internal const` so sub-modules can access values as `PbfSolver.X`. |
+| `FluidSimulator.GetPbfSolver()` | Direct typed API replacing the reflection-based solver lookup. |
+| `TileMapPhysics` | Reflection removed; uses `FluidSimulator.GetPbfSolver()` instead. |
 
-### How `FluidSimulator` and `PBFSolver` will be split
+### What remains inside PbfSolver after Phase 3
 
-**`FluidSimulator` (after migration)**
-- Remains the Godot `Node2D` entry point — keeps `_Ready`, `_PhysicsProcess`.
-- Creates and configures sub-modules but does not execute PBF math itself.
-- Delegates the physics tick to `FluidSimulationCoordinator.Step(context)`.
+- **Public API**: `Solve()`, `AddPolygonCollider()`, `ClearPolygonColliders()`, `CreateWheel()`, `Wheel`, `SurfaceParticles`.
+- **Collider management**: collider grid, wheel bounds, `WheelCollisionGroup` nested type.
+- **`ConstrainToPolygonColliders`** (exposed as `internal ApplyPolygonCollision`): the polygon + wheel collision loop; its size makes a further split into `TileCollisionAdapter` / `GeometryCollisionAdapter` the natural next step.
 
-**`PBFSolverCoordinator` (after migration)**
-- Owns the ordered call sequence for one PBF solve step.
-- Holds references to the sub-module instances.
-- `PbfSolver.cs` remains the live, callable entry point until the migration
-  is complete; `PBFSolverCoordinator` will replace it at the end of Phase 3.
+### API compatibility after Phase 3
 
-### What these scaffold files are NOT
+All `FluidSimulator`-facing signatures are **unchanged**:
+- `PbfSolver.Solve(ParticleData, float)`
+- `PbfSolver.AddPolygonCollider(FluidPolygonCollider)`
+- `PbfSolver.ClearPolygonColliders()`
+- `PbfSolver.CreateWheel(Vector2)`
+- `PbfSolver.Wheel`
+- `PbfSolver.SurfaceParticles` (now a property backed by `PbfState`, same type)
 
-- They contain no simulation logic.
-- They define no methods or properties; any attempt to call a method that
-  does not yet exist will produce a compile error.
-- They exist solely to lock in the intended file/class names and module
-  responsibilities before logic migration begins.
-- Runtime behaviour is **100% unchanged** from Phase 2.
+### Next migration steps (Phase 4)
 
-### Next migration steps (recommended order)
+1. Extract `ConstrainToPolygonColliders` into `TileCollisionAdapter` /
+   `GeometryCollisionAdapter`; remove collider-grid code from `PbfSolver.cs`.
+2. Implement `FluidSimulationCoordinator` to wrap `_PhysicsProcess` in
+   `FluidSimulator.cs`; retire inline physics-tick logic.
+3. Thread `SolverConfig` through module constructors to remove the remaining
+   direct `PbfSolver.X` constant lookups from sub-modules.
+4. Move `PbfConstants.cs` to a standalone `internal static class PbfConstants`
+   once all modules use `SolverConfig` and no longer reference `PbfSolver.X`.
 
-1. Convert `PbfSolver` and `FluidSimulator` to `partial class` (zero-risk).
-2. Move shared constants from `PbfConstants.cs` to `SimulationConstants`.
-3. Implement `SolverConfig` and thread it through `PBFSolverCoordinator`.
-4. Implement `PbfState` arrays; wire `PBFSolverCoordinator` to call the
-   existing static methods in `PbfNeighborSearch` and `PbfDensityConstraints`.
-5. Implement `TileCollisionAdapter` / `GeometryCollisionAdapter`; remove
-   the collider-grid code from `PbfSolver.cs`.
-6. Implement `VelocityIntegrator` / `PositionIntegrator`; extract from
-   the `Solve()` method in `PbfSolver.cs`.
-7. Implement `FluidSimulationCoordinator`; retire `_PhysicsProcess`
-   inline logic in `FluidSimulator.cs`.
-
-See `docs/refactor-plan.md` for the detailed line-level split plan for
-each of the three largest files.

@@ -1,24 +1,27 @@
 /// <summary>
-/// PbfDensityConstraintsCoordinator — SCAFFOLDING PLACEHOLDER
+/// PbfDensityConstraintsCoordinator — orchestrates the density-estimation
+/// and lambda-computation pass for one PBF iteration.
 ///
-/// Intended responsibility (Phase 3 migration target):
-///   Drives the density-estimation pass: reads neighbor data from PbfState,
-///   computes per-particle density estimates, and writes results back to
-///   PbfState.  Delegates the per-particle kernel math to the existing
-///   PbfDensityConstraints static class.
-///
-/// What will live here:
-///   - Outer loop orchestration over all particles.
-///   - Read from PbfState.neighborCounts / neighborBuffer.
-///   - Write to PbfState.particleDensity.
-///
-/// What will NOT live here:
-///   - Kernel math (Poly6 / Spiky gradient) — stays in
-///     scripts/simulation/solvers/PbfDensityConstraints.cs.
-///
-/// Current state: EMPTY SCAFFOLD.
+/// Currently a thin delegation layer to <see cref="PbfLambdaSolver"/>.
+/// In future phases this coordinator will drive additional density passes
+/// (e.g., a surface-particle density sub-pass) before returning the maximum
+/// density error to the caller.
 /// </summary>
 internal static class PbfDensityConstraintsCoordinator
 {
-	// TODO (Phase 3): add density estimation entry point.
+	/// <summary>
+	/// Runs the density + lambda pass for all particles.
+	/// </summary>
+	/// <returns>Maximum density error (used for early-exit check).</returns>
+	public static float ComputeDensityAndLambdas(
+		int count,
+		PbfState state)
+	{
+		// TODO (Phase 4): add surface-particle density sub-pass here before
+		// returning, once SurfaceParticles tagging moves into this coordinator.
+		return PbfLambdaSolver.ComputeLambdas(
+			count,
+			state
+		);
+	}
 }
