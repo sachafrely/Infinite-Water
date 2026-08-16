@@ -13,7 +13,7 @@ internal sealed class PixelOccupancyGrid
 
 	public const int PixelGridWidth = 920;
 
-	public const int PixelGridHeight = 1300;
+	public const int PixelGridHeight = 1260;
 
 	public const int MaxParticlesPerDensityCell = 1;
 

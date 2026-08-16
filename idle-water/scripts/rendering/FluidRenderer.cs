@@ -13,6 +13,9 @@ public partial class FluidRenderer : Node2D
 	private int width;
 	private int height;
 	private float cellSize;
+	
+	private float worldMinX;
+	private float worldMinY;
 
 	// ============================================================
 	// Pixel Art
@@ -103,11 +106,16 @@ public partial class FluidRenderer : Node2D
 	public void Initialize(
 		int densityWidth,
 		int densityHeight,
-		float densityCellSize)
+		float densityCellSize,
+	float worldMinX,
+	float worldMinY)
 	{
 		width = densityWidth;
 		height = densityHeight;
 		cellSize = densityCellSize;
+
+	this.worldMinX = worldMinX;
+	this.worldMinY = worldMinY;
 
 		pixelWidth =
 			Mathf.CeilToInt(
@@ -190,6 +198,12 @@ public partial class FluidRenderer : Node2D
 		waterSprite.Centered =
 			false;
 
+		waterSprite.Position =
+	new Vector2(
+		worldMinX,
+		worldMinY
+	);
+	
 		// --------------------------------------------------------
 		// Shader
 		// --------------------------------------------------------
@@ -255,7 +269,7 @@ uniform float local_highlight_brightness = 0.14;
 // Shimmer
 // ============================================================
 
-uniform float shimmer_strength = 0.25;
+uniform float shimmer_strength = 1.25;
 
 uniform float shimmer_speed = 0.20;
 

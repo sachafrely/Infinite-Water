@@ -216,7 +216,9 @@ public partial class FluidSimulator : Node2D
 			new DensityField(
 				DensityWidth,
 				DensityHeight,
-				DensityCellSize
+				DensityCellSize,
+		WorldMinX,
+		WorldMinY
 			);
 
 		pixelOccupancyGrid =
@@ -241,7 +243,9 @@ public partial class FluidSimulator : Node2D
 		renderer.Initialize(
 			DensityWidth,
 			DensityHeight,
-			DensityCellSize
+			DensityCellSize,
+	WorldMinX,
+	WorldMinY
 		);
 
 		CenterSimulationCamera();

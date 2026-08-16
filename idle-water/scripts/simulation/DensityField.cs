@@ -9,11 +9,25 @@ public class DensityField
 	private readonly float cellSize;
 	private readonly float invCellSize;
 
+	// ------------------------------------------------------------
+	// World origin
+	//
+	// Density cell (0, 0) corresponds to:
+	//
+	// world = (worldMinX, worldMinY)
+	// ------------------------------------------------------------
+
+	private readonly float worldMinX;
+	private readonly float worldMinY;
+
 	private readonly float[] values;
 
 	public int Width => width;
 	public int Height => height;
 	public float CellSize => cellSize;
+
+	public float WorldMinX => worldMinX;
+	public float WorldMinY => worldMinY;
 
 	// ------------------------------------------------------------
 	// Density kernel
@@ -24,7 +38,6 @@ public class DensityField
 	private readonly int kernelRadius;
 	private readonly int kernelSize;
 
-	// Only store non-zero kernel entries.
 	private readonly KernelEntry[] kernelEntries;
 
 	private struct KernelEntry
@@ -46,9 +59,6 @@ public class DensityField
 
 	// ------------------------------------------------------------
 	// Active bounds
-	//
-	// This allows FluidRenderer to avoid scanning the entire
-	// density field every frame.
 	// ------------------------------------------------------------
 
 	private int activeMinX;
@@ -72,12 +82,17 @@ public class DensityField
 	public DensityField(
 		int width,
 		int height,
-		float cellSize)
+		float cellSize,
+		float worldMinX,
+		float worldMinY)
 	{
 		this.width = width;
 		this.height = height;
 		this.cellSize = cellSize;
 		this.invCellSize = 1.0f / cellSize;
+
+		this.worldMinX = worldMinX;
+		this.worldMinY = worldMinY;
 
 		values =
 			new float[
@@ -104,7 +119,6 @@ public class DensityField
 
 	private KernelEntry[] BuildKernel()
 	{
-		// Maximum possible number of entries.
 		KernelEntry[] temporary =
 			new KernelEntry[
 				kernelSize * kernelSize
@@ -115,13 +129,15 @@ public class DensityField
 		float radiusSquared =
 			Radius * Radius;
 
-		for (int y = -kernelRadius;
-			 y <= kernelRadius;
-			 y++)
+		for (
+			int y = -kernelRadius;
+			y <= kernelRadius;
+			y++)
 		{
-			for (int x = -kernelRadius;
-				 x <= kernelRadius;
-				 x++)
+			for (
+				int x = -kernelRadius;
+				x <= kernelRadius;
+				x++)
 			{
 				float dx =
 					x * cellSize;
@@ -133,8 +149,12 @@ public class DensityField
 					dx * dx +
 					dy * dy;
 
-				if (distanceSquared >= radiusSquared)
+				if (
+					distanceSquared >=
+					radiusSquared)
+				{
 					continue;
+				}
 
 				float distance =
 					Mathf.Sqrt(
@@ -149,7 +169,9 @@ public class DensityField
 					q * q * q * q;
 
 				if (weight <= 0.0f)
+				{
 					continue;
+				}
 
 				temporary[count++] =
 					new KernelEntry(
@@ -173,12 +195,29 @@ public class DensityField
 	}
 
 	// ------------------------------------------------------------
+	// World → density coordinates
+	// ------------------------------------------------------------
+
+	private int WorldToCellX(
+		float worldX)
+	{
+		return Mathf.FloorToInt(
+			(worldX - worldMinX) *
+			invCellSize
+		);
+	}
+
+	private int WorldToCellY(
+		float worldY)
+	{
+		return Mathf.FloorToInt(
+			(worldY - worldMinY) *
+			invCellSize
+		);
+	}
+
+	// ------------------------------------------------------------
 	// AddDensity
-	//
-	// Compatibility method used by PbfSolver.
-	//
-	// This adds density to the single grid cell containing the
-	// supplied world position.
 	// ------------------------------------------------------------
 
 	public void AddDensity(
@@ -187,18 +226,17 @@ public class DensityField
 		float density)
 	{
 		int x =
-			(int)(
-				worldX *
-				invCellSize
+			WorldToCellX(
+				worldX
 			);
 
 		int y =
-			(int)(
-				worldY *
-				invCellSize
+			WorldToCellY(
+				worldY
 			);
 
-		if (x < 0 ||
+		if (
+			x < 0 ||
 			y < 0 ||
 			x >= width ||
 			y >= height)
@@ -219,8 +257,6 @@ public class DensityField
 
 	// ------------------------------------------------------------
 	// AddParticle
-	//
-	// Adds the precomputed density kernel around a particle.
 	// ------------------------------------------------------------
 
 	public void AddParticle(
@@ -228,19 +264,17 @@ public class DensityField
 		float worldY)
 	{
 		int centerX =
-			(int)(
-				worldX *
-				invCellSize
+			WorldToCellX(
+				worldX
 			);
 
 		int centerY =
-			(int)(
-				worldY *
-				invCellSize
+			WorldToCellY(
+				worldY
 			);
 
-		// Particle completely outside influence area.
-		if (centerX < -kernelRadius ||
+		if (
+			centerX < -kernelRadius ||
 			centerX >= width + kernelRadius ||
 			centerY < -kernelRadius ||
 			centerY >= height + kernelRadius)
@@ -248,11 +282,10 @@ public class DensityField
 			return;
 		}
 
-		// Instead of iterating a square and checking whether
-		// every kernel entry is zero, only iterate valid entries.
-		for (int i = 0;
-			 i < kernelEntries.Length;
-			 i++)
+		for (
+			int i = 0;
+			i < kernelEntries.Length;
+			i++)
 		{
 			KernelEntry entry =
 				kernelEntries[i];
@@ -265,7 +298,8 @@ public class DensityField
 				centerY +
 				entry.OffsetY;
 
-			if (x < 0 ||
+			if (
+				x < 0 ||
 				y < 0 ||
 				x >= width ||
 				y >= height)
@@ -307,7 +341,8 @@ public class DensityField
 		int x,
 		int y)
 	{
-		if (x < 0 ||
+		if (
+			x < 0 ||
 			y < 0 ||
 			x >= width ||
 			y >= height)
@@ -337,6 +372,7 @@ public class DensityField
 	{
 		activeMinX = width;
 		activeMinY = height;
+
 		activeMaxX = -1;
 		activeMaxY = -1;
 	}
@@ -346,15 +382,23 @@ public class DensityField
 		int y)
 	{
 		if (x < activeMinX)
+		{
 			activeMinX = x;
+		}
 
 		if (y < activeMinY)
+		{
 			activeMinY = y;
+		}
 
 		if (x > activeMaxX)
+		{
 			activeMaxX = x;
+		}
 
 		if (y > activeMaxY)
+		{
 			activeMaxY = y;
+		}
 	}
 }

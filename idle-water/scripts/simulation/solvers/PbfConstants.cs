@@ -93,10 +93,10 @@ public partial class PbfSolver
 	// ============================================================
 
 	internal const float MinX = -100.0f;
-	internal const float MaxX = 920.0f;
+	internal const float MaxX = 820.0f;
 
 	internal const float MinY = -50.0f;
-	internal const float MaxY = 1250.0f;
+	internal const float MaxY = 1210.0f;
 
 	internal const float BoundarySkin = 0.5f;
 
