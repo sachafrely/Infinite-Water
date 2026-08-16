@@ -41,7 +41,7 @@ public partial class StatisticsGraph : Control
 
 	// Do not reserve unnecessary space underneath
 	// the second graph.
-	private const float SecondGraphMarginBottom = 40.0f;
+	private const float SecondGraphMarginBottom = 10.0f;
 
 	private const float GraphBorderWidth = 2.0f;
 	private const float GridLineWidth = 1.0f;

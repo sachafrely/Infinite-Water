@@ -52,7 +52,7 @@ The immediate development order is:
 14.2 Disable Pixel Occupancy as a test to see if we really need it.
 14.3 remove or improve shimmer (SHIMMER IS DISABLED FOR NOW)
 15. Make all windows use the same Script
-16. 
+16. make all UI Settings in one File
 
 Some tasks can be worked on independently later, but this is the preferred order for the next development stages.
 
