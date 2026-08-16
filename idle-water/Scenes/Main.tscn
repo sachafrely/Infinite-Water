@@ -12,6 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://guq02oiwrevb" path="res://assets/sprites/decorations/22.png" id="15_2w5on"]
 [ext_resource type="Texture2D" uid="uid://jnjp4yns5al3" path="res://assets/sprites/decorations/18.png" id="15_346fj"]
 [ext_resource type="Texture2D" uid="uid://b6b7fs31sqmaf" path="res://assets/sprites/decorations/26.png" id="15_h1m7h"]
+[ext_resource type="Script" uid="uid://duwdhy0cyfdf0" path="res://Scripts/ui/SettingsWindow.cs" id="15_sxkr1"]
 [ext_resource type="Texture2D" uid="uid://07lvxomyo7se" path="res://assets/sprites/decorations/15.png" id="16_0sclb"]
 [ext_resource type="Texture2D" uid="uid://beuk4em8qf13n" path="res://assets/sprites/decorations/5.png" id="16_2w5on"]
 [ext_resource type="Script" uid="uid://btjayvbdsd16t" path="res://Scripts/ui/UiToggleButton.cs" id="16_346fj"]
@@ -406,9 +407,9 @@ mouse_filter = 2
 [node name="CenterUI" type="Control" parent="." unique_id=1096158914]
 layout_mode = 3
 anchors_preset = 0
-offset_top = 820.0
+offset_top = 580.0
 offset_right = 720.0
-offset_bottom = 1140.0
+offset_bottom = 1160.0
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterUI" unique_id=1537815097]
 z_index = 99
@@ -435,7 +436,30 @@ layout_mode = 2
 [node name="Content" type="VBoxContainer" parent="CenterUI/PanelContainer/MarginContainer" unique_id=1600717048]
 layout_mode = 2
 
-[node name="SettingsWindow" type="Node2D" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1683841450]
+[node name="SettingsWindow" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1767892773]
+z_index = 100
+layout_mode = 2
+script = ExtResource("15_sxkr1")
+
+[node name="SettingsPanel" type="Panel" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow" unique_id=1716082346]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -720.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel" unique_id=415157806]
+layout_mode = 0
+offset_right = 720.0
+offset_bottom = 425.0
+
+[node name="Title" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=921015842]
+
+[node name="Separator" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=1996221223]
+
+[node name="TiltSection" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=1567407503]
 
 [node name="StatisticsWindow" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1965062047]
 layout_mode = 2
@@ -445,7 +469,7 @@ script = ExtResource("15_0sclb")
 z_index = 100
 anchors_preset = 0
 offset_right = 720.0
-offset_bottom = 340.0
+offset_bottom = 503.0
 mouse_filter = 2
 script = ExtResource("7_jw32o")
 

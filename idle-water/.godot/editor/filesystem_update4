@@ -9,3 +9,5 @@ res://Scripts/ui/StatisticsGraph.cs
 res://Scripts/simulation/TileMapPhysics.cs
 res://Scripts/simulation/FluidSimulator.cs
 res://Scripts/rendering/WaterWheelVisual.cs
+res://Scripts/ui/SettingsWindow.cs
+res://Scripts/ui/SettingsContent.cs

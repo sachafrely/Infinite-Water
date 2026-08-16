@@ -38,8 +38,8 @@ refactor-plan.md::TextFile::-1::1786810550::0::1::::<><><>0<>0<><>::
 roadmap.txt::TextFile::-1::1786896044::0::1::::<><><>0<>0<><>::
 SPECIAL THANKS.txt::TextFile::-1::1786809637::0::1::::<><><>0<>0<><>::
 World Size.txt::TextFile::-1::1786877286::0::1::::<><><>0<>0<><>::
-::res://Scenes/::1786895954
-Main.tscn::PackedScene::4246241242636851641::1786895954::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://assets/sprites/background/Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://assets/sprites/tilesets/Tileset.png<>uid://k6081dvmnuws::::res://assets/sprites/decorations/20.png<>uid://dxn2tnelhfpsr::::res://Scripts/ui/StatisticsGraph.cs<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://assets/sprites/decorations/8.png<>uid://km0yghtkadt1::::res://Scripts/ui/StatisticsWindow.cs<>uid://guq02oiwrevb::::res://assets/sprites/decorations/22.png<>uid://jnjp4yns5al3::::res://assets/sprites/decorations/18.png<>uid://b6b7fs31sqmaf::::res://assets/sprites/decorations/26.png<>uid://07lvxomyo7se::::res://assets/sprites/decorations/15.png<>uid://beuk4em8qf13n::::res://assets/sprites/decorations/5.png<>uid://btjayvbdsd16t::::res://Scripts/ui/UiToggleButton.cs<>uid://idpd20skc4op::::res://assets/sprites/decorations/9.png<>uid://0gqfrx74wbgl::::res://assets/sprites/decorations/14.png<>uid://7mdjqr6jnedr::::res://Scripts/ui/RenderedWindowBackground.cs<>uid://diodqrojkp676::::res://Scripts/ui/UiWindowManager.cs
+::res://Scenes/::1786909525
+Main.tscn::PackedScene::4246241242636851641::1786909525::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://assets/sprites/background/Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://assets/sprites/tilesets/Tileset.png<>uid://k6081dvmnuws::::res://assets/sprites/decorations/20.png<>uid://dxn2tnelhfpsr::::res://Scripts/ui/StatisticsGraph.cs<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://assets/sprites/decorations/8.png<>uid://km0yghtkadt1::::res://Scripts/ui/StatisticsWindow.cs<>uid://guq02oiwrevb::::res://assets/sprites/decorations/22.png<>uid://jnjp4yns5al3::::res://assets/sprites/decorations/18.png<>uid://b6b7fs31sqmaf::::res://assets/sprites/decorations/26.png<>uid://duwdhy0cyfdf0::::res://Scripts/ui/SettingsWindow.cs<>uid://07lvxomyo7se::::res://assets/sprites/decorations/15.png<>uid://beuk4em8qf13n::::res://assets/sprites/decorations/5.png<>uid://btjayvbdsd16t::::res://Scripts/ui/UiToggleButton.cs<>uid://idpd20skc4op::::res://assets/sprites/decorations/9.png<>uid://0gqfrx74wbgl::::res://assets/sprites/decorations/14.png<>uid://7mdjqr6jnedr::::res://Scripts/ui/RenderedWindowBackground.cs<>uid://diodqrojkp676::::res://Scripts/ui/UiWindowManager.cs
 ::res://Scripts/::1786803057
 ::res://Scripts/core/::1786806180
 FrameProfiler.cs::CSharpScript::9178817618753722961::1786803057::0::1::::<>Node<><>0<>0<><>::
@@ -47,8 +47,8 @@ SimulationConstants.cs::CSharpScript::5199576297924703403::1786804099::0::1::::<
 SimulationDebug.cs::CSharpScript::2740126471432067307::1786804099::0::1::::<><><>0<>0<><>::
 ::res://Scripts/data/::1786803057
 ::res://Scripts/input/::1786803057
-::res://Scripts/rendering/::1786895355
-FluidRenderer.cs::CSharpScript::7921401691133765954::1786895355::0::1::::<>Node2D<><>0<>0<><>::
+::res://Scripts/rendering/::1786906575
+FluidRenderer.cs::CSharpScript::7921401691133765954::1786906575::0::1::::<>Node2D<><>0<>0<><>::
 WaterWheelVisual.cs::CSharpScript::3148581498361463953::1786803057::0::1::::<>Node2D<><>0<>0<><>::
 ::res://Scripts/services/::1786802957
 ::res://Scripts/simulation/::1786893213
@@ -101,10 +101,12 @@ PbfState.cs::CSharpScript::8021265557473124243::1786806180::0::1::::<><><>0<>0<>
 ISolver.cs::CSharpScript::8876761352774482908::1786804100::0::1::::<><><>0<>0<><>::
 SolverConfig.cs::CSharpScript::881408952242810574::1786806180::0::1::::<><><>0<>0<><>::
 ::res://Scripts/systems/::1786802957
-::res://Scripts/ui/::1786832687
+::res://Scripts/ui/::1786909525
 RenderedWindowBackground.cs::CSharpScript::2271014620645515295::1786827801::0::1::::<>Control<><>0<>1<><>::
+SettingsContent.cs::CSharpScript::5257086164604934667::1786909544::0::1::::<><><>0<>0<><>::
+SettingsWindow.cs::CSharpScript::8608651185268556535::1786909525::0::1::::<>Control<><>0<>0<><>::
 StatisticsGraph.cs::CSharpScript::8802116343937840681::1786832687::0::1::::<>Control<><>0<>0<><>::
 StatisticsWindow.cs::CSharpScript::728222080132292588::1786831241::0::1::::<>Control<><>0<>0<><>::
 UiToggleButton.cs::CSharpScript::3738632076351638641::1786831881::0::1::::<>Control<><>0<>0<><>::
-UiWindowManager.cs::CSharpScript::7749885727368299795::1786900848::0::1::::<>Node<><>0<>0<><>::
+UiWindowManager.cs::CSharpScript::7749885727368299795::1786904044::0::1::::<>Node<><>0<>0<><>::
 ::res://Scripts/utils/::1786802957

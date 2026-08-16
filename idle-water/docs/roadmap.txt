@@ -36,12 +36,12 @@ The immediate development order is:
 
 1. Graph UI button DONE
 2. Graph UI background DONE
-3. UI state/controller
+3. UI state/controller DONE
 4. Settings window
 5. Reduce simulation size DONE
 6. Tilt settings
 7. Tilt mechanics
-8. Pumps
+8. Pumps (maybe)
 9. Rain amount display
 10. Economy / Sell Energy
 11. Wheel progression
@@ -50,7 +50,9 @@ The immediate development order is:
 14. General optimization
 14.1 Water still getting accumulated somewhere DONE
 14.2 Disable Pixel Occupancy as a test to see if we really need it.
-14.3 remove or improve shimmer DONE (Improved)
+14.3 remove or improve shimmer (SHIMMER IS DISABLED FOR NOW)
+15. Make all windows use the same Script
+16. 
 
 Some tasks can be worked on independently later, but this is the preferred order for the next development stages.
 
