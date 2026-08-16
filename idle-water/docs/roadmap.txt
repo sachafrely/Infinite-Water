@@ -34,11 +34,11 @@ Current Implementation Order
 
 The immediate development order is:
 
-1. Graph UI button
+1. Graph UI button DONE
 2. Graph UI background DONE
 3. UI state/controller
 4. Settings window
-5. Reduce simulation size
+5. Reduce simulation size DONE
 6. Tilt settings
 7. Tilt mechanics
 8. Pumps
@@ -48,7 +48,9 @@ The immediate development order is:
 12. Wheel upgrades
 13. Sound and sound settings
 14. General optimization
-14.1 Water still getting accumulated somewhere
+14.1 Water still getting accumulated somewhere DONE
+14.2 Disable Pixel Occupancy as a test to see if we really need it.
+14.3 remove or improve shimmer DONE (Improved)
 
 Some tasks can be worked on independently later, but this is the preferred order for the next development stages.
 

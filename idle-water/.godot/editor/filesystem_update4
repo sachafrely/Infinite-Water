@@ -1,9 +1,5 @@
 res://Scenes/Main.tscn
-res://Scripts/simulation/solvers/PbfConstants.cs
-res://Scripts/simulation/PixelOccupancyGrid.cs
-res://Scripts/simulation/DensityField.cs
 res://Scripts/rendering/FluidRenderer.cs
-res://Scripts/simulation/FluidSimulator.cs
 res://Scripts/ui/UiWindowManager.cs
 res://Scripts/ui/RenderedWindowBackground.cs
 res://Scripts/ui/UiToggleButton.cs
@@ -11,4 +7,5 @@ res://Scripts/ui/StatisticsWindow.cs
 res://Scripts/core/FrameProfiler.cs
 res://Scripts/ui/StatisticsGraph.cs
 res://Scripts/simulation/TileMapPhysics.cs
+res://Scripts/simulation/FluidSimulator.cs
 res://Scripts/rendering/WaterWheelVisual.cs

@@ -239,13 +239,13 @@ uniform vec3 deep_color : source_color =
 vec3(0.025, 0.25, 0.68);
 
 uniform vec3 middle_color : source_color =
-vec3(0.035, 0.25, 0.68);
+vec3(0.08, 0.45, 0.78);
 
 uniform vec3 shallow_color : source_color =
-vec3(0.08, 0.58, 1.00);
+vec3(0.2, 0.58, 0.95);
 
 uniform vec3 surface_color : source_color =
-vec3(0.65, 0.88, 1.00);
+vec3(0.75, 0.92, 1.00);
 
 // ============================================================
 // Appearance
@@ -269,9 +269,9 @@ uniform float local_highlight_brightness = 0.14;
 // Shimmer
 // ============================================================
 
-uniform float shimmer_strength = 1.25;
+uniform float shimmer_strength = 0.67;
 
-uniform float shimmer_speed = 0.20;
+uniform float shimmer_speed = 0.25;
 
 uniform float shimmer_scale = 0.045;
 
