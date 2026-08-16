@@ -1,0 +1,7 @@
+The Visible Simulation Space is 720px wide and starts from the very top (0, 0) and goes down until the BottomUI Starts. 
+bottomui is currently 120px so the total visible world size is 720x1160.
+
+the simulation world (FluidSimulator, PBFSolver) is bigger. It extends 100 px on each side and 50px on top and bottom.
+So the Simulation World should be 920px x 1260 px.
+
+The Tilemap extends a little bit on each side of the simulation world, for security.

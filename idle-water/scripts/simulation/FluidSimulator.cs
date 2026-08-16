@@ -69,9 +69,9 @@ public partial class FluidSimulator : Node2D
 	// Density rendering grid
 	// ============================================================
 
-	private const int DensityWidth = 920;
+	private const int DensityWidth = 230;
 
-	private const int DensityHeight = 1300;
+	private const int DensityHeight = 315;
 
 	private const float DensityCellSize = 4.0f;
 
@@ -81,7 +81,7 @@ public partial class FluidSimulator : Node2D
 
 	private const float WorldWidth = 920.0f;
 
-	private const float WorldHeight = 1300.0f;
+	private const float WorldHeight = 1260.0f;
 
 	private const float WorldMinX = -100.0f;
 
@@ -89,7 +89,7 @@ public partial class FluidSimulator : Node2D
 
 	private const float WorldMinY = -50.0f;
 
-	private const float WorldMaxY = 1250.0f;
+	private const float WorldMaxY = 1210.0f;
 
 	// ============================================================
 	// Simulation world center
@@ -112,10 +112,10 @@ public partial class FluidSimulator : Node2D
 	// ============================================================
 
 	private const float DespawnLeftX =
-		WorldMinX + 8.0f;
+		WorldMinX + 4.0f;
 
 	private const float DespawnRightX =
-		WorldMaxX - 8.0f;
+		WorldMaxX - 4.0f;
 
 	private const float DespawnBottomY =
 		WorldMaxY - 8.0f;

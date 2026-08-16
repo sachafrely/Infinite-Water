@@ -7,6 +7,10 @@ using Godot;
 /// where evaporated particles were located in the simulation world.
 ///
 /// The evaporation position statistics use an 8x8 spatial grid.
+///
+/// This class also performs a diagnostic-only particle bounds analysis
+/// whenever a full profiler report is generated. The diagnostic does
+/// not modify particle positions or particle lifetime in any way.
 /// </summary>
 internal sealed class AntiLagController
 {
@@ -70,6 +74,14 @@ internal sealed class AntiLagController
 	private float evaporationMaxY = 0.0f;
 
 	private bool hasEvaporationPositionData = false;
+
+	// ============================================================
+	// Particle bounds diagnostic
+	// ============================================================
+
+	private const float ParticleBoundsHistogramBinSize = 25.0f;
+
+	private const int ParticleBoundsHistogramBinCount = 6;
 
 	// ============================================================
 	// State variables
@@ -224,7 +236,7 @@ internal sealed class AntiLagController
 
 	/// <summary>
 	/// Supplies the simulation world bounds used by the evaporation
-	/// spatial analysis.
+	/// spatial analysis and particle bounds diagnostic.
 	/// </summary>
 	public void SetSimulationWorldBounds(
 		float minX,
@@ -247,6 +259,17 @@ internal sealed class AntiLagController
 		ParticleData particles,
 		RainSystem rainSystem)
 	{
+		// ========================================================
+		// Diagnostic only
+		//
+		// This is intentionally executed before the anti-lag state
+		// machine logic. It only reads particle positions.
+		// ========================================================
+
+		PrintParticleBoundsDiagnostic(
+			particles
+		);
+
 		if (
 			antiLagState !=
 			AntiLagState.Normal)
@@ -363,6 +386,687 @@ internal sealed class AntiLagController
 				);
 				break;
 		}
+	}
+
+	// ============================================================
+	// Particle bounds diagnostic
+	// ============================================================
+
+	/// <summary>
+	/// Prints a diagnostic report describing where all active
+	/// particles currently are relative to:
+	///
+	/// 1. The simulation world.
+	/// 2. The currently visible GameView.
+	///
+	/// IMPORTANT:
+	/// This method is diagnostic-only.
+	/// It never changes particle positions, velocity, lifetime,
+	/// particle count, or any simulation state.
+	/// </summary>
+	private void PrintParticleBoundsDiagnostic(
+		ParticleData particles)
+	{
+		GD.Print(
+			"========== PARTICLE BOUNDS DIAGNOSTIC =========="
+		);
+
+		int activeParticles =
+			particles != null
+				? particles.Count
+				: 0;
+
+		GD.Print(
+			"Active particles: " +
+			activeParticles
+		);
+
+		GD.Print("");
+
+		// --------------------------------------------------------
+		// Simulation world
+		// --------------------------------------------------------
+
+		GD.Print(
+			"Simulation bounds:"
+		);
+
+		GD.Print(
+			"  X = " +
+			simulationWorldMinX.ToString("F1") +
+			" -> " +
+			simulationWorldMaxX.ToString("F1")
+		);
+
+		GD.Print(
+			"  Y = " +
+			simulationWorldMinY.ToString("F1") +
+			" -> " +
+			simulationWorldMaxY.ToString("F1")
+		);
+
+		GD.Print("");
+
+		// --------------------------------------------------------
+		// Visible GameView
+		// --------------------------------------------------------
+
+		PrintVisibleGameViewBounds();
+
+		GD.Print("");
+
+		// --------------------------------------------------------
+		// No particles
+		// --------------------------------------------------------
+
+		if (
+			particles == null ||
+			particles.Count <= 0)
+		{
+			GD.Print(
+				"Particle position bounds:"
+			);
+
+			GD.Print(
+				"  No active particles."
+			);
+
+			GD.Print("");
+
+			GD.Print(
+				"==============================================="
+			);
+
+			return;
+		}
+
+		// --------------------------------------------------------
+		// Particle position bounds
+		// --------------------------------------------------------
+
+		float minX =
+			particles.PosX[0];
+
+		float maxX =
+			particles.PosX[0];
+
+		float minY =
+			particles.PosY[0];
+
+		float maxY =
+			particles.PosY[0];
+
+		int leftCount = 0;
+		int rightCount = 0;
+		int topCount = 0;
+		int bottomCount = 0;
+
+		int minimumXParticleIndex = 0;
+
+		float minimumXParticleX =
+			particles.PosX[0];
+
+		float minimumXParticleY =
+			particles.PosY[0];
+
+		// --------------------------------------------------------
+		// Left out-of-bounds statistics
+		// --------------------------------------------------------
+
+		int leftOutOfBoundsCount = 0;
+
+		double leftPositionSumX = 0.0;
+		double leftPositionSumY = 0.0;
+
+		float leftMinX = 0.0f;
+		float leftMaxX = 0.0f;
+		float leftMinY = 0.0f;
+		float leftMaxY = 0.0f;
+
+		bool hasLeftOutOfBoundsData = false;
+
+		int[] leftHistogram =
+			new int[
+				ParticleBoundsHistogramBinCount
+			];
+
+		// --------------------------------------------------------
+		// Scan all active particles
+		// --------------------------------------------------------
+
+		for (
+			int i = 0;
+			i < particles.Count;
+			i++)
+		{
+			float x =
+				particles.PosX[i];
+
+			float y =
+				particles.PosY[i];
+
+			// Overall position bounds.
+			minX =
+				Mathf.Min(
+					minX,
+					x
+				);
+
+			maxX =
+				Mathf.Max(
+					maxX,
+					x
+				);
+
+			minY =
+				Mathf.Min(
+					minY,
+					y
+				);
+
+			maxY =
+				Mathf.Max(
+					maxY,
+					y
+				);
+
+			// Minimum-X particle.
+			if (
+				x <
+				minimumXParticleX)
+			{
+				minimumXParticleX =
+					x;
+
+				minimumXParticleY =
+					y;
+
+				minimumXParticleIndex =
+					i;
+			}
+
+			// Simulation-world bounds.
+			if (
+				x <
+				simulationWorldMinX)
+			{
+				leftCount++;
+
+				leftOutOfBoundsCount++;
+
+				leftPositionSumX +=
+					x;
+
+				leftPositionSumY +=
+					y;
+
+				if (
+					!hasLeftOutOfBoundsData)
+				{
+					leftMinX = x;
+					leftMaxX = x;
+					leftMinY = y;
+					leftMaxY = y;
+
+					hasLeftOutOfBoundsData =
+						true;
+				}
+				else
+				{
+					leftMinX =
+						Mathf.Min(
+							leftMinX,
+							x
+						);
+
+					leftMaxX =
+						Mathf.Max(
+							leftMaxX,
+							x
+						);
+
+					leftMinY =
+						Mathf.Min(
+							leftMinY,
+							y
+						);
+
+					leftMaxY =
+						Mathf.Max(
+							leftMaxY,
+							y
+						);
+				}
+
+				// Histogram:
+				//
+				// Bin 0:
+				//     -100 -> -125
+				//
+				// Bin 1:
+				//     -125 -> -150
+				//
+				// etc.
+				float distanceOutside =
+					simulationWorldMinX - x;
+
+				int histogramIndex =
+					Mathf.FloorToInt(
+						distanceOutside /
+						ParticleBoundsHistogramBinSize
+					);
+
+				histogramIndex =
+					Mathf.Clamp(
+						histogramIndex,
+						0,
+						ParticleBoundsHistogramBinCount - 1
+					);
+
+				leftHistogram[
+					histogramIndex
+				]++;
+			}
+
+			if (
+				x >
+				simulationWorldMaxX)
+			{
+				rightCount++;
+			}
+
+			if (
+				y <
+				simulationWorldMinY)
+			{
+				topCount++;
+			}
+
+			if (
+				y >
+				simulationWorldMaxY)
+			{
+				bottomCount++;
+			}
+		}
+
+		GD.Print(
+			"Particle position bounds:"
+		);
+
+		GD.Print(
+			"  X = " +
+			minX.ToString("F1") +
+			" -> " +
+			maxX.ToString("F1")
+		);
+
+		GD.Print(
+			"  Y = " +
+			minY.ToString("F1") +
+			" -> " +
+			maxY.ToString("F1")
+		);
+
+		GD.Print("");
+
+		// --------------------------------------------------------
+		// Outside simulation world
+		// --------------------------------------------------------
+
+		GD.Print(
+			"Outside simulation world:"
+		);
+
+		GD.Print(
+			"  Left  (X < " +
+			simulationWorldMinX.ToString("F1") +
+			"): " +
+			leftCount
+		);
+
+		GD.Print(
+			"  Right (X > " +
+			simulationWorldMaxX.ToString("F1") +
+			"): " +
+			rightCount
+		);
+
+		GD.Print(
+			"  Top   (Y < " +
+			simulationWorldMinY.ToString("F1") +
+			"): " +
+			topCount
+		);
+
+		GD.Print(
+			"  Bottom(Y > " +
+			simulationWorldMaxY.ToString("F1") +
+			"): " +
+			bottomCount
+		);
+
+		GD.Print("");
+
+		// --------------------------------------------------------
+		// Left detailed analysis
+		// --------------------------------------------------------
+
+		GD.Print(
+			"LEFT OUT-OF-BOUNDS:"
+		);
+
+		double leftPercentage =
+			activeParticles > 0
+				? (
+					leftOutOfBoundsCount *
+					100.0 /
+					activeParticles
+				)
+				: 0.0;
+
+		GD.Print(
+			"  Count: " +
+			leftOutOfBoundsCount
+		);
+
+		GD.Print(
+			"  Percentage: " +
+			leftPercentage.ToString("F2") +
+			"%"
+		);
+
+		if (
+			hasLeftOutOfBoundsData)
+		{
+			GD.Print(
+				"  X range: " +
+				leftMinX.ToString("F1") +
+				" -> " +
+				leftMaxX.ToString("F1")
+			);
+
+			GD.Print(
+				"  Y range: " +
+				leftMinY.ToString("F1") +
+				" -> " +
+				leftMaxY.ToString("F1")
+			);
+
+			double averageLeftX =
+				leftPositionSumX /
+				leftOutOfBoundsCount;
+
+			double averageLeftY =
+				leftPositionSumY /
+				leftOutOfBoundsCount;
+
+			GD.Print(
+				"  Average position: (" +
+				averageLeftX.ToString("F1") +
+				", " +
+				averageLeftY.ToString("F1") +
+				")"
+			);
+		}
+		else
+		{
+			GD.Print(
+				"  No particles are outside the left boundary."
+			);
+		}
+
+		GD.Print("");
+
+		// --------------------------------------------------------
+		// Left-side distribution
+		// --------------------------------------------------------
+
+		GD.Print(
+			"LEFT PARTICLE DISTRIBUTION"
+		);
+
+		GD.Print(
+			"  X < " +
+			simulationWorldMinX.ToString("F1") +
+			" : " +
+			leftOutOfBoundsCount
+		);
+
+		for (
+			int i = 0;
+			i < ParticleBoundsHistogramBinCount;
+			i++)
+		{
+			float binMin =
+				simulationWorldMinX -
+				(
+					(i + 1) *
+					ParticleBoundsHistogramBinSize
+				);
+
+			float binMax =
+				simulationWorldMinX -
+				(
+					i *
+					ParticleBoundsHistogramBinSize
+				);
+
+			GD.Print(
+				"  X " +
+				binMin.ToString("F0") +
+				".. " +
+				binMax.ToString("F0") +
+				" : " +
+				leftHistogram[i]
+			);
+		}
+
+		GD.Print("");
+
+		// --------------------------------------------------------
+		// Minimum-X particle
+		// --------------------------------------------------------
+
+		GD.Print(
+			"MINIMUM-X PARTICLE:"
+		);
+
+		GD.Print(
+			"  Index: " +
+			minimumXParticleIndex
+		);
+
+		GD.Print(
+			"  Position: (" +
+			minimumXParticleX.ToString("F1") +
+			", " +
+			minimumXParticleY.ToString("F1") +
+			")"
+		);
+
+		GD.Print("");
+
+		GD.Print(
+			"==============================================="
+		);
+	}
+
+	/// <summary>
+	/// Finds the currently active Camera2D and prints the world-space
+	/// rectangle visible through its viewport.
+	///
+	/// Camera zoom is taken into account:
+	///
+	/// visible world width  = viewport width / zoom.X
+	/// visible world height = viewport height / zoom.Y
+	///
+	/// This is diagnostic-only.
+	/// </summary>
+	private void PrintVisibleGameViewBounds()
+	{
+		Camera2D camera =
+			FindActiveCamera();
+
+		GD.Print(
+			"Visible GameView bounds:"
+		);
+
+		if (
+			camera == null)
+		{
+			GD.Print(
+				"  Camera2D: NOT FOUND"
+			);
+
+			return;
+		}
+
+		Vector2 viewportSize =
+			camera.GetViewport().GetVisibleRect().Size;
+
+		Vector2 zoom =
+			camera.Zoom;
+
+		float zoomX =
+			Mathf.Abs(
+				zoom.X
+			);
+
+		float zoomY =
+			Mathf.Abs(
+				zoom.Y
+			);
+
+		if (
+			zoomX < 0.0001f)
+		{
+			zoomX = 1.0f;
+		}
+
+		if (
+			zoomY < 0.0001f)
+		{
+			zoomY = 1.0f;
+		}
+
+		float visibleWidth =
+			viewportSize.X /
+			zoomX;
+
+		float visibleHeight =
+			viewportSize.Y /
+			zoomY;
+
+		Vector2 cameraPosition =
+			camera.GetGlobalPosition();
+
+		float visibleMinX =
+			cameraPosition.X -
+			visibleWidth * 0.5f;
+
+		float visibleMaxX =
+			cameraPosition.X +
+			visibleWidth * 0.5f;
+
+		float visibleMinY =
+			cameraPosition.Y -
+			visibleHeight * 0.5f;
+
+		float visibleMaxY =
+			cameraPosition.Y +
+			visibleHeight * 0.5f;
+
+		GD.Print(
+			"  Camera: " +
+			camera.GetPath()
+		);
+
+		GD.Print(
+			"  Camera position: (" +
+			cameraPosition.X.ToString("F1") +
+			", " +
+			cameraPosition.Y.ToString("F1") +
+			")"
+		);
+
+		GD.Print(
+			"  Camera zoom: (" +
+			zoom.X.ToString("F2") +
+			", " +
+			zoom.Y.ToString("F2") +
+			")"
+		);
+
+		GD.Print(
+			"  Viewport size: " +
+			viewportSize.X.ToString("F1") +
+			"x" +
+			viewportSize.Y.ToString("F1")
+		);
+
+		GD.Print(
+			"  X = " +
+			visibleMinX.ToString("F1") +
+			" -> " +
+			visibleMaxX.ToString("F1")
+		);
+
+		GD.Print(
+			"  Y = " +
+			visibleMinY.ToString("F1") +
+			" -> " +
+			visibleMaxY.ToString("F1")
+		);
+	}
+
+	/// <summary>
+	/// Finds the active Camera2D in the current scene.
+	/// </summary>
+	private Camera2D FindActiveCamera()
+	{
+		SceneTree sceneTree =
+			Engine.GetMainLoop() as SceneTree;
+
+		if (
+			sceneTree == null ||
+			sceneTree.CurrentScene == null)
+		{
+			return null;
+		}
+
+		return FindActiveCameraRecursive(
+			sceneTree.CurrentScene
+		);
+	}
+
+	private Camera2D FindActiveCameraRecursive(
+		Node node)
+	{
+		if (
+			node is Camera2D camera &&
+			camera.Enabled)
+		{
+			return camera;
+		}
+
+		foreach (
+			Node child in
+			node.GetChildren())
+		{
+			Camera2D result =
+				FindActiveCameraRecursive(
+					child
+				);
+
+			if (
+				result != null)
+			{
+				return result;
+			}
+		}
+
+		return null;
 	}
 
 	// ============================================================
