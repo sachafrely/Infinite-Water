@@ -17,14 +17,45 @@ using Godot;
 ///
 /// The shared WindowBackground is shown while a window is open
 /// and hidden when no window is open.
+///
+/// The manager is also the single source of truth for the
+/// current UI window state.
 /// </summary>
 public partial class UiWindowManager : Node
 {
+	// ============================================================
+	// UI STATE
+	// ============================================================
+
+	/// <summary>
+	/// Represents the currently active UI state.
+	///
+	/// Keep this enum small and explicit.
+	/// Additional windows can be added later.
+	/// </summary>
+	public enum UiState
+	{
+		NoWindow,
+		Statistics,
+		Settings
+	}
+
+
 	// ============================================================
 	// State
 	// ============================================================
 
 	private Node activeWindow;
+
+	private UiState currentState = UiState.NoWindow;
+
+
+	// ============================================================
+	// Constants
+	// ============================================================
+
+	private const string StatisticsWindowName = "StatisticsWindow";
+	private const string SettingsWindowName = "SettingsWindow";
 
 
 	// ============================================================
@@ -51,6 +82,10 @@ public partial class UiWindowManager : Node
 				"UiWindowManager: Could not find window Content container."
 			);
 		}
+
+		GD.Print(
+			$"UiWindowManager: Initial state = {currentState}."
+		);
 	}
 
 
@@ -118,6 +153,9 @@ public partial class UiWindowManager : Node
 	// Open
 	// ============================================================
 
+	/// <summary>
+	/// Opens a window by its name.
+	/// </summary>
 	public void OpenWindow(string windowName)
 	{
 		if (string.IsNullOrWhiteSpace(windowName))
@@ -140,11 +178,21 @@ public partial class UiWindowManager : Node
 	public void OpenWindow(Node window)
 	{
 		if (window == null)
+		{
+			GD.PushWarning(
+				"UiWindowManager: OpenWindow received a null window."
+			);
+
 			return;
+		}
 
 		// Already open.
 		if (activeWindow == window)
 			return;
+
+		// Make sure the requested window can be represented
+		// by our UI state system.
+		UiState newState = GetStateForWindow(window);
 
 		// Close the currently active window.
 		if (activeWindow != null)
@@ -158,10 +206,16 @@ public partial class UiWindowManager : Node
 		// Show the requested window.
 		SetWindowVisible(window, true);
 
+		// Update state.
 		activeWindow = window;
+		currentState = newState;
 
 		GD.Print(
 			$"UiWindowManager: Opened '{window.Name}'."
+		);
+
+		GD.Print(
+			$"UiWindowManager: State = {currentState}."
 		);
 	}
 
@@ -170,6 +224,9 @@ public partial class UiWindowManager : Node
 	// Close
 	// ============================================================
 
+	/// <summary>
+	/// Closes a window by its name.
+	/// </summary>
 	public void CloseWindow(string windowName)
 	{
 		if (string.IsNullOrWhiteSpace(windowName))
@@ -197,13 +254,24 @@ public partial class UiWindowManager : Node
 		if (activeWindow == window)
 		{
 			activeWindow = null;
+			currentState = UiState.NoWindow;
 
 			// No window is open anymore.
 			SetWindowBackgroundVisible(false);
+
+			GD.Print(
+				$"UiWindowManager: Closed '{window.Name}'."
+			);
+
+			GD.Print(
+				$"UiWindowManager: State = {currentState}."
+			);
+
+			return;
 		}
 
 		GD.Print(
-			$"UiWindowManager: Closed '{window.Name}'."
+			$"UiWindowManager: Hid non-active window '{window.Name}'."
 		);
 	}
 
@@ -212,12 +280,159 @@ public partial class UiWindowManager : Node
 	// Active window
 	// ============================================================
 
+	/// <summary>
+	/// Closes whichever window is currently active.
+	/// </summary>
 	public void CloseActiveWindow()
 	{
 		if (activeWindow == null)
 			return;
 
 		CloseWindow(activeWindow);
+	}
+
+
+	/// <summary>
+	/// Returns the currently active window.
+	///
+	/// Returns null when no window is open.
+	/// </summary>
+	public Node GetActiveWindow()
+	{
+		return activeWindow;
+	}
+
+
+	/// <summary>
+	/// Returns the current UI state.
+	/// </summary>
+	public UiState GetCurrentState()
+	{
+		return currentState;
+	}
+
+
+	/// <summary>
+	/// Returns true if no UI window is currently open.
+	/// </summary>
+	public bool IsNoWindowOpen()
+	{
+		return currentState == UiState.NoWindow;
+	}
+
+
+	/// <summary>
+	/// Returns true if the Statistics window is currently open.
+	/// </summary>
+	public bool IsStatisticsOpen()
+	{
+		return currentState == UiState.Statistics;
+	}
+
+
+	/// <summary>
+	/// Returns true if the Settings window is currently open.
+	/// </summary>
+	public bool IsSettingsOpen()
+	{
+		return currentState == UiState.Settings;
+	}
+
+
+	// ============================================================
+	// State queries
+	// ============================================================
+
+	/// <summary>
+	/// Returns true when any UI window is open.
+	/// </summary>
+	public bool HasOpenWindow()
+	{
+		return activeWindow != null;
+	}
+
+
+	/// <summary>
+	/// Returns true when the supplied window is active.
+	/// </summary>
+	public bool IsWindowOpen(Node window)
+	{
+		return window != null && activeWindow == window;
+	}
+
+
+	/// <summary>
+	/// Returns true when the named window is active.
+	/// </summary>
+	public bool IsWindowOpen(string windowName)
+	{
+		if (string.IsNullOrWhiteSpace(windowName))
+			return false;
+
+		Node window = GetWindowByName(windowName);
+
+		return window != null && activeWindow == window;
+	}
+
+
+	// ============================================================
+	// Convenience methods
+	// ============================================================
+
+	/// <summary>
+	/// Toggles the Statistics window.
+	///
+	/// This gives future UI code a clean API without having
+	/// to know the internal node name.
+	/// </summary>
+	public void ToggleStatistics()
+	{
+		ToggleWindow(StatisticsWindowName);
+	}
+
+
+	/// <summary>
+	/// Opens the Statistics window.
+	/// </summary>
+	public void OpenStatistics()
+	{
+		OpenWindow(StatisticsWindowName);
+	}
+
+
+	/// <summary>
+	/// Closes the Statistics window.
+	/// </summary>
+	public void CloseStatistics()
+	{
+		CloseWindow(StatisticsWindowName);
+	}
+
+
+	/// <summary>
+	/// Toggles the Settings window.
+	/// </summary>
+	public void ToggleSettings()
+	{
+		ToggleWindow(SettingsWindowName);
+	}
+
+
+	/// <summary>
+	/// Opens the Settings window.
+	/// </summary>
+	public void OpenSettings()
+	{
+		OpenWindow(SettingsWindowName);
+	}
+
+
+	/// <summary>
+	/// Closes the Settings window.
+	/// </summary>
+	public void CloseSettings()
+	{
+		CloseWindow(SettingsWindowName);
 	}
 
 
@@ -228,6 +443,9 @@ public partial class UiWindowManager : Node
 	/// <summary>
 	/// Closes all windows inside Content and hides the
 	/// shared background.
+	///
+	/// This is also used during startup to guarantee a
+	/// clean initial UI state.
 	/// </summary>
 	public void CloseAllWindows()
 	{
@@ -236,7 +454,10 @@ public partial class UiWindowManager : Node
 		if (content == null)
 		{
 			SetWindowBackgroundVisible(false);
+
 			activeWindow = null;
+			currentState = UiState.NoWindow;
+
 			return;
 		}
 
@@ -253,6 +474,7 @@ public partial class UiWindowManager : Node
 		}
 
 		activeWindow = null;
+		currentState = UiState.NoWindow;
 
 		// No window is open at startup.
 		SetWindowBackgroundVisible(false);
@@ -260,32 +482,36 @@ public partial class UiWindowManager : Node
 
 
 	// ============================================================
-	// State queries
+	// Window state mapping
 	// ============================================================
 
-	public bool HasOpenWindow()
+	/// <summary>
+	/// Converts a window node into the corresponding UI state.
+	///
+	/// This keeps the rest of the application independent from
+	/// the actual node names.
+	/// </summary>
+	private UiState GetStateForWindow(Node window)
 	{
-		return activeWindow != null;
-	}
+		if (window == null)
+			return UiState.NoWindow;
 
+		switch (window.Name.ToString())
+		{
+			case StatisticsWindowName:
+				return UiState.Statistics;
 
-	public Node GetActiveWindow()
-	{
-		return activeWindow;
-	}
+			case SettingsWindowName:
+				return UiState.Settings;
 
+			default:
+				GD.PushWarning(
+					$"UiWindowManager: Window '{window.Name}' has no " +
+					"explicit UiState mapping. Using NoWindow."
+				);
 
-	public bool IsWindowOpen(Node window)
-	{
-		return window != null && activeWindow == window;
-	}
-
-
-	public bool IsWindowOpen(string windowName)
-	{
-		Node window = GetWindowByName(windowName);
-
-		return window != null && activeWindow == window;
+				return UiState.NoWindow;
+		}
 	}
 
 
@@ -400,6 +626,9 @@ public partial class UiWindowManager : Node
 	// Window visibility
 	// ============================================================
 
+	/// <summary>
+	/// Shows or hides a window.
+	/// </summary>
 	private void SetWindowVisible(Node window, bool visible)
 	{
 		if (window == null)

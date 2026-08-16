@@ -1,6 +1,6 @@
 res://Scenes/Main.tscn
-res://Scripts/rendering/FluidRenderer.cs
 res://Scripts/ui/UiWindowManager.cs
+res://Scripts/rendering/FluidRenderer.cs
 res://Scripts/ui/RenderedWindowBackground.cs
 res://Scripts/ui/UiToggleButton.cs
 res://Scripts/ui/StatisticsWindow.cs

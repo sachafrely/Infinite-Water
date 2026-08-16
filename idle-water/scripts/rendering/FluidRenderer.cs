@@ -266,14 +266,14 @@ uniform float local_highlight_strength = 0.45;
 uniform float local_highlight_brightness = 0.14;
 
 // ============================================================
-// Shimmer
+// Shimmer is Disabled. It will be completely removed later.
 // ============================================================
 
-uniform float shimmer_strength = 0.67;
+uniform float shimmer_strength = 0.00;
 
-uniform float shimmer_speed = 0.25;
+uniform float shimmer_speed = 0.8;
 
-uniform float shimmer_scale = 0.045;
+uniform float shimmer_scale = 0.005;
 
 // ============================================================
 // Fragment
