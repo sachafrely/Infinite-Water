@@ -16,6 +16,7 @@
 [ext_resource type="Texture2D" uid="uid://07lvxomyo7se" path="res://assets/sprites/decorations/15.png" id="16_0sclb"]
 [ext_resource type="Texture2D" uid="uid://beuk4em8qf13n" path="res://assets/sprites/decorations/5.png" id="16_2w5on"]
 [ext_resource type="Script" uid="uid://btjayvbdsd16t" path="res://Scripts/ui/UiToggleButton.cs" id="16_346fj"]
+[ext_resource type="Script" uid="uid://cg5to84p5aidf" path="res://Scripts/ui/SettingsContent.cs" id="16_fq0cl"]
 [ext_resource type="Texture2D" uid="uid://idpd20skc4op" path="res://assets/sprites/decorations/9.png" id="17_346fj"]
 [ext_resource type="Texture2D" uid="uid://0gqfrx74wbgl" path="res://assets/sprites/decorations/14.png" id="17_sxkr1"]
 [ext_resource type="Script" uid="uid://7mdjqr6jnedr" path="res://Scripts/ui/RenderedWindowBackground.cs" id="18_0sclb"]
@@ -417,6 +418,7 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = 245.0
 offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -453,7 +455,8 @@ grow_vertical = 2
 [node name="Content" type="VBoxContainer" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel" unique_id=415157806]
 layout_mode = 0
 offset_right = 720.0
-offset_bottom = 425.0
+offset_bottom = 229.0
+script = ExtResource("16_fq0cl")
 
 [node name="Title" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=921015842]
 
@@ -462,14 +465,15 @@ offset_bottom = 425.0
 [node name="TiltSection" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=1567407503]
 
 [node name="StatisticsWindow" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1965062047]
+z_index = 100
 layout_mode = 2
 script = ExtResource("15_0sclb")
 
 [node name="StatisticsGraph" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content/StatisticsWindow" unique_id=1260497483]
-z_index = 100
+z_index = 105
 anchors_preset = 0
 offset_right = 720.0
-offset_bottom = 503.0
+offset_bottom = 309.0
 mouse_filter = 2
 script = ExtResource("7_jw32o")
 
@@ -484,7 +488,7 @@ mouse_filter = 2
 
 [node name="StatisticsButton" type="Control" parent="BottomUI" unique_id=1991513535]
 anchors_preset = 0
-offset_right = 240.0
+offset_right = 360.0
 offset_bottom = 120.0
 script = ExtResource("16_346fj")
 
@@ -496,7 +500,7 @@ offset_bottom = 120.0
 
 [node name="SettingsButton" type="Control" parent="BottomUI" unique_id=1302883395]
 anchors_preset = 0
-offset_left = 480.0
+offset_left = 360.0
 offset_right = 720.0
 offset_bottom = 120.0
 script = ExtResource("16_346fj")
