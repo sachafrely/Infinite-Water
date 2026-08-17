@@ -36,7 +36,7 @@ internal sealed class RainSystem
 	// Constants
 	// ============================================================
 
-	public const float RainAmount = 120.0f;
+	public const float RainAmount = 125.0f;
 
 	public const int RainMinimumPercent = 0;
 	public const int RainMaximumPercent = 100;
