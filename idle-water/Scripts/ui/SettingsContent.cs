@@ -3,25 +3,16 @@ using Godot;
 /// <summary>
 /// Content displayed inside the SettingsWindow.
 ///
-/// This script is responsible only for the actual settings UI.
-/// The window background and border are handled by SettingsWindow.
-///
-/// Tilt itself comes from the device accelerometer. This UI only
-/// controls how strongly the accelerometer tilt influences the simulation.
+/// This script renders the settings UI. Tilt itself comes from the device
+/// accelerometer; this UI only controls its influence ratio.
 /// </summary>
 public partial class SettingsContent : Control
 {
-	// ============================================================
-	// LAYOUT
-	// ============================================================
-
 	private const float LeftMargin = 20.0f;
 	private const float TopMargin = 30.0f;
-
 	private const int TitleFontSize = 28;
 	private const int SectionFontSize = 22;
 	private const int SettingFontSize = 18;
-
 	private const float SeparatorWidth = 2.0f;
 
 	private const float SliderTopOffset = 58.0f;
@@ -31,64 +22,30 @@ public partial class SettingsContent : Control
 	private const float SliderSideMargin = 10.0f;
 	private const float SliderHitPadding = 10.0f;
 
-	// ============================================================
-	// TILT SETTINGS
-	// ============================================================
-
-	// 0% means the accelerometer has no influence on the simulation.
-	// 100% means the accelerometer is applied at full configured strength.
 	private const float MinimumTiltInfluenceRatio = 0.0f;
 	private const float MaximumTiltInfluenceRatio = 1.0f;
 	private const float TiltInfluenceStep = 0.01f;
 
-	private float _tiltInfluenceRatio = 0.0f;
 	private bool _isDraggingTiltSlider;
 
-	// ============================================================
-	// COLORS
-	// ============================================================
-
-	private static readonly Color TitleColor =
-		new Color(1.0f, 1.0f, 1.0f, 1.0f);
-
-	private static readonly Color SeparatorColor =
-		new Color(0.35f, 0.35f, 0.35f, 1.0f);
-
-	// Old-school dark slider bar.
-	private static readonly Color SliderBarColor =
-		new Color(0.12f, 0.12f, 0.13f, 1.0f);
-
-	// Slightly lighter edge so the rendered bar remains readable.
-	private static readonly Color SliderBarEdgeColor =
-		new Color(0.28f, 0.28f, 0.29f, 1.0f);
-
-	// Rectangular push button / slider handle.
-	private static readonly Color SliderHandleColor =
-		new Color(0.72f, 0.72f, 0.72f, 1.0f);
-
-	private static readonly Color SliderHandleHighlightColor =
-		new Color(0.90f, 0.90f, 0.90f, 1.0f);
-
-	private static readonly Color SliderHandleShadowColor =
-		new Color(0.35f, 0.35f, 0.36f, 1.0f);
-
-	// ============================================================
-	// GODOT
-	// ============================================================
+	private static readonly Color TitleColor = new Color(1.0f, 1.0f, 1.0f, 1.0f);
+	private static readonly Color SeparatorColor = new Color(0.35f, 0.35f, 0.35f, 1.0f);
+	private static readonly Color SliderBarColor = new Color(0.12f, 0.12f, 0.13f, 1.0f);
+	private static readonly Color SliderBarEdgeColor = new Color(0.28f, 0.28f, 0.29f, 1.0f);
+	private static readonly Color SliderHandleColor = new Color(0.72f, 0.72f, 0.72f, 1.0f);
+	private static readonly Color SliderHandleHighlightColor = new Color(0.90f, 0.90f, 0.90f, 1.0f);
+	private static readonly Color SliderHandleShadowColor = new Color(0.35f, 0.35f, 0.36f, 1.0f);
 
 	public override void _Ready()
 	{
 		MouseFilter = MouseFilterEnum.Stop;
-
 		QueueRedraw();
 	}
 
 	public override void _Notification(int what)
 	{
 		if (what == NotificationResized)
-		{
 			QueueRedraw();
-		}
 	}
 
 	public override void _GuiInput(InputEvent @event)
@@ -119,22 +76,12 @@ public partial class SettingsContent : Control
 		}
 	}
 
-	// ============================================================
-	// DRAWING
-	// ============================================================
-
 	public override void _Draw()
 	{
 		if (Size.X <= 0.0f || Size.Y <= 0.0f)
-		{
 			return;
-		}
 
 		Font font = ThemeDB.FallbackFont;
-
-		// --------------------------------------------------------
-		// SETTINGS TITLE
-		// --------------------------------------------------------
 
 		DrawString(
 			font,
@@ -146,10 +93,6 @@ public partial class SettingsContent : Control
 			TitleColor
 		);
 
-		// --------------------------------------------------------
-		// TITLE SEPARATOR
-		// --------------------------------------------------------
-
 		float separatorY = TopMargin + 15.0f;
 
 		DrawLine(
@@ -158,10 +101,6 @@ public partial class SettingsContent : Control
 			SeparatorColor,
 			SeparatorWidth
 		);
-
-		// --------------------------------------------------------
-		// TILT SECTION
-		// --------------------------------------------------------
 
 		float sectionY = separatorY + 35.0f;
 
@@ -174,10 +113,6 @@ public partial class SettingsContent : Control
 			SectionFontSize,
 			TitleColor
 		);
-
-		// --------------------------------------------------------
-		// TILT INFLUENCE RATIO
-		// --------------------------------------------------------
 
 		DrawString(
 			font,
@@ -192,10 +127,6 @@ public partial class SettingsContent : Control
 		DrawTiltInfluenceSlider(sectionY + SliderTopOffset);
 	}
 
-	// ============================================================
-	// TILT INFLUENCE SLIDER
-	// ============================================================
-
 	private void DrawTiltInfluenceSlider(float sliderY)
 	{
 		float sliderLeft = LeftMargin + SliderSideMargin;
@@ -203,16 +134,10 @@ public partial class SettingsContent : Control
 		float sliderWidth = sliderRight - sliderLeft;
 
 		if (sliderWidth <= 0.0f)
-		{
 			return;
-		}
 
 		float barY = sliderY + SliderHandleHeight * 0.5f;
 		float handleX = GetTiltInfluenceSliderX(sliderLeft, sliderWidth);
-
-		// --------------------------------------------------------
-		// DARK BAR
-		// --------------------------------------------------------
 
 		DrawRect(
 			new Rect2(
@@ -237,10 +162,6 @@ public partial class SettingsContent : Control
 			1.0f
 		);
 
-		// --------------------------------------------------------
-		// RECTANGULAR PUSH BUTTON
-		// --------------------------------------------------------
-
 		Rect2 handleRect = new Rect2(
 			handleX - SliderHandleWidth * 0.5f,
 			barY - SliderHandleHeight * 0.5f,
@@ -248,10 +169,8 @@ public partial class SettingsContent : Control
 			SliderHandleHeight
 		);
 
-		// Main face.
 		DrawRect(handleRect, SliderHandleColor, true);
 
-		// Bright top/left edge.
 		DrawLine(
 			handleRect.Position,
 			new Vector2(handleRect.End.X, handleRect.Position.Y),
@@ -266,7 +185,6 @@ public partial class SettingsContent : Control
 			2.0f
 		);
 
-		// Dark bottom/right edge gives the button its old-school depth.
 		DrawLine(
 			new Vector2(handleRect.Position.X, handleRect.End.Y),
 			handleRect.End,
@@ -306,9 +224,7 @@ public partial class SettingsContent : Control
 		float sliderWidth = sliderRight - sliderLeft;
 
 		if (sliderWidth <= 0.0f)
-		{
 			return;
-		}
 
 		float normalized = Mathf.Clamp(
 			(mouseX - sliderLeft) / sliderWidth,
@@ -316,47 +232,33 @@ public partial class SettingsContent : Control
 			1.0f
 		);
 
-		_tiltInfluenceRatio = Mathf.Snapped(
+		SetTiltInfluenceRatio(
 			Mathf.Lerp(
 				MinimumTiltInfluenceRatio,
 				MaximumTiltInfluenceRatio,
 				normalized
-			),
-			TiltInfluenceStep
+			)
 		);
-
-		QueueRedraw();
 	}
 
 	private float GetTiltInfluenceSliderX(float sliderLeft, float sliderWidth)
 	{
-		return sliderLeft + sliderWidth * _tiltInfluenceRatio;
+		return sliderLeft + sliderWidth * TiltSettings.TiltInfluenceRatio;
 	}
 
 	private int GetDisplayTiltInfluence()
 	{
-		return Mathf.RoundToInt(_tiltInfluenceRatio * 100.0f);
+		return Mathf.RoundToInt(TiltSettings.TiltInfluenceRatio * 100.0f);
 	}
 
-	// ============================================================
-	// PUBLIC API
-	// ============================================================
-
-	/// <summary>
-	/// Returns the accelerometer influence ratio from 0.0 to 1.0.
-	/// This does not represent an angle.
-	/// </summary>
 	public float GetTiltInfluenceRatio()
 	{
-		return _tiltInfluenceRatio;
+		return TiltSettings.TiltInfluenceRatio;
 	}
 
-	/// <summary>
-	/// Sets the accelerometer influence ratio from 0.0 to 1.0.
-	/// </summary>
 	public void SetTiltInfluenceRatio(float ratio)
 	{
-		_tiltInfluenceRatio = Mathf.Clamp(
+		TiltSettings.TiltInfluenceRatio = Mathf.Clamp(
 			Mathf.Snapped(ratio, TiltInfluenceStep),
 			MinimumTiltInfluenceRatio,
 			MaximumTiltInfluenceRatio
@@ -365,9 +267,6 @@ public partial class SettingsContent : Control
 		QueueRedraw();
 	}
 
-	/// <summary>
-	/// Restores the tilt influence to 0%.
-	/// </summary>
 	public void ResetTiltInfluence()
 	{
 		SetTiltInfluenceRatio(0.0f);
