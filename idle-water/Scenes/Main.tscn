@@ -23,6 +23,7 @@
 [ext_resource type="Texture2D" uid="uid://0gqfrx74wbgl" path="res://assets/sprites/decorations/14.png" id="17_sxkr1"]
 [ext_resource type="Script" uid="uid://7mdjqr6jnedr" path="res://Scripts/ui/RenderedWindowBackground.cs" id="18_0sclb"]
 [ext_resource type="Script" uid="uid://diodqrojkp676" path="res://Scripts/ui/UiWindowManager.cs" id="18_sxkr1"]
+[ext_resource type="Texture2D" uid="uid://dvtafsihdn6xn" path="res://assets/sprites/ui/ArrowBlue.png" id="19_3tgeq"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vy5pj"]
 texture = ExtResource("3_50glp")
@@ -699,7 +700,6 @@ mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxEmpty_erwvk")
 
 [node name="WindowBackground" type="Control" parent="CenterUI/PanelContainer" unique_id=160082409]
-visible = false
 z_index = 10
 layout_mode = 2
 mouse_filter = 2
@@ -738,6 +738,12 @@ offset_bottom = 373.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("16_fq0cl")
+
+[node name="00" type="Sprite2D" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=521779533]
+position = Vector2(620, 81)
+rotation = -4.712389
+scale = Vector2(3, 3)
+texture = ExtResource("19_3tgeq")
 
 [node name="Title" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=921015842]
 

@@ -1,0 +1,3825 @@
+Godot Engine v4.7.1.stable.mono.official.a13da4feb - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 385.41 - Compatibility - Using Device: NVIDIA - GeForce 820M
+
+========== TILEMAP PHYSICS READY ==========
+TileMapPhysics node: /root/Main/TileMaps/TileMapPhysics
+Process mode: Inherit
+ShowDebugGeometry: False
+DiagnosticOutput: True
+Collision mode: SOLID REGION / RUN MERGING
+========== RAIN SPACE DIAGNOSTIC ==========
+Rain spawn X range: -100.0 -> 820.0
+Rain spawn Y: -40.0
+Rain velocity: 0.0, 250.0
+============================================
+RAIN CHANGE -> 50% for 20.7s
+FluidSimulator: Using existing StatisticsGraph: /root/Main/CenterUI/PanelContainer/MarginContainer/Content/StatisticsWindow/StatisticsGraph
+Water wheel placed on Environment tile (4, 13) atlas (7, 6) -> simulation (140.904, 422.712)
+Water wheel placed on Environment tile (8, 19) atlas (7, 6) -> simulation (266.152, 610.584)
+Water wheel placed on Environment tile (11, 19) atlas (7, 6) -> simulation (360.088, 610.584)
+Water wheel placed on Environment tile (14, 16) atlas (7, 6) -> simulation (454.02402, 516.648)
+Water wheel placed on Environment tile (17, 13) atlas (7, 6) -> simulation (547.96, 422.712)
+Water wheel placed on Environment tile (20, 18) atlas (7, 6) -> simulation (641.896, 579.27203)
+Water wheels created from marker tiles: 6/6
+SIMULATION CAMERA CENTERED -> (360, 580)
+Simulation world bounds: -100..820 x -50..1210
+Simulation world center: (360, 580)
+Camera position after centering: (360, 580)
+Simulation viewport size: (720, 1160)
+Fluid initialized. World=920x1260 @ (-100,-50), ParticleCapacity=4000, ActiveParticles=0, Rain=50%, Wheels=6, Energy=0.00, MaxParticlesPerDensityCell=1, DensityGrid=230x315, WorldCenter=(360, 580)
+
+============================================================
+[FRAME PROFILER] STARTED
+============================================================
+Report interval:       120 frames
+Sample window:         240 frames
+Spike threshold:       33.333 ms
+Target 60 FPS frame:   16.667 ms
+Target 30 FPS frame:   33.333 ms
+Target 20 FPS frame:   50.000 ms
+Target 10 FPS frame:   100.000 ms
+============================================================
+------------------------------------------------------------
+[FRAME PROFILER] HARDWARE
+------------------------------------------------------------
+Video adapter:       GeForce 820M
+Rendering method:    gl_compatibility
+------------------------------------------------------------
+UiWindowManager: Closed startup window 'SettingsWindow'.
+UiWindowManager: Closed startup window 'StatisticsWindow'.
+========== UI WINDOW MANAGER READY ==========
+UiWindowManager: Content found at '/root/Main/CenterUI/PanelContainer/MarginContainer/Content'.
+UiWindowManager: Initial state = NoWindow.
+RAIN SPAWN DIAGNOSTIC #1: X=-16.0 Y=-40.0 Range=-100.0 -> 820.0
+RAIN SPAWN DIAGNOSTIC #2: X=604.1 Y=-40.0 Range=-100.0 -> 820.0
+TileMapPhysics viewport mapping:
+  GameView: /root/Main/GameView
+  GameView GlobalPosition: (0, 0)
+  GameView Size: (720, 1160)
+  GameView Scale: (1, 1)
+  SimulationViewport: /root/Main/GameView/SimulationViewport
+  SimulationViewport Size: (720, 1160)
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera Screen Center: (360, 580)
+========== GENERATE SOLID COLLIDERS ==========
+TileMapPhysics viewport mapping:
+  GameView: /root/Main/GameView
+  GameView GlobalPosition: (0, 0)
+  GameView Size: (720, 1160)
+  GameView Scale: (1, 1)
+  SimulationViewport: /root/Main/GameView/SimulationViewport
+  SimulationViewport Size: (720, 1160)
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera Screen Center: (360, 580)
+TileMapPhysics: processed 462 cells.
+TileMapPhysics: collision pixels = 116112
+TileMapPhysics: ignored background pixels = 0
+TileMapPhysics: ignored transparent pixels = 2160
+========== SOLID MASK DIAGNOSTIC ==========
+TileMap solid bounds: X=0..367 Y=144..607
+Simulation solid bounds: X=0.0..720.2 Y=281.8..1189.9
+Simulation viewport X: 0..720
+Simulation viewport Y: 0..1160
+Configured simulation world: X=260.0..1180.0 Y=-200.0..820.0
+Solid pixel count: 116112
+Solid pixel X distribution:
+  X 0..35: 15966 pixels
+  X 36..72: 13028 pixels
+  X 73..109: 13486 pixels
+  X 110..146: 11082 pixels
+  X 147..183: 7538 pixels
+  X 184..219: 2767 pixels
+  X 220..256: 12068 pixels
+  X 257..293: 13037 pixels
+  X 294..330: 11778 pixels
+  X 331..367: 15362 pixels
+Left terrain region: X=0..36
+Left terrain pixels: 15966 (13.75%)
+Left terrain representative simulation X: 0.00
+WARNING: Left terrain is outside the configured simulation-world minimum X.
+============================================
+TileMapPhysics: solid pixels = 116112
+TileMapPhysics: generated solid rectangles = 294
+========== COLLISION RECTANGLE DIAGNOSTIC ==========
+Leftmost generated rectangles:
+  #0 Tile=(0,160) size=(17x1) Simulation=(0.0..33.3,313.1..315.1)
+  #1 Tile=(0,161) size=(18x1) Simulation=(0.0..35.2,315.1..317.0)
+  #2 Tile=(0,162) size=(19x1) Simulation=(0.0..37.2,317.0..319.0)
+  #3 Tile=(0,163) size=(20x1) Simulation=(0.0..39.1,319.0..320.9)
+  #4 Tile=(0,164) size=(21x1) Simulation=(0.0..41.1,320.9..322.9)
+  #5 Tile=(0,165) size=(22x1) Simulation=(0.0..43.1,322.9..324.9)
+  #6 Tile=(0,166) size=(23x1) Simulation=(0.0..45.0,324.9..326.8)
+  #7 Tile=(0,167) size=(24x1) Simulation=(0.0..47.0,326.8..328.8)
+  #8 Tile=(0,168) size=(25x1) Simulation=(0.0..48.9,328.8..330.7)
+  #9 Tile=(0,169) size=(26x1) Simulation=(0.0..50.9,330.7..332.7)
+  #10 Tile=(0,170) size=(27x1) Simulation=(0.0..52.8,332.7..334.6)
+  #11 Tile=(0,171) size=(28x1) Simulation=(0.0..54.8,334.6..336.6)
+  #12 Tile=(0,172) size=(29x1) Simulation=(0.0..56.8,336.6..338.6)
+  #13 Tile=(0,173) size=(30x1) Simulation=(0.0..58.7,338.6..340.5)
+  #14 Tile=(0,174) size=(31x1) Simulation=(0.0..60.7,340.5..342.5)
+  #15 Tile=(0,175) size=(32x81) Simulation=(0.0..62.6,342.5..501.0)
+  #16 Tile=(0,256) size=(33x1) Simulation=(0.0..64.6,501.0..502.9)
+  #17 Tile=(0,257) size=(34x1) Simulation=(0.0..66.5,502.9..504.9)
+  #18 Tile=(0,258) size=(35x1) Simulation=(0.0..68.5,504.9..506.9)
+  #19 Tile=(0,259) size=(36x1) Simulation=(0.0..70.5,506.9..508.8)
+Rectangle tile X bounds: 0..368
+Left-side threshold: X <= 36
+Left-side rectangles: 83 (28.23%)
+Left-side rectangle area: 47016 (40.49%)
+Left-side tall/vertical rectangles: 0
+====================================================
+========== SIMULATION COLLISION BOUNDS ==========
+Generated collider simulation bounds: X=0.0..720.2 Y=281.8..1189.9
+Expected simulation bounds: X=260.0..1180.0 Y=-200.0..820.0
+Rectangles outside expected world: 168/294
+  Outside left: 151
+  Outside right: 0
+  Outside top: 0
+  Outside bottom: 34
+=================================================
+========================================
+TileMapPhysics SOLID COLLISION RESULT
+Used cells: 462
+Solid pixels: 116112
+Solid rectangles: 294
+Generated colliders: 294
+Collision thickness: NOT USED
+Collision extension: NOT USED
+Dilation: NOT USED
+========================================
+========== TILEMAP PHYSICS DIAGNOSTICS ==========
+Mask build: 132 ms
+Rectangle build: 40 ms
+Collider creation: 5 ms
+TOTAL GENERATION: 177 ms
+Collider width min/avg/max: 17.00 / 59.97 / 160.00
+Collider height min/avg/max: 1.00 / 4.68 / 160.00
+Approx collider area: 116112
+Solid pixels / rectangle: 394.94
+=================================================
+SIMULATION CAMERA CENTERED -> (360, 580)
+Simulation world bounds: -100..820 x -50..1210
+Simulation world center: (360, 580)
+Camera position after centering: (360, 580)
+Simulation viewport size: (720, 1160)
+RAIN SPAWN DIAGNOSTIC #3: X=674.2 Y=-40.0 Range=-100.0 -> 820.0
+RAIN SPAWN DIAGNOSTIC #4: X=436.6 Y=-40.0 Range=-100.0 -> 820.0
+RAIN SPAWN DIAGNOSTIC #5: X=802.6 Y=-40.0 Range=-100.0 -> 820.0
+RAIN SPAWN DIAGNOSTIC #6: X=619.3 Y=-40.0 Range=-100.0 -> 820.0
+RAIN SPAWN DIAGNOSTIC #7: X=39.3 Y=-40.0 Range=-100.0 -> 820.0
+RAIN SPAWN DIAGNOSTIC #8: X=627.2 Y=-40.0 Range=-100.0 -> 820.0
+RAIN SPAWN DIAGNOSTIC #9: X=329.0 Y=-40.0 Range=-100.0 -> 820.0
+RAIN SPAWN DIAGNOSTIC #10: X=783.1 Y=-40.0 Range=-100.0 -> 820.0
+UiWindowManager: Opened 'StatisticsWindow'.
+UiWindowManager: State = Statistics.
+UiWindowManager: Opened 'SettingsWindow'.
+UiWindowManager: State = Settings.
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       120
+Total frame count:   120
+------------------------------------------------------------
+AVERAGE                26.603 ms     37.59 FPS
+P50                    18.636 ms
+P95                    36.289 ms
+P99                    55.825 ms
+MIN                    12.624 ms   frame 52
+MAX                   412.705 ms   frame 1
+WORST FPS                2.42
+SPIKES >= 33.3ms:   22
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                29.567 ms
+Physics                 8.033 ms
+Navigation               0.006 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             24.19 MB
+Texture memory           11.89 MB
+Buffer memory            12.31 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2278
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame      1    412.705 ms     2.42 FPS
+#2   frame      2     58.934 ms    16.97 FPS
+#3   frame     15     42.569 ms    23.49 FPS
+#4   frame     30     41.340 ms    24.19 FPS
+#5   frame     27     40.333 ms    24.79 FPS
+#6   frame     40     38.278 ms    26.12 FPS
+#7   frame     60     36.185 ms    27.64 FPS
+#8   frame     32     36.096 ms    27.70 FPS
+#9   frame     35     35.998 ms    27.78 FPS
+#10  frame     42     35.864 ms    27.88 FPS
+============================================================
+
+UiWindowManager: Opened 'StatisticsWindow'.
+UiWindowManager: State = Statistics.
+UiWindowManager: Opened 'SettingsWindow'.
+UiWindowManager: State = Settings.
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   240
+------------------------------------------------------------
+AVERAGE                11.194 ms     89.33 FPS
+P50                    18.565 ms
+P95                    36.100 ms
+P99                    42.090 ms
+MIN                    11.553 ms   frame 155
+MAX                    39.213 ms   frame 207
+WORST FPS               25.50
+SPIKES >= 33.3ms:   20
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                27.744 ms
+Physics                 7.374 ms
+Navigation               0.008 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             24.19 MB
+Texture memory           11.89 MB
+Buffer memory            12.31 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2306
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame    207     39.213 ms    25.50 FPS
+#2   frame    230     36.964 ms    27.05 FPS
+#3   frame    121     36.599 ms    27.32 FPS
+#4   frame    161     36.498 ms    27.40 FPS
+#5   frame    238     36.496 ms    27.40 FPS
+#6   frame    223     36.016 ms    27.77 FPS
+#7   frame    211     35.901 ms    27.85 FPS
+#8   frame    216     35.816 ms    27.92 FPS
+#9   frame    227     35.605 ms    28.09 FPS
+#10  frame    154     35.374 ms    28.27 FPS
+============================================================
+
+UiWindowManager: Opened 'StatisticsWindow'.
+UiWindowManager: State = Statistics.
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   360
+------------------------------------------------------------
+AVERAGE                16.498 ms     60.61 FPS
+P50                    31.866 ms
+P95                    36.503 ms
+P99                    38.097 ms
+MIN                    17.078 ms   frame 252
+MAX                    38.603 ms   frame 273
+WORST FPS               25.90
+SPIKES >= 33.3ms:   60
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                21.413 ms
+Physics                10.369 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1473
+Draw calls                280
+Primitives              17542
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             28.50 MB
+Texture memory           11.89 MB
+Buffer memory            16.61 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2285
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame    273     38.603 ms    25.90 FPS
+#2   frame    249     38.204 ms    26.18 FPS
+#3   frame    241     37.931 ms    26.36 FPS
+#4   frame    360     37.434 ms    26.71 FPS
+#5   frame    297     37.048 ms    26.99 FPS
+#6   frame    336     37.010 ms    27.02 FPS
+#7   frame    279     36.876 ms    27.12 FPS
+#8   frame    353     36.876 ms    27.12 FPS
+#9   frame    318     36.712 ms    27.24 FPS
+#10  frame    309     36.222 ms    27.61 FPS
+============================================================
+
+[PARTICLE PACKING] Particles: 834 | MinDistance: 0.670 px | AvgNearest: 4.081 px | P5: NaN px | Median: 3.563 px | <1px: 2 | <2px: 8 | <3px: 44 | <4px: 229 | AvgNeighbors: 2.58 | MaxNeighbors: 10 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 834
+Predict: 0.018 ms
+SpatialHash: 0.074 ms
+NeighborSearch: 0.289 ms
+NeighborGeometry: 0.459 ms
+NeighborCache: 0.749 ms
+PBF: 2.058 ms
+Collision: 1.353 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 1.352 ms
+Bounds: 0.021 ms
+Velocity: 0.041 ms
+TOTAL: 7.456 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 834
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -93.6 -> 810.4
+  Y = -35.8 -> 1200.6
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 477
+  Position: (-93.6, 179.9)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=834/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=1250
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=2
+OccupiedDensityCells=833/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=34.1
+PhysicsFPS=232.4
+PhysicsProcess=4.30ms
+  Spawn=0.03ms
+  PBF=2.12ms
+  Density=1.11ms
+  Renderer=0.81ms
+    BuildPixels=0.30ms
+    SurfaceGlow=0.21ms
+    FillBytes=0.20ms
+    TextureUpload=0.10ms
+  Other=0.23ms
+MeasuredWork=4.07ms
+Energy=61.35
+EnergyThisFrame=0.18
+EnergyPerSecond=10.70
+TotalEnergyGenerated=61.35
+Wheel 1 EnergyThisFrame=0.0137 EnergyPerSecond=0.8245
+Wheel 2 EnergyThisFrame=0.0321 EnergyPerSecond=1.9289
+Wheel 3 EnergyThisFrame=0.0224 EnergyPerSecond=1.3469
+Wheel 4 EnergyThisFrame=0.0366 EnergyPerSecond=2.1933
+Wheel 5 EnergyThisFrame=0.0379 EnergyPerSecond=2.2750
+Wheel 6 EnergyThisFrame=0.0356 EnergyPerSecond=2.1356
+========================================
+UiWindowManager: Opened 'SettingsWindow'.
+UiWindowManager: State = Settings.
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   480
+------------------------------------------------------------
+AVERAGE                16.859 ms     59.32 FPS
+P50                    33.486 ms
+P95                    37.066 ms
+P99                    45.852 ms
+MIN                    26.068 ms   frame 375
+MAX                    50.948 ms   frame 373
+WORST FPS               19.63
+SPIKES >= 33.3ms:   66
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                20.906 ms
+Physics                10.324 ms
+Navigation               0.006 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame    373     50.948 ms    19.63 FPS
+#2   frame    460     48.786 ms    20.50 FPS
+#3   frame    374     46.894 ms    21.32 FPS
+#4   frame    372     44.222 ms    22.61 FPS
+#5   frame    364     38.228 ms    26.16 FPS
+#6   frame    414     37.850 ms    26.42 FPS
+#7   frame    469     37.810 ms    26.45 FPS
+#8   frame    412     37.410 ms    26.73 FPS
+#9   frame    376     36.344 ms    27.51 FPS
+#10  frame    454     36.281 ms    27.56 FPS
+============================================================
+
+UiWindowManager: Opened 'StatisticsWindow'.
+UiWindowManager: State = Statistics.
+UiWindowManager: Opened 'SettingsWindow'.
+UiWindowManager: State = Settings.
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   600
+------------------------------------------------------------
+AVERAGE                16.661 ms     60.02 FPS
+P50                    33.474 ms
+P95                    36.814 ms
+P99                    45.852 ms
+MIN                    29.325 ms   frame 531
+MAX                    38.085 ms   frame 530
+WORST FPS               26.26
+SPIKES >= 33.3ms:   62
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                23.355 ms
+Physics                 9.272 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2311
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame    530     38.085 ms    26.26 FPS
+#2   frame    553     37.519 ms    26.65 FPS
+#3   frame    504     37.500 ms    26.67 FPS
+#4   frame    523     36.883 ms    27.11 FPS
+#5   frame    581     36.810 ms    27.17 FPS
+#6   frame    518     36.705 ms    27.24 FPS
+#7   frame    551     36.466 ms    27.42 FPS
+#8   frame    562     36.388 ms    27.48 FPS
+#9   frame    572     36.373 ms    27.49 FPS
+#10  frame    570     36.339 ms    27.52 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=833.6 Energy=0.1633 Rain=50.0%
+RAIN/ENERGY GRAPH POINT: Frame=1200, AverageRain=50.00%, AverageEnergy=0.1633, AverageParticles=833.6
+Pixel Water profiler (avg ms over 600 render updates): Particles=844 BuildPixels=0.668ms SurfaceGlow=0.455ms FillBytes=0.446ms TextureUpload=0.186ms Total=1.758ms PixelCount=72450 PixelSize=4
+[PARTICLE PACKING] Particles: 847 | MinDistance: 0.734 px | AvgNearest: 4.075 px | P5: NaN px | Median: 3.746 px | <1px: 2 | <2px: 6 | <3px: 24 | <4px: 235 | AvgNeighbors: 2.62 | MaxNeighbors: 9 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 847
+Predict: 0.009 ms
+SpatialHash: 0.046 ms
+NeighborSearch: 0.210 ms
+NeighborGeometry: 0.358 ms
+NeighborCache: 0.568 ms
+PBF: 1.833 ms
+Collision: 1.205 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 1.205 ms
+Bounds: 0.019 ms
+Velocity: 0.037 ms
+TOTAL: 2.720 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 844
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -93.0 -> 812.5
+  Y = -35.8 -> 1189.4
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 302
+  Position: (-93.0, 857.1)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=844/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=2500
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=2
+OccupiedDensityCells=842/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=29.8
+PhysicsFPS=161.6
+PhysicsProcess=6.19ms
+  Spawn=0.02ms
+  PBF=3.13ms
+  Density=1.78ms
+  Renderer=0.95ms
+    BuildPixels=0.37ms
+    SurfaceGlow=0.25ms
+    FillBytes=0.25ms
+    TextureUpload=0.08ms
+  Other=0.32ms
+MeasuredWork=5.87ms
+Energy=159.33
+EnergyThisFrame=0.15
+EnergyPerSecond=8.76
+TotalEnergyGenerated=159.33
+Wheel 1 EnergyThisFrame=0.0267 EnergyPerSecond=1.6034
+Wheel 2 EnergyThisFrame=0.0257 EnergyPerSecond=1.5392
+Wheel 3 EnergyThisFrame=0.0142 EnergyPerSecond=0.8521
+Wheel 4 EnergyThisFrame=0.0229 EnergyPerSecond=1.3764
+Wheel 5 EnergyThisFrame=0.0168 EnergyPerSecond=1.0103
+Wheel 6 EnergyThisFrame=0.0396 EnergyPerSecond=2.3759
+========================================
+RAIN CHANGE -> 80% for 27.2s (transition 10.0s)
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   720
+------------------------------------------------------------
+AVERAGE                16.669 ms     59.99 FPS
+P50                    33.402 ms
+P95                    36.474 ms
+P99                    37.418 ms
+MIN                    28.364 ms   frame 707
+MAX                    37.290 ms   frame 655
+WORST FPS               26.82
+SPIKES >= 33.3ms:   63
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                23.233 ms
+Physics                 9.070 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2311
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame    655     37.290 ms    26.82 FPS
+#2   frame    673     37.189 ms    26.89 FPS
+#3   frame    644     37.157 ms    26.91 FPS
+#4   frame    710     37.118 ms    26.94 FPS
+#5   frame    602     36.961 ms    27.06 FPS
+#6   frame    670     36.615 ms    27.31 FPS
+#7   frame    620     36.455 ms    27.43 FPS
+#8   frame    712     36.348 ms    27.51 FPS
+#9   frame    634     36.302 ms    27.55 FPS
+#10  frame    657     36.197 ms    27.63 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   840
+------------------------------------------------------------
+AVERAGE                17.676 ms     56.57 FPS
+P50                    33.568 ms
+P95                    37.264 ms
+P99                    66.565 ms
+MIN                    28.989 ms   frame 783
+MAX                    77.488 ms   frame 835
+WORST FPS               12.91
+SPIKES >= 33.3ms:   69
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                29.876 ms
+Physics                14.589 ms
+Navigation               0.006 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame    835     77.488 ms    12.91 FPS
+#2   frame    837     67.995 ms    14.71 FPS
+#3   frame    840     67.298 ms    14.86 FPS
+#4   frame    838     65.417 ms    15.29 FPS
+#5   frame    834     63.407 ms    15.77 FPS
+#6   frame    836     61.637 ms    16.22 FPS
+#7   frame    839     60.718 ms    16.47 FPS
+#8   frame    833     38.721 ms    25.83 FPS
+#9   frame    733     38.295 ms    26.11 FPS
+#10  frame    826     37.843 ms    26.42 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=934.8 Energy=0.1788 Rain=63.0%
+RAIN/ENERGY GRAPH POINT: Frame=1800, AverageRain=62.95%, AverageEnergy=0.1788, AverageParticles=934.8
+[PARTICLE PACKING] Particles: 1112 | MinDistance: 1.451 px | AvgNearest: 4.154 px | P5: NaN px | Median: 3.898 px | <1px: 0 | <2px: 8 | <3px: 44 | <4px: 272 | AvgNeighbors: 2.87 | MaxNeighbors: 9 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 1112
+Predict: 0.013 ms
+SpatialHash: 0.061 ms
+NeighborSearch: 0.333 ms
+NeighborGeometry: 0.550 ms
+NeighborCache: 0.883 ms
+PBF: 2.535 ms
+Collision: 1.645 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 1.644 ms
+Bounds: 0.026 ms
+Velocity: 0.050 ms
+TOTAL: 3.699 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 1108
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -95.6 -> 813.2
+  Y = -35.8 -> 1196.0
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 461
+  Position: (-95.6, 604.7)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=1108/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=4074
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=2
+OccupiedDensityCells=1106/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=28.5
+PhysicsFPS=139.7
+PhysicsProcess=7.16ms
+  Spawn=0.02ms
+  PBF=3.64ms
+  Density=2.10ms
+  Renderer=1.03ms
+    BuildPixels=0.40ms
+    SurfaceGlow=0.27ms
+    FillBytes=0.27ms
+    TextureUpload=0.09ms
+  Other=0.36ms
+MeasuredWork=6.80ms
+Energy=266.65
+EnergyThisFrame=0.17
+EnergyPerSecond=10.15
+TotalEnergyGenerated=266.65
+Wheel 1 EnergyThisFrame=0.0332 EnergyPerSecond=1.9909
+Wheel 2 EnergyThisFrame=0.0195 EnergyPerSecond=1.1703
+Wheel 3 EnergyThisFrame=0.0231 EnergyPerSecond=1.3853
+Wheel 4 EnergyThisFrame=0.0309 EnergyPerSecond=1.8560
+Wheel 5 EnergyThisFrame=0.0332 EnergyPerSecond=1.9924
+Wheel 6 EnergyThisFrame=0.0293 EnergyPerSecond=1.7566
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   960
+------------------------------------------------------------
+AVERAGE                17.826 ms     56.10 FPS
+P50                    33.681 ms
+P95                    52.250 ms
+P99                    66.948 ms
+MIN                    24.453 ms   frame 858
+MAX                    66.399 ms   frame 841
+WORST FPS               15.06
+SPIKES >= 33.3ms:   71
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                20.593 ms
+Physics                10.518 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame    841     66.399 ms    15.06 FPS
+#2   frame    852     54.693 ms    18.28 FPS
+#3   frame    846     54.259 ms    18.43 FPS
+#4   frame    843     53.271 ms    18.77 FPS
+#5   frame    844     53.217 ms    18.79 FPS
+#6   frame    856     52.200 ms    19.16 FPS
+#7   frame    848     51.997 ms    19.23 FPS
+#8   frame    849     51.971 ms    19.24 FPS
+#9   frame    850     51.969 ms    19.24 FPS
+#10  frame    855     50.031 ms    19.99 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   1080
+------------------------------------------------------------
+AVERAGE                16.748 ms     59.71 FPS
+P50                    33.568 ms
+P95                    46.022 ms
+P99                    53.874 ms
+MIN                    27.723 ms   frame 1013
+MAX                    43.153 ms   frame 1009
+WORST FPS               23.17
+SPIKES >= 33.3ms:   59
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                18.922 ms
+Physics                12.083 ms
+Navigation               0.013 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   1009     43.153 ms    23.17 FPS
+#2   frame   1059     38.959 ms    25.67 FPS
+#3   frame   1042     38.862 ms    25.73 FPS
+#4   frame   1004     38.156 ms    26.21 FPS
+#5   frame   1012     38.025 ms    26.30 FPS
+#6   frame   1008     37.946 ms    26.35 FPS
+#7   frame    979     37.938 ms    26.36 FPS
+#8   frame    992     37.762 ms    26.48 FPS
+#9   frame    988     37.636 ms    26.57 FPS
+#10  frame   1036     37.147 ms    26.92 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   1200
+------------------------------------------------------------
+AVERAGE                21.308 ms     46.93 FPS
+P50                    34.657 ms
+P95                    53.226 ms
+P99                    57.669 ms
+MIN                    24.456 ms   frame 1159
+MAX                    64.355 ms   frame 1100
+WORST FPS               15.54
+SPIKES >= 33.3ms:   93
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                25.341 ms
+Physics                13.198 ms
+Navigation               0.006 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   1100     64.355 ms    15.54 FPS
+#2   frame   1112     58.305 ms    17.15 FPS
+#3   frame   1164     57.882 ms    17.28 FPS
+#4   frame   1131     57.336 ms    17.44 FPS
+#5   frame   1108     55.925 ms    17.88 FPS
+#6   frame   1117     55.745 ms    17.94 FPS
+#7   frame   1149     54.733 ms    18.27 FPS
+#8   frame   1120     54.178 ms    18.46 FPS
+#9   frame   1157     54.161 ms    18.46 FPS
+#10  frame   1135     54.096 ms    18.49 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=1237.1 Energy=0.1831 Rain=79.9%
+RAIN/ENERGY GRAPH POINT: Frame=2400, AverageRain=79.92%, AverageEnergy=0.1831, AverageParticles=1237.1
+Pixel Water profiler (avg ms over 600 render updates): Particles=1277 BuildPixels=0.822ms SurfaceGlow=0.547ms FillBytes=0.555ms TextureUpload=0.173ms Total=2.099ms PixelCount=72450 PixelSize=4
+[PARTICLE PACKING] Particles: 1281 | MinDistance: 1.481 px | AvgNearest: 4.099 px | P5: NaN px | Median: 3.717 px | <1px: 0 | <2px: 10 | <3px: 65 | <4px: 337 | AvgNeighbors: 2.91 | MaxNeighbors: 11 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 1281
+Predict: 0.025 ms
+SpatialHash: 0.112 ms
+NeighborSearch: 0.504 ms
+NeighborGeometry: 0.671 ms
+NeighborCache: 1.176 ms
+PBF: 3.017 ms
+Collision: 1.934 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 1.933 ms
+Bounds: 0.030 ms
+Velocity: 0.056 ms
+TOTAL: 4.395 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 1277
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -94.2 -> 814.3
+  Y = -35.8 -> 1199.0
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 422
+  Position: (-94.2, 964.6)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=1277/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=6073
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=2
+OccupiedDensityCells=1275/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=26.6
+PhysicsFPS=111.6
+PhysicsProcess=8.96ms
+  Spawn=0.02ms
+  PBF=4.72ms
+  Density=2.69ms
+  Renderer=1.07ms
+    BuildPixels=0.42ms
+    SurfaceGlow=0.28ms
+    FillBytes=0.28ms
+    TextureUpload=0.09ms
+  Other=0.46ms
+MeasuredWork=8.50ms
+Energy=376.49
+EnergyThisFrame=0.17
+EnergyPerSecond=10.17
+TotalEnergyGenerated=376.49
+Wheel 1 EnergyThisFrame=0.0336 EnergyPerSecond=2.0179
+Wheel 2 EnergyThisFrame=0.0252 EnergyPerSecond=1.5100
+Wheel 3 EnergyThisFrame=0.0272 EnergyPerSecond=1.6345
+Wheel 4 EnergyThisFrame=0.0146 EnergyPerSecond=0.8732
+Wheel 5 EnergyThisFrame=0.0420 EnergyPerSecond=2.5194
+Wheel 6 EnergyThisFrame=0.0268 EnergyPerSecond=1.6103
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   1320
+------------------------------------------------------------
+AVERAGE                17.249 ms     57.98 FPS
+P50                    35.505 ms
+P95                    53.284 ms
+P99                    57.669 ms
+MIN                    24.610 ms   frame 1262
+MAX                    54.385 ms   frame 1254
+WORST FPS               18.39
+SPIKES >= 33.3ms:   68
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                18.384 ms
+Physics                11.792 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   1254     54.385 ms    18.39 FPS
+#2   frame   1257     53.897 ms    18.55 FPS
+#3   frame   1258     50.919 ms    19.64 FPS
+#4   frame   1255     48.788 ms    20.50 FPS
+#5   frame   1256     48.413 ms    20.66 FPS
+#6   frame   1318     47.338 ms    21.12 FPS
+#7   frame   1223     43.528 ms    22.97 FPS
+#8   frame   1261     42.096 ms    23.76 FPS
+#9   frame   1259     41.480 ms    24.11 FPS
+#10  frame   1252     40.932 ms    24.43 FPS
+============================================================
+
+RAIN CHANGE -> 60% for 15.8s (transition 10.0s)
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   1440
+------------------------------------------------------------
+AVERAGE                25.016 ms     39.97 FPS
+P50                    37.436 ms
+P95                    61.183 ms
+P99                    68.342 ms
+MIN                    24.948 ms   frame 1381
+MAX                    80.962 ms   frame 1402
+WORST FPS               12.35
+SPIKES >= 33.3ms:   113
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                23.411 ms
+Physics                13.571 ms
+Navigation               0.007 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   1402     80.962 ms    12.35 FPS
+#2   frame   1336     74.145 ms    13.49 FPS
+#3   frame   1323     68.891 ms    14.52 FPS
+#4   frame   1405     67.484 ms    14.82 FPS
+#5   frame   1344     66.833 ms    14.96 FPS
+#6   frame   1350     66.550 ms    15.03 FPS
+#7   frame   1347     66.538 ms    15.03 FPS
+#8   frame   1400     64.855 ms    15.42 FPS
+#9   frame   1341     64.288 ms    15.55 FPS
+#10  frame   1337     63.645 ms    15.71 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=1249.6 Energy=0.1866 Rain=79.6%
+RAIN/ENERGY GRAPH POINT: Frame=3000, AverageRain=79.57%, AverageEnergy=0.1866, AverageParticles=1249.6
+[PARTICLE PACKING] Particles: 1279 | MinDistance: 0.942 px | AvgNearest: 4.174 px | P5: NaN px | Median: 3.818 px | <1px: 2 | <2px: 10 | <3px: 36 | <4px: 291 | AvgNeighbors: 2.91 | MaxNeighbors: 11 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 1279
+Predict: 0.026 ms
+SpatialHash: 0.114 ms
+NeighborSearch: 0.512 ms
+NeighborGeometry: 0.871 ms
+NeighborCache: 1.383 ms
+PBF: 3.857 ms
+Collision: 2.449 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 2.447 ms
+Bounds: 0.047 ms
+Velocity: 0.064 ms
+TOTAL: 5.507 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 1272
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -94.7 -> 813.8
+  Y = -35.8 -> 1193.9
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 1076
+  Position: (-94.7, 1051.6)
+
+===============================================
+ANTI-LAG CHECK: low profiler FPS 24.1 (1/4)
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=1272/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=8062
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=1
+OccupiedDensityCells=1272/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=24.1
+PhysicsFPS=106.1
+PhysicsProcess=9.43ms
+  Spawn=0.02ms
+  PBF=4.89ms
+  Density=2.89ms
+  Renderer=1.14ms
+    BuildPixels=0.44ms
+    SurfaceGlow=0.30ms
+    FillBytes=0.31ms
+    TextureUpload=0.09ms
+  Other=0.49ms
+MeasuredWork=8.94ms
+Energy=488.46
+EnergyThisFrame=0.20
+EnergyPerSecond=11.85
+TotalEnergyGenerated=488.46
+Wheel 1 EnergyThisFrame=0.0332 EnergyPerSecond=1.9941
+Wheel 2 EnergyThisFrame=0.0355 EnergyPerSecond=2.1287
+Wheel 3 EnergyThisFrame=0.0336 EnergyPerSecond=2.0169
+Wheel 4 EnergyThisFrame=0.0320 EnergyPerSecond=1.9189
+Wheel 5 EnergyThisFrame=0.0390 EnergyPerSecond=2.3422
+Wheel 6 EnergyThisFrame=0.0242 EnergyPerSecond=1.4506
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   1560
+------------------------------------------------------------
+AVERAGE                29.056 ms     34.42 FPS
+P50                    48.611 ms
+P95                   127.967 ms
+P99                   149.107 ms
+MIN                    25.140 ms   frame 1517
+MAX                   150.268 ms   frame 1493
+WORST FPS                6.65
+SPIKES >= 33.3ms:   82
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                24.596 ms
+Physics                12.544 ms
+Navigation               0.050 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   1493    150.268 ms     6.65 FPS
+#2   frame   1489    149.844 ms     6.67 FPS
+#3   frame   1488    149.255 ms     6.70 FPS
+#4   frame   1490    148.875 ms     6.72 FPS
+#5   frame   1481    147.632 ms     6.77 FPS
+#6   frame   1482    147.016 ms     6.80 FPS
+#7   frame   1486    144.988 ms     6.90 FPS
+#8   frame   1487    139.190 ms     7.18 FPS
+#9   frame   1485    137.966 ms     7.25 FPS
+#10  frame   1483    132.854 ms     7.53 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=1131.8 Energy=0.1788 Rain=66.3%
+RAIN/ENERGY GRAPH POINT: Frame=3600, AverageRain=66.28%, AverageEnergy=0.1788, AverageParticles=1131.8
+Pixel Water profiler (avg ms over 600 render updates): Particles=1027 BuildPixels=0.913ms SurfaceGlow=0.633ms FillBytes=0.637ms TextureUpload=0.180ms Total=2.367ms PixelCount=72450 PixelSize=4
+[PARTICLE PACKING] Particles: 1029 | MinDistance: 0.545 px | AvgNearest: 4.095 px | P5: NaN px | Median: 3.803 px | <1px: 2 | <2px: 6 | <3px: 49 | <4px: 305 | AvgNeighbors: 2.87 | MaxNeighbors: 9 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 1029
+Predict: 0.021 ms
+SpatialHash: 0.085 ms
+NeighborSearch: 0.409 ms
+NeighborGeometry: 0.613 ms
+NeighborCache: 1.022 ms
+PBF: 2.598 ms
+Collision: 1.646 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 1.645 ms
+Bounds: 0.024 ms
+Velocity: 0.045 ms
+TOTAL: 3.902 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 1025
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -92.2 -> 814.8
+  Y = -35.8 -> 1188.1
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 227
+  Position: (-92.2, 615.0)
+
+===============================================
+ANTI-LAG CHECK: low profiler FPS 20.9 (2/4)
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=1025/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=9718
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=2
+OccupiedDensityCells=1023/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=20.9
+PhysicsFPS=102.1
+PhysicsProcess=9.79ms
+  Spawn=0.02ms
+  PBF=5.03ms
+  Density=3.03ms
+  Renderer=1.23ms
+    BuildPixels=0.47ms
+    SurfaceGlow=0.34ms
+    FillBytes=0.33ms
+    TextureUpload=0.09ms
+  Other=0.48ms
+MeasuredWork=9.32ms
+Energy=595.72
+EnergyThisFrame=0.17
+EnergyPerSecond=10.20
+TotalEnergyGenerated=595.72
+Wheel 1 EnergyThisFrame=0.0268 EnergyPerSecond=1.6104
+Wheel 2 EnergyThisFrame=0.0265 EnergyPerSecond=1.5902
+Wheel 3 EnergyThisFrame=0.0231 EnergyPerSecond=1.3852
+Wheel 4 EnergyThisFrame=0.0224 EnergyPerSecond=1.3429
+Wheel 5 EnergyThisFrame=0.0452 EnergyPerSecond=2.7109
+Wheel 6 EnergyThisFrame=0.0259 EnergyPerSecond=1.5560
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   1680
+------------------------------------------------------------
+AVERAGE                16.728 ms     59.78 FPS
+P50                    34.243 ms
+P95                   127.967 ms
+P99                   149.107 ms
+MIN                    25.784 ms   frame 1680
+MAX                    46.141 ms   frame 1586
+WORST FPS               21.67
+SPIKES >= 33.3ms:   62
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                20.878 ms
+Physics                11.073 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   1586     46.141 ms    21.67 FPS
+#2   frame   1603     38.825 ms    25.76 FPS
+#3   frame   1676     38.685 ms    25.85 FPS
+#4   frame   1644     38.675 ms    25.86 FPS
+#5   frame   1642     38.105 ms    26.24 FPS
+#6   frame   1672     37.936 ms    26.36 FPS
+#7   frame   1605     37.359 ms    26.77 FPS
+#8   frame   1640     37.236 ms    26.86 FPS
+#9   frame   1619     37.176 ms    26.90 FPS
+#10  frame   1612     37.140 ms    26.93 FPS
+============================================================
+
+RAIN CHANGE -> 50% for 28.1s (transition 10.0s)
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   1800
+------------------------------------------------------------
+AVERAGE                17.435 ms     57.36 FPS
+P50                    33.570 ms
+P95                    39.762 ms
+P99                    53.032 ms
+MIN                    28.182 ms   frame 1724
+MAX                    65.537 ms   frame 1774
+WORST FPS               15.26
+SPIKES >= 33.3ms:   66
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                30.790 ms
+Physics                16.206 ms
+Navigation               0.006 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   1774     65.537 ms    15.26 FPS
+#2   frame   1780     56.492 ms    17.70 FPS
+#3   frame   1776     53.117 ms    18.83 FPS
+#4   frame   1778     52.898 ms    18.90 FPS
+#5   frame   1785     51.178 ms    19.54 FPS
+#6   frame   1782     48.245 ms    20.73 FPS
+#7   frame   1777     48.116 ms    20.78 FPS
+#8   frame   1781     45.270 ms    22.09 FPS
+#9   frame   1786     44.296 ms    22.58 FPS
+#10  frame   1779     43.002 ms    23.25 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   1920
+------------------------------------------------------------
+AVERAGE                17.836 ms     56.07 FPS
+P50                    33.855 ms
+P95                    49.748 ms
+P99                    56.770 ms
+MIN                    26.872 ms   frame 1829
+MAX                    68.938 ms   frame 1820
+WORST FPS               14.51
+SPIKES >= 33.3ms:   71
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                21.857 ms
+Physics                 9.546 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             30.29 MB
+Texture memory           11.89 MB
+Buffer memory            18.40 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   1820     68.938 ms    14.51 FPS
+#2   frame   1813     56.948 ms    17.56 FPS
+#3   frame   1817     53.852 ms    18.57 FPS
+#4   frame   1824     52.018 ms    19.22 FPS
+#5   frame   1818     51.801 ms    19.30 FPS
+#6   frame   1819     51.086 ms    19.57 FPS
+#7   frame   1815     50.027 ms    19.99 FPS
+#8   frame   1825     49.733 ms    20.11 FPS
+#9   frame   1814     49.160 ms    20.34 FPS
+#10  frame   1816     48.089 ms    20.79 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=993.7 Energy=0.1835 Rain=58.0%
+RAIN/ENERGY GRAPH POINT: Frame=4200, AverageRain=58.02%, AverageEnergy=0.1835, AverageParticles=993.7
+[PARTICLE PACKING] Particles: 917 | MinDistance: 1.108 px | AvgNearest: 4.149 px | P5: NaN px | Median: 3.881 px | <1px: 0 | <2px: 8 | <3px: 36 | <4px: 228 | AvgNeighbors: 2.72 | MaxNeighbors: 9 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 917
+Predict: 0.011 ms
+SpatialHash: 0.051 ms
+NeighborSearch: 0.242 ms
+NeighborGeometry: 0.538 ms
+NeighborCache: 0.781 ms
+PBF: 3.016 ms
+Collision: 2.012 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 2.011 ms
+Bounds: 0.035 ms
+Velocity: 0.064 ms
+TOTAL: 4.133 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 915
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -90.5 -> 815.2
+  Y = -35.8 -> 1201.0
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 368
+  Position: (-90.5, 486.1)
+
+===============================================
+ANTI-LAG CHECK: FPS recovered to 28.6, resetting consecutive low-FPS count.
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=915/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=11168
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=1
+OccupiedDensityCells=915/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=28.6
+PhysicsFPS=133.9
+PhysicsProcess=7.47ms
+  Spawn=0.02ms
+  PBF=3.83ms
+  Density=2.22ms
+  Renderer=1.03ms
+    BuildPixels=0.39ms
+    SurfaceGlow=0.27ms
+    FillBytes=0.27ms
+    TextureUpload=0.09ms
+  Other=0.38ms
+MeasuredWork=7.09ms
+Energy=705.84
+EnergyThisFrame=0.16
+EnergyPerSecond=9.85
+TotalEnergyGenerated=705.84
+Wheel 1 EnergyThisFrame=0.0276 EnergyPerSecond=1.6575
+Wheel 2 EnergyThisFrame=0.0272 EnergyPerSecond=1.6323
+Wheel 3 EnergyThisFrame=0.0199 EnergyPerSecond=1.1963
+Wheel 4 EnergyThisFrame=0.0229 EnergyPerSecond=1.3764
+Wheel 5 EnergyThisFrame=0.0309 EnergyPerSecond=1.8541
+Wheel 6 EnergyThisFrame=0.0355 EnergyPerSecond=2.1293
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   2040
+------------------------------------------------------------
+AVERAGE                16.672 ms     59.98 FPS
+P50                    33.474 ms
+P95                    46.948 ms
+P99                    53.136 ms
+MIN                    28.658 ms   frame 1930
+MAX                    38.004 ms   frame 1956
+WORST FPS               26.31
+SPIKES >= 33.3ms:   57
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                22.983 ms
+Physics                 8.950 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   1956     38.004 ms    26.31 FPS
+#2   frame   1991     37.887 ms    26.39 FPS
+#3   frame   2039     37.846 ms    26.42 FPS
+#4   frame   2028     37.506 ms    26.66 FPS
+#5   frame   1995     37.505 ms    26.66 FPS
+#6   frame   1975     37.176 ms    26.90 FPS
+#7   frame   2009     37.131 ms    26.93 FPS
+#8   frame   1940     37.116 ms    26.94 FPS
+#9   frame   1958     37.017 ms    27.01 FPS
+#10  frame   2030     36.882 ms    27.11 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   2160
+------------------------------------------------------------
+AVERAGE                16.678 ms     59.96 FPS
+P50                    33.175 ms
+P95                    37.133 ms
+P99                    37.905 ms
+MIN                    28.394 ms   frame 2046
+MAX                    38.044 ms   frame 2063
+WORST FPS               26.29
+SPIKES >= 33.3ms:   57
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                22.780 ms
+Physics                 9.577 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   2063     38.044 ms    26.29 FPS
+#2   frame   2133     37.917 ms    26.37 FPS
+#3   frame   2054     37.809 ms    26.45 FPS
+#4   frame   2147     37.616 ms    26.58 FPS
+#5   frame   2084     37.412 ms    26.73 FPS
+#6   frame   2093     37.250 ms    26.85 FPS
+#7   frame   2140     36.872 ms    27.12 FPS
+#8   frame   2116     36.701 ms    27.25 FPS
+#9   frame   2158     36.284 ms    27.56 FPS
+#10  frame   2049     36.272 ms    27.57 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=875.0 Energy=0.1678 Rain=50.7%
+RAIN/ENERGY GRAPH POINT: Frame=4800, AverageRain=50.69%, AverageEnergy=0.1678, AverageParticles=875.0
+Pixel Water profiler (avg ms over 600 render updates): Particles=853 BuildPixels=0.763ms SurfaceGlow=0.524ms FillBytes=0.526ms TextureUpload=0.174ms Total=1.991ms PixelCount=72450 PixelSize=4
+[PARTICLE PACKING] Particles: 855 | MinDistance: 1.422 px | AvgNearest: 4.184 px | P5: NaN px | Median: 3.982 px | <1px: 0 | <2px: 10 | <3px: 29 | <4px: 178 | AvgNeighbors: 2.60 | MaxNeighbors: 8 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 855
+Predict: 0.018 ms
+SpatialHash: 0.072 ms
+NeighborSearch: 0.281 ms
+NeighborGeometry: 0.430 ms
+NeighborCache: 0.711 ms
+PBF: 2.083 ms
+Collision: 1.387 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 1.386 ms
+Bounds: 0.020 ms
+Velocity: 0.038 ms
+TOTAL: 3.030 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 850
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -95.7 -> 812.1
+  Y = -35.8 -> 1200.3
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 364
+  Position: (-95.7, 635.8)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=850/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=12435
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=1
+OccupiedDensityCells=850/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=30.0
+PhysicsFPS=157.7
+PhysicsProcess=6.34ms
+  Spawn=0.02ms
+  PBF=3.20ms
+  Density=1.84ms
+  Renderer=0.96ms
+    BuildPixels=0.37ms
+    SurfaceGlow=0.25ms
+    FillBytes=0.25ms
+    TextureUpload=0.09ms
+  Other=0.32ms
+MeasuredWork=6.02ms
+Energy=806.56
+EnergyThisFrame=0.21
+EnergyPerSecond=12.37
+TotalEnergyGenerated=806.56
+Wheel 1 EnergyThisFrame=0.0276 EnergyPerSecond=1.6534
+Wheel 2 EnergyThisFrame=0.0392 EnergyPerSecond=2.3504
+Wheel 3 EnergyThisFrame=0.0261 EnergyPerSecond=1.5630
+Wheel 4 EnergyThisFrame=0.0374 EnergyPerSecond=2.2464
+Wheel 5 EnergyThisFrame=0.0300 EnergyPerSecond=1.8000
+Wheel 6 EnergyThisFrame=0.0460 EnergyPerSecond=2.7608
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   2280
+------------------------------------------------------------
+AVERAGE                16.644 ms     60.08 FPS
+P50                    33.243 ms
+P95                    36.610 ms
+P99                    37.734 ms
+MIN                    29.346 ms   frame 2173
+MAX                    37.542 ms   frame 2246
+WORST FPS               26.64
+SPIKES >= 33.3ms:   60
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                23.072 ms
+Physics                 8.312 ms
+Navigation               0.006 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   2246     37.542 ms    26.64 FPS
+#2   frame   2167     37.369 ms    26.76 FPS
+#3   frame   2225     37.104 ms    26.95 FPS
+#4   frame   2204     37.098 ms    26.96 FPS
+#5   frame   2253     36.605 ms    27.32 FPS
+#6   frame   2276     36.602 ms    27.32 FPS
+#7   frame   2190     36.550 ms    27.36 FPS
+#8   frame   2181     36.468 ms    27.42 FPS
+#9   frame   2172     36.455 ms    27.43 FPS
+#10  frame   2202     36.389 ms    27.48 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   2400
+------------------------------------------------------------
+AVERAGE                17.997 ms     55.57 FPS
+P50                    33.613 ms
+P95                    46.154 ms
+P99                    55.605 ms
+MIN                    27.307 ms   frame 2373
+MAX                    59.559 ms   frame 2354
+WORST FPS               16.79
+SPIKES >= 33.3ms:   71
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                28.110 ms
+Physics                13.220 ms
+Navigation               0.009 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   2354     59.559 ms    16.79 FPS
+#2   frame   2357     56.648 ms    17.65 FPS
+#3   frame   2365     55.882 ms    17.89 FPS
+#4   frame   2359     55.172 ms    18.13 FPS
+#5   frame   2355     52.892 ms    18.91 FPS
+#6   frame   2361     52.841 ms    18.92 FPS
+#7   frame   2363     52.042 ms    19.22 FPS
+#8   frame   2369     51.156 ms    19.55 FPS
+#9   frame   2362     50.551 ms    19.78 FPS
+#10  frame   2366     49.160 ms    20.34 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   2520
+------------------------------------------------------------
+AVERAGE                17.223 ms     58.06 FPS
+P50                    33.730 ms
+P95                    50.582 ms
+P99                    57.039 ms
+MIN                    23.500 ms   frame 2500
+MAX                    58.873 ms   frame 2407
+WORST FPS               16.99
+SPIKES >= 33.3ms:   67
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                20.596 ms
+Physics                14.569 ms
+Navigation               0.006 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   2407     58.873 ms    16.99 FPS
+#2   frame   2406     57.289 ms    17.46 FPS
+#3   frame   2405     56.292 ms    17.76 FPS
+#4   frame   2409     52.144 ms    19.18 FPS
+#5   frame   2408     46.269 ms    21.61 FPS
+#6   frame   2410     44.992 ms    22.23 FPS
+#7   frame   2412     41.220 ms    24.26 FPS
+#8   frame   2411     38.854 ms    25.74 FPS
+#9   frame   2404     38.629 ms    25.89 FPS
+#10  frame   2414     37.635 ms    26.57 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=841.0 Energy=0.1779 Rain=50.0%
+RAIN/ENERGY GRAPH POINT: Frame=5400, AverageRain=50.00%, AverageEnergy=0.1779, AverageParticles=841.0
+[PARTICLE PACKING] Particles: 856 | MinDistance: 0.449 px | AvgNearest: 4.149 px | P5: NaN px | Median: 3.981 px | <1px: 4 | <2px: 6 | <3px: 30 | <4px: 192 | AvgNeighbors: 2.56 | MaxNeighbors: 8 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 856
+Predict: 0.010 ms
+SpatialHash: 0.047 ms
+NeighborSearch: 0.228 ms
+NeighborGeometry: 0.361 ms
+NeighborCache: 0.589 ms
+PBF: 1.904 ms
+Collision: 1.237 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 1.236 ms
+Bounds: 0.019 ms
+Velocity: 0.036 ms
+TOTAL: 2.672 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 855
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -89.7 -> 808.2
+  Y = -35.8 -> 1198.8
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 345
+  Position: (-89.7, 437.8)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=855/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=13685
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=1
+OccupiedDensityCells=855/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=28.6
+PhysicsFPS=145.3
+PhysicsProcess=6.88ms
+  Spawn=0.02ms
+  PBF=3.37ms
+  Density=2.04ms
+  Renderer=1.10ms
+    BuildPixels=0.42ms
+    SurfaceGlow=0.30ms
+    FillBytes=0.29ms
+    TextureUpload=0.09ms
+  Other=0.35ms
+MeasuredWork=6.53ms
+Energy=913.30
+EnergyThisFrame=0.18
+EnergyPerSecond=11.00
+TotalEnergyGenerated=913.30
+Wheel 1 EnergyThisFrame=0.0351 EnergyPerSecond=2.1038
+Wheel 2 EnergyThisFrame=0.0308 EnergyPerSecond=1.8490
+Wheel 3 EnergyThisFrame=0.0237 EnergyPerSecond=1.4233
+Wheel 4 EnergyThisFrame=0.0277 EnergyPerSecond=1.6611
+Wheel 5 EnergyThisFrame=0.0362 EnergyPerSecond=2.1749
+Wheel 6 EnergyThisFrame=0.0298 EnergyPerSecond=1.7898
+========================================
+RAIN CHANGE -> 20% for 20.0s (transition 10.0s)
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   2640
+------------------------------------------------------------
+AVERAGE                16.679 ms     59.96 FPS
+P50                    33.513 ms
+P95                    37.497 ms
+P99                    54.675 ms
+MIN                    28.434 ms   frame 2627
+MAX                    38.103 ms   frame 2566
+WORST FPS               26.24
+SPIKES >= 33.3ms:   65
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                22.988 ms
+Physics                 9.803 ms
+Navigation               0.006 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   2566     38.103 ms    26.24 FPS
+#2   frame   2621     37.275 ms    26.83 FPS
+#3   frame   2575     37.102 ms    26.95 FPS
+#4   frame   2589     36.844 ms    27.14 FPS
+#5   frame   2584     36.735 ms    27.22 FPS
+#6   frame   2563     36.647 ms    27.29 FPS
+#7   frame   2607     36.636 ms    27.30 FPS
+#8   frame   2610     36.512 ms    27.39 FPS
+#9   frame   2614     36.438 ms    27.44 FPS
+#10  frame   2630     36.374 ms    27.49 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   2760
+------------------------------------------------------------
+AVERAGE                16.652 ms     60.05 FPS
+P50                    33.411 ms
+P95                    36.648 ms
+P99                    37.827 ms
+MIN                    28.257 ms   frame 2653
+MAX                    37.871 ms   frame 2675
+WORST FPS               26.41
+SPIKES >= 33.3ms:   60
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                23.949 ms
+Physics                 9.013 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   2675     37.871 ms    26.41 FPS
+#2   frame   2642     37.871 ms    26.41 FPS
+#3   frame   2647     37.758 ms    26.48 FPS
+#4   frame   2684     37.568 ms    26.62 FPS
+#5   frame   2652     37.420 ms    26.72 FPS
+#6   frame   2696     37.144 ms    26.92 FPS
+#7   frame   2679     36.669 ms    27.27 FPS
+#8   frame   2693     36.157 ms    27.66 FPS
+#9   frame   2645     36.032 ms    27.75 FPS
+#10  frame   2749     35.790 ms    27.94 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=790.5 Energy=0.1515 Rain=39.9%
+RAIN/ENERGY GRAPH POINT: Frame=6000, AverageRain=39.93%, AverageEnergy=0.1515, AverageParticles=790.5
+Pixel Water profiler (avg ms over 600 render updates): Particles=625 BuildPixels=0.777ms SurfaceGlow=0.545ms FillBytes=0.537ms TextureUpload=0.176ms Total=2.038ms PixelCount=72450 PixelSize=4
+[PARTICLE PACKING] Particles: 626 | MinDistance: 1.054 px | AvgNearest: 4.207 px | P5: NaN px | Median: 3.966 px | <1px: 0 | <2px: 4 | <3px: 10 | <4px: 145 | AvgNeighbors: 2.65 | MaxNeighbors: 9 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 626
+Predict: 0.014 ms
+SpatialHash: 0.056 ms
+NeighborSearch: 0.218 ms
+NeighborGeometry: 0.389 ms
+NeighborCache: 0.607 ms
+PBF: 2.232 ms
+Collision: 1.477 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 1.476 ms
+Bounds: 0.027 ms
+Velocity: 0.050 ms
+TOTAL: 3.131 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 625
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -86.8 -> 795.7
+  Y = -35.8 -> 1197.7
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 353
+  Position: (-86.8, 0.9)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=625/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=14683
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=1
+OccupiedDensityCells=625/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=30.4
+PhysicsFPS=171.3
+PhysicsProcess=5.84ms
+  Spawn=0.02ms
+  PBF=2.93ms
+  Density=1.66ms
+  Renderer=0.94ms
+    BuildPixels=0.36ms
+    SurfaceGlow=0.25ms
+    FillBytes=0.24ms
+    TextureUpload=0.08ms
+  Other=0.30ms
+MeasuredWork=5.54ms
+Energy=1004.10
+EnergyThisFrame=0.11
+EnergyPerSecond=6.64
+TotalEnergyGenerated=1004.10
+Wheel 1 EnergyThisFrame=0.0264 EnergyPerSecond=1.5838
+Wheel 2 EnergyThisFrame=0.0163 EnergyPerSecond=0.9791
+Wheel 3 EnergyThisFrame=0.0149 EnergyPerSecond=0.8947
+Wheel 4 EnergyThisFrame=0.0224 EnergyPerSecond=1.3420
+Wheel 5 EnergyThisFrame=0.0110 EnergyPerSecond=0.6604
+Wheel 6 EnergyThisFrame=0.0197 EnergyPerSecond=1.1844
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   2880
+------------------------------------------------------------
+AVERAGE                16.027 ms     62.39 FPS
+P50                    33.269 ms
+P95                    36.595 ms
+P99                    37.936 ms
+MIN                    12.081 ms   frame 2797
+MAX                    53.579 ms   frame 2879
+WORST FPS               18.66
+SPIKES >= 33.3ms:   53
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                24.004 ms
+Physics                 8.062 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   2879     53.579 ms    18.66 FPS
+#2   frame   2818     38.229 ms    26.16 FPS
+#3   frame   2801     37.977 ms    26.33 FPS
+#4   frame   2808     37.071 ms    26.98 FPS
+#5   frame   2774     36.631 ms    27.30 FPS
+#6   frame   2825     36.594 ms    27.33 FPS
+#7   frame   2878     36.581 ms    27.34 FPS
+#8   frame   2781     36.424 ms    27.45 FPS
+#9   frame   2830     36.375 ms    27.49 FPS
+#10  frame   2839     36.307 ms    27.54 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   3000
+------------------------------------------------------------
+AVERAGE                 9.358 ms    106.86 FPS
+P50                    28.947 ms
+P95                    36.270 ms
+P99                    37.624 ms
+MIN                    12.444 ms   frame 2920
+MAX                    36.893 ms   frame 2918
+WORST FPS               27.11
+SPIKES >= 33.3ms:   3
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                27.936 ms
+Physics                 6.761 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1371
+Draw calls                262
+Primitives               6902
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   2918     36.893 ms    27.11 FPS
+#2   frame   2886     36.803 ms    27.17 FPS
+#3   frame   2881     35.353 ms    28.29 FPS
+#4   frame   2885     33.263 ms    30.06 FPS
+#5   frame   2884     33.015 ms    30.29 FPS
+#6   frame   2887     32.977 ms    30.32 FPS
+#7   frame   2883     32.678 ms    30.60 FPS
+#8   frame   2890     31.880 ms    31.37 FPS
+#9   frame   2919     31.777 ms    31.47 FPS
+#10  frame   2882     31.279 ms    31.97 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   3120
+------------------------------------------------------------
+AVERAGE                 9.654 ms    103.58 FPS
+P50                    17.584 ms
+P95                    33.268 ms
+P99                    36.858 ms
+MIN                    12.103 ms   frame 3113
+MAX                    38.478 ms   frame 3039
+WORST FPS               25.99
+SPIKES >= 33.3ms:   9
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                27.596 ms
+Physics                 6.187 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1371
+Draw calls                262
+Primitives               6902
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   3039     38.478 ms    25.99 FPS
+#2   frame   3001     37.621 ms    26.58 FPS
+#3   frame   3046     36.745 ms    27.21 FPS
+#4   frame   3104     36.266 ms    27.57 FPS
+#5   frame   3109     34.848 ms    28.70 FPS
+#6   frame   3002     34.784 ms    28.75 FPS
+#7   frame   3014     34.639 ms    28.87 FPS
+#8   frame   3011     34.392 ms    29.08 FPS
+#9   frame   3003     33.351 ms    29.98 FPS
+#10  frame   3105     32.859 ms    30.43 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   3240
+------------------------------------------------------------
+AVERAGE                 9.852 ms    101.50 FPS
+P50                    17.879 ms
+P95                    34.397 ms
+P99                    36.947 ms
+MIN                    12.308 ms   frame 3164
+MAX                    37.077 ms   frame 3204
+WORST FPS               26.97
+SPIKES >= 33.3ms:   11
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                28.269 ms
+Physics                 5.564 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1371
+Draw calls                262
+Primitives               6902
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   3204     37.077 ms    26.97 FPS
+#2   frame   3225     35.674 ms    28.03 FPS
+#3   frame   3162     35.492 ms    28.18 FPS
+#4   frame   3121     35.331 ms    28.30 FPS
+#5   frame   3124     34.494 ms    28.99 FPS
+#6   frame   3214     34.203 ms    29.24 FPS
+#7   frame   3201     33.991 ms    29.42 FPS
+#8   frame   3213     33.925 ms    29.48 FPS
+#9   frame   3208     33.714 ms    29.66 FPS
+#10  frame   3230     33.643 ms    29.72 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=469.7 Energy=0.1195 Rain=20.5%
+RAIN/ENERGY GRAPH POINT: Frame=6600, AverageRain=20.49%, AverageEnergy=0.1195, AverageParticles=469.7
+[PARTICLE PACKING] Particles: 391 | MinDistance: 2.119 px | AvgNearest: 4.154 px | P5: NaN px | Median: 4.012 px | <1px: 0 | <2px: 0 | <3px: 6 | <4px: 91 | AvgNeighbors: 2.24 | MaxNeighbors: 8 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 391
+Predict: 0.005 ms
+SpatialHash: 0.025 ms
+NeighborSearch: 0.084 ms
+NeighborGeometry: 0.164 ms
+NeighborCache: 0.249 ms
+PBF: 1.278 ms
+Collision: 0.908 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 0.907 ms
+Bounds: 0.016 ms
+Velocity: 0.030 ms
+TOTAL: 1.791 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 390
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -90.0 -> 773.2
+  Y = -35.8 -> 1197.6
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 347
+  Position: (-90.0, 868.8)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=390/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=15195
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=1
+OccupiedDensityCells=390/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=47.6
+PhysicsFPS=243.4
+PhysicsProcess=4.11ms
+  Spawn=0.02ms
+  PBF=1.92ms
+  Density=1.06ms
+  Renderer=0.91ms
+    BuildPixels=0.35ms
+    SurfaceGlow=0.24ms
+    FillBytes=0.23ms
+    TextureUpload=0.08ms
+  Other=0.21ms
+MeasuredWork=3.90ms
+Energy=1075.79
+EnergyThisFrame=0.12
+EnergyPerSecond=7.42
+TotalEnergyGenerated=1075.79
+Wheel 1 EnergyThisFrame=0.0178 EnergyPerSecond=1.0675
+Wheel 2 EnergyThisFrame=0.0275 EnergyPerSecond=1.6519
+Wheel 3 EnergyThisFrame=0.0202 EnergyPerSecond=1.2139
+Wheel 4 EnergyThisFrame=0.0197 EnergyPerSecond=1.1813
+Wheel 5 EnergyThisFrame=0.0174 EnergyPerSecond=1.0417
+Wheel 6 EnergyThisFrame=0.0210 EnergyPerSecond=1.2603
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   3360
+------------------------------------------------------------
+AVERAGE                 9.746 ms    102.61 FPS
+P50                    17.859 ms
+P95                    34.238 ms
+P99                    36.656 ms
+MIN                    12.597 ms   frame 3255
+MAX                    39.023 ms   frame 3360
+WORST FPS               25.63
+SPIKES >= 33.3ms:   10
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                29.265 ms
+Physics                 5.553 ms
+Navigation               0.014 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1371
+Draw calls                262
+Primitives               6902
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   3360     39.023 ms    25.63 FPS
+#2   frame   3358     37.055 ms    26.99 FPS
+#3   frame   3346     36.031 ms    27.75 FPS
+#4   frame   3337     35.303 ms    28.33 FPS
+#5   frame   3254     34.583 ms    28.92 FPS
+#6   frame   3341     34.372 ms    29.09 FPS
+#7   frame   3351     34.351 ms    29.11 FPS
+#8   frame   3324     34.232 ms    29.21 FPS
+#9   frame   3339     33.789 ms    29.60 FPS
+#10  frame   3338     33.699 ms    29.67 FPS
+============================================================
+
+RAIN CHANGE -> 20% for 23.0s (transition 10.0s)
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   3480
+------------------------------------------------------------
+AVERAGE                12.846 ms     77.84 FPS
+P50                    18.723 ms
+P95                    34.587 ms
+P99                    37.076 ms
+MIN                    12.950 ms   frame 3428
+MAX                    37.416 ms   frame 3426
+WORST FPS               26.73
+SPIKES >= 33.3ms:   30
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                27.826 ms
+Physics                 6.518 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   3426     37.416 ms    26.73 FPS
+#2   frame   3479     37.089 ms    26.96 FPS
+#3   frame   3382     36.184 ms    27.64 FPS
+#4   frame   3406     35.664 ms    28.04 FPS
+#5   frame   3372     35.373 ms    28.27 FPS
+#6   frame   3392     35.220 ms    28.39 FPS
+#7   frame   3416     35.169 ms    28.43 FPS
+#8   frame   3362     34.654 ms    28.86 FPS
+#9   frame   3401     34.572 ms    28.93 FPS
+#10  frame   3379     34.565 ms    28.93 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   3600
+------------------------------------------------------------
+AVERAGE                 8.939 ms    111.87 FPS
+P50                    18.239 ms
+P95                    34.550 ms
+P99                    36.980 ms
+MIN                    12.221 ms   frame 3483
+MAX                    38.156 ms   frame 3528
+WORST FPS               26.21
+SPIKES >= 33.3ms:   3
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                14.458 ms
+Physics                 5.581 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   3528     38.156 ms    26.21 FPS
+#2   frame   3493     36.809 ms    27.17 FPS
+#3   frame   3481     34.067 ms    29.35 FPS
+#4   frame   3529     32.695 ms    30.59 FPS
+#5   frame   3485     32.251 ms    31.01 FPS
+#6   frame   3523     31.660 ms    31.59 FPS
+#7   frame   3530     31.377 ms    31.87 FPS
+#8   frame   3482     31.331 ms    31.92 FPS
+#9   frame   3494     27.249 ms    36.70 FPS
+#10  frame   3484     23.067 ms    43.35 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   3720
+------------------------------------------------------------
+AVERAGE                 8.612 ms    116.12 FPS
+P50                    17.458 ms
+P95                    27.438 ms
+P99                    34.431 ms
+MIN                    13.431 ms   frame 3669
+MAX                    34.663 ms   frame 3657
+WORST FPS               28.85
+SPIKES >= 33.3ms:   2
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                28.069 ms
+Physics                 5.216 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   3657     34.663 ms    28.85 FPS
+#2   frame   3668     33.830 ms    29.56 FPS
+#3   frame   3658     32.388 ms    30.88 FPS
+#4   frame   3607     31.022 ms    32.24 FPS
+#5   frame   3660     19.996 ms    50.01 FPS
+#6   frame   3667     19.808 ms    50.48 FPS
+#7   frame   3678     19.711 ms    50.73 FPS
+#8   frame   3642     19.542 ms    51.17 FPS
+#9   frame   3654     19.537 ms    51.18 FPS
+#10  frame   3710     19.523 ms    51.22 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=390.2 Energy=0.1020 Rain=20.0%
+RAIN/ENERGY GRAPH POINT: Frame=7200, AverageRain=20.00%, AverageEnergy=0.1020, AverageParticles=390.2
+Pixel Water profiler (avg ms over 600 render updates): Particles=383 BuildPixels=0.701ms SurfaceGlow=0.504ms FillBytes=0.468ms TextureUpload=0.171ms Total=1.846ms PixelCount=72450 PixelSize=4
+[PARTICLE PACKING] Particles: 384 | MinDistance: 0.972 px | AvgNearest: 4.164 px | P5: NaN px | Median: 3.968 px | <1px: 2 | <2px: 4 | <3px: 12 | <4px: 102 | AvgNeighbors: 2.58 | MaxNeighbors: 9 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 384
+Predict: 0.011 ms
+SpatialHash: 0.042 ms
+NeighborSearch: 0.144 ms
+NeighborGeometry: 0.244 ms
+NeighborCache: 0.389 ms
+PBF: 1.526 ms
+Collision: 1.056 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 1.055 ms
+Bounds: 0.018 ms
+Velocity: 0.032 ms
+TOTAL: 2.167 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 383
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -70.5 -> 797.5
+  Y = -35.8 -> 1185.5
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 118
+  Position: (-70.5, 31.5)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=383/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=15695
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=1
+OccupiedDensityCells=383/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=49.9
+PhysicsFPS=264.7
+PhysicsProcess=3.78ms
+  Spawn=0.02ms
+  PBF=1.68ms
+  Density=0.94ms
+  Renderer=0.94ms
+    BuildPixels=0.35ms
+    SurfaceGlow=0.26ms
+    FillBytes=0.24ms
+    TextureUpload=0.09ms
+  Other=0.19ms
+MeasuredWork=3.58ms
+Energy=1136.97
+EnergyThisFrame=0.09
+EnergyPerSecond=5.44
+TotalEnergyGenerated=1136.97
+Wheel 1 EnergyThisFrame=0.0165 EnergyPerSecond=0.9921
+Wheel 2 EnergyThisFrame=0.0106 EnergyPerSecond=0.6373
+Wheel 3 EnergyThisFrame=0.0111 EnergyPerSecond=0.6670
+Wheel 4 EnergyThisFrame=0.0127 EnergyPerSecond=0.7628
+Wheel 5 EnergyThisFrame=0.0185 EnergyPerSecond=1.1129
+Wheel 6 EnergyThisFrame=0.0212 EnergyPerSecond=1.2723
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   3840
+------------------------------------------------------------
+AVERAGE                10.990 ms     90.99 FPS
+P50                    17.771 ms
+P95                    34.202 ms
+P99                    44.833 ms
+MIN                    11.681 ms   frame 3760
+MAX                    52.008 ms   frame 3835
+WORST FPS               19.23
+SPIKES >= 33.3ms:   21
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                27.887 ms
+Physics                 7.835 ms
+Navigation               0.013 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   3835     52.008 ms    19.23 FPS
+#2   frame   3834     50.459 ms    19.82 FPS
+#3   frame   3836     47.982 ms    20.84 FPS
+#4   frame   3838     39.907 ms    25.06 FPS
+#5   frame   3833     37.526 ms    26.65 FPS
+#6   frame   3824     37.306 ms    26.81 FPS
+#7   frame   3788     36.333 ms    27.52 FPS
+#8   frame   3790     36.254 ms    27.58 FPS
+#9   frame   3759     35.391 ms    28.26 FPS
+#10  frame   3831     34.922 ms    28.64 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   3960
+------------------------------------------------------------
+AVERAGE                13.254 ms     75.45 FPS
+P50                    19.350 ms
+P95                    36.258 ms
+P99                    44.833 ms
+MIN                    12.624 ms   frame 3951
+MAX                    39.401 ms   frame 3871
+WORST FPS               25.38
+SPIKES >= 33.3ms:   39
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                29.963 ms
+Physics                 6.104 ms
+Navigation               0.012 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1372
+Draw calls                262
+Primitives               6904
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   3871     39.401 ms    25.38 FPS
+#2   frame   3889     38.441 ms    26.01 FPS
+#3   frame   3899     37.962 ms    26.34 FPS
+#4   frame   3954     36.965 ms    27.05 FPS
+#5   frame   3924     36.596 ms    27.33 FPS
+#6   frame   3930     35.893 ms    27.86 FPS
+#7   frame   3875     35.786 ms    27.94 FPS
+#8   frame   3901     35.663 ms    28.04 FPS
+#9   frame   3878     35.455 ms    28.20 FPS
+#10  frame   3943     35.418 ms    28.23 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   4080
+------------------------------------------------------------
+AVERAGE                 8.904 ms    112.31 FPS
+P50                    18.553 ms
+P95                    35.219 ms
+P99                    37.573 ms
+MIN                    11.242 ms   frame 3967
+MAX                    36.815 ms   frame 4077
+WORST FPS               27.16
+SPIKES >= 33.3ms:   5
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                28.016 ms
+Physics                 5.635 ms
+Navigation               0.005 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1371
+Draw calls                262
+Primitives               6902
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2293
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   4077     36.815 ms    27.16 FPS
+#2   frame   3965     35.209 ms    28.40 FPS
+#3   frame   3966     34.036 ms    29.38 FPS
+#4   frame   4079     33.683 ms    29.69 FPS
+#5   frame   4078     33.678 ms    29.69 FPS
+#6   frame   4080     33.206 ms    30.11 FPS
+#7   frame   3962     30.545 ms    32.74 FPS
+#8   frame   4039     30.325 ms    32.98 FPS
+#9   frame   3963     20.815 ms    48.04 FPS
+#10  frame   4048     20.044 ms    49.89 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   4200
+------------------------------------------------------------
+AVERAGE                11.918 ms     83.90 FPS
+P50                    17.857 ms
+P95                    35.174 ms
+P99                    47.525 ms
+MIN                    13.381 ms   frame 4176
+MAX                    52.872 ms   frame 4093
+WORST FPS               18.91
+SPIKES >= 33.3ms:   23
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                26.928 ms
+Physics                10.056 ms
+Navigation               0.006 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2339
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   4093     52.872 ms    18.91 FPS
+#2   frame   4094     52.170 ms    19.17 FPS
+#3   frame   4095     48.204 ms    20.75 FPS
+#4   frame   4096     46.464 ms    21.52 FPS
+#5   frame   4086     37.443 ms    26.71 FPS
+#6   frame   4098     36.569 ms    27.35 FPS
+#7   frame   4082     36.207 ms    27.62 FPS
+#8   frame   4083     35.590 ms    28.10 FPS
+#9   frame   4141     35.298 ms    28.33 FPS
+#10  frame   4089     35.278 ms    28.35 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=394.8 Energy=0.1044 Rain=20.0%
+RAIN/ENERGY GRAPH POINT: Frame=7800, AverageRain=20.00%, AverageEnergy=0.1044, AverageParticles=394.8
+[PARTICLE PACKING] Particles: 394 | MinDistance: 1.138 px | AvgNearest: 4.155 px | P5: NaN px | Median: 3.817 px | <1px: 0 | <2px: 2 | <3px: 10 | <4px: 94 | AvgNeighbors: 2.29 | MaxNeighbors: 8 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 394
+Predict: 0.009 ms
+SpatialHash: 0.037 ms
+NeighborSearch: 0.116 ms
+NeighborGeometry: 0.202 ms
+NeighborCache: 0.318 ms
+PBF: 1.321 ms
+Collision: 0.898 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 0.897 ms
+Bounds: 0.011 ms
+Velocity: 0.020 ms
+TOTAL: 1.918 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 392
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -92.8 -> 815.8
+  Y = -35.8 -> 1196.4
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 0
+  Position: (-92.8, 376.8)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=392/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=16195
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=1
+OccupiedDensityCells=392/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=43.6
+PhysicsFPS=259.5
+PhysicsProcess=3.85ms
+  Spawn=0.02ms
+  PBF=1.69ms
+  Density=0.97ms
+  Renderer=0.99ms
+    BuildPixels=0.38ms
+    SurfaceGlow=0.27ms
+    FillBytes=0.25ms
+    TextureUpload=0.09ms
+  Other=0.19ms
+MeasuredWork=3.67ms
+Energy=1199.60
+EnergyThisFrame=0.10
+EnergyPerSecond=6.00
+TotalEnergyGenerated=1199.60
+Wheel 1 EnergyThisFrame=0.0219 EnergyPerSecond=1.3136
+Wheel 2 EnergyThisFrame=0.0308 EnergyPerSecond=1.8481
+Wheel 3 EnergyThisFrame=0.0127 EnergyPerSecond=0.7604
+Wheel 4 EnergyThisFrame=0.0056 EnergyPerSecond=0.3353
+Wheel 5 EnergyThisFrame=0.0145 EnergyPerSecond=0.8718
+Wheel 6 EnergyThisFrame=0.0145 EnergyPerSecond=0.8720
+========================================
+UiWindowManager: Closed 'SettingsWindow'.
+UiWindowManager: State = NoWindow.
+UiWindowManager: Opened 'SettingsWindow'.
+UiWindowManager: State = Settings.
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   4320
+------------------------------------------------------------
+AVERAGE                 9.173 ms    109.01 FPS
+P50                    18.003 ms
+P95                    35.178 ms
+P99                    47.525 ms
+MIN                    12.812 ms   frame 4285
+MAX                    36.449 ms   frame 4235
+WORST FPS               27.44
+SPIKES >= 33.3ms:   6
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                28.196 ms
+Physics                 5.476 ms
+Navigation               0.007 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2404
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   4235     36.449 ms    27.44 FPS
+#2   frame   4245     36.165 ms    27.65 FPS
+#3   frame   4236     34.437 ms    29.04 FPS
+#4   frame   4271     33.865 ms    29.53 FPS
+#5   frame   4220     33.747 ms    29.63 FPS
+#6   frame   4284     33.497 ms    29.85 FPS
+#7   frame   4238     33.147 ms    30.17 FPS
+#8   frame   4237     32.749 ms    30.54 FPS
+#9   frame   4267     31.826 ms    31.42 FPS
+#10  frame   4239     31.267 ms    31.98 FPS
+============================================================
+
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   4440
+------------------------------------------------------------
+AVERAGE                 9.992 ms    100.08 FPS
+P50                    17.662 ms
+P95                    33.753 ms
+P99                    36.338 ms
+MIN                    11.551 ms   frame 4413
+MAX                    36.676 ms   frame 4407
+WORST FPS               27.27
+SPIKES >= 33.3ms:   10
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                27.417 ms
+Physics                 5.852 ms
+Navigation               0.009 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2321
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   4407     36.676 ms    27.27 FPS
+#2   frame   4379     36.555 ms    27.36 FPS
+#3   frame   4417     35.696 ms    28.01 FPS
+#4   frame   4424     35.166 ms    28.44 FPS
+#5   frame   4323     35.079 ms    28.51 FPS
+#6   frame   4415     34.550 ms    28.94 FPS
+#7   frame   4422     34.218 ms    29.22 FPS
+#8   frame   4409     34.000 ms    29.41 FPS
+#9   frame   4410     33.740 ms    29.64 FPS
+#10  frame   4411     33.626 ms    29.74 FPS
+============================================================
+
+RAIN CHANGE -> 80% for 23.5s (transition 10.0s)
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   4560
+------------------------------------------------------------
+AVERAGE                12.854 ms     77.80 FPS
+P50                    18.764 ms
+P95                    34.405 ms
+P99                    35.911 ms
+MIN                    11.999 ms   frame 4488
+MAX                    36.049 ms   frame 4472
+WORST FPS               27.74
+SPIKES >= 33.3ms:   31
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                26.824 ms
+Physics                 6.425 ms
+Navigation               0.007 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1373
+Draw calls                262
+Primitives               6906
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.32 MB
+Texture memory           11.89 MB
+Buffer memory            20.43 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2367
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   4472     36.049 ms    27.74 FPS
+#2   frame   4532     35.563 ms    28.12 FPS
+#3   frame   4509     35.225 ms    28.39 FPS
+#4   frame   4480     35.004 ms    28.57 FPS
+#5   frame   4516     34.909 ms    28.65 FPS
+#6   frame   4535     34.488 ms    29.00 FPS
+#7   frame   4491     34.401 ms    29.07 FPS
+#8   frame   4477     34.380 ms    29.09 FPS
+#9   frame   4510     34.132 ms    29.30 FPS
+#10  frame   4487     34.124 ms    29.31 FPS
+============================================================
+
+UiWindowManager: Opened 'StatisticsWindow'.
+UiWindowManager: State = Statistics.
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   4680
+------------------------------------------------------------
+AVERAGE                10.586 ms     94.46 FPS
+P50                    18.915 ms
+P95                    34.827 ms
+P99                    36.117 ms
+MIN                    11.239 ms   frame 4618
+MAX                    39.168 ms   frame 4674
+WORST FPS               25.53
+SPIKES >= 33.3ms:   17
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                28.645 ms
+Physics                 8.857 ms
+Navigation               0.008 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1473
+Draw calls                291
+Primitives              19366
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.60 MB
+Texture memory           11.89 MB
+Buffer memory            20.71 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2454
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   4674     39.168 ms    25.53 FPS
+#2   frame   4665     36.245 ms    27.59 FPS
+#3   frame   4667     36.160 ms    27.65 FPS
+#4   frame   4672     35.831 ms    27.91 FPS
+#5   frame   4677     35.831 ms    27.91 FPS
+#6   frame   4617     35.275 ms    28.35 FPS
+#7   frame   4664     35.206 ms    28.40 FPS
+#8   frame   4628     34.822 ms    28.72 FPS
+#9   frame   4601     34.610 ms    28.89 FPS
+#10  frame   4562     34.381 ms    29.09 FPS
+============================================================
+
+Particle/Energy Graph Point: Particles=426.3 Energy=0.1078 Rain=28.0%
+RAIN/ENERGY GRAPH POINT: Frame=8400, AverageRain=28.03%, AverageEnergy=0.1078, AverageParticles=426.3
+Pixel Water profiler (avg ms over 600 render updates): Particles=558 BuildPixels=0.720ms SurfaceGlow=0.518ms FillBytes=0.476ms TextureUpload=0.172ms Total=1.888ms PixelCount=72450 PixelSize=4
+[PARTICLE PACKING] Particles: 560 | MinDistance: 0.855 px | AvgNearest: 4.103 px | P5: NaN px | Median: 3.735 px | <1px: 2 | <2px: 8 | <3px: 27 | <4px: 139 | AvgNeighbors: 2.36 | MaxNeighbors: 9 | NeighborCapHits: 0
+========== PBF PROFILER ==========
+Particles: 560
+Predict: 0.007 ms
+SpatialHash: 0.044 ms
+NeighborSearch: 0.141 ms
+NeighborGeometry: 0.234 ms
+NeighborCache: 0.375 ms
+PBF: 1.374 ms
+Collision: 0.898 ms
+TerrainQuery: 0.000 ms
+TerrainResolve: 0.000 ms
+Wheel: 0.897 ms
+Bounds: 0.013 ms
+Velocity: 0.027 ms
+TOTAL: 1.918 ms
+==================================
+========== PARTICLE BOUNDS DIAGNOSTIC ==========
+Active particles: 559
+
+Simulation bounds:
+  X = -100.0 -> 820.0
+  Y = -50.0 -> 1210.0
+
+Visible GameView bounds:
+  Camera: /root/Main/GameView/SimulationViewport/Camera2D
+  Camera position: (360.0, 580.0)
+  Camera zoom: (1.00, 1.00)
+  Viewport size: 720.0x1160.0
+  X = 0.0 -> 720.0
+  Y = 0.0 -> 1160.0
+
+Particle position bounds:
+  X = -85.7 -> 813.0
+  Y = -35.8 -> 1201.7
+
+Outside simulation world:
+  Left  (X < -100.0): 0
+  Right (X > 820.0): 0
+  Top   (Y < -50.0): 0
+  Bottom(Y > 1210.0): 0
+
+LEFT OUT-OF-BOUNDS:
+  Count: 0
+  Percentage: 0.00%
+  No particles are outside the left boundary.
+
+LEFT PARTICLE DISTRIBUTION
+  X < -100.0 : 0
+  X -125.. -100 : 0
+  X -150.. -125 : 0
+  X -175.. -150 : 0
+  X -200.. -175 : 0
+  X -225.. -200 : 0
+  X -250.. -225 : 0
+
+MINIMUM-X PARTICLE:
+  Index: 275
+  Position: (-85.7, 1076.9)
+
+===============================================
+========================================
+FULL FRAME PROFILER (avg over 600 physics frames)
+SimulationWorld=920x1260 (-100,-50) -> (820,1210)
+SimulationWorldCenter=(360, 580)
+ActiveParticles=559/4000
+Evaporated Particles=0
+Total Evaporated Particles=0
+AntiLagCleanupCount=0
+EvaporationSpatialParticles=0
+ParticleCapacity=4000
+TotalRainSpawns=16897
+RainRejectedByDensity=0
+RainRejectedByCapacity=0
+DensityCapacity=1 particles/pixel
+MaxCellOccupancy=1
+OccupiedDensityCells=559/1159200
+DensityGrid=230x315 cells @ 4 px
+RenderedFPS=46.3
+PhysicsFPS=260.3
+PhysicsProcess=3.84ms
+  Spawn=0.02ms
+  PBF=1.74ms
+  Density=0.99ms
+  Renderer=0.90ms
+    BuildPixels=0.34ms
+    SurfaceGlow=0.24ms
+    FillBytes=0.23ms
+    TextureUpload=0.08ms
+  Other=0.19ms
+MeasuredWork=3.65ms
+Energy=1264.30
+EnergyThisFrame=0.13
+EnergyPerSecond=7.63
+TotalEnergyGenerated=1264.30
+Wheel 1 EnergyThisFrame=0.0201 EnergyPerSecond=1.2074
+Wheel 2 EnergyThisFrame=0.0253 EnergyPerSecond=1.5209
+Wheel 3 EnergyThisFrame=0.0211 EnergyPerSecond=1.2680
+Wheel 4 EnergyThisFrame=0.0207 EnergyPerSecond=1.2402
+Wheel 5 EnergyThisFrame=0.0155 EnergyPerSecond=0.9314
+Wheel 6 EnergyThisFrame=0.0243 EnergyPerSecond=1.4607
+========================================
+
+============================================================
+[FRAME PROFILER]
+============================================================
+Frame samples:       240
+Total frame count:   4800
+------------------------------------------------------------
+AVERAGE                16.681 ms     59.95 FPS
+P50                    31.622 ms
+P95                    36.212 ms
+P99                    41.096 ms
+MIN                    15.491 ms   frame 4695
+MAX                    56.646 ms   frame 4772
+WORST FPS               17.65
+SPIKES >= 33.3ms:   57
+------------------------------------------------------------
+GODOT TIMING
+------------------------------------------------------------
+Process                29.064 ms
+Physics                12.406 ms
+Navigation               0.011 ms
+Unaccounted             0.000 ms
+------------------------------------------------------------
+RENDERING
+------------------------------------------------------------
+Rendered objects         1474
+Draw calls                292
+Primitives              19430
+------------------------------------------------------------
+MEMORY
+------------------------------------------------------------
+Video memory             32.60 MB
+Texture memory           11.89 MB
+Buffer memory            20.72 MB
+------------------------------------------------------------
+SCENE
+------------------------------------------------------------
+Objects                  2328
+Nodes                      78
+------------------------------------------------------------
+WORST INDIVIDUAL FRAMES
+------------------------------------------------------------
+#1   frame   4772     56.646 ms    17.65 FPS
+#2   frame   4773     43.739 ms    22.86 FPS
+#3   frame   4775     42.328 ms    23.62 FPS
+#4   frame   4708     38.675 ms    25.86 FPS
+#5   frame   4788     37.467 ms    26.69 FPS
+#6   frame   4737     37.422 ms    26.72 FPS
+#7   frame   4778     36.830 ms    27.15 FPS
+#8   frame   4780     36.724 ms    27.23 FPS
+#9   frame   4785     36.621 ms    27.31 FPS
+#10  frame   4751     36.408 ms    27.47 FPS
+============================================================
+
+--- Debugging process stopped ---
