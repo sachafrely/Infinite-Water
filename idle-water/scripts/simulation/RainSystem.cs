@@ -49,7 +49,7 @@ internal sealed class RainSystem
 	public const float RainSpawnY = -40.0f;
 
 	public const float RainVelocityX = 0.0f;
-	public const float RainVelocityY = 300.0f;
+	public const float RainVelocityY = 250.0f;
 
 	// ============================================================
 	// Diagnostics

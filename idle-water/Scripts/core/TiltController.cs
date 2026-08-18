@@ -6,12 +6,12 @@ using Godot;
 ///
 /// The configured TiltSettings.TiltInfluenceRatio controls the maximum
 /// simulated tilt angle. At 0% gravity is straight down. At 100% the
-/// measured tilt can reach the configured maximum of 30 degrees.
+/// measured tilt can reach the configured maximum of 50 degrees.
 /// </summary>
 public sealed class TiltController
 {
 	private const float GravityMagnitude = 300.0f;
-	private const float MaximumTiltDegrees = 30.0f;
+	private const float MaximumTiltDegrees = 50.0f;
 	private const float SensorMinimumMagnitude = 1.0f;
 	private const float SensorSmoothing = 0.15f;
 

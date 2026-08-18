@@ -6,7 +6,6 @@
 ///   but are needed across multiple subsystems.
 ///
 /// What will live here:
-///   - mass[] / inverseMass[] — if per-particle mass variation is added.
 ///   - phase[]               — fluid vs. solid markers (if phases are used).
 ///   - color[] / renderType  — lightweight render hint, no Godot types.
 ///   - Any future per-particle flag or category field.
