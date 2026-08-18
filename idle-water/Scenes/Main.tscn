@@ -622,20 +622,20 @@ scale = Vector2(1.5, 1.5)
 texture = ExtResource("15_h1m7h")
 
 [node name="Tube1" type="Sprite2D" parent="Decorations" unique_id=174711048]
-z_index = 30
+z_index = 20
 position = Vector2(689, 1110.325)
 scale = Vector2(2, 2)
 texture = ExtResource("16_2w5on")
 
 [node name="Tube2" type="Sprite2D" parent="Decorations" unique_id=248171037]
-z_index = 30
+z_index = 20
 position = Vector2(89.65, 1032.18)
 rotation = 1.5707964
 scale = Vector2(2, 2)
 texture = ExtResource("17_346fj")
 
 [node name="WaterTank" type="Sprite2D" parent="Decorations" unique_id=400833243]
-z_index = 30
+z_index = 20
 position = Vector2(615.4, 961.385)
 scale = Vector2(2, 2)
 texture = ExtResource("14_jyqft")
@@ -682,9 +682,9 @@ mouse_filter = 2
 [node name="CenterUI" type="Control" parent="." unique_id=1096158914]
 layout_mode = 3
 anchors_preset = 0
-offset_top = 550.0
+offset_top = 840.0
 offset_right = 720.0
-offset_bottom = 1160.0
+offset_bottom = 1180.0
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterUI" unique_id=1537815097]
 z_index = 10
@@ -692,7 +692,6 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 245.0
 offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -719,12 +718,13 @@ z_index = 30
 layout_mode = 2
 script = ExtResource("15_sxkr1")
 
-[node name="SettingsPanel" type="Panel" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow" unique_id=1716082346]
+[node name="SettingsPanel" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow" unique_id=2115574602]
 z_index = 35
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_bottom = 360.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -760,7 +760,7 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_bottom = 290.0
+offset_bottom = 360.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
