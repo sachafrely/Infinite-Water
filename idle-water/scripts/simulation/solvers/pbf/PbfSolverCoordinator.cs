@@ -6,26 +6,7 @@ using Godot;
 /// PbfSolverCoordinator — top-level coordinator for the PBF pipeline.
 ///
 /// Owns the <see cref="PbfState"/> and drives each sub-pass in the correct
-/// order every physics tick.  <see cref="PbfSolver"/> holds the polygon-
-/// collider management and delegates <see cref="PbfSolver.Solve"/> here.
-///
-/// Sub-pass order per tick:
-/// <list type="number">
-///   <item>Apply gravity and predict new positions.</item>
-///   <item>Rebuild spatial hash.</item>
-///   <item>Build neighbor-index cache (<see cref="PbfNeighborSearchAdapter"/>).</item>
-///   <item>Compute neighbor geometry.</item>
-///   <item>PBF iterations:
-///     <list type="bullet">
-///       <item>Density + lambda (<see cref="PbfDensityConstraintsCoordinator"/>).</item>
-///       <item>Position corrections (<see cref="PbfPositionDeltaSolver"/>).</item>
-///       <item>Pixel-overlap correction.</item>
-///       <item>Polygon-collider constraints (via PbfSolver callback).</item>
-///       <item>World-bounds constraints (<see cref="PbfBoundaryConstraints"/>).</item>
-///     </list>
-///   </item>
-///   <item>Velocity integration and position commit (<see cref="PbfIntegrationStep"/>).</item>
-/// </list>
+/// order every physics tick.
 /// </summary>
 internal sealed class PbfSolverCoordinator
 {
@@ -46,8 +27,7 @@ internal sealed class PbfSolverCoordinator
 
 	public void Solve(
 		ParticleData particles,
-		float dt,
-		Vector2 gravityAcceleration)
+		float dt)
 	{
 		profilerFrameCounter++;
 
@@ -58,8 +38,7 @@ internal sealed class PbfSolverCoordinator
 		if (printProfiler)
 			profilerFrameCounter = 0;
 
-		long totalStart =
-			Stopwatch.GetTimestamp();
+		long totalStart = Stopwatch.GetTimestamp();
 
 		double predictMs = 0.0;
 		double spatialHashMs = 0.0;
@@ -80,8 +59,7 @@ internal sealed class PbfSolverCoordinator
 		{
 			solver.StepWheel(dt);
 
-			double totalMs =
-				ElapsedMilliseconds(totalStart);
+			double totalMs = ElapsedMilliseconds(totalStart);
 
 			if (printProfiler)
 			{
@@ -122,6 +100,9 @@ internal sealed class PbfSolverCoordinator
 
 		long predictStart = Stopwatch.GetTimestamp();
 
+		Vector2 gravityAcceleration =
+			TiltController.CurrentGravityAcceleration;
+
 		float gravityDtX = gravityAcceleration.X * dt;
 		float gravityDtY = gravityAcceleration.Y * dt;
 
@@ -137,47 +118,34 @@ internal sealed class PbfSolverCoordinator
 			predY[i] = posY[i] + vy * dt;
 		}
 
-		predictMs =
-			ElapsedMilliseconds(predictStart);
+		predictMs = ElapsedMilliseconds(predictStart);
 
-		long spatialHashStart =
-			Stopwatch.GetTimestamp();
+		long spatialHashStart = Stopwatch.GetTimestamp();
 
 		hash.Clear();
 
 		for (int i = 0; i < count; i++)
-		{
 			hash.Insert(i, predX[i], predY[i]);
-		}
 
-		spatialHashMs =
-			ElapsedMilliseconds(spatialHashStart);
+		spatialHashMs = ElapsedMilliseconds(spatialHashStart);
 
-		long neighborCacheStart =
-			Stopwatch.GetTimestamp();
-
-		long neighborSearchStart =
-			Stopwatch.GetTimestamp();
+		long neighborCacheStart = Stopwatch.GetTimestamp();
+		long neighborSearchStart = Stopwatch.GetTimestamp();
 
 		PbfNeighborSearchAdapter.BuildIndexCache(
 			hash, predX, predY, count, state
 		);
 
-		neighborSearchMs =
-			ElapsedMilliseconds(neighborSearchStart);
+		neighborSearchMs = ElapsedMilliseconds(neighborSearchStart);
 
-		long neighborGeometryStart =
-			Stopwatch.GetTimestamp();
+		long neighborGeometryStart = Stopwatch.GetTimestamp();
 
 		PbfNeighborSearchAdapter.UpdateGeometry(
 			predX, predY, count, state
 		);
 
-		neighborGeometryMs =
-			ElapsedMilliseconds(neighborGeometryStart);
-
-		neighborCacheMs =
-			ElapsedMilliseconds(neighborCacheStart);
+		neighborGeometryMs = ElapsedMilliseconds(neighborGeometryStart);
+		neighborCacheMs = ElapsedMilliseconds(neighborCacheStart);
 
 		if (printProfiler)
 		{
@@ -195,15 +163,13 @@ internal sealed class PbfSolverCoordinator
 		{
 			if (iteration > 0)
 			{
-				long geometryStart =
-					Stopwatch.GetTimestamp();
+				long geometryStart = Stopwatch.GetTimestamp();
 
 				PbfNeighborSearchAdapter.UpdateCache(
 					predX, predY, count, state
 				);
 
-				double geometryMs =
-					ElapsedMilliseconds(geometryStart);
+				double geometryMs = ElapsedMilliseconds(geometryStart);
 
 				neighborGeometryMs += geometryMs;
 				neighborCacheMs += geometryMs;
@@ -227,8 +193,7 @@ internal sealed class PbfSolverCoordinator
 
 			if (solver.HasPolygonColliders)
 			{
-				long collisionStart =
-					Stopwatch.GetTimestamp();
+				long collisionStart = Stopwatch.GetTimestamp();
 
 				solver.ApplyPolygonCollision(
 					predX, predY,
@@ -241,24 +206,20 @@ internal sealed class PbfSolverCoordinator
 					ref wheelCollisionMs
 				);
 
-				collisionMs +=
-					ElapsedMilliseconds(collisionStart);
+				collisionMs += ElapsedMilliseconds(collisionStart);
 			}
 
-			long boundsStart =
-				Stopwatch.GetTimestamp();
+			long boundsStart = Stopwatch.GetTimestamp();
 
 			PbfBoundaryConstraints.ConstrainToBounds(
 				predX, predY, count, state
 			);
 
-			boundsMs +=
-				ElapsedMilliseconds(boundsStart);
+			boundsMs += ElapsedMilliseconds(boundsStart);
 
 			if (
 				iteration + 1 >= PbfSolver.MinIterations &&
-				densityError <=
-				PbfSolver.DensityErrorThreshold)
+				densityError <= PbfSolver.DensityErrorThreshold)
 			{
 				break;
 			}
@@ -266,8 +227,7 @@ internal sealed class PbfSolverCoordinator
 
 		pbfMs = ElapsedMilliseconds(pbfStart);
 
-		long velocityStart =
-			Stopwatch.GetTimestamp();
+		long velocityStart = Stopwatch.GetTimestamp();
 
 		PbfIntegrationStep.Finalize(
 			particles,
@@ -277,11 +237,9 @@ internal sealed class PbfSolverCoordinator
 			gravityAcceleration
 		);
 
-		velocityMs =
-			ElapsedMilliseconds(velocityStart);
+		velocityMs = ElapsedMilliseconds(velocityStart);
 
-		double total =
-			ElapsedMilliseconds(totalStart);
+		double total = ElapsedMilliseconds(totalStart);
 
 		if (printProfiler)
 		{

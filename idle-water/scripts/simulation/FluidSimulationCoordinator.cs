@@ -31,12 +31,11 @@ internal sealed class FluidSimulationCoordinator
 		// not directly modify particle velocities.
 		tiltController.Update(dt);
 
-		// The solver owns gravity application and receives the complete gravity
-		// acceleration for this step.
+		// The PBF coordinator reads the gravity vector calculated by the tilt
+		// controller when it performs its normal gravity prediction.
 		solver.Solve(
 			particles,
-			dt,
-			tiltController.GravityAcceleration
+			dt
 		);
 	}
 }

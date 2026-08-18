@@ -18,8 +18,15 @@ public sealed class TiltController
 	private Vector3 smoothedAccelerometer = Vector3.Zero;
 	private bool hasSensorSample;
 
-	public Vector2 GravityAcceleration { get; private set; } =
+	/// <summary>
+	/// Gravity acceleration calculated from the latest tilt sample.
+	/// The PBF coordinator reads this instead of receiving a velocity change.
+	/// </summary>
+	public static Vector2 CurrentGravityAcceleration { get; private set; } =
 		Vector2.Down * GravityMagnitude;
+
+	public Vector2 GravityAcceleration =>
+		CurrentGravityAcceleration;
 
 	public Vector2 GravityDirection { get; private set; } =
 		Vector2.Down;
@@ -31,7 +38,7 @@ public sealed class TiltController
 		if (influence <= 0.0001f)
 		{
 			GravityDirection = Vector2.Down;
-			GravityAcceleration = Vector2.Down * GravityMagnitude;
+			CurrentGravityAcceleration = Vector2.Down * GravityMagnitude;
 			return;
 		}
 
@@ -46,15 +53,21 @@ public sealed class TiltController
 			}
 			else
 			{
-				float smoothing = Mathf.Clamp(SensorSmoothing * delta * 60.0f, 0.0f, 1.0f);
-				smoothedAccelerometer = smoothedAccelerometer.Lerp(accelerometer, smoothing);
+				float smoothing = Mathf.Clamp(
+					SensorSmoothing * delta * 60.0f,
+					0.0f,
+					1.0f
+				);
+
+				smoothedAccelerometer =
+					smoothedAccelerometer.Lerp(accelerometer, smoothing);
 			}
 		}
 
 		if (!hasSensorSample)
 		{
 			GravityDirection = Vector2.Down;
-			GravityAcceleration = Vector2.Down * GravityMagnitude;
+			CurrentGravityAcceleration = Vector2.Down * GravityMagnitude;
 			return;
 		}
 
@@ -66,7 +79,7 @@ public sealed class TiltController
 		if (sensorDirection.LengthSquared() < 0.0001f)
 		{
 			GravityDirection = Vector2.Down;
-			GravityAcceleration = Vector2.Down * GravityMagnitude;
+			CurrentGravityAcceleration = Vector2.Down * GravityMagnitude;
 			return;
 		}
 
@@ -77,7 +90,8 @@ public sealed class TiltController
 			sensorDirection.Y
 		);
 
-		float maximumTiltRadians = Mathf.DegToRad(MaximumTiltDegrees);
+		float maximumTiltRadians =
+			Mathf.DegToRad(MaximumTiltDegrees);
 
 		float simulatedAngle = Mathf.Clamp(
 			sensorAngle * influence,
@@ -90,6 +104,7 @@ public sealed class TiltController
 			Mathf.Cos(simulatedAngle)
 		);
 
-		GravityAcceleration = GravityDirection * GravityMagnitude;
+		CurrentGravityAcceleration =
+			GravityDirection * GravityMagnitude;
 	}
 }
