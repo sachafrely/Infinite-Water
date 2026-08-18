@@ -4,6 +4,7 @@
 internal sealed class FluidSimulationCoordinator
 {
 	private readonly PbfSolver solver;
+	private readonly TiltController tiltController;
 
 	/// <summary>
 	/// Creates a coordinator for the active PBF solver.
@@ -13,6 +14,9 @@ internal sealed class FluidSimulationCoordinator
 	{
 		this.solver =
 			solver;
+
+		tiltController =
+			new TiltController();
 	}
 
 	/// <summary>
@@ -22,6 +26,15 @@ internal sealed class FluidSimulationCoordinator
 		ParticleData particles,
 		float dt)
 	{
+		// Read the current device orientation before the solver predicts
+		// particle positions. The solver still owns normal gravity; the tilt
+		// controller applies only the difference caused by device tilt.
+		tiltController.Update(dt);
+		tiltController.ApplyToParticles(
+			particles,
+			dt
+		);
+
 		// The detailed sub-pass order remains inside PbfSolver:
 		// neighbor search -> density constraints -> lambda solve ->
 		// position deltas -> integration -> collision -> boundary.
