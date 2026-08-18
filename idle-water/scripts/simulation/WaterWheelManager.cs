@@ -25,7 +25,7 @@ internal sealed class WaterWheelManager
 
 	public const float WheelBladeWidth = 7.5f;
 
-	private const float CurrentGenerationThreshold = 0.0005f;
+	private const float CurrentGenerationThreshold = 0.002f;
 
 	// ============================================================
 	// Dependencies

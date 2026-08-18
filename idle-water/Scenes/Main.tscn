@@ -682,10 +682,9 @@ mouse_filter = 2
 [node name="CenterUI" type="Control" parent="." unique_id=1096158914]
 layout_mode = 3
 anchors_preset = 0
-offset_left = -1.0
-offset_top = 547.0
-offset_right = 719.0
-offset_bottom = 1127.0
+offset_top = 550.0
+offset_right = 720.0
+offset_bottom = 1160.0
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterUI" unique_id=1537815097]
 z_index = 99
