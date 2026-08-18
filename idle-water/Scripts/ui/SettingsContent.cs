@@ -5,6 +5,9 @@ using Godot;
 ///
 /// This script is responsible only for the actual settings UI.
 /// The window background and border are handled by SettingsWindow.
+///
+/// Tilt itself comes from the device accelerometer. This UI only
+/// controls how strongly the accelerometer tilt influences the simulation.
 /// </summary>
 public partial class SettingsContent : Control
 {
@@ -21,20 +24,24 @@ public partial class SettingsContent : Control
 
 	private const float SeparatorWidth = 2.0f;
 
-	private const float SliderTopOffset = 78.0f;
-	private const float SliderHeight = 16.0f;
-	private const float SliderHandleSize = 12.0f;
+	private const float SliderTopOffset = 58.0f;
+	private const float SliderBarHeight = 8.0f;
+	private const float SliderHandleWidth = 24.0f;
+	private const float SliderHandleHeight = 22.0f;
 	private const float SliderSideMargin = 10.0f;
+	private const float SliderHitPadding = 10.0f;
 
 	// ============================================================
 	// TILT SETTINGS
 	// ============================================================
 
-	private const float MinimumTiltAngle = -45.0f;
-	private const float MaximumTiltAngle = 45.0f;
-	private const float TiltStep = 1.0f;
+	// 0% means the accelerometer has no influence on the simulation.
+	// 100% means the accelerometer is applied at full configured strength.
+	private const float MinimumTiltInfluenceRatio = 0.0f;
+	private const float MaximumTiltInfluenceRatio = 1.0f;
+	private const float TiltInfluenceStep = 0.01f;
 
-	private float _tiltAngle = 0.0f;
+	private float _tiltInfluenceRatio = 0.0f;
 	private bool _isDraggingTiltSlider;
 
 	// ============================================================
@@ -42,44 +49,28 @@ public partial class SettingsContent : Control
 	// ============================================================
 
 	private static readonly Color TitleColor =
-		new Color(
-			1.0f,
-			1.0f,
-			1.0f,
-			1.0f
-		);
+		new Color(1.0f, 1.0f, 1.0f, 1.0f);
 
 	private static readonly Color SeparatorColor =
-		new Color(
-			0.35f,
-			0.35f,
-			0.35f,
-			1.0f
-		);
+		new Color(0.35f, 0.35f, 0.35f, 1.0f);
 
-	private static readonly Color SliderTrackColor =
-		new Color(
-			0.25f,
-			0.25f,
-			0.27f,
-			1.0f
-		);
+	// Old-school dark slider bar.
+	private static readonly Color SliderBarColor =
+		new Color(0.12f, 0.12f, 0.13f, 1.0f);
 
-	private static readonly Color SliderFillColor =
-		new Color(
-			0.75f,
-			0.75f,
-			0.75f,
-			1.0f
-		);
+	// Slightly lighter edge so the rendered bar remains readable.
+	private static readonly Color SliderBarEdgeColor =
+		new Color(0.28f, 0.28f, 0.29f, 1.0f);
 
-	private static readonly Color SliderCenterColor =
-		new Color(
-			0.45f,
-			0.45f,
-			0.45f,
-			1.0f
-		);
+	// Rectangular push button / slider handle.
+	private static readonly Color SliderHandleColor =
+		new Color(0.72f, 0.72f, 0.72f, 1.0f);
+
+	private static readonly Color SliderHandleHighlightColor =
+		new Color(0.90f, 0.90f, 0.90f, 1.0f);
+
+	private static readonly Color SliderHandleShadowColor =
+		new Color(0.35f, 0.35f, 0.36f, 1.0f);
 
 	// ============================================================
 	// GODOT
@@ -108,7 +99,7 @@ public partial class SettingsContent : Control
 			if (mouseButton.Pressed && IsMouseOverTiltSlider(mouseButton.Position))
 			{
 				_isDraggingTiltSlider = true;
-				SetTiltFromMousePosition(mouseButton.Position.X);
+				SetTiltInfluenceFromMousePosition(mouseButton.Position.X);
 				AcceptEvent();
 				return;
 			}
@@ -123,7 +114,7 @@ public partial class SettingsContent : Control
 
 		if (@event is InputEventMouseMotion mouseMotion && _isDraggingTiltSlider)
 		{
-			SetTiltFromMousePosition(mouseMotion.Position.X);
+			SetTiltInfluenceFromMousePosition(mouseMotion.Position.X);
 			AcceptEvent();
 		}
 	}
@@ -147,10 +138,7 @@ public partial class SettingsContent : Control
 
 		DrawString(
 			font,
-			new Vector2(
-				LeftMargin,
-				TopMargin
-			),
+			new Vector2(LeftMargin, TopMargin),
 			"SETTINGS",
 			HorizontalAlignment.Left,
 			-1,
@@ -162,18 +150,11 @@ public partial class SettingsContent : Control
 		// TITLE SEPARATOR
 		// --------------------------------------------------------
 
-		float separatorY =
-			TopMargin + 15.0f;
+		float separatorY = TopMargin + 15.0f;
 
 		DrawLine(
-			new Vector2(
-				LeftMargin,
-				separatorY
-			),
-			new Vector2(
-				Size.X - LeftMargin,
-				separatorY
-			),
+			new Vector2(LeftMargin, separatorY),
+			new Vector2(Size.X - LeftMargin, separatorY),
 			SeparatorColor,
 			SeparatorWidth
 		);
@@ -182,15 +163,11 @@ public partial class SettingsContent : Control
 		// TILT SECTION
 		// --------------------------------------------------------
 
-		float sectionY =
-			separatorY + 35.0f;
+		float sectionY = separatorY + 35.0f;
 
 		DrawString(
 			font,
-			new Vector2(
-				LeftMargin,
-				sectionY
-			),
+			new Vector2(LeftMargin, sectionY),
 			"TILT",
 			HorizontalAlignment.Left,
 			-1,
@@ -199,34 +176,27 @@ public partial class SettingsContent : Control
 		);
 
 		// --------------------------------------------------------
-		// TILT VALUE
+		// TILT INFLUENCE RATIO
 		// --------------------------------------------------------
 
 		DrawString(
 			font,
-			new Vector2(
-				Size.X - LeftMargin,
-				sectionY
-			),
-			$"{GetDisplayTiltAngle():+0;-0;0}°",
+			new Vector2(Size.X - LeftMargin, sectionY),
+			$"TILT INFLUENCE {GetDisplayTiltInfluence()}%",
 			HorizontalAlignment.Right,
-			140.0f,
+			200.0f,
 			SettingFontSize,
 			TitleColor
 		);
 
-		// --------------------------------------------------------
-		// TILT SLIDER
-		// --------------------------------------------------------
-
-		DrawTiltSlider(font, sectionY + SliderTopOffset);
+		DrawTiltInfluenceSlider(sectionY + SliderTopOffset);
 	}
 
 	// ============================================================
-	// TILT SLIDER
+	// TILT INFLUENCE SLIDER
 	// ============================================================
 
-	private void DrawTiltSlider(Font font, float sliderY)
+	private void DrawTiltInfluenceSlider(float sliderY)
 	{
 		float sliderLeft = LeftMargin + SliderSideMargin;
 		float sliderRight = Size.X - LeftMargin - SliderSideMargin;
@@ -237,80 +207,78 @@ public partial class SettingsContent : Control
 			return;
 		}
 
-		float centerX = sliderLeft + sliderWidth * 0.5f;
-		float handleX = GetTiltSliderX(sliderLeft, sliderWidth);
-		float trackY = sliderY + SliderHeight * 0.5f;
+		float barY = sliderY + SliderHandleHeight * 0.5f;
+		float handleX = GetTiltInfluenceSliderX(sliderLeft, sliderWidth);
 
-		// Full slider track.
+		// --------------------------------------------------------
+		// DARK BAR
+		// --------------------------------------------------------
+
 		DrawRect(
 			new Rect2(
 				sliderLeft,
-				trackY - SliderHeight * 0.5f,
+				barY - SliderBarHeight * 0.5f,
 				sliderWidth,
-				SliderHeight
+				SliderBarHeight
 			),
-			SliderTrackColor,
+			SliderBarColor,
 			true
 		);
-
-		// Center marker represents neutral tilt.
-		DrawRect(
-			new Rect2(
-				centerX - 1.0f,
-				trackY - SliderHeight * 0.5f - 3.0f,
-				2.0f,
-				SliderHeight + 6.0f
-			),
-			SliderCenterColor,
-			true
-		);
-
-		// Filled portion from neutral to the current angle.
-		float fillLeft = Mathf.Min(centerX, handleX);
-		float fillRight = Mathf.Max(centerX, handleX);
 
 		DrawRect(
 			new Rect2(
-				fillLeft,
-				trackY - SliderHeight * 0.5f,
-				fillRight - fillLeft,
-				SliderHeight
+				sliderLeft,
+				barY - SliderBarHeight * 0.5f,
+				sliderWidth,
+				SliderBarHeight
 			),
-			SliderFillColor,
-			true
+			SliderBarEdgeColor,
+			false,
+			1.0f
 		);
 
-		// Slider handle.
-		DrawRect(
-			new Rect2(
-				handleX - SliderHandleSize * 0.5f,
-				trackY - SliderHandleSize * 0.5f,
-				SliderHandleSize,
-				SliderHandleSize
-			),
-			TitleColor,
-			true
+		// --------------------------------------------------------
+		// RECTANGULAR PUSH BUTTON
+		// --------------------------------------------------------
+
+		Rect2 handleRect = new Rect2(
+			handleX - SliderHandleWidth * 0.5f,
+			barY - SliderHandleHeight * 0.5f,
+			SliderHandleWidth,
+			SliderHandleHeight
 		);
 
-		// End labels.
-		DrawString(
-			font,
-			new Vector2(sliderLeft, trackY + 28.0f),
-			"-45°",
-			HorizontalAlignment.Left,
-			-1,
-			SettingFontSize,
-			TitleColor
+		// Main face.
+		DrawRect(handleRect, SliderHandleColor, true);
+
+		// Bright top/left edge.
+		DrawLine(
+			handleRect.Position,
+			new Vector2(handleRect.End.X, handleRect.Position.Y),
+			SliderHandleHighlightColor,
+			2.0f
 		);
 
-		DrawString(
-			font,
-			new Vector2(sliderRight - 45.0f, trackY + 28.0f),
-			"+45°",
-			HorizontalAlignment.Right,
-			45.0f,
-			SettingFontSize,
-			TitleColor
+		DrawLine(
+			handleRect.Position,
+			new Vector2(handleRect.Position.X, handleRect.End.Y),
+			SliderHandleHighlightColor,
+			2.0f
+		);
+
+		// Dark bottom/right edge gives the button its old-school depth.
+		DrawLine(
+			new Vector2(handleRect.Position.X, handleRect.End.Y),
+			handleRect.End,
+			SliderHandleShadowColor,
+			2.0f
+		);
+
+		DrawLine(
+			new Vector2(handleRect.End.X, handleRect.Position.Y),
+			handleRect.End,
+			SliderHandleShadowColor,
+			2.0f
 		);
 	}
 
@@ -322,8 +290,8 @@ public partial class SettingsContent : Control
 
 		float sliderLeft = LeftMargin;
 		float sliderRight = Size.X - LeftMargin;
-		float sliderTop = sliderY - 10.0f;
-		float sliderBottom = sliderY + SliderHeight + 30.0f;
+		float sliderTop = sliderY - SliderHitPadding;
+		float sliderBottom = sliderY + SliderHandleHeight + SliderHitPadding;
 
 		return mousePosition.X >= sliderLeft &&
 			mousePosition.X <= sliderRight &&
@@ -331,7 +299,7 @@ public partial class SettingsContent : Control
 			mousePosition.Y <= sliderBottom;
 	}
 
-	private void SetTiltFromMousePosition(float mouseX)
+	private void SetTiltInfluenceFromMousePosition(float mouseX)
 	{
 		float sliderLeft = LeftMargin + SliderSideMargin;
 		float sliderRight = Size.X - LeftMargin - SliderSideMargin;
@@ -342,39 +310,32 @@ public partial class SettingsContent : Control
 			return;
 		}
 
-		float normalized =
-			Mathf.Clamp(
-				(mouseX - sliderLeft) / sliderWidth,
-				0.0f,
-				1.0f
-			);
+		float normalized = Mathf.Clamp(
+			(mouseX - sliderLeft) / sliderWidth,
+			0.0f,
+			1.0f
+		);
 
-		float angle =
+		_tiltInfluenceRatio = Mathf.Snapped(
 			Mathf.Lerp(
-				MinimumTiltAngle,
-				MaximumTiltAngle,
+				MinimumTiltInfluenceRatio,
+				MaximumTiltInfluenceRatio,
 				normalized
-			);
+			),
+			TiltInfluenceStep
+		);
 
-		_tiltAngle = Mathf.Snapped(angle, TiltStep);
 		QueueRedraw();
 	}
 
-	private float GetTiltSliderX(float sliderLeft, float sliderWidth)
+	private float GetTiltInfluenceSliderX(float sliderLeft, float sliderWidth)
 	{
-		float normalized =
-			Mathf.InverseLerp(
-				MinimumTiltAngle,
-				MaximumTiltAngle,
-				_tiltAngle
-			);
-
-		return sliderLeft + sliderWidth * normalized;
+		return sliderLeft + sliderWidth * _tiltInfluenceRatio;
 	}
 
-	private int GetDisplayTiltAngle()
+	private int GetDisplayTiltInfluence()
 	{
-		return Mathf.RoundToInt(_tiltAngle);
+		return Mathf.RoundToInt(_tiltInfluenceRatio * 100.0f);
 	}
 
 	// ============================================================
@@ -382,33 +343,33 @@ public partial class SettingsContent : Control
 	// ============================================================
 
 	/// <summary>
-	/// Returns the currently selected tilt angle in degrees.
+	/// Returns the accelerometer influence ratio from 0.0 to 1.0.
+	/// This does not represent an angle.
 	/// </summary>
-	public float GetTiltAngle()
+	public float GetTiltInfluenceRatio()
 	{
-		return _tiltAngle;
+		return _tiltInfluenceRatio;
 	}
 
 	/// <summary>
-	/// Sets the tilt angle and updates the settings UI.
+	/// Sets the accelerometer influence ratio from 0.0 to 1.0.
 	/// </summary>
-	public void SetTiltAngle(float angle)
+	public void SetTiltInfluenceRatio(float ratio)
 	{
-		_tiltAngle =
-			Mathf.Clamp(
-				Mathf.Snapped(angle, TiltStep),
-				MinimumTiltAngle,
-				MaximumTiltAngle
-			);
+		_tiltInfluenceRatio = Mathf.Clamp(
+			Mathf.Snapped(ratio, TiltInfluenceStep),
+			MinimumTiltInfluenceRatio,
+			MaximumTiltInfluenceRatio
+		);
 
 		QueueRedraw();
 	}
 
 	/// <summary>
-	/// Restores neutral tilt.
+	/// Restores the tilt influence to 0%.
 	/// </summary>
-	public void ResetTilt()
+	public void ResetTiltInfluence()
 	{
-		SetTiltAngle(0.0f);
+		SetTiltInfluenceRatio(0.0f);
 	}
 }
