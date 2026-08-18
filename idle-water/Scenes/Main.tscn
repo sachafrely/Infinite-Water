@@ -687,7 +687,7 @@ offset_right = 720.0
 offset_bottom = 1160.0
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterUI" unique_id=1537815097]
-z_index = 99
+z_index = 10
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -701,23 +701,26 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_erwvk")
 
 [node name="WindowBackground" type="Control" parent="CenterUI/PanelContainer" unique_id=160082409]
 visible = false
-z_index = 95
+z_index = 10
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("18_0sclb")
 
 [node name="MarginContainer" type="MarginContainer" parent="CenterUI/PanelContainer" unique_id=299561062]
+z_index = 15
 layout_mode = 2
 
 [node name="Content" type="VBoxContainer" parent="CenterUI/PanelContainer/MarginContainer" unique_id=1600717048]
+z_index = 25
 layout_mode = 2
 
 [node name="SettingsWindow" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1767892773]
-z_index = 100
+z_index = 30
 layout_mode = 2
 script = ExtResource("15_sxkr1")
 
 [node name="SettingsPanel" type="Panel" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow" unique_id=1716082346]
+z_index = 35
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -727,7 +730,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Content" type="VBoxContainer" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel" unique_id=415157806]
-z_index = 105
+z_index = 40
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

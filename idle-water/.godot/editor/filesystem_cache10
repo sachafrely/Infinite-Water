@@ -1,5 +1,5 @@
 9cad1ddce9e5a63143ba340c9520626b
-::res://::1787065410
+::res://::1787068807
 export_presets.cfg::TextFile::-1::1786988187::0::1::::<><><>0<>0<><>::
 icon.svg::CompressedTexture2D::6269370588664782730::1786113595::1786796455::1::::<><><>0<>0<>f9e22cb99bc16227c55628614734dd1b<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
 ::res://assets/::1786826673
@@ -39,8 +39,8 @@ refactor-plan.md::TextFile::-1::1786810550::0::1::::<><><>0<>0<><>::
 roadmap.txt::TextFile::-1::1786917550::0::1::::<><><>0<>0<><>::
 SPECIAL THANKS.txt::TextFile::-1::1786809637::0::1::::<><><>0<>0<><>::
 World Size.txt::TextFile::-1::1786877286::0::1::::<><><>0<>0<><>::
-::res://Scenes/::1786988031
-Main.tscn::PackedScene::4246241242636851641::1786988031::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://assets/sprites/background/Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://assets/sprites/tilesets/Tileset.png<>uid://cyqdboktr73ov::::res://assets/sprites/tilesets/TilesetBackground.png<>uid://k6081dvmnuws::::res://assets/sprites/decorations/20.png<>uid://dxn2tnelhfpsr::::res://Scripts/ui/StatisticsGraph.cs<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://assets/sprites/decorations/8.png<>uid://jl7kwgkk88f6::::res://assets/sprites/decorations/24.png<>uid://km0yghtkadt1::::res://Scripts/ui/StatisticsWindow.cs<>uid://guq02oiwrevb::::res://assets/sprites/decorations/22.png<>uid://jnjp4yns5al3::::res://assets/sprites/decorations/18.png<>uid://b6b7fs31sqmaf::::res://assets/sprites/decorations/26.png<>uid://duwdhy0cyfdf0::::res://Scripts/ui/SettingsWindow.cs<>uid://07lvxomyo7se::::res://assets/sprites/decorations/15.png<>uid://beuk4em8qf13n::::res://assets/sprites/decorations/5.png<>uid://btjayvbdsd16t::::res://Scripts/ui/UiToggleButton.cs<>uid://cg5to84p5aidf::::res://Scripts/ui/SettingsContent.cs<>uid://idpd20skc4op::::res://assets/sprites/decorations/9.png<>uid://0gqfrx74wbgl::::res://assets/sprites/decorations/14.png<>uid://7mdjqr6jnedr::::res://Scripts/ui/RenderedWindowBackground.cs<>uid://diodqrojkp676::::res://Scripts/ui/UiWindowManager.cs
+::res://Scenes/::1787065867
+Main.tscn::PackedScene::4246241242636851641::1787065867::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://assets/sprites/background/Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://assets/sprites/tilesets/Tileset.png<>uid://cyqdboktr73ov::::res://assets/sprites/tilesets/TilesetBackground.png<>uid://k6081dvmnuws::::res://assets/sprites/decorations/20.png<>uid://dxn2tnelhfpsr::::res://Scripts/ui/StatisticsGraph.cs<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://assets/sprites/decorations/8.png<>uid://jl7kwgkk88f6::::res://assets/sprites/decorations/24.png<>uid://km0yghtkadt1::::res://Scripts/ui/StatisticsWindow.cs<>uid://guq02oiwrevb::::res://assets/sprites/decorations/22.png<>uid://jnjp4yns5al3::::res://assets/sprites/decorations/18.png<>uid://b6b7fs31sqmaf::::res://assets/sprites/decorations/26.png<>uid://duwdhy0cyfdf0::::res://Scripts/ui/SettingsWindow.cs<>uid://07lvxomyo7se::::res://assets/sprites/decorations/15.png<>uid://beuk4em8qf13n::::res://assets/sprites/decorations/5.png<>uid://btjayvbdsd16t::::res://Scripts/ui/UiToggleButton.cs<>uid://cg5to84p5aidf::::res://Scripts/ui/SettingsContent.cs<>uid://idpd20skc4op::::res://assets/sprites/decorations/9.png<>uid://0gqfrx74wbgl::::res://assets/sprites/decorations/14.png<>uid://7mdjqr6jnedr::::res://Scripts/ui/RenderedWindowBackground.cs<>uid://diodqrojkp676::::res://Scripts/ui/UiWindowManager.cs
 ::res://Scripts/::1786803057
 ::res://Scripts/core/::1786806180
 FrameProfiler.cs::CSharpScript::9178817618753722961::1786803057::0::1::::<>Node<><>0<>0<><>::
@@ -52,7 +52,7 @@ SimulationDebug.cs::CSharpScript::2740126471432067307::1786804099::0::1::::<><><
 FluidRenderer.cs::CSharpScript::7921401691133765954::1786906575::0::1::::<>Node2D<><>0<>0<><>::
 WaterWheelVisual.cs::CSharpScript::3148581498361463953::1786803057::0::1::::<>Node2D<><>0<>0<><>::
 ::res://Scripts/services/::1786802957
-::res://Scripts/simulation/::1786973343
+::res://Scripts/simulation/::1787065482
 AntiLagController.cs::CSharpScript::1740110381433673501::1786874222::0::1::::<><><>0<>0<><>::
 DensityField.cs::CSharpScript::7894761315659891054::1786892996::0::1::::<><><>0<>0<><>::
 EnergySystem.cs::CSharpScript::7745348140681013386::1786803057::0::1::::<><><>0<>0<><>::
@@ -64,7 +64,7 @@ RainSystem.cs::CSharpScript::5827498214437352643::1786973343::0::1::::<><><>0<>0
 SimulationProfiler.cs::CSharpScript::2808677397490847669::1786833101::0::1::::<><><>0<>0<><>::
 SimulationStepContext.cs::CSharpScript::8827990259277791662::1786804099::0::1::::<><><>0<>0<><>::
 TileMapPhysics.cs::CSharpScript::5099078150710479174::1786836556::0::1::::<>Node2D<><>0<>1<><>::
-WaterWheelManager.cs::CSharpScript::455846312743294118::1786807392::0::1::::<><><>0<>0<><>::
+WaterWheelManager.cs::CSharpScript::455846312743294118::1787065482::0::1::::<><><>0<>0<><>::
 ::res://Scripts/simulation/collision/::1786806180
 GeometryCollisionAdapter.cs::CSharpScript::7442083644744902246::1786804099::0::1::::<><><>0<>0<><>::
 TileCollisionAdapter.cs::CSharpScript::9003007152309295871::1786804099::0::1::::<><><>0<>0<><>::
