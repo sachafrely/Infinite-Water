@@ -27,20 +27,16 @@ internal sealed class FluidSimulationCoordinator
 		float dt)
 	{
 		// Read the current device orientation before the solver predicts
-		// particle positions. The solver still owns normal gravity; the tilt
-		// controller applies only the difference caused by device tilt.
+		// particle positions. Tilt changes the gravity vector itself; it does
+		// not directly modify particle velocities.
 		tiltController.Update(dt);
-		tiltController.ApplyToParticles(
-			particles,
-			dt
-		);
 
-		// The detailed sub-pass order remains inside PbfSolver:
-		// neighbor search -> density constraints -> lambda solve ->
-		// position deltas -> integration -> collision -> boundary.
+		// The solver owns gravity application and receives the complete gravity
+		// acceleration for this step.
 		solver.Solve(
 			particles,
-			dt
+			dt,
+			tiltController.GravityAcceleration
 		);
 	}
 }

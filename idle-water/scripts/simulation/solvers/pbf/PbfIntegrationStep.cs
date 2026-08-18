@@ -25,7 +25,8 @@ internal static class PbfIntegrationStep
 		ParticleData particles,
 		float dt,
 		int count,
-		PbfState state)
+		PbfState state,
+		Vector2 gravityAcceleration)
 	{
 		float[] posX = particles.PosX;
 		float[] posY = particles.PosY;
@@ -169,6 +170,7 @@ internal static class PbfIntegrationStep
 					dt,
 					impactNormalX,
 					impactNormalY,
+					gravityAcceleration,
 					ref finalVelocityX,
 					ref finalVelocityY
 				);
@@ -214,6 +216,7 @@ internal static class PbfIntegrationStep
 		float dt,
 		float[] impactNormalX,
 		float[] impactNormalY,
+		Vector2 gravityAcceleration,
 		ref float velocityX,
 		ref float velocityY)
 	{
@@ -239,14 +242,16 @@ internal static class PbfIntegrationStep
 		normalY *= inverseLength;
 
 		float gravityNormal =
-			PbfSolver.Gravity * normalY;
+			gravityAcceleration.X * normalX +
+			gravityAcceleration.Y * normalY;
 
 		float tangentGravityX =
-			-normalX * gravityNormal;
+			gravityAcceleration.X -
+			gravityNormal * normalX;
 
 		float tangentGravityY =
-			PbfSolver.Gravity -
-			normalY * gravityNormal;
+			gravityAcceleration.Y -
+			gravityNormal * normalY;
 
 		float scale =
 			dt *

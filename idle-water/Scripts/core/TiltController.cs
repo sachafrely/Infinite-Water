@@ -2,22 +2,27 @@ using Godot;
 
 /// <summary>
 /// Reads the device accelerometer and converts its tilt into a 2D gravity
-/// direction for the water simulation.
+/// acceleration for the water simulation.
 ///
-/// The configured TiltSettings.TiltInfluenceRatio blends the measured device
-/// direction with normal downward gravity. At 0% the simulation is unchanged.
-/// At 100% the measured device tilt is used at full strength.
+/// The configured TiltSettings.TiltInfluenceRatio controls the maximum
+/// simulated tilt angle. At 0% gravity is straight down. At 100% the
+/// measured tilt can reach the configured maximum of 30 degrees.
 /// </summary>
 public sealed class TiltController
 {
 	private const float GravityMagnitude = 300.0f;
+	private const float MaximumTiltDegrees = 30.0f;
 	private const float SensorMinimumMagnitude = 1.0f;
 	private const float SensorSmoothing = 0.15f;
 
 	private Vector3 smoothedAccelerometer = Vector3.Zero;
 	private bool hasSensorSample;
 
-	public Vector2 GravityDirection { get; private set; } = Vector2.Down;
+	public Vector2 GravityAcceleration { get; private set; } =
+		Vector2.Down * GravityMagnitude;
+
+	public Vector2 GravityDirection { get; private set; } =
+		Vector2.Down;
 
 	public void Update(float delta)
 	{
@@ -26,6 +31,7 @@ public sealed class TiltController
 		if (influence <= 0.0001f)
 		{
 			GravityDirection = Vector2.Down;
+			GravityAcceleration = Vector2.Down * GravityMagnitude;
 			return;
 		}
 
@@ -41,22 +47,17 @@ public sealed class TiltController
 			else
 			{
 				float smoothing = Mathf.Clamp(SensorSmoothing * delta * 60.0f, 0.0f, 1.0f);
-				smoothedAccelerometer = smoothedAccelerometer.Lerp(
-					accelerometer,
-					smoothing
-				);
+				smoothedAccelerometer = smoothedAccelerometer.Lerp(accelerometer, smoothing);
 			}
 		}
 
 		if (!hasSensorSample)
 		{
 			GravityDirection = Vector2.Down;
+			GravityAcceleration = Vector2.Down * GravityMagnitude;
 			return;
 		}
 
-		// Android's default sensor axes use +X to the right and +Y upward.
-		// For the portrait game, gravity therefore maps to +X and -Y in the
-		// simulation's 2D coordinates.
 		Vector2 sensorDirection = new Vector2(
 			smoothedAccelerometer.X,
 			-smoothedAccelerometer.Y
@@ -64,41 +65,31 @@ public sealed class TiltController
 
 		if (sensorDirection.LengthSquared() < 0.0001f)
 		{
-			// When the phone is nearly flat, the screen-plane projection is
-			// undefined. Keep the normal downward direction in that case.
-			sensorDirection = Vector2.Down;
-		}
-		else
-		{
-			sensorDirection = sensorDirection.Normalized();
-		}
-
-		GravityDirection = Vector2.Down.Lerp(
-			sensorDirection,
-			influence
-		).Normalized();
-	}
-
-	/// <summary>
-	/// Applies the current tilt gravity as an acceleration delta before the
-	/// normal PBF solver applies its existing downward gravity.
-	/// </summary>
-	public void ApplyToParticles(ParticleData particles, float delta)
-	{
-		if (particles.Count <= 0 || delta <= 0.0f)
+			GravityDirection = Vector2.Down;
+			GravityAcceleration = Vector2.Down * GravityMagnitude;
 			return;
-
-		Vector2 desiredGravity = GravityDirection * GravityMagnitude;
-
-		// PbfSolver already applies (0, GravityMagnitude). Add only the
-		// difference so normal gravity is not applied twice.
-		float deltaGravityX = desiredGravity.X;
-		float deltaGravityY = desiredGravity.Y - GravityMagnitude;
-
-		for (int i = 0; i < particles.Count; i++)
-		{
-			particles.VelX[i] += deltaGravityX * delta;
-			particles.VelY[i] += deltaGravityY * delta;
 		}
+
+		sensorDirection = sensorDirection.Normalized();
+
+		float sensorAngle = Mathf.Atan2(
+			sensorDirection.X,
+			sensorDirection.Y
+		);
+
+		float maximumTiltRadians = Mathf.DegToRad(MaximumTiltDegrees);
+
+		float simulatedAngle = Mathf.Clamp(
+			sensorAngle * influence,
+			-maximumTiltRadians,
+			maximumTiltRadians
+		);
+
+		GravityDirection = new Vector2(
+			Mathf.Sin(simulatedAngle),
+			Mathf.Cos(simulatedAngle)
+		);
+
+		GravityAcceleration = GravityDirection * GravityMagnitude;
 	}
 }

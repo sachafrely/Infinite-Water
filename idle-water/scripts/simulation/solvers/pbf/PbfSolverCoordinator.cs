@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Godot;
 
 /// <summary>
 /// PbfSolverCoordinator — top-level coordinator for the PBF pipeline.
@@ -28,29 +29,12 @@ using System.Diagnostics;
 /// </summary>
 internal sealed class PbfSolverCoordinator
 {
-	// ============================================================
-	// Fields
-	// ============================================================
-
 	private readonly SpatialHash hash;
 	private readonly PbfSolver solver;
-
 	private int profilerFrameCounter = 0;
 
-	// ============================================================
-	// State
-	// ============================================================
-
-	/// <summary>
-	/// Mutable per-step state owned by this coordinator.
-	/// Sub-modules access it via method parameters.
-	/// </summary>
 	public PbfState State { get; } =
 		new PbfState();
-
-	// ============================================================
-	// Constructor
-	// ============================================================
 
 	public PbfSolverCoordinator(
 		SpatialHash spatialHash,
@@ -60,13 +44,10 @@ internal sealed class PbfSolverCoordinator
 		solver = pbfSolver;
 	}
 
-	// ============================================================
-	// Main solve
-	// ============================================================
-
 	public void Solve(
 		ParticleData particles,
-		float dt)
+		float dt,
+		Vector2 gravityAcceleration)
 	{
 		profilerFrameCounter++;
 
@@ -128,24 +109,11 @@ internal sealed class PbfSolverCoordinator
 		float[] predX = particles.PredX;
 		float[] predY = particles.PredY;
 
-		// --------------------------------------------------------
-		// Clear collision state
-		// --------------------------------------------------------
-
 		Array.Clear(state.Impacted, 0, count);
 		Array.Clear(state.ImpactNormalX, 0, count);
 		Array.Clear(state.ImpactNormalY, 0, count);
 
-		// --------------------------------------------------------
-		// Rotate wheel before collision detection
-		// --------------------------------------------------------
-
 		solver.StepWheelAndUpdateColliders(dt);
-
-		// --------------------------------------------------------
-		// Prepare terrain collider grid
-		// --------------------------------------------------------
-
 		solver.EnsureColliderGrid();
 
 		// --------------------------------------------------------
@@ -154,13 +122,15 @@ internal sealed class PbfSolverCoordinator
 
 		long predictStart = Stopwatch.GetTimestamp();
 
-		float gravityDt = PbfSolver.Gravity * dt;
+		float gravityDtX = gravityAcceleration.X * dt;
+		float gravityDtY = gravityAcceleration.Y * dt;
 
 		for (int i = 0; i < count; i++)
 		{
-			float vx = velX[i];
-			float vy = velY[i] + gravityDt;
+			float vx = velX[i] + gravityDtX;
+			float vy = velY[i] + gravityDtY;
 
+			velX[i] = vx;
 			velY[i] = vy;
 
 			predX[i] = posX[i] + vx * dt;
@@ -169,10 +139,6 @@ internal sealed class PbfSolverCoordinator
 
 		predictMs =
 			ElapsedMilliseconds(predictStart);
-
-		// --------------------------------------------------------
-		// Spatial hash
-		// --------------------------------------------------------
 
 		long spatialHashStart =
 			Stopwatch.GetTimestamp();
@@ -186,10 +152,6 @@ internal sealed class PbfSolverCoordinator
 
 		spatialHashMs =
 			ElapsedMilliseconds(spatialHashStart);
-
-		// --------------------------------------------------------
-		// Initial neighbor cache
-		// --------------------------------------------------------
 
 		long neighborCacheStart =
 			Stopwatch.GetTimestamp();
@@ -217,20 +179,12 @@ internal sealed class PbfSolverCoordinator
 		neighborCacheMs =
 			ElapsedMilliseconds(neighborCacheStart);
 
-		// --------------------------------------------------------
-		// Particle packing profiler
-		// --------------------------------------------------------
-
 		if (printProfiler)
 		{
 			PbfDebugStats.CalculatePackingStats(
 				predX, predY, count, state
 			);
 		}
-
-		// --------------------------------------------------------
-		// PBF iterations
-		// --------------------------------------------------------
 
 		long pbfStart = Stopwatch.GetTimestamp();
 
@@ -312,15 +266,15 @@ internal sealed class PbfSolverCoordinator
 
 		pbfMs = ElapsedMilliseconds(pbfStart);
 
-		// --------------------------------------------------------
-		// Velocity integration and position commit
-		// --------------------------------------------------------
-
 		long velocityStart =
 			Stopwatch.GetTimestamp();
 
 		PbfIntegrationStep.Finalize(
-			particles, dt, count, state
+			particles,
+			dt,
+			count,
+			state,
+			gravityAcceleration
 		);
 
 		velocityMs =
@@ -342,10 +296,6 @@ internal sealed class PbfSolverCoordinator
 			);
 		}
 	}
-
-	// ============================================================
-	// Timing helper
-	// ============================================================
 
 	private static double ElapsedMilliseconds(
 		long startTimestamp)
