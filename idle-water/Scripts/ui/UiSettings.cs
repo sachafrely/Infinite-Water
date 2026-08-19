@@ -4,6 +4,9 @@ using Godot;
 /// Central configuration for the visual style of the game's UI.
 /// UI scripts should reference these values instead of defining their own
 /// copies of shared colors, borders, or font sizes.
+///
+/// The UI is touch-first for Android. There is intentionally no hover state
+/// or hover-specific color.
 /// </summary>
 public static class UiSettings
 {
@@ -11,15 +14,12 @@ public static class UiSettings
 	// SHARED UI COLORS
 	// ============================================================
 
-	/// <summary>
-	/// Shared border color for windows and buttons.
-	/// </summary>
 	public static readonly Color BorderColor =
 		new Color(0.75f, 0.75f, 0.75f, 1.0f);
 
 	/// <summary>
-	/// Background color of an open window.
-	/// The corresponding open window button uses this same color.
+	/// Background color of an open window. The corresponding open
+	/// window button uses this same color.
 	/// </summary>
 	public static readonly Color WindowColor =
 		new Color(0.16f, 0.16f, 0.17f, 0.97f);
@@ -59,15 +59,4 @@ public static class UiSettings
 
 	public static readonly Color FontColorFps =
 		new Color(0.40f, 0.40f, 0.40f, 1.0f);
-
-	// ============================================================
-	// DERIVED UI COLORS
-	// ============================================================
-
-	/// <summary>
-	/// Hover state for a closed button.
-	/// The open button does not use this color; it uses WindowColor.
-	/// </summary>
-	public static Color ButtonHoverColor =>
-		ButtonColor.Lightened(0.35f);
 }
