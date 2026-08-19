@@ -10,9 +10,6 @@ public partial class UiToggleButton : Control
 	public string ButtonText { get; set; } = "Statistics";
 
 	[Export]
-	public int FontSize { get; set; } = UiSettings.FontSizeMedium;
-
-	[Export]
 	public string WindowName { get; set; } = "StatisticsWindow";
 
 	// ============================================================
@@ -94,12 +91,13 @@ public partial class UiToggleButton : Control
 		);
 
 		Font font = ThemeDB.FallbackFont;
+		int fontSize = UiSettings.FontSizeMedium;
 
 		Vector2 textSize = font.GetStringSize(
 			ButtonText,
 			HorizontalAlignment.Left,
 			-1,
-			FontSize
+			fontSize
 		);
 
 		Vector2 textPosition = new Vector2(
@@ -113,7 +111,7 @@ public partial class UiToggleButton : Control
 			ButtonText,
 			HorizontalAlignment.Left,
 			-1,
-			FontSize,
+			fontSize,
 			UiSettings.FontColorBasic
 		);
 	}
