@@ -15,26 +15,26 @@ public static class UiSettings
 	// ============================================================
 
 	public static readonly Color BorderColor =
-		new Color(0.75f, 0.75f, 0.75f, 1.0f);
+		new Color(0.66f, 0.66f, 0.66f, 1.0f);
 
 	/// <summary>
 	/// Background color of an open window. The corresponding open
 	/// window button uses this same color.
 	/// </summary>
 	public static readonly Color WindowColor =
-		new Color(0.16f, 0.16f, 0.17f, 0.97f);
+		new Color(0.18f, 0.18f, 0.18f, 1.0f);
 
 	/// <summary>
 	/// Background color of a closed/inactive button.
 	/// </summary>
 	public static readonly Color ButtonColor =
-		new Color(0.07f, 0.07f, 0.08f, 1.0f);
+		new Color(0.07f, 0.07f, 0.07f, 1.0f);
 
 	// ============================================================
 	// SHARED UI DIMENSIONS
 	// ============================================================
 
-	public const float BorderSize = 2.0f;
+	public const float BorderSize = 3.0f;
 
 	// ============================================================
 	// SHARED FONT SIZES
@@ -42,7 +42,7 @@ public static class UiSettings
 
 	public const int FontSizeBig = 28;
 	public const int FontSizeMedium = 22;
-	public const int FontSizeSmall = 18;
+	public const int FontSizeSmall = 20;
 
 	// ============================================================
 	// SHARED FONT COLORS

@@ -84,6 +84,8 @@ public partial class StatisticsGraph : Control
 
 	// ============================================================
 	// TOP GRAPH COLORS
+	// !! THIS SHOULD NOT BE DEFINED HERE !! 
+	// !! HE HAS TO TAKE IT FROM THE GENERAL UI SETTINGS !!
 	// ============================================================
 
 	private Color particlesColor =
