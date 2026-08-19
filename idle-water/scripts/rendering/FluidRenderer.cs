@@ -1,4 +1,3 @@
-
 using System;
 using System.Diagnostics;
 using Godot;
@@ -107,15 +106,15 @@ public partial class FluidRenderer : Node2D
 		int densityWidth,
 		int densityHeight,
 		float densityCellSize,
-	float worldMinX,
-	float worldMinY)
+		float worldMinX,
+		float worldMinY)
 	{
 		width = densityWidth;
 		height = densityHeight;
 		cellSize = densityCellSize;
 
-	this.worldMinX = worldMinX;
-	this.worldMinY = worldMinY;
+		this.worldMinX = worldMinX;
+		this.worldMinY = worldMinY;
 
 		pixelWidth =
 			Mathf.CeilToInt(
@@ -199,10 +198,10 @@ public partial class FluidRenderer : Node2D
 			false;
 
 		waterSprite.Position =
-	new Vector2(
-		worldMinX,
-		worldMinY
-	);
+			new Vector2(
+				worldMinX,
+				worldMinY
+			);
 	
 		// --------------------------------------------------------
 		// Shader
@@ -264,16 +263,6 @@ uniform float surface_brightness = 0.14;
 uniform float local_highlight_strength = 0.45;
 
 uniform float local_highlight_brightness = 0.14;
-
-// ============================================================
-// Shimmer is Disabled. It will be completely removed later.
-// ============================================================
-
-uniform float shimmer_strength = 0.00;
-
-uniform float shimmer_speed = 0.8;
-
-uniform float shimmer_scale = 0.005;
 
 // ============================================================
 // Fragment
@@ -395,68 +384,6 @@ void fragment()
 		surface_color *
 		localHighlight *
 		local_highlight_brightness;
-
-	// ========================================================
-	// Shimmer
-	// ========================================================
-
-	float wave1 =
-		sin(
-			UV.x *
-			300.0 *
-			shimmer_scale +
-
-			UV.y *
-			300.0 *
-			shimmer_scale *
-			0.35 +
-
-			TIME *
-			shimmer_speed
-		);
-
-	float wave2 =
-		sin(
-			UV.x *
-			300.0 *
-			shimmer_scale *
-			1.73 -
-
-			UV.y *
-			300.0 *
-			shimmer_scale *
-			0.55 -
-
-			TIME *
-			shimmer_speed *
-			0.73
-		);
-
-	float wave =
-		(wave1 + wave2) *
-		0.5;
-
-	wave =
-		wave *
-		0.5 +
-		0.5;
-
-	float shimmerMask =
-		0.20 +
-		surface *
-		0.80;
-
-	float shimmer =
-		wave *
-		shimmer_strength *
-		shimmerMask;
-
-	water +=
-		vec3(
-			shimmer,
-			shimmer,
-			shimmer
-		);
 
 	// ========================================================
 	// Surface highlight
