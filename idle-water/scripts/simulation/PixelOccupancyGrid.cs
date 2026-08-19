@@ -4,9 +4,21 @@ using Godot;
 
 /// <summary>
 /// Tracks per-pixel particle occupancy for rain spawn density checks.
+/// Currently disabled. The class remains as a compatibility shell so the
+/// existing rain/simulation architecture does not need to change.
 /// </summary>
 internal sealed class PixelOccupancyGrid
 {
+	// ============================================================
+	// Feature switch
+	// ============================================================
+
+	/// <summary>
+	/// Enables the pixel occupancy system.
+	/// Set to false to completely bypass occupancy tracking and its buffers.
+	/// </summary>
+	public const bool Enabled = false;
+
 	// ============================================================
 	// Default configuration
 	// ============================================================
@@ -107,6 +119,17 @@ internal sealed class PixelOccupancyGrid
 		this.maxPerCell =
 			maxPerCell;
 
+		if (!Enabled)
+		{
+			pixelOccupancy =
+				Array.Empty<int>();
+
+			pixelOccupancyStamp =
+				Array.Empty<int>();
+
+			return;
+		}
+
 		InitializePixelOccupancy();
 	}
 
@@ -119,6 +142,22 @@ internal sealed class PixelOccupancyGrid
 	/// </summary>
 	public void InitializePixelOccupancy()
 	{
+		if (!Enabled)
+		{
+			pixelOccupancy =
+				Array.Empty<int>();
+
+			pixelOccupancyStamp =
+				Array.Empty<int>();
+
+			occupiedPixelIndices.Clear();
+			maxPixelOccupancy = 0;
+			occupiedPixelCount = 0;
+			pixelOccupancyGeneration = 0;
+
+			return;
+		}
+
 		int pixelCount =
 			gridWidth *
 			gridHeight;
@@ -152,6 +191,11 @@ internal sealed class PixelOccupancyGrid
 		out int pixelIndex)
 	{
 		pixelIndex = -1;
+
+		if (!Enabled)
+		{
+			return false;
+		}
 
 		int pixelX =
 			Mathf.FloorToInt(
@@ -192,6 +236,11 @@ internal sealed class PixelOccupancyGrid
 	public int GetPixelOccupancy(
 		int pixelIndex)
 	{
+		if (!Enabled)
+		{
+			return 0;
+		}
+
 		if (
 			pixelIndex < 0 ||
 			pixelIndex >= pixelOccupancy.Length)
@@ -217,6 +266,13 @@ internal sealed class PixelOccupancyGrid
 		float y,
 		out int pixelIndex)
 	{
+		pixelIndex = -1;
+
+		if (!Enabled)
+		{
+			return true;
+		}
+
 		if (
 			!TryGetPixelIndex(
 				x,
@@ -244,6 +300,11 @@ internal sealed class PixelOccupancyGrid
 	public void RegisterParticlePixel(
 		int pixelIndex)
 	{
+		if (!Enabled)
+		{
+			return;
+		}
+
 		if (
 			pixelIndex < 0 ||
 			pixelIndex >= pixelOccupancy.Length)
@@ -286,6 +347,11 @@ internal sealed class PixelOccupancyGrid
 	public void RebuildPixelOccupancy(
 		ParticleData particles)
 	{
+		if (!Enabled)
+		{
+			return;
+		}
+
 		pixelOccupancyGeneration++;
 
 		if (
