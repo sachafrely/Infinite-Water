@@ -739,8 +739,8 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("16_fq0cl")
 
-[node name="00" type="Sprite2D" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=521779533]
-position = Vector2(620, 81)
+[node name="GravityArrow" type="Sprite2D" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=521779533]
+position = Vector2(620, 200)
 rotation = -4.712389
 scale = Vector2(3, 3)
 texture = ExtResource("19_3tgeq")
@@ -789,9 +789,12 @@ script = ExtResource("16_346fj")
 
 [node name="SellEnergyButton" type="Control" parent="BottomUI" unique_id=582732163]
 anchors_preset = 0
-offset_left = -331.0
-offset_right = -185.0
+offset_left = -234.0
+offset_right = -130.0
 offset_bottom = 120.0
+script = ExtResource("16_346fj")
+ButtonText = "Sell Energy"
+WindowName = ""
 
 [node name="SettingsButton" type="Control" parent="BottomUI" unique_id=1302883395]
 anchors_preset = 0
