@@ -1,0 +1,49 @@
+name: Fix StatisticsGraph UI Colors
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message != 'Fix StatisticsGraph to use UiSettings colors'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update StatisticsGraph.cs
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('idle-water/Scripts/ui/StatisticsGraph.cs')
+          text = path.read_text(encoding='utf-8')
+
+          old = '''\t// ============================================================\n\t// TOP GRAPH COLORS\n\t// ============================================================\n\n\tprivate readonly Color particlesColor =\n\t\tnew Color(0.05f, 0.40f, 0.75f);\n\n\tprivate readonly Color energyColor =\n\t\tnew Color(1.0f, 0.75f, 0.25f);\n\n\tprivate readonly Color fpsColor =\n\t\tnew Color(0.4f, 0.4f, 0.4f);\n'''
+
+          new = '''\t// ============================================================\n\t// TOP GRAPH COLORS\n\t// ============================================================\n\t// Colors are defined centrally in UiSettings.cs.\n'''
+
+          if old not in text:
+              raise SystemExit('Expected local TOP GRAPH COLORS block was not found.')
+
+          text = text.replace(old, new, 1)
+          text = text.replace('particlesColor', 'UiSettings.FontColorWater')
+          text = text.replace('energyColor', 'UiSettings.FontColorEnergy')
+          text = text.replace('fpsColor', 'UiSettings.FontColorFps')
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Commit and push
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/fix-statistics-graph-ui-colors.yml
+          git add idle-water/Scripts/ui/StatisticsGraph.cs
+          git commit -m 'Fix StatisticsGraph to use UiSettings colors'
+          git push
