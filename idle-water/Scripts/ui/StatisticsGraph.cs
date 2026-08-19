@@ -86,13 +86,13 @@ public partial class StatisticsGraph : Control
 	// TOP GRAPH COLORS
 	// ============================================================
 
-	private readonly Color particlesColor =
+	private Color particlesColor =
 		new Color(0.05f, 0.40f, 0.75f);
 
-	private readonly Color energyColor =
+	private Color energyColor =
 		new Color(1.0f, 0.75f, 0.25f);
 
-	private readonly Color fpsColor =
+	private Color fpsColor =
 		new Color(0.4f, 0.4f, 0.4f);
 
 	// ============================================================
