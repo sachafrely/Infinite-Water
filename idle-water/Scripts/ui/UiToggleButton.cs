@@ -10,7 +10,7 @@ public partial class UiToggleButton : Control
 	public string ButtonText { get; set; } = "Statistics";
 
 	[Export]
-	public int FontSize { get; set; } = 24;
+	public int FontSize { get; set; } = UiSettings.FontSizeMedium;
 
 	[Export]
 	public string WindowName { get; set; } = "StatisticsWindow";
@@ -20,9 +20,7 @@ public partial class UiToggleButton : Control
 	// ============================================================
 
 	private UiWindowManager windowManager;
-
 	private Rect2 buttonRect;
-
 	private bool isHovered = false;
 
 	// ============================================================
@@ -76,31 +74,11 @@ public partial class UiToggleButton : Control
 
 	public override void _Draw()
 	{
-		// --------------------------------------------------------
-		// Button rectangle
-		// --------------------------------------------------------
-
-		buttonRect = new Rect2(
-			0,
-			0,
-			Size.X,
-			Size.Y
-		);
-
-		// --------------------------------------------------------
-		// Pixel-style button background
-		// --------------------------------------------------------
+		buttonRect = new Rect2(0, 0, Size.X, Size.Y);
 
 		Color backgroundColor = isHovered
-			? new Color(0.22f, 0.22f, 0.22f, 1.0f)
-			: new Color(0.12f, 0.12f, 0.12f, 1.0f);
-
-		Color borderColor = new Color(
-			0.75f,
-			0.75f,
-			0.75f,
-			1.0f
-		);
+			? UiSettings.ButtonHoverColor
+			: UiSettings.ButtonColor;
 
 		DrawRect(
 			buttonRect,
@@ -110,14 +88,10 @@ public partial class UiToggleButton : Control
 
 		DrawRect(
 			buttonRect,
-			borderColor,
+			UiSettings.BorderColor,
 			false,
-			2.0f
+			UiSettings.BorderSize
 		);
-
-		// --------------------------------------------------------
-		// Text
-		// --------------------------------------------------------
 
 		Font font = ThemeDB.FallbackFont;
 
@@ -140,7 +114,7 @@ public partial class UiToggleButton : Control
 			HorizontalAlignment.Left,
 			-1,
 			FontSize,
-			new Color(1, 1, 1, 1)
+			UiSettings.FontColorBasic
 		);
 	}
 
