@@ -36,21 +36,11 @@ public partial class RenderedWindowBackground : Control
 		}
 	}
 
-	private int _borderWidth = 3;
+	private int _borderWidth = (int)UiSettings.BorderSize;
 
-	private Color _fillColor = new Color(
-		0.10f,
-		0.13f,
-		0.18f,
-		0.95f
-	);
+	private Color _fillColor = UiSettings.WindowColor;
 
-	private Color _borderColor = new Color(
-		0.50f,
-		0.65f,
-		0.80f,
-		1.0f
-	);
+	private Color _borderColor = UiSettings.BorderColor;
 
 	public override void _Ready()
 	{
@@ -66,71 +56,42 @@ public partial class RenderedWindowBackground : Control
 
 	public override void _Draw()
 	{
-			DrawRect(
-	new Rect2(0, 0, Size.X, Size.Y),
-	Colors.Red,
-	true
-);
 		if (Size.X <= 0.0f || Size.Y <= 0.0f)
 			return;
 
 		// Main background.
 		DrawRect(
 			new Rect2(Vector2.Zero, Size),
-			FillColor,
+			UiSettings.WindowColor,
 			true
 		);
 
 		// Border.
-		if (BorderWidth > 0)
+		float w = UiSettings.BorderSize;
+
+		if (w > 0.0f)
 		{
-			float w = BorderWidth;
-
-			// Top
 			DrawRect(
-				new Rect2(
-					0,
-					0,
-					Size.X,
-					w
-				),
-				BorderColor,
+				new Rect2(0, 0, Size.X, w),
+				UiSettings.BorderColor,
 				true
 			);
 
-			// Bottom
 			DrawRect(
-				new Rect2(
-					0,
-					Size.Y - w,
-					Size.X,
-					w
-				),
-				BorderColor,
+				new Rect2(0, Size.Y - w, Size.X, w),
+				UiSettings.BorderColor,
 				true
 			);
 
-			// Left
 			DrawRect(
-				new Rect2(
-					0,
-					0,
-					w,
-					Size.Y
-				),
-				BorderColor,
+				new Rect2(0, 0, w, Size.Y),
+				UiSettings.BorderColor,
 				true
 			);
 
-			// Right
 			DrawRect(
-				new Rect2(
-					Size.X - w,
-					0,
-					w,
-					Size.Y
-				),
-				BorderColor,
+				new Rect2(Size.X - w, 0, w, Size.Y),
+				UiSettings.BorderColor,
 				true
 			);
 		}
