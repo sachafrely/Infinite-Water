@@ -10,11 +10,12 @@ public partial class UiToggleButton : Control
 
 	private UiWindowManager windowManager;
 	private Rect2 buttonRect;
-	private bool isHovered = false;
 	private bool wasWindowOpen = false;
 
 	public override void _Ready()
 	{
+		// Touch input is all this control needs. No mouse-enter/exit
+		// handling is used because the game is designed for Android.
 		MouseFilter = MouseFilterEnum.Stop;
 
 		windowManager = GetNodeOrNull<UiWindowManager>(
@@ -36,9 +37,6 @@ public partial class UiToggleButton : Control
 	{
 		bool windowOpen = IsAssociatedWindowOpen();
 
-		// UiWindowManager owns the window state. We only watch for a
-		// state change so the button can immediately switch between the
-		// dark button color and the brighter open-window color.
 		if (windowOpen != wasWindowOpen)
 		{
 			wasWindowOpen = windowOpen;
@@ -48,28 +46,12 @@ public partial class UiToggleButton : Control
 
 	public override void _GuiInput(InputEvent @event)
 	{
-		if (@event is InputEventMouseButton mouseButton)
+		if (@event is InputEventMouseButton mouseButton &&
+			mouseButton.ButtonIndex == MouseButton.Left &&
+			mouseButton.Pressed)
 		{
-			if (mouseButton.ButtonIndex == MouseButton.Left &&
-				mouseButton.Pressed)
-			{
-				ToggleWindow();
-				GetViewport().SetInputAsHandled();
-			}
-		}
-	}
-
-	public override void _Notification(int what)
-	{
-		if (what == NotificationMouseEnter)
-		{
-			isHovered = true;
-			QueueRedraw();
-		}
-		else if (what == NotificationMouseExit)
-		{
-			isHovered = false;
-			QueueRedraw();
+			ToggleWindow();
+			GetViewport().SetInputAsHandled();
 		}
 	}
 
@@ -77,22 +59,12 @@ public partial class UiToggleButton : Control
 	{
 		buttonRect = new Rect2(0, 0, Size.X, Size.Y);
 
-		Color backgroundColor;
-
-		if (wasWindowOpen)
-		{
-			// An open button represents the open window, so it uses
-			// exactly the same brighter background as that window.
-			backgroundColor = UiSettings.WindowColor;
-		}
-		else if (isHovered)
-		{
-			backgroundColor = UiSettings.ButtonHoverColor;
-		}
-		else
-		{
-			backgroundColor = UiSettings.ButtonColor;
-		}
+		// There are only two button states:
+		// closed = dark ButtonColor
+		// open   = brighter WindowColor
+		Color backgroundColor = wasWindowOpen
+			? UiSettings.WindowColor
+			: UiSettings.ButtonColor;
 
 		DrawRect(
 			buttonRect,
