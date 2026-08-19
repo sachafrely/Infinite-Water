@@ -85,15 +85,7 @@ public partial class StatisticsGraph : Control
 	// ============================================================
 	// TOP GRAPH COLORS
 	// ============================================================
-
-	private readonly Color particlesColor =
-		new Color(0.05f, 0.40f, 0.75f);
-
-	private readonly Color energyColor =
-		new Color(1.0f, 0.75f, 0.25f);
-
-	private readonly Color fpsColor =
-		new Color(0.4f, 0.4f, 0.4f);
+	// Colors are defined centrally in UiSettings.cs.
 
 	// ============================================================
 	// DATA STRUCTURES
@@ -541,7 +533,7 @@ public partial class StatisticsGraph : Control
 		{
 			DrawPolyline(
 				cachedParticlesPoints,
-				particlesColor,
+				UiSettings.FontColorWater,
 				2.0f,
 				true
 			);
@@ -552,7 +544,7 @@ public partial class StatisticsGraph : Control
 		{
 			DrawPolyline(
 				cachedEnergyPoints,
-				energyColor,
+				UiSettings.FontColorEnergy,
 				2.0f,
 				true
 			);
@@ -563,7 +555,7 @@ public partial class StatisticsGraph : Control
 		{
 			DrawPolyline(
 				cachedFpsPoints,
-				fpsColor,
+				UiSettings.FontColorFps,
 				2.0f,
 				true
 			);
@@ -588,7 +580,7 @@ public partial class StatisticsGraph : Control
 		DrawCircle(
 			new Vector2(x, y - 4.0f),
 			3.0f,
-			particlesColor
+			UiSettings.FontColorWater
 		);
 
 		DrawString(
@@ -601,7 +593,7 @@ public partial class StatisticsGraph : Control
 			HorizontalAlignment.Left,
 			-1,
 			22,
-			particlesColor
+			UiSettings.FontColorWater
 		);
 
 		x += 75.0f;
@@ -609,7 +601,7 @@ public partial class StatisticsGraph : Control
 		DrawCircle(
 			new Vector2(x, y - 4.0f),
 			3.0f,
-			energyColor
+			UiSettings.FontColorEnergy
 		);
 
 		DrawString(
@@ -622,7 +614,7 @@ public partial class StatisticsGraph : Control
 			HorizontalAlignment.Left,
 			-1,
 			20,
-			energyColor
+			UiSettings.FontColorEnergy
 		);
 
 		x += 65.0f;
@@ -630,7 +622,7 @@ public partial class StatisticsGraph : Control
 		DrawCircle(
 			new Vector2(x, y - 4.0f),
 			3.0f,
-			fpsColor
+			UiSettings.FontColorFps
 		);
 
 		DrawString(
@@ -643,7 +635,7 @@ public partial class StatisticsGraph : Control
 			HorizontalAlignment.Left,
 			-1,
 			20,
-			fpsColor
+			UiSettings.FontColorFps
 		);
 	}
 
