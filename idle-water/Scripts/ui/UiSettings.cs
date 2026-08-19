@@ -11,14 +11,24 @@ public static class UiSettings
 	// SHARED UI COLORS
 	// ============================================================
 
+	/// <summary>
+	/// Shared border color for windows and buttons.
+	/// </summary>
 	public static readonly Color BorderColor =
 		new Color(0.75f, 0.75f, 0.75f, 1.0f);
 
+	/// <summary>
+	/// Background color of an open window.
+	/// The corresponding open window button uses this same color.
+	/// </summary>
 	public static readonly Color WindowColor =
-		new Color(0.04f, 0.04f, 0.05f, 0.97f);
+		new Color(0.16f, 0.16f, 0.17f, 0.97f);
 
+	/// <summary>
+	/// Background color of a closed/inactive button.
+	/// </summary>
 	public static readonly Color ButtonColor =
-		new Color(0.12f, 0.12f, 0.12f, 1.0f);
+		new Color(0.07f, 0.07f, 0.08f, 1.0f);
 
 	// ============================================================
 	// SHARED UI DIMENSIONS
@@ -55,8 +65,8 @@ public static class UiSettings
 	// ============================================================
 
 	/// <summary>
-	/// Hover state is derived from ButtonColor so there is only one
-	/// configurable button background color.
+	/// Hover state for a closed button.
+	/// The open button does not use this color; it uses WindowColor.
 	/// </summary>
 	public static Color ButtonHoverColor =>
 		ButtonColor.Lightened(0.35f);
