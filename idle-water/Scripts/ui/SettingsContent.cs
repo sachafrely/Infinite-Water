@@ -5,15 +5,13 @@ using Godot;
 ///
 /// This script renders the settings UI. Tilt itself comes from the device
 /// accelerometer; this UI only controls its influence ratio.
+/// Shared visual configuration comes from UiSettings.
 /// </summary>
 public partial class SettingsContent : Control
 {
 	private const float LeftMargin = 20.0f;
 	private const float TopMargin = 30.0f;
-	private const int TitleFontSize = 28;
-	private const int SectionFontSize = 22;
-	private const int SettingFontSize = 18;
-	private const float SeparatorWidth = 2.0f;
+	private const float SeparatorWidth = UiSettings.BorderSize;
 
 	private const float SliderTopOffset = 58.0f;
 	private const float SliderBarHeight = 8.0f;
@@ -27,14 +25,6 @@ public partial class SettingsContent : Control
 	private const float TiltInfluenceStep = 0.01f;
 
 	private bool _isDraggingTiltSlider;
-
-	private static readonly Color TitleColor = new Color(1.0f, 1.0f, 1.0f, 1.0f);
-	private static readonly Color SeparatorColor = new Color(0.35f, 0.35f, 0.35f, 1.0f);
-	private static readonly Color SliderBarColor = new Color(0.12f, 0.12f, 0.13f, 1.0f);
-	private static readonly Color SliderBarEdgeColor = new Color(0.28f, 0.28f, 0.29f, 1.0f);
-	private static readonly Color SliderHandleColor = new Color(0.72f, 0.72f, 0.72f, 1.0f);
-	private static readonly Color SliderHandleHighlightColor = new Color(0.90f, 0.90f, 0.90f, 1.0f);
-	private static readonly Color SliderHandleShadowColor = new Color(0.35f, 0.35f, 0.36f, 1.0f);
 
 	public override void _Ready()
 	{
@@ -89,8 +79,8 @@ public partial class SettingsContent : Control
 			"SETTINGS",
 			HorizontalAlignment.Left,
 			-1,
-			TitleFontSize,
-			TitleColor
+			UiSettings.FontSizeBig,
+			UiSettings.FontColorBasic
 		);
 
 		float separatorY = TopMargin + 15.0f;
@@ -98,7 +88,7 @@ public partial class SettingsContent : Control
 		DrawLine(
 			new Vector2(LeftMargin, separatorY),
 			new Vector2(Size.X - LeftMargin, separatorY),
-			SeparatorColor,
+			UiSettings.BorderColor.Darkened(0.5f),
 			SeparatorWidth
 		);
 
@@ -110,8 +100,8 @@ public partial class SettingsContent : Control
 			"TILT",
 			HorizontalAlignment.Left,
 			-1,
-			SectionFontSize,
-			TitleColor
+			UiSettings.FontSizeMedium,
+			UiSettings.FontColorBasic
 		);
 
 		DrawString(
@@ -120,8 +110,8 @@ public partial class SettingsContent : Control
 			$"TILT INFLUENCE {GetDisplayTiltInfluence()}%",
 			HorizontalAlignment.Right,
 			200.0f,
-			SettingFontSize,
-			TitleColor
+			UiSettings.FontSizeSmall,
+			UiSettings.FontColorBasic
 		);
 
 		DrawTiltInfluenceSlider(sectionY + SliderTopOffset);
@@ -146,7 +136,7 @@ public partial class SettingsContent : Control
 				sliderWidth,
 				SliderBarHeight
 			),
-			SliderBarColor,
+			UiSettings.ButtonColor,
 			true
 		);
 
@@ -157,7 +147,7 @@ public partial class SettingsContent : Control
 				sliderWidth,
 				SliderBarHeight
 			),
-			SliderBarEdgeColor,
+			UiSettings.BorderColor.Darkened(0.55f),
 			false,
 			1.0f
 		);
@@ -169,33 +159,37 @@ public partial class SettingsContent : Control
 			SliderHandleHeight
 		);
 
-		DrawRect(handleRect, SliderHandleColor, true);
+		Color handleColor = UiSettings.FontColorBasic.Darkened(0.28f);
+		Color handleHighlight = UiSettings.FontColorBasic.Darkened(0.10f);
+		Color handleShadow = UiSettings.FontColorBasic.Darkened(0.65f);
+
+		DrawRect(handleRect, handleColor, true);
 
 		DrawLine(
 			handleRect.Position,
 			new Vector2(handleRect.End.X, handleRect.Position.Y),
-			SliderHandleHighlightColor,
+			handleHighlight,
 			2.0f
 		);
 
 		DrawLine(
 			handleRect.Position,
 			new Vector2(handleRect.Position.X, handleRect.End.Y),
-			SliderHandleHighlightColor,
+			handleHighlight,
 			2.0f
 		);
 
 		DrawLine(
 			new Vector2(handleRect.Position.X, handleRect.End.Y),
 			handleRect.End,
-			SliderHandleShadowColor,
+			handleShadow,
 			2.0f
 		);
 
 		DrawLine(
 			new Vector2(handleRect.End.X, handleRect.Position.Y),
 			handleRect.End,
-			SliderHandleShadowColor,
+			handleShadow,
 			2.0f
 		);
 	}
