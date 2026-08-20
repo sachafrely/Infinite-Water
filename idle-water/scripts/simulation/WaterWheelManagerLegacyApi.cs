@@ -17,23 +17,25 @@ internal static class WaterWheelManagerLegacyApi
 			toSimulationSpace
 		);
 
+		Node2D owner =
+			(Engine.GetMainLoop() as SceneTree)?.CurrentScene as Node2D;
+
+		if (owner == null || EnergySystem.Instance == null)
+		{
+			GD.PushWarning(
+				"WaterWheelManager: Could not initialize wheel purchase UI because the current scene or economy is missing."
+			);
+			return;
+		}
+
 		WheelPurchaseSystem purchaseSystem =
 			new WheelPurchaseSystem(
 				manager,
 				EnergySystem.Instance,
-				managerOwner: FindOwner(manager)
+				owner
 			);
 
 		purchaseSystem.Initialize();
 		manager.InitializeWheelEnergyTracking();
-	}
-
-	private static Node2D FindOwner(
-		WaterWheelManager manager)
-	{
-		// The manager intentionally exposes no owner dependency publicly. The
-		// purchase system is created by the simulator path below through the
-		// manager's existing runtime owner.
-		return manager.GetRuntimeOwner();
 	}
 }
