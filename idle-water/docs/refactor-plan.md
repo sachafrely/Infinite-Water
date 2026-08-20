@@ -1,7 +1,69 @@
 # Refactor Plan — Top-3 Longest Scripts
 
 Generated: 2026-08-15  
-Status: **Phase 1 — Scaffolding only. No code moved yet.**
+**Current state reviewed: 2026-08-20**
+
+---
+
+## Current Refactoring State — 2026-08-20
+
+This section supersedes the original status line below and records the actual state of the project as of **20.08.2026**.
+
+### Overall status
+
+**Refactoring is partially started, but the original Top-3 refactor is not yet completed.**
+
+The project has evolved beyond the original Phase 1 scaffolding state. The repository now has a clearer folder structure with dedicated areas such as:
+
+- `Scripts/core`
+- `Scripts/simulation`
+- `Scripts/ui`
+
+There are also already extracted/supporting systems in the newer structure, including the tilt-related classes (`TiltController`, `TiltSettings`) and other core/simulation/UI components.
+
+However, the main objective of this document remains unfinished: the large monolithic simulation classes have **not yet been systematically split into the responsibility-based files proposed below**.
+
+### Current refactor assessment
+
+| Area | Current state | Assessment |
+|---|---|---|
+| Folder/architecture organization | Core, simulation and UI areas exist | **Started** |
+| Supporting systems extracted | Several newer dedicated systems/classes exist | **Partially done** |
+| `PbfSolver` full responsibility split | Still requires major decomposition | **Not done** |
+| `FluidSimulator` full responsibility split | Still requires major decomposition | **Not done** |
+| `TileMapPhysics` full responsibility split | Still requires major decomposition | **Not done** |
+| Constants/config separation | Some configuration has been moved/organized, but the planned complete separation is not finished | **Partial** |
+| UI separation | UI has its own directory and multiple dedicated scripts, but the larger refactor is unfinished | **Partial** |
+| Gameplay systems separation | Rain, tilt, energy/wheel and related systems have evolved into dedicated components, but coupling remains | **Partial** |
+| Top-3 refactor completion | The planned extraction sequence has not been completed | **Not done** |
+
+### Important conclusion
+
+The project should **not** be described as being in "Phase 1 — Scaffolding only. No code moved yet" anymore. That description was accurate for the original 15.08.2026 snapshot, but it is outdated as of 20.08.2026.
+
+The more accurate status is:
+
+> **Phase 2 — Partial modularization. Several systems have already been separated, but the three major monolithic classes still need their planned responsibility-based refactor.**
+
+The refactor should now continue incrementally rather than restarting the project architecture from scratch.
+
+### Recommended next refactoring order as of 20.08.2026
+
+1. Inspect the current `PbfSolver`, `FluidSimulator`, and `TileMapPhysics` implementations and update their exact line counts/responsibility boundaries.
+2. Convert the remaining monolithic classes to `partial class` where this reduces risk.
+3. Extract constants/configuration without changing behavior.
+4. Extract one self-contained responsibility at a time.
+5. Compile and run the Godot project after every extraction.
+6. Keep existing gameplay behavior unchanged during the refactor.
+7. After the Top-3 are under control, continue with `StatisticsGraph`, `FluidPolygonCollider`, `FrameProfiler`, `WaterWheelVisual`, and `RainSystem`.
+
+**Refactor principle:** this is a structural cleanup, not a gameplay rewrite. Existing behavior should remain unchanged unless a specific bug fix is intentionally being made.
+
+---
+
+## Original Refactor Snapshot — 2026-08-15
+
+Status at the time this plan was generated: **Phase 1 — Scaffolding only. No code moved yet.**
 
 ---
 
@@ -12,6 +74,8 @@ Status: **Phase 1 — Scaffolding only. No code moved yet.**
 | 1 | `Scripts/Fluid/PbfSolver.cs` | 3 611 |
 | 2 | `Scripts/Fluid/FluidSimulator.cs` | 3 216 |
 | 3 | `Scripts/Fluid/TileMapPhysics.cs` | 1 979 |
+
+> These line counts are historical measurements from 15.08.2026. They should not be treated as the current line counts.
 
 ---
 
@@ -124,12 +188,12 @@ scripts/ui/TileMapPhysicsDebugDraw.cs       — _Draw, DebugEdge
 The following files were identified in a follow-up review pass as good targets after the original top-3 are addressed.
 
 | Rank | File | Lines | Rationale |
-|------|------|-------|-----------|
-| 4 | `scripts/rendering/StatisticsGraph.cs` | 1 619 | Mixes graph layout constants, two distinct data series (top + bottom graph), drawing logic, and sample management. Each concern can become a separate partial-class file or a small helper class. |
-| 5 | `scripts/simulation/FluidPolygonCollider.cs` | 900 | Contains wheel physics state (`FluidWheelState`), polygon collision geometry, and torque/energy calculations in one file. `FluidWheelState` is a standalone value type that belongs in `scripts/data/` or `scripts/simulation/particles/`. |
-| 6 | `scripts/core/FrameProfiler.cs` | 769 | Combines timing-bucket logic, rolling-average computation, and GDScript-facing export properties. Splitting the math utilities from the Godot node lifecycle would make both halves unit-testable. |
-| 7 | `scripts/rendering/WaterWheelVisual.cs` | 744 | Visual presentation of the water wheel is currently entangled with wheel-state queries. Extracting a thin `WheelStateReader` interface would decouple simulation data from rendering code. |
-| 8 | `scripts/simulation/RainSystem.cs` | 642 | Rain spawn logic, transition easing, and anti-lag gate already exist as a separate file but still contain inline constants and pixel-grid lookups. Extracting constants to `SimulationConstants` and the pixel helpers to `PixelOccupancyGrid` would reduce coupling. |
+|---|---|---:|---|
+| 4 | `scripts/rendering/StatisticsGraph.cs` | 1 619 (historical) | Mixes graph layout constants, two distinct data series (top + bottom graph), drawing logic, and sample management. Each concern can become a separate partial-class file or a small helper class. |
+| 5 | `scripts/simulation/FluidPolygonCollider.cs` | 900 (historical) | Contains wheel physics state (`FluidWheelState`), polygon collision geometry, and torque/energy calculations in one file. `FluidWheelState` is a standalone value type that belongs in `scripts/data/` or `scripts/simulation/particles/`. |
+| 6 | `scripts/core/FrameProfiler.cs` | 769 (historical) | Combines timing-bucket logic, rolling-average computation, and GDScript-facing export properties. Splitting the math utilities from the Godot node lifecycle would make both halves unit-testable. |
+| 7 | `scripts/rendering/WaterWheelVisual.cs` | 744 (historical) | Visual presentation of the water wheel is currently entangled with wheel-state queries. Extracting a thin `WheelStateReader` interface would decouple simulation data from rendering code. |
+| 8 | `scripts/simulation/RainSystem.cs` | 642 (historical) | Rain spawn logic, transition easing, and anti-lag gate already exist as a separate file but still contain inline constants and pixel-grid lookups. Extracting constants to `SimulationConstants` and the pixel helpers to `PixelOccupancyGrid` would reduce coupling. |
 
 ### Recommended Split for `StatisticsGraph.cs`
 
