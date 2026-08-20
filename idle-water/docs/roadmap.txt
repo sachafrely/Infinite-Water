@@ -1,5 +1,7 @@
 [18:48, 15.8.2026] Sacha: Infinite Water — General Roadmap
 
+CHECK https://github.com/users/sachafrely/projects/1 FOR THE CURRENT STATE
+
 This document describes the planned features, fixes, UI improvements, and technical work for Infinite Water.
 
 The roadmap is organized by area so that upcoming work is easier to overview and prioritize.
@@ -37,22 +39,23 @@ The immediate development order is:
 1. Graph UI button DONE
 2. Graph UI background DONE
 3. UI state/controller DONE
-4. Settings window
+4. Settings window DONE
 5. Reduce simulation size DONE
-6. Tilt settings
-7. Tilt mechanics
+6. Tilt settings DONE
+7. Tilt mechanics DONE
+7.1 Tilt Indicator Arrow
 8. Pumps (maybe)
-9. Rain amount display
+9. Rain amount display DONE
 10. Economy / Sell Energy
 11. Wheel progression
 12. Wheel upgrades
 13. Sound and sound settings
 14. General optimization
 14.1 Water still getting accumulated somewhere DONE
-14.2 Disable Pixel Occupancy as a test to see if we really need it.
-14.3 remove or improve shimmer (SHIMMER IS DISABLED FOR NOW)
+14.2 Disable Pixel Occupancy as a test to see if we really need it. DONE IS DISABLED
+14.3 remove or improve shimmer DONE REMOVED
 15. Make all windows use the same Script
-16. make all UI Settings in one File
+16. make all UI Settings in one File DONE
 
 Some tasks can be worked on independently later, but this is the preferred order for the next development stages.
 
