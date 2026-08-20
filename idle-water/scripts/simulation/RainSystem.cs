@@ -129,23 +129,43 @@ internal sealed class RainSystem
 
 	public void SetupRainHud()
 	{
-		if (rainDisplay != null)
+		if (rainDisplay != null && GodotObject.IsInstanceValid(rainDisplay))
 			return;
 
-		Node displayContainer = owner.GetNodeOrNull("../TopUI/RainDisplayContainer/RainDisplay");
-		if (displayContainer == null)
+		Node currentScene = owner.GetTree().CurrentScene;
+		if (currentScene == null)
 		{
-			GD.PushWarning("RainSystem: Could not find TopUI/RainDisplayContainer/RainDisplay.");
+			GD.PushWarning("RainSystem: CurrentScene is not available while setting up the rain HUD.");
+			return;
+		}
+
+		Node topUi = currentScene.FindChild("TopUI", true, false);
+		if (topUi == null)
+			topUi = currentScene.FindChild("TopUi", true, false);
+
+		if (topUi == null)
+		{
+			GD.PushWarning("RainSystem: Could not find TopUI/TopUi. Graphical rain display was not created.");
 			return;
 		}
 
 		rainDisplay = new GraphicalRainDisplay();
-		displayContainer.AddChild(rainDisplay);
+		rainDisplay.Name = "GraphicalRainDisplay";
+		rainDisplay.ZIndex = 1100;
+		rainDisplay.Visible = true;
+		topUi.AddChild(rainDisplay);
+
+		GD.Print("RainSystem: GraphicalRainDisplay attached to " + topUi.GetPath());
 	}
 
 	public void UpdateRainHud()
 	{
-		if (rainDisplay != null)
+		if (rainDisplay == null || !GodotObject.IsInstanceValid(rainDisplay))
+		{
+			SetupRainHud();
+		}
+
+		if (rainDisplay != null && GodotObject.IsInstanceValid(rainDisplay))
 			rainDisplay.UpdateRain(currentRainPercent);
 	}
 
