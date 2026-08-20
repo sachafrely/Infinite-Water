@@ -52,7 +52,7 @@ public partial class EconomyUi : Control
 		energyLabel.Name = "EnergyLabel";
 		energyLabel.MouseFilter = MouseFilterEnum.Ignore;
 		energyLabel.HorizontalAlignment = HorizontalAlignment.Right;
-		energyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizBig);
+		energyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
 		energyLabel.AddThemeColorOverride("font_color", UiSettings.FontColorEnergy);
 
 		dollarsLabel = new Label();
