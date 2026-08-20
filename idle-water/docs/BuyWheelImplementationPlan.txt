@@ -8,7 +8,7 @@ Status: IMPLEMENTATION STARTED
 Purpose
 -------
 Implement a player-driven wheel purchase system. The game starts with exactly
-one active wheel: the FOURTH stable wheel location in the map. The other five
+one active wheel: the THIRD stable wheel location in the map. The other five
 locations are unbought and display a clickable "Buy Wheel" control.
 
 Every wheel costs exactly $100. There is no increasing price, no prerequisite
@@ -18,12 +18,13 @@ Core rules
 ----------
 1. Up to six wheel marker locations are discovered.
 2. Wheel IDs are stable location IDs, not runtime-list indexes.
-3. Wheel 4 is the starting/primary wheel.
+3. Wheel 3 is the starting/primary wheel. This is the third wheel from the top
+   under the current deterministic top-to-bottom/left-to-right ordering.
 4. Initial ownership is:
        Wheel 1 = false
        Wheel 2 = false
-       Wheel 3 = false
-       Wheel 4 = true
+       Wheel 3 = true
+       Wheel 4 = false
        Wheel 5 = false
        Wheel 6 = false
 5. Every unbought wheel costs exactly $100.
@@ -46,14 +47,14 @@ WaterWheelManager
     - Assigns stable IDs 1..6 after sorting.
     - Owns active FluidWheelState instances and WaterWheelVisual instances.
     - Activates one wheel at a time without rebuilding existing wheels.
-    - Keeps runtime index 0 reserved for the explicitly activated starting Wheel 4.
+    - Keeps runtime index 0 reserved for the explicitly activated starting Wheel 3.
     - Continues to own stepping and energy tracking.
 
 WheelPurchaseSystem
     idle-water/scripts/systems/WheelPurchaseSystem.cs
 
     - Owns per-location purchase state.
-    - Defaults Wheel 4 to purchased.
+    - Defaults Wheel 3 to purchased.
     - Does not use an unlocked-wheel count.
     - Checks the fixed $100 purchase price.
     - Uses EnergySystem.TrySpendDollars() for the economy transaction.
@@ -64,11 +65,13 @@ WheelPurchaseSystem
 World purchase UI
     idle-water/scripts/systems/WheelPurchaseSystem.cs
 
-    - WheelPurchaseWorldUi provides the small clickable "Buy Wheel" control.
+    - WheelPurchaseWorldUi provides the clickable "Buy Wheel" control.
     - The control is a world-space Control positioned from the same simulation
       position as the corresponding wheel.
-    - This keeps the purchase display aligned with the wheel while the camera
-      moves and avoids a separate UI coordinate calculation.
+    - The control now has an explicit 120x40 pixel rectangle and is explicitly
+      shown with a high Z index so it cannot collapse to a zero-sized control.
+    - Creation logs identify every wheel and simulation position, making UI
+      initialization easy to verify in the Godot output.
 
 Confirmation UI
     idle-water/scripts/systems/WheelPurchaseSystem.cs
@@ -97,6 +100,22 @@ TrySpendDollars() is atomic from the economy's point of view:
 
 The existing 10 Energy -> $1 sale system remains unchanged.
 
+Sell Energy visibility fix
+--------------------------
+File:
+    idle-water/Scripts/ui/SellEnergyButton.cs
+
+The existing SellEnergyButton script previously only styled a button that had
+already been placed in the scene. It now also:
+    - searches the complete scene for an existing Sell Energy button,
+    - explicitly makes an existing button visible,
+    - gives it a stable minimum size and high Z index,
+    - creates a visible fallback Sell Energy button under BottomUI/BottomUi
+      when the expected button is missing.
+
+This does not change the selling rule: one click sells exactly 10 Energy for
+$1 through the existing economy system.
+
 Initialization
 --------------
 The existing FluidSimulator call to:
@@ -110,7 +129,7 @@ is intentionally kept compatible through:
 That compatibility bootstrap now:
     1. discovers all wheel locations,
     2. creates WheelPurchaseSystem,
-    3. initializes the purchased starting Wheel 4,
+    3. initializes the purchased starting Wheel 3,
     4. creates Buy Wheel controls for all other discovered locations,
     5. initializes wheel energy tracking.
 
@@ -122,9 +141,9 @@ Primary-wheel handling
 The old assumption that runtime wheel index 0 means map Wheel 1 has been
 removed from the wheel creation logic.
 
-Wheel 4 is explicitly activated first. It therefore occupies runtime index 0
+Wheel 3 is explicitly activated first. It therefore occupies runtime index 0
 and remains the primary solver wheel. Later purchases are appended as additional
-runtime wheels and do not replace or recreate Wheel 4.
+runtime wheels and do not replace or recreate Wheel 3.
 
 Stable ordering
 ---------------
@@ -132,20 +151,19 @@ Wheel locations are sorted by:
     1. TileMap Y ascending
     2. TileMap X ascending
 
-IDs are assigned after sorting. The implementation documents that this
-stable top-to-bottom/left-to-right ordering is the ordering used for the
-"fourth wheel" starting-wheel rule.
+IDs are assigned after sorting. The current implementation therefore treats
+the third location in this stable top-to-bottom/left-to-right ordering as
+Wheel 3 and the starting wheel.
 
-Important verification still required in-game: confirm that the current map's
-actual fourth marker under this ordering is the intended starting wheel.
-If the map's intended spatial ordering differs, the comparator must be changed
-before release.
+Important verification still required in-game: confirm that this third marker
+is physically the intended wheel. If the map's intended spatial ordering differs,
+the comparator must be changed before release.
 
 Persistence
 -----------
 Current implementation stage:
     - Runtime ownership state exists in WheelPurchaseSystem.
-    - A new runtime starts with Wheel 4 purchased.
+    - A new runtime starts with Wheel 3 purchased.
     - No separate wheel save file/system has been introduced.
 
 Future save integration:
@@ -168,28 +186,38 @@ COMPLETED IN THIS IMPLEMENTATION PASS
 
 [x] Added EnergySystem.TrySpendDollars().
 [x] Added fixed EnergySystem.WheelPurchaseCost = $100.
-[x] Added per-wheel purchase state with Wheel 4 active by default.
+[x] Added per-wheel purchase state.
+[x] Changed the starting wheel from Wheel 4 to Wheel 3 after in-game feedback
+    identified the first physical wheel as the wrong starting wheel.
 [x] Added deterministic wheel-location discovery and stable IDs.
 [x] Stopped automatic activation of every discovered wheel.
 [x] Added individual wheel activation without rebuilding active wheels.
-[x] Preserved Wheel 4 as the primary runtime wheel.
+[x] Preserved the explicitly selected starting wheel as runtime primary wheel.
 [x] Added world-space Buy Wheel controls for unpurchased locations.
+[x] Made Buy Wheel controls explicit 120x40 controls with explicit visibility
+    and high Z index.
 [x] Added Yes/No purchase confirmation.
 [x] Added insufficient-money handling without changing dollars or ownership.
 [x] Added compatibility bootstrap so existing FluidSimulator initialization
     continues to enter the new purchase flow.
+[x] Updated SellEnergyButton so an existing button is explicitly visible or a
+    fallback visible button is created when the scene is missing it.
 [x] Updated this document with the implementation state.
 
 NEXT VERIFICATION / FOLLOW-UP WORK
 -----------------------------------
 [ ] Run the Godot project and verify exactly one wheel is visible/active at
     startup.
-[ ] Verify the active starting wheel is physically the intended fourth map
-    location.
+[ ] Verify the active starting wheel is physically the intended third wheel
+    from the top.
 [ ] Verify five Buy Wheel controls appear and remain aligned with their wheels.
+[ ] Verify the Godot output contains a Buy Wheel UI creation line for every
+    unpurchased discovered wheel.
+[ ] Verify the Sell Energy button is visible in the BottomUI area.
 [ ] Sell energy until at least $100 is available and test an arbitrary wheel.
 [ ] Verify exactly $100 is removed after a successful purchase.
-[ ] Verify the purchased wheel becomes active without recreating Wheel 4.
+[ ] Verify the purchased wheel becomes active without recreating the starting
+    wheel.
 [ ] Verify No leaves the Buy Wheel control visible.
 [ ] Verify insufficient funds leave dollars and wheel ownership unchanged.
 [ ] Verify touch input on Android after the desktop behavior is confirmed.
