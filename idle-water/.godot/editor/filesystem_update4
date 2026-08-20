@@ -1,4 +1,3 @@
-res://Scenes/Main.tscn
 res://Scripts/rendering/WaterWheelVisual.cs
 res://Scripts/ui/GraphicalRainDisplay.cs
 res://Scripts/rendering/FluidRenderer.cs
