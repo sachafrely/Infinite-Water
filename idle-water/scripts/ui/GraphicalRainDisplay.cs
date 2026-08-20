@@ -8,9 +8,9 @@ public partial class GraphicalRainDisplay : Control
 {
 	private const int SegmentCount = 10;
 	private const float SegmentWidth = 12.0f;
-	private const float SegmentHeight = 16.0f;
+	private const float SegmentHeight = 32.0f;
 	private const float SegmentGap = 3.0f;
-	private const float RightMargin = 16.0f;
+	private const float LeftMargin = 16.0f;
 	private const float TopMargin = 36.0f;
 
 	private readonly ColorRect[] segments = new ColorRect[SegmentCount];
@@ -62,7 +62,7 @@ public partial class GraphicalRainDisplay : Control
 		);
 
 		Position = new Vector2(
-			GetViewportRect().Size.X - Size.X - RightMargin,
+			LeftMargin,
 			TopMargin
 		);
 	}
@@ -72,7 +72,7 @@ public partial class GraphicalRainDisplay : Control
 		if (what == NotificationResized && IsInsideTree())
 		{
 			Position = new Vector2(
-				GetViewportRect().Size.X - Size.X - RightMargin,
+				LeftMargin,
 				TopMargin
 			);
 		}
