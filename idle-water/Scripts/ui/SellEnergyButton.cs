@@ -45,6 +45,13 @@ public partial class SellEnergyButton : Control
 	{
 		button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
 
+		// Keep the action-button label consistently white in every state.
+		button.AddThemeColorOverride("font_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_hover_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_pressed_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_focus_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorBasic);
+
 		button.AddThemeStyleboxOverride(
 			"normal",
 			CreateStyle(UiSettings.ButtonColor)
