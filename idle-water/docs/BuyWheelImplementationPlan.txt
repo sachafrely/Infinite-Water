@@ -59,19 +59,19 @@ WheelPurchaseSystem
     - Checks the fixed $100 purchase price.
     - Uses EnergySystem.TrySpendDollars() for the economy transaction.
     - Requests activation from WaterWheelManager.
-    - Creates/removes world purchase controls.
+    - Creates/removes purchase controls in the GameView overlay.
     - Does not implement fluid physics.
 
 World purchase UI
     idle-water/scripts/systems/WheelPurchaseSystem.cs
 
     - WheelPurchaseWorldUi provides the clickable "Buy Wheel" control.
-    - The control is a world-space Control positioned from the same simulation
-      position as the corresponding wheel.
-    - The control now has an explicit 120x40 pixel rectangle and is explicitly
-      shown with a high Z index so it cannot collapse to a zero-sized control.
-    - Creation logs identify every wheel and simulation position, making UI
-      initialization easy to verify in the Godot output.
+    - The control is attached to Main/GameView, not the FluidSimulation SubViewport.
+    - GameView is the visible 720x1160 screen-space container and uses the same
+      coordinate space as the simulation camera, so simulation wheel positions
+      can be used directly for the overlay controls.
+    - The control has an explicit 120x40 pixel rectangle and high Z index.
+    - Creation logs identify every wheel and GameView position.
 
 Confirmation UI
     idle-water/scripts/systems/WheelPurchaseSystem.cs
@@ -100,21 +100,22 @@ TrySpendDollars() is atomic from the economy's point of view:
 
 The existing 10 Energy -> $1 sale system remains unchanged.
 
-Sell Energy visibility fix
---------------------------
+Sell Energy visibility and input
+--------------------------------
 File:
     idle-water/Scripts/ui/SellEnergyButton.cs
 
-The existing SellEnergyButton script previously only styled a button that had
-already been placed in the scene. It now also:
-    - searches the complete scene for an existing Sell Energy button,
-    - explicitly makes an existing button visible,
-    - gives it a stable minimum size and high Z index,
-    - creates a visible fallback Sell Energy button under BottomUI/BottomUi
-      when the expected button is missing.
+The scene already contains a BottomUI/SellEnergyButton Control. The script now
+creates the actual clickable Button as a child of that Control and fills the
+existing 240x120 BottomUI slot. This is more reliable than creating a fallback
+button at a negative position relative to BottomUI.
 
-This does not change the selling rule: one click sells exactly 10 Energy for
-$1 through the existing economy system.
+The Sell Energy action itself is handled by SellEnergyButton. EconomyUi only
+tracks the button's enabled state, preventing two separate click handlers from
+selling two chunks for one click.
+
+The selling rule remains unchanged:
+    one click -> exactly 10 Energy -> $1
 
 Initialization
 --------------
@@ -128,13 +129,13 @@ is intentionally kept compatible through:
 
 That compatibility bootstrap now:
     1. discovers all wheel locations,
-    2. creates WheelPurchaseSystem,
-    3. initializes the purchased starting Wheel 3,
-    4. creates Buy Wheel controls for all other discovered locations,
-    5. initializes wheel energy tracking.
+    2. finds Main/GameView as the purchase UI owner,
+    3. creates WheelPurchaseSystem,
+    4. initializes the purchased starting Wheel 3,
+    5. creates Buy Wheel controls for all other discovered locations,
+    6. initializes wheel energy tracking.
 
-This avoids duplicating initialization logic in FluidSimulator while allowing
-the progression system to remain separate from the simulation solver.
+This avoids placing normal Control UI inside the simulation SubViewport.
 
 Primary-wheel handling
 ---------------------
@@ -155,9 +156,7 @@ IDs are assigned after sorting. The current implementation therefore treats
 the third location in this stable top-to-bottom/left-to-right ordering as
 Wheel 3 and the starting wheel.
 
-Important verification still required in-game: confirm that this third marker
-is physically the intended wheel. If the map's intended spatial ordering differs,
-the comparator must be changed before release.
+In-game verification has confirmed that Wheel 3 is the desired physical wheel.
 
 Persistence
 -----------
@@ -187,37 +186,37 @@ COMPLETED IN THIS IMPLEMENTATION PASS
 [x] Added EnergySystem.TrySpendDollars().
 [x] Added fixed EnergySystem.WheelPurchaseCost = $100.
 [x] Added per-wheel purchase state.
-[x] Changed the starting wheel from Wheel 4 to Wheel 3 after in-game feedback
-    identified the first physical wheel as the wrong starting wheel.
+[x] Changed the starting wheel from Wheel 4 to Wheel 3 after in-game feedback.
+[x] Confirmed Wheel 3 is the desired physical starting wheel.
 [x] Added deterministic wheel-location discovery and stable IDs.
 [x] Stopped automatic activation of every discovered wheel.
 [x] Added individual wheel activation without rebuilding active wheels.
 [x] Preserved the explicitly selected starting wheel as runtime primary wheel.
-[x] Added world-space Buy Wheel controls for unpurchased locations.
+[x] Added Buy Wheel controls for unpurchased locations.
+[x] Moved Buy Wheel controls from the FluidSimulation owner to the GameView
+    overlay so they render in the visible screen-space UI layer.
 [x] Made Buy Wheel controls explicit 120x40 controls with explicit visibility
     and high Z index.
 [x] Added Yes/No purchase confirmation.
 [x] Added insufficient-money handling without changing dollars or ownership.
 [x] Added compatibility bootstrap so existing FluidSimulator initialization
     continues to enter the new purchase flow.
-[x] Updated SellEnergyButton so an existing button is explicitly visible or a
-    fallback visible button is created when the scene is missing it.
+[x] Reworked SellEnergyButton to create its clickable action Button inside the
+    existing BottomUI/SellEnergyButton control.
+[x] Prevented EconomyUi from attaching a second Sell Energy click handler.
 [x] Updated this document with the implementation state.
 
 NEXT VERIFICATION / FOLLOW-UP WORK
 -----------------------------------
-[ ] Run the Godot project and verify exactly one wheel is visible/active at
-    startup.
-[ ] Verify the active starting wheel is physically the intended third wheel
-    from the top.
-[ ] Verify five Buy Wheel controls appear and remain aligned with their wheels.
+[ ] Run the Godot project and verify five Buy Wheel controls are now visible
+    at the unpurchased wheel locations.
 [ ] Verify the Godot output contains a Buy Wheel UI creation line for every
     unpurchased discovered wheel.
-[ ] Verify the Sell Energy button is visible in the BottomUI area.
+[ ] Verify the Sell Energy button is visible inside the BottomUI middle slot.
+[ ] Verify one Sell Energy click sells exactly one 10-Energy chunk.
 [ ] Sell energy until at least $100 is available and test an arbitrary wheel.
 [ ] Verify exactly $100 is removed after a successful purchase.
-[ ] Verify the purchased wheel becomes active without recreating the starting
-    wheel.
+[ ] Verify the purchased wheel becomes active without recreating Wheel 3.
 [ ] Verify No leaves the Buy Wheel control visible.
 [ ] Verify insufficient funds leave dollars and wheel ownership unchanged.
 [ ] Verify touch input on Android after the desktop behavior is confirmed.
