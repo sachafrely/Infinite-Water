@@ -18,6 +18,10 @@ public class EnergySystem
 	public const double EnergyPerDollar =
 		10.0;
 
+	// Fixed price for every wheel purchase.
+	public const double WheelPurchaseCost =
+		100.0;
+
 	private double dollars = 0.0;
 
 	public static EnergySystem Instance {
@@ -113,6 +117,29 @@ public class EnergySystem
 
 		dollars +=
 			1.0;
+
+		return true;
+	}
+
+	// ============================================================
+	// Spend dollars
+	// ============================================================
+
+	/// <summary>
+	/// Atomically spends dollars. Failed transactions leave the economy
+	/// completely unchanged.
+	/// </summary>
+	public bool TrySpendDollars(
+		double amount)
+	{
+		if (amount <= 0.0)
+			return true;
+
+		if (dollars < amount)
+			return false;
+
+		dollars -=
+			amount;
 
 		return true;
 	}
