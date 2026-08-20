@@ -2,40 +2,27 @@ using Godot;
 
 /// <summary>
 /// Central manager for all UI windows.
-///
-/// Windows live inside:
-/// Main/CenterUI/PanelContainer/MarginContainer/Content
-///
-/// The manager explicitly controls draw order so the shared window
-/// background can never cover the actual Settings/Statistics window.
+/// Windows remain in the existing Content container, but the manager explicitly
+/// controls their draw order so WindowBackground can never cover them.
 /// </summary>
 public partial class UiWindowManager : Node
 {
-    public enum UiState
-    {
-        NoWindow,
-        Statistics,
-        Settings
-    }
+    public enum UiState { NoWindow, Statistics, Settings }
 
     private Node activeWindow;
     private UiState currentState = UiState.NoWindow;
 
     private const string StatisticsWindowName = "StatisticsWindow";
     private const string SettingsWindowName = "SettingsWindow";
-
-    // Keep the background below the actual window content.
     private const int WindowBackgroundZIndex = 100;
     private const int WindowZIndex = 200;
 
     public override void _Ready()
     {
         CloseAllWindows();
-
         GD.Print("========== UI WINDOW MANAGER READY ==========");
 
         Node content = GetWindowContent();
-
         if (content == null)
         {
             GD.PushError("UiWindowManager: Could not find window Content container.");
@@ -48,8 +35,6 @@ public partial class UiWindowManager : Node
         GD.Print($"UiWindowManager: Content found at '{content.GetPath()}'.");
         GD.Print($"UiWindowManager: Content size = {GetControlSize(content)}.");
         GD.Print($"UiWindowManager: Initial state = {currentState}.");
-
-        // Do this after the complete scene tree has entered the tree.
         CallDeferred(nameof(ValidateWindowPresentation));
     }
 
@@ -61,19 +46,16 @@ public partial class UiWindowManager : Node
 
         foreach (Node child in content.GetChildren())
         {
-            if (child is CanvasItem canvasItem)
-            {
-                canvasItem.ZIndex = WindowZIndex;
-                canvasItem.ZAsRelative = false;
+            if (child is not CanvasItem canvasItem)
+                continue;
 
-                if (child is Control control && control.Size.X <= 0.0f || child is Control control2 && control2.Size.Y <= 0.0f)
-                {
-                    if (child is Control zeroSizeControl)
-                    {
-                        zeroSizeControl.Position = Vector2.Zero;
-                        zeroSizeControl.Size = GetControlSize(content);
-                    }
-                }
+            canvasItem.ZIndex = WindowZIndex;
+            canvasItem.ZAsRelative = false;
+
+            if (child is Control control && (control.Size.X <= 0.0f || control.Size.Y <= 0.0f))
+            {
+                control.Position = Vector2.Zero;
+                control.Size = GetControlSize(content);
             }
         }
 
@@ -86,10 +68,8 @@ public partial class UiWindowManager : Node
             return;
 
         Node window = GetWindowByName(windowName);
-        if (window == null)
-            return;
-
-        ToggleWindow(window);
+        if (window != null)
+            ToggleWindow(window);
     }
 
     public void ToggleWindow(Node window)
@@ -98,12 +78,9 @@ public partial class UiWindowManager : Node
             return;
 
         if (activeWindow == window)
-        {
             CloseWindow(window);
-            return;
-        }
-
-        OpenWindow(window);
+        else
+            OpenWindow(window);
     }
 
     public void OpenWindow(string windowName)
@@ -112,18 +89,13 @@ public partial class UiWindowManager : Node
             return;
 
         Node window = GetWindowByName(windowName);
-        if (window == null)
-            return;
-
-        OpenWindow(window);
+        if (window != null)
+            OpenWindow(window);
     }
 
     public void OpenWindow(Node window)
     {
-        if (window == null)
-            return;
-
-        if (activeWindow == window)
+        if (window == null || activeWindow == window)
             return;
 
         Node content = GetWindowContent();
@@ -136,18 +108,8 @@ public partial class UiWindowManager : Node
         if (activeWindow != null)
             SetWindowVisible(activeWindow, false);
 
-        SetWindowBackgroundZIndex();
         SetWindowBackgroundVisible(true);
 
-        // The background is intentionally lower than the window.
-        if (window is CanvasItem windowCanvas)
-        {
-            windowCanvas.ZIndex = WindowZIndex;
-            windowCanvas.ZAsRelative = false;
-        }
-
-        // Protect against a zero-sized Control caused by the parent container
-        // not having received its final layout yet.
         if (window is Control windowControl &&
             (windowControl.Size.X <= 0.0f || windowControl.Size.Y <= 0.0f))
         {
@@ -162,7 +124,10 @@ public partial class UiWindowManager : Node
 
         GD.Print($"UiWindowManager: Opened '{window.Name}'.");
         GD.Print($"UiWindowManager: State = {currentState}.");
-        GD.Print($"UiWindowManager: Window visible={IsWindowVisible(window)} size={GetControlSize(window)} global_rect={GetGlobalRect(window)} z={GetZIndex(window)}.");
+        GD.Print(
+            $"UiWindowManager: Window visible={IsWindowVisible(window)} " +
+            $"size={GetControlSize(window)} global_rect={GetGlobalRect(window)} " +
+            $"z={GetZIndex(window)}.");
     }
 
     public void CloseWindow(string windowName)
@@ -171,10 +136,8 @@ public partial class UiWindowManager : Node
             return;
 
         Node window = GetWindowByName(windowName);
-        if (window == null)
-            return;
-
-        CloseWindow(window);
+        if (window != null)
+            CloseWindow(window);
     }
 
     public void CloseWindow(Node window)
@@ -189,7 +152,6 @@ public partial class UiWindowManager : Node
             activeWindow = null;
             currentState = UiState.NoWindow;
             SetWindowBackgroundVisible(false);
-
             GD.Print($"UiWindowManager: Closed '{window.Name}'.");
             GD.Print($"UiWindowManager: State = {currentState}.");
         }
@@ -262,16 +224,12 @@ public partial class UiWindowManager : Node
         if (window == null)
             return UiState.NoWindow;
 
-        switch (window.Name.ToString())
+        return window.Name.ToString() switch
         {
-            case StatisticsWindowName:
-                return UiState.Statistics;
-            case SettingsWindowName:
-                return UiState.Settings;
-            default:
-                GD.PushWarning($"UiWindowManager: Window '{window.Name}' has no explicit UiState mapping.");
-                return UiState.NoWindow;
-        }
+            StatisticsWindowName => UiState.Statistics,
+            SettingsWindowName => UiState.Settings,
+            _ => UiState.NoWindow
+        };
     }
 
     private Node GetWindowByName(string windowName)
@@ -285,7 +243,6 @@ public partial class UiWindowManager : Node
         }
 
         Node window = content.GetNodeOrNull(windowName);
-
         if (window == null)
         {
             GD.PushError($"UiWindowManager: Could not find window '{windowName}' inside '{content.GetPath()}'.");
@@ -295,15 +252,9 @@ public partial class UiWindowManager : Node
         return window;
     }
 
-    private Node GetWindowContent()
-    {
-        return GetNodeOrNull("../CenterUI/PanelContainer/MarginContainer/Content");
-    }
+    private Node GetWindowContent() => GetNodeOrNull("../CenterUI/PanelContainer/MarginContainer/Content");
 
-    private Node GetWindowBackground()
-    {
-        return GetNodeOrNull("../CenterUI/PanelContainer/WindowBackground");
-    }
+    private Node GetWindowBackground() => GetNodeOrNull("../CenterUI/PanelContainer/WindowBackground");
 
     private void SetWindowBackgroundZIndex()
     {
@@ -318,26 +269,20 @@ public partial class UiWindowManager : Node
     private void SetWindowBackgroundVisible(bool visible)
     {
         Node background = GetWindowBackground();
-
-        if (background == null)
-        {
-            GD.PushWarning("UiWindowManager: Could not find CenterUI/PanelContainer/WindowBackground.");
-            return;
-        }
-
         if (background is CanvasItem canvasItem)
         {
             canvasItem.ZIndex = WindowBackgroundZIndex;
             canvasItem.ZAsRelative = false;
             canvasItem.Visible = visible;
         }
+        else if (background == null)
+        {
+            GD.PushWarning("UiWindowManager: Could not find CenterUI/PanelContainer/WindowBackground.");
+        }
     }
 
     private void SetWindowVisible(Node window, bool visible)
     {
-        if (window == null)
-            return;
-
         if (window is CanvasItem canvasItem)
         {
             canvasItem.ZIndex = WindowZIndex;
@@ -346,23 +291,8 @@ public partial class UiWindowManager : Node
         }
     }
 
-    private static Vector2 GetControlSize(Node node)
-    {
-        return node is Control control ? control.Size : Vector2.Zero;
-    }
-
-    private static Rect2 GetGlobalRect(Node node)
-    {
-        return node is Control control ? control.GetGlobalRect() : new Rect2();
-    }
-
-    private static int GetZIndex(Node node)
-    {
-        return node is CanvasItem canvasItem ? canvasItem.ZIndex : 0;
-    }
-
-    private static bool IsWindowVisible(Node node)
-    {
-        return node is CanvasItem canvasItem && canvasItem.Visible;
-    }
+    private static Vector2 GetControlSize(Node node) => node is Control control ? control.Size : Vector2.Zero;
+    private static Rect2 GetGlobalRect(Node node) => node is Control control ? control.GetGlobalRect() : new Rect2();
+    private static int GetZIndex(Node node) => node is CanvasItem canvasItem ? canvasItem.ZIndex : 0;
+    private static bool IsWindowVisible(Node node) => node is CanvasItem canvasItem && canvasItem.Visible;
 }
