@@ -8,15 +8,12 @@ using Godot;
 /// </summary>
 internal sealed class WheelPurchaseSystem
 {
-	// Wheel IDs are assigned top-to-bottom, then left-to-right.
-	// The desired starting wheel is the third wheel from the top.
 	public const int StartingWheelId = 3;
 
 	private readonly WaterWheelManager wheelManager;
 	private readonly EnergySystem energySystem;
 	private readonly Node uiOwner;
-	private readonly bool[] wheelPurchased =
-		new bool[WaterWheelManager.MaxWheelCount];
+	private readonly bool[] wheelPurchased = new bool[WaterWheelManager.MaxWheelCount];
 	private readonly Dictionary<int, WheelPurchaseWorldUi> purchaseUiByWheelId =
 		new Dictionary<int, WheelPurchaseWorldUi>();
 
@@ -31,7 +28,6 @@ internal sealed class WheelPurchaseSystem
 		this.energySystem = energySystem;
 		this.uiOwner = uiOwner;
 
-		// New games start with exactly Wheel 3 active.
 		wheelPurchased[StartingWheelId - 1] = true;
 	}
 
@@ -140,7 +136,7 @@ internal sealed class WheelPurchaseSystem
 			WheelPurchaseWorldUi ui = new WheelPurchaseWorldUi(this, wheelId);
 			ui.Name = "BuyWheel_" + wheelId;
 			ui.Position = wheelManager.GetWheelSimulationPosition(wheelId) + new Vector2(-60.0f, -50.0f);
-			ui.ZIndex = 100000;
+			ui.ZIndex = 1000;
 			ui.Show();
 
 			uiOwner.AddChild(ui);
@@ -148,7 +144,7 @@ internal sealed class WheelPurchaseSystem
 
 			GD.Print(
 				"Buy Wheel UI created for Wheel " + wheelId +
-				" at GameView position " + ui.Position
+				" at screen position " + ui.Position
 			);
 		}
 	}
@@ -171,10 +167,9 @@ internal sealed class WheelPurchaseSystem
 }
 
 /// <summary>
-/// Small clickable control displayed in the GameView overlay above an unpurchased wheel.
-/// The control is top-level so it is not transformed or clipped by the simulation
-/// viewport hierarchy. It therefore remains in the same 720x1160 GameView coordinate
-/// space used by the discovered wheel positions.
+/// Clickable screen-space control displayed above an unpurchased wheel.
+/// It is hosted by a dedicated CanvasLayer, so it is not affected by GameView
+/// clipping or the simulation SubViewport transform.
 /// </summary>
 internal sealed partial class WheelPurchaseWorldUi : Control
 {
@@ -187,10 +182,8 @@ internal sealed partial class WheelPurchaseWorldUi : Control
 		this.purchaseSystem = purchaseSystem;
 		this.wheelId = wheelId;
 
-		TopLevel = true;
 		MouseFilter = MouseFilterEnum.Ignore;
-		ZIndex = 100000;
-		ZAsRelative = false;
+		ZIndex = 1000;
 		Size = new Vector2(120.0f, 44.0f);
 		CustomMinimumSize = new Vector2(120.0f, 44.0f);
 		Visible = true;
@@ -202,8 +195,7 @@ internal sealed partial class WheelPurchaseWorldUi : Control
 		button.Size = new Vector2(120.0f, 44.0f);
 		button.CustomMinimumSize = new Vector2(120.0f, 44.0f);
 		button.MouseFilter = MouseFilterEnum.Stop;
-		button.ZIndex = 100001;
-		button.ZAsRelative = false;
+		button.ZIndex = 1001;
 		button.Pressed += OnPressed;
 		AddChild(button);
 
@@ -254,9 +246,7 @@ internal sealed partial class WheelPurchaseConfirmationWindow : PanelContainer
 	{
 		this.purchaseSystem = purchaseSystem;
 
-		TopLevel = true;
-		ZIndex = 100100;
-		ZAsRelative = false;
+		ZIndex = 1100;
 		CustomMinimumSize = new Vector2(280.0f, 120.0f);
 		MouseFilter = MouseFilterEnum.Stop;
 

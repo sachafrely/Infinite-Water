@@ -7,6 +7,8 @@ using Godot;
 /// </summary>
 internal static class WaterWheelManagerLegacyApi
 {
+	private const int WheelPurchaseUiLayer = 200;
+
 	public static void CreateWaterWheelsFromEnvironment(
 		this WaterWheelManager manager,
 		TileMapLayer environment,
@@ -23,36 +25,45 @@ internal static class WaterWheelManagerLegacyApi
 		Node currentScene =
 			tree?.CurrentScene;
 
-		// Purchase controls belong in the GameView overlay. GameView is the
-		// visible 720x1160 screen-space container for the simulation, while the
-		// FluidSimulation node lives inside a SubViewport and cannot host the
-		// normal UI controls we need here.
-		Node uiOwner =
-			currentScene?.FindChild(
-				"GameView",
-				true,
-				false
-			);
-
-		if (uiOwner == null)
-			uiOwner = currentScene;
-
-		if (uiOwner == null || EnergySystem.Instance == null)
+		if (currentScene == null || EnergySystem.Instance == null)
 		{
 			GD.PushWarning(
-				"WaterWheelManager: Could not initialize wheel purchase UI because the GameView or economy is missing."
+				"WaterWheelManager: Could not initialize wheel purchase UI because the current scene or economy is missing."
 			);
 			return;
+		}
+
+		// Do not attach the purchase controls to GameView itself.
+		// GameView is the simulation display and may be a TextureRect/viewport
+		// hierarchy with its own clipping and input behavior. A dedicated
+		// CanvasLayer gives the purchase controls a guaranteed screen-space
+		// overlay while preserving the existing 720x1160 GameView coordinates.
+		CanvasLayer uiLayer =
+			currentScene.GetNodeOrNull<CanvasLayer>("WheelPurchaseUiLayer");
+
+		if (uiLayer == null)
+		{
+			uiLayer = new CanvasLayer();
+			uiLayer.Name = "WheelPurchaseUiLayer";
+			uiLayer.Layer = WheelPurchaseUiLayer;
+			currentScene.AddChild(uiLayer);
 		}
 
 		WheelPurchaseSystem purchaseSystem =
 			new WheelPurchaseSystem(
 				manager,
 				EnergySystem.Instance,
-				uiOwner
+				uiLayer
 			);
 
 		purchaseSystem.Initialize();
 		manager.InitializeWheelEnergyTracking();
+
+		GD.Print(
+			"WaterWheelManager: Wheel purchase UI attached to dedicated CanvasLayer '" +
+			uiLayer.GetPath() +
+			"' at layer " +
+			WheelPurchaseUiLayer + "."
+		);
 	}
 }

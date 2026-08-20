@@ -1,5 +1,11 @@
 using Godot;
 
+/// <summary>
+/// Touch/mouse friendly button used to toggle one UI window through UiWindowManager.
+///
+/// Input is handled at the viewport level rather than relying only on _GuiInput.
+/// This keeps the button clickable even when another overlay Control consumes GUI input.
+/// </summary>
 public partial class UiToggleButton : Control
 {
 	[Export]
@@ -14,8 +20,6 @@ public partial class UiToggleButton : Control
 
 	public override void _Ready()
 	{
-		// Touch input is all this control needs. No mouse-enter/exit
-		// handling is used because the game is designed for Android.
 		MouseFilter = MouseFilterEnum.Stop;
 
 		windowManager = GetNodeOrNull<UiWindowManager>(
@@ -28,6 +32,10 @@ public partial class UiToggleButton : Control
 				$"[UiToggleButton] Could not find UiWindowManager for {GetPath()}"
 			);
 		}
+
+		GD.Print(
+			$"[UiToggleButton] Ready: {GetPath()} -> '{ButtonText}' -> '{WindowName}'"
+		);
 
 		wasWindowOpen = IsAssociatedWindowOpen();
 		QueueRedraw();
@@ -44,14 +52,36 @@ public partial class UiToggleButton : Control
 		}
 	}
 
-	public override void _GuiInput(InputEvent @event)
+	/// <summary>
+	/// Handles mouse and Android touch directly from the viewport.
+	/// This deliberately does not depend on _GuiInput so another Control overlay
+	/// cannot silently prevent the Statistics/Settings buttons from receiving input.
+	/// </summary>
+	public override void _Input(InputEvent @event)
 	{
+		if (!Visible || !IsInsideTree())
+			return;
+
 		if (@event is InputEventMouseButton mouseButton &&
 			mouseButton.ButtonIndex == MouseButton.Left &&
 			mouseButton.Pressed)
 		{
-			ToggleWindow();
-			GetViewport().SetInputAsHandled();
+			if (GetGlobalRect().HasPoint(mouseButton.Position))
+			{
+				ToggleWindow();
+				GetViewport().SetInputAsHandled();
+			}
+
+			return;
+		}
+
+	if (@event is InputEventScreenTouch screenTouch && screenTouch.Pressed)
+		{
+			if (GetGlobalRect().HasPoint(screenTouch.Position))
+			{
+				ToggleWindow();
+				GetViewport().SetInputAsHandled();
+			}
 		}
 	}
 
@@ -59,9 +89,6 @@ public partial class UiToggleButton : Control
 	{
 		buttonRect = new Rect2(0, 0, Size.X, Size.Y);
 
-		// There are only two button states:
-		// closed = dark ButtonColor
-		// open   = brighter WindowColor
 		Color backgroundColor = wasWindowOpen
 			? UiSettings.WindowColor
 			: UiSettings.ButtonColor;
@@ -131,6 +158,10 @@ public partial class UiToggleButton : Control
 
 			return;
 		}
+
+		GD.Print(
+			$"[UiToggleButton] Click -> toggling '{WindowName}'"
+		);
 
 		windowManager.ToggleWindow(WindowName);
 	}
