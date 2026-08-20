@@ -5,7 +5,9 @@ using Godot;
 /// Displays the player's Energy and Dollars in the existing top UI area
 /// and connects the existing BottomUi Sell Energy button to the economy.
 ///
-/// Selling is always performed in complete 10-energy chunks.
+/// Selling is always performed in complete 10-energy chunks: one click
+/// sells exactly 10 energy for 1 dollar. This button never opens or closes
+/// any UI window.
 /// </summary>
 public partial class EconomyUi : Control
 {
@@ -117,7 +119,7 @@ public partial class EconomyUi : Control
 			return topUi;
 
 		topUi = root.FindChild("TopUi", true, false);
-	if (topUi != null)
+		if (topUi != null)
 			return topUi;
 
 		Node rainDisplay = root.FindChild("GraphicalRainDisplay", true, false);
@@ -165,7 +167,8 @@ public partial class EconomyUi : Control
 		if (EnergySystem.Instance == null)
 			return;
 
-		EnergySystem.Instance.SellFullEnergyChunks();
+		// Exactly one 10-energy chunk is sold per click.
+		EnergySystem.Instance.TrySellEnergyChunk();
 		UpdateDisplay();
 	}
 
