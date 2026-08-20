@@ -23,20 +23,24 @@ internal static class WaterWheelManagerLegacyApi
 		Node currentScene =
 			tree?.CurrentScene;
 
-		Node2D owner =
+		// Purchase controls belong in the GameView overlay. GameView is the
+		// visible 720x1160 screen-space container for the simulation, while the
+		// FluidSimulation node lives inside a SubViewport and cannot host the
+		// normal UI controls we need here.
+		Node uiOwner =
 			currentScene?.FindChild(
-				"FluidSimulator",
+				"GameView",
 				true,
 				false
-			) as Node2D;
+			);
 
-		if (owner == null)
-			owner = currentScene as Node2D;
+		if (uiOwner == null)
+			uiOwner = currentScene;
 
-		if (owner == null || EnergySystem.Instance == null)
+		if (uiOwner == null || EnergySystem.Instance == null)
 		{
 			GD.PushWarning(
-				"WaterWheelManager: Could not initialize wheel purchase UI because the simulation owner or economy is missing."
+				"WaterWheelManager: Could not initialize wheel purchase UI because the GameView or economy is missing."
 			);
 			return;
 		}
@@ -45,7 +49,7 @@ internal static class WaterWheelManagerLegacyApi
 			new WheelPurchaseSystem(
 				manager,
 				EnergySystem.Instance,
-				owner
+				uiOwner
 			);
 
 		purchaseSystem.Initialize();
