@@ -140,7 +140,7 @@ internal sealed class WheelPurchaseSystem
 			WheelPurchaseWorldUi ui = new WheelPurchaseWorldUi(this, wheelId);
 			ui.Name = "BuyWheel_" + wheelId;
 			ui.Position = wheelManager.GetWheelSimulationPosition(wheelId) + new Vector2(-60.0f, -50.0f);
-			ui.ZIndex = 500;
+			ui.ZIndex = 100000;
 			ui.Show();
 
 			uiOwner.AddChild(ui);
@@ -172,35 +172,67 @@ internal sealed class WheelPurchaseSystem
 
 /// <summary>
 /// Small clickable control displayed in the GameView overlay above an unpurchased wheel.
-/// GameView uses the same 720x1160 coordinate space as the simulation viewport, so
-/// simulation coordinates can be used directly without a second camera transform.
+/// The control is top-level so it is not transformed or clipped by the simulation
+/// viewport hierarchy. It therefore remains in the same 720x1160 GameView coordinate
+/// space used by the discovered wheel positions.
 /// </summary>
 internal sealed partial class WheelPurchaseWorldUi : Control
 {
 	private readonly WheelPurchaseSystem purchaseSystem;
 	private readonly int wheelId;
+	private readonly Button button;
 
 	public WheelPurchaseWorldUi(WheelPurchaseSystem purchaseSystem, int wheelId)
 	{
 		this.purchaseSystem = purchaseSystem;
 		this.wheelId = wheelId;
 
+		TopLevel = true;
 		MouseFilter = MouseFilterEnum.Ignore;
-		ZIndex = 500;
-		Size = new Vector2(120.0f, 40.0f);
-		CustomMinimumSize = new Vector2(120.0f, 40.0f);
+		ZIndex = 100000;
+		ZAsRelative = false;
+		Size = new Vector2(120.0f, 44.0f);
+		CustomMinimumSize = new Vector2(120.0f, 44.0f);
 		Visible = true;
 
-		Button button = new Button();
+		button = new Button();
 		button.Name = "BuyButton";
 		button.Text = "Buy Wheel";
 		button.Position = Vector2.Zero;
-		button.Size = new Vector2(120.0f, 40.0f);
-		button.CustomMinimumSize = new Vector2(120.0f, 40.0f);
+		button.Size = new Vector2(120.0f, 44.0f);
+		button.CustomMinimumSize = new Vector2(120.0f, 44.0f);
 		button.MouseFilter = MouseFilterEnum.Stop;
-		button.ZIndex = 501;
+		button.ZIndex = 100001;
+		button.ZAsRelative = false;
 		button.Pressed += OnPressed;
 		AddChild(button);
+
+		ApplyButtonStyle();
+	}
+
+	private void ApplyButtonStyle()
+	{
+		button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeSmall);
+		button.AddThemeColorOverride("font_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_hover_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_pressed_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_focus_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorBasic);
+
+		button.AddThemeStyleboxOverride("normal", CreateStyle(UiSettings.ButtonColor));
+		button.AddThemeStyleboxOverride("hover", CreateStyle(UiSettings.WindowColor));
+		button.AddThemeStyleboxOverride("pressed", CreateStyle(UiSettings.WindowColor));
+		button.AddThemeStyleboxOverride("focus", CreateStyle(UiSettings.ButtonColor));
+		button.AddThemeStyleboxOverride("disabled", CreateStyle(UiSettings.ButtonColor));
+	}
+
+	private StyleBoxFlat CreateStyle(Color backgroundColor)
+	{
+		StyleBoxFlat style = new StyleBoxFlat();
+		style.BgColor = backgroundColor;
+		style.BorderColor = UiSettings.BorderColor;
+		style.SetBorderWidthAll((int)UiSettings.BorderSize);
+		return style;
 	}
 
 	private void OnPressed()
@@ -222,9 +254,13 @@ internal sealed partial class WheelPurchaseConfirmationWindow : PanelContainer
 	{
 		this.purchaseSystem = purchaseSystem;
 
-		ZIndex = 550;
+		TopLevel = true;
+		ZIndex = 100100;
+		ZAsRelative = false;
 		CustomMinimumSize = new Vector2(280.0f, 120.0f);
 		MouseFilter = MouseFilterEnum.Stop;
+
+		ApplyWindowStyle();
 
 		MarginContainer margin = new MarginContainer();
 		margin.AddThemeConstantOverride("margin_left", 12);
@@ -240,6 +276,8 @@ internal sealed partial class WheelPurchaseConfirmationWindow : PanelContainer
 		messageLabel = new Label();
 		messageLabel.Text = "Do you want to buy this wheel for 100$?";
 		messageLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+		messageLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeSmall);
+		messageLabel.AddThemeColorOverride("font_color", UiSettings.FontColorBasic);
 		content.AddChild(messageLabel);
 
 		HBoxContainer buttons = new HBoxContainer();
@@ -251,15 +289,49 @@ internal sealed partial class WheelPurchaseConfirmationWindow : PanelContainer
 		yesButton.Text = "Yes";
 		yesButton.CustomMinimumSize = new Vector2(88.0f, 42.0f);
 		yesButton.Pressed += OnYesPressed;
+		ApplyButtonStyle(yesButton);
 		buttons.AddChild(yesButton);
 
 		Button noButton = new Button();
 		noButton.Text = "No";
 		noButton.CustomMinimumSize = new Vector2(88.0f, 42.0f);
 		noButton.Pressed += OnNoPressed;
+		ApplyButtonStyle(noButton);
 		buttons.AddChild(noButton);
 
 		Hide();
+	}
+
+	private void ApplyWindowStyle()
+	{
+		StyleBoxFlat style = new StyleBoxFlat();
+		style.BgColor = UiSettings.WindowColor;
+		style.BorderColor = UiSettings.BorderColor;
+		style.SetBorderWidthAll((int)UiSettings.BorderSize);
+		AddThemeStyleboxOverride("panel", style);
+	}
+
+	private static void ApplyButtonStyle(Button button)
+	{
+		button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeSmall);
+		button.AddThemeColorOverride("font_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_hover_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_pressed_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_focus_color", UiSettings.FontColorBasic);
+		button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorBasic);
+
+		StyleBoxFlat normal = new StyleBoxFlat();
+		normal.BgColor = UiSettings.ButtonColor;
+		normal.BorderColor = UiSettings.BorderColor;
+		normal.SetBorderWidthAll((int)UiSettings.BorderSize);
+		button.AddThemeStyleboxOverride("normal", normal);
+
+		StyleBoxFlat active = new StyleBoxFlat();
+		active.BgColor = UiSettings.WindowColor;
+		active.BorderColor = UiSettings.BorderColor;
+		active.SetBorderWidthAll((int)UiSettings.BorderSize);
+		button.AddThemeStyleboxOverride("hover", active);
+		button.AddThemeStyleboxOverride("pressed", active);
 	}
 
 	public void ShowForWheel(int wheelId, Vector2 simulationPosition)
