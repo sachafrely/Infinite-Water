@@ -24,6 +24,7 @@
 [ext_resource type="Script" uid="uid://7mdjqr6jnedr" path="res://Scripts/ui/RenderedWindowBackground.cs" id="18_0sclb"]
 [ext_resource type="Script" uid="uid://diodqrojkp676" path="res://Scripts/ui/UiWindowManager.cs" id="18_sxkr1"]
 [ext_resource type="Texture2D" uid="uid://dvtafsihdn6xn" path="res://assets/sprites/ui/ArrowBlue.png" id="19_3tgeq"]
+[ext_resource type="Script" uid="uid://o6kjkecwwt0s" path="res://Scripts/ui/SellEnergyButton.cs" id="23_c4ay3"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vy5pj"]
 texture = ExtResource("3_50glp")
@@ -783,19 +784,20 @@ mouse_filter = 2
 
 [node name="StatisticsButton" type="Control" parent="BottomUI" unique_id=1991513535]
 anchors_preset = 0
-offset_right = 360.0
+offset_right = 219.0
 offset_bottom = 120.0
 script = ExtResource("16_346fj")
 
 [node name="SellEnergyButton" type="Control" parent="BottomUI" unique_id=582732163]
 anchors_preset = 0
-offset_left = -331.0
-offset_right = -185.0
+offset_left = 269.0
+offset_right = 472.0
 offset_bottom = 120.0
+script = ExtResource("23_c4ay3")
 
 [node name="SettingsButton" type="Control" parent="BottomUI" unique_id=1302883395]
 anchors_preset = 0
-offset_left = 360.0
+offset_left = 561.0
 offset_right = 720.0
 offset_bottom = 120.0
 script = ExtResource("16_346fj")
