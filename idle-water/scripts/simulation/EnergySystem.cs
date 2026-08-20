@@ -1,4 +1,4 @@
-
+using System;
 using Godot;
 
 public class EnergySystem
@@ -18,6 +18,21 @@ public class EnergySystem
 		1.0f;
 
 	// ============================================================
+	// Economy
+	// ============================================================
+
+	// Selling is intentionally limited to complete 10-energy chunks.
+	public const double EnergyPerDollar =
+		10.0;
+
+	private double dollars = 0.0;
+
+	public static EnergySystem Instance {
+		get;
+		private set;
+	}
+
+	// ============================================================
 	// Resource
 	// ============================================================
 
@@ -33,8 +48,23 @@ public class EnergySystem
 	public double Energy =>
 		energy;
 
+	public double Dollars =>
+		dollars;
+
 	public double TotalGenerated =>
 		totalGenerated;
+
+	// ============================================================
+	// Construction
+	// ============================================================
+
+	public EnergySystem()
+	{
+		Instance =
+			this;
+
+		CreateEconomyUiDeferred();
+	}
 
 	// ============================================================
 	// Add energy
@@ -73,6 +103,39 @@ public class EnergySystem
 	}
 
 	// ============================================================
+	// Sell energy
+	// ============================================================
+
+	/// <summary>
+	/// Sells every complete 10-energy chunk currently available.
+	/// Any remainder below 10 energy is kept.
+	/// Returns the number of dollars earned.
+	/// </summary>
+	public int SellFullEnergyChunks()
+	{
+		int chunks =
+			(int)Math.Floor(
+				energy /
+				EnergyPerDollar
+			);
+
+		if (chunks <= 0)
+			return 0;
+
+		double energySold =
+			chunks *
+			EnergyPerDollar;
+
+		energy -=
+			energySold;
+
+		dollars +=
+			chunks;
+
+		return chunks;
+	}
+
+	// ============================================================
 	// Reset
 	// ============================================================
 
@@ -80,6 +143,44 @@ public class EnergySystem
 	{
 		energy = 0.0;
 
+		dollars = 0.0;
+
 		totalGenerated = 0.0;
+	}
+
+	// ============================================================
+	// Economy UI bootstrap
+	// ============================================================
+
+	private void CreateEconomyUiDeferred()
+	{
+		SceneTree tree =
+			Engine.GetMainLoop() as SceneTree;
+
+		Node currentScene =
+		tree?.CurrentScene;
+
+		if (currentScene == null)
+			return;
+
+		if (currentScene.FindChild(
+			"EconomyUi",
+			true,
+			false
+		) != null)
+		{
+			return;
+		}
+
+		EconomyUi economyUi =
+			new EconomyUi();
+
+		economyUi.Name =
+			"EconomyUi";
+
+		currentScene.CallDeferred(
+			Node.MethodName.AddChild,
+			economyUi
+		);
 	}
 }
