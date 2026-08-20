@@ -104,16 +104,6 @@ public partial class SettingsContent : Control
 			UiSettings.FontColorBasic
 		);
 
-		DrawString(
-			font,
-			new Vector2(Size.X - LeftMargin, sectionY),
-			$"TILT INFLUENCE {GetDisplayTiltInfluence()}%",
-			HorizontalAlignment.Right,
-			200.0f,
-			UiSettings.FontSizeSmall,
-			UiSettings.FontColorBasic
-		);
-
 		DrawTiltInfluenceSlider(sectionY + SliderTopOffset);
 	}
 
