@@ -8,7 +8,9 @@ using Godot;
 /// </summary>
 internal sealed class WheelPurchaseSystem
 {
-	public const int StartingWheelId = 4;
+	// Wheel IDs are assigned top-to-bottom, then left-to-right.
+	// The desired starting wheel is the third wheel from the top.
+	public const int StartingWheelId = 3;
 
 	private readonly WaterWheelManager wheelManager;
 	private readonly EnergySystem energySystem;
@@ -29,7 +31,7 @@ internal sealed class WheelPurchaseSystem
 		this.energySystem = energySystem;
 		this.owner = owner;
 
-		// New games start with exactly Wheel 4 active.
+		// New games start with exactly Wheel 3 active.
 		wheelPurchased[StartingWheelId - 1] = true;
 	}
 
@@ -44,10 +46,11 @@ internal sealed class WheelPurchaseSystem
 	public void Initialize()
 	{
 		if (wheelManager.WheelLocationCount <= 0)
+		{
+			GD.PushWarning("WheelPurchaseSystem: No wheel locations were discovered.");
 			return;
+		}
 
-		// Explicitly activate the starting wheel first so it remains the solver's
-		// primary wheel. Runtime list order is never used as persistent wheel ID.
 		if (IsWheelPurchased(StartingWheelId))
 			wheelManager.TryActivateWheel(StartingWheelId);
 
@@ -64,17 +67,12 @@ internal sealed class WheelPurchaseSystem
 
 	public bool TryPurchaseWheel(int wheelId)
 	{
-		if (!IsValidWheelId(wheelId))
-			return false;
-
-		if (IsWheelPurchased(wheelId))
+		if (!IsValidWheelId(wheelId) || IsWheelPurchased(wheelId))
 			return false;
 
 		if (!wheelManager.HasWheelLocation(wheelId))
 			return false;
 
-		// Check funds before creating runtime state. The economy transaction is
-		// then performed immediately after successful wheel activation.
 		if (energySystem.Dollars < EnergySystem.WheelPurchaseCost)
 			return false;
 
@@ -83,9 +81,7 @@ internal sealed class WheelPurchaseSystem
 
 		if (!energySystem.TrySpendDollars(EnergySystem.WheelPurchaseCost))
 		{
-			GD.PushError(
-				"WheelPurchaseSystem: Dollar transaction failed after wheel activation."
-			);
+			GD.PushError("WheelPurchaseSystem: Dollar transaction failed after wheel activation.");
 			return false;
 		}
 
@@ -94,10 +90,8 @@ internal sealed class WheelPurchaseSystem
 		CloseConfirmation();
 
 		GD.Print(
-			"Wheel purchased: Wheel " +
-			wheelId +
-			" for $" +
-			EnergySystem.WheelPurchaseCost.ToString("F0")
+			"Wheel purchased: Wheel " + wheelId +
+			" for $" + EnergySystem.WheelPurchaseCost.ToString("F0")
 		);
 
 		return true;
@@ -108,21 +102,16 @@ internal sealed class WheelPurchaseSystem
 		if (!IsValidWheelId(wheelId) || IsWheelPurchased(wheelId))
 			return;
 
-		Vector2 position =
-			wheelManager.GetWheelSimulationPosition(wheelId);
+		Vector2 position = wheelManager.GetWheelSimulationPosition(wheelId);
 
 		if (confirmationWindow == null || !GodotObject.IsInstanceValid(confirmationWindow))
 		{
-			confirmationWindow =
-				new WheelPurchaseConfirmationWindow(this);
+			confirmationWindow = new WheelPurchaseConfirmationWindow(this);
 			confirmationWindow.Name = "BuyWheelConfirmation";
 			owner.AddChild(confirmationWindow);
 		}
 
-		confirmationWindow.ShowForWheel(
-			wheelId,
-			position
-		);
+		confirmationWindow.ShowForWheel(wheelId, position);
 	}
 
 	public void CloseConfirmation()
@@ -135,9 +124,10 @@ internal sealed class WheelPurchaseSystem
 
 	private void CreatePurchaseDisplays()
 	{
-		foreach (int wheelId in purchaseUiByWheelId.Keys)
+		foreach (WheelPurchaseWorldUi ui in purchaseUiByWheelId.Values)
 		{
-			purchaseUiByWheelId[wheelId].QueueFree();
+			if (GodotObject.IsInstanceValid(ui))
+				ui.QueueFree();
 		}
 
 		purchaseUiByWheelId.Clear();
@@ -147,19 +137,19 @@ internal sealed class WheelPurchaseSystem
 			if (IsWheelPurchased(wheelId) || !wheelManager.HasWheelLocation(wheelId))
 				continue;
 
-			WheelPurchaseWorldUi ui =
-				new WheelPurchaseWorldUi(
-					this,
-					wheelId
-				);
-
+			WheelPurchaseWorldUi ui = new WheelPurchaseWorldUi(this, wheelId);
 			ui.Name = "BuyWheel_" + wheelId;
-			ui.Position =
-				wheelManager.GetWheelSimulationPosition(wheelId) +
-				new Vector2(-52.0f, -78.0f);
+			ui.Position = wheelManager.GetWheelSimulationPosition(wheelId) + new Vector2(-52.0f, -78.0f);
+			ui.ZIndex = 1000;
+			ui.Show();
 
 			owner.AddChild(ui);
 			purchaseUiByWheelId[wheelId] = ui;
+
+			GD.Print(
+				"Buy Wheel UI created for Wheel " + wheelId +
+				" at simulation position " + ui.Position
+			);
 		}
 	}
 
@@ -188,21 +178,26 @@ internal sealed partial class WheelPurchaseWorldUi : Control
 	private readonly WheelPurchaseSystem purchaseSystem;
 	private readonly int wheelId;
 
-	public WheelPurchaseWorldUi(
-		WheelPurchaseSystem purchaseSystem,
-		int wheelId)
+	public WheelPurchaseWorldUi(WheelPurchaseSystem purchaseSystem, int wheelId)
 	{
 		this.purchaseSystem = purchaseSystem;
 		this.wheelId = wheelId;
 
 		MouseFilter = MouseFilterEnum.Pass;
-		ZIndex = 100;
-		CustomMinimumSize = new Vector2(104.0f, 36.0f);
+		ZIndex = 1000;
+		Position = Vector2.Zero;
+		Size = new Vector2(120.0f, 40.0f);
+		CustomMinimumSize = new Vector2(120.0f, 40.0f);
+		Visible = true;
 
 		Button button = new Button();
+		button.Name = "BuyButton";
 		button.Text = "Buy Wheel";
-		button.CustomMinimumSize = new Vector2(104.0f, 36.0f);
+		button.Position = Vector2.Zero;
+		button.Size = new Vector2(120.0f, 40.0f);
+		button.CustomMinimumSize = new Vector2(120.0f, 40.0f);
 		button.MouseFilter = MouseFilterEnum.Stop;
+		button.ZIndex = 1001;
 		button.Pressed += OnPressed;
 		AddChild(button);
 	}
@@ -222,12 +217,11 @@ internal sealed partial class WheelPurchaseConfirmationWindow : PanelContainer
 	private readonly Label messageLabel;
 	private int wheelId;
 
-	public WheelPurchaseConfirmationWindow(
-		WheelPurchaseSystem purchaseSystem)
+	public WheelPurchaseConfirmationWindow(WheelPurchaseSystem purchaseSystem)
 	{
 		this.purchaseSystem = purchaseSystem;
 
-		ZIndex = 200;
+		ZIndex = 1100;
 		CustomMinimumSize = new Vector2(280.0f, 120.0f);
 		MouseFilter = MouseFilterEnum.Stop;
 
@@ -267,9 +261,7 @@ internal sealed partial class WheelPurchaseConfirmationWindow : PanelContainer
 		Hide();
 	}
 
-	public void ShowForWheel(
-		int wheelId,
-		Vector2 simulationPosition)
+	public void ShowForWheel(int wheelId, Vector2 simulationPosition)
 	{
 		this.wheelId = wheelId;
 		messageLabel.Text = "Do you want to buy this wheel for 100$?";
@@ -282,15 +274,10 @@ internal sealed partial class WheelPurchaseConfirmationWindow : PanelContainer
 		if (purchaseSystem.TryPurchaseWheel(wheelId))
 			return;
 
-		if (EnergySystem.Instance == null ||
-			EnergySystem.Instance.Dollars < EnergySystem.WheelPurchaseCost)
-		{
+		if (EnergySystem.Instance == null || EnergySystem.Instance.Dollars < EnergySystem.WheelPurchaseCost)
 			messageLabel.Text = "Not enough money. You need 100$.";
-		}
 		else
-		{
 			messageLabel.Text = "This wheel could not be activated.";
-		}
 	}
 
 	private void OnNoPressed()
