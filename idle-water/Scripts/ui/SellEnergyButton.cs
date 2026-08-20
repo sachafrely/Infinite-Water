@@ -8,7 +8,7 @@ public partial class SellEnergyButton : Control
 	public override void _Ready()
 	{
 		MouseFilter = MouseFilterEnum.Stop;
-		energySystem = FindEnergySystem();
+		energySystem = EnergySystem.Instance;
 		QueueRedraw();
 	}
 
@@ -39,30 +39,14 @@ public partial class SellEnergyButton : Control
 			? new Color(0.72f, 0.72f, 0.72f, 1.0f)
 			: UiSettings.ButtonColor;
 
-		DrawRect(
-			new Rect2(Vector2.Zero, Size),
-			background,
-			true
-		);
-
-		DrawRect(
-			new Rect2(Vector2.Zero, Size),
-			UiSettings.BorderColor,
-			false,
-			UiSettings.BorderSize
-		);
+		DrawRect(new Rect2(Vector2.Zero, Size), background, true);
+		DrawRect(new Rect2(Vector2.Zero, Size), UiSettings.BorderColor, false, UiSettings.BorderSize);
 
 		Font font = ThemeDB.FallbackFont;
 		int fontSize = UiSettings.FontSizeMedium;
 		string text = "Sell Energy";
 
-		Vector2 textSize = font.GetStringSize(
-			text,
-			HorizontalAlignment.Left,
-			-1,
-			fontSize
-		);
-
+		Vector2 textSize = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
 		Vector2 textPosition = new Vector2(
 			(Size.X - textSize.X) * 0.5f,
 			(Size.Y + textSize.Y * 0.5f) * 0.5f
@@ -82,31 +66,12 @@ public partial class SellEnergyButton : Control
 	private void SellOneChunk()
 	{
 		if (energySystem == null)
-			energySystem = FindEnergySystem();
+			energySystem = EnergySystem.Instance;
 
 		if (energySystem == null)
 			return;
 
-		// Keep the existing economy mechanic: exactly 10 energy for $1.
+		// Existing mechanic: exactly 10 Energy -> $1.
 		energySystem.TrySellEnergyChunk();
-	}
-
-	private EnergySystem FindEnergySystem()
-	{
-		Node currentScene = GetTree()?.CurrentScene;
-		if (currentScene == null)
-			return null;
-
-		FluidSimulator simulator =
-			currentScene.FindChild("FluidSimulation", true, false) as FluidSimulator;
-
-		if (simulator != null)
-		{
-			EnergySystem fromSimulator = simulator.GetEnergySystemForUi();
-			if (fromSimulator != null)
-				return fromSimulator;
-		}
-
-		return EnergySystem.Instance;
 	}
 }
