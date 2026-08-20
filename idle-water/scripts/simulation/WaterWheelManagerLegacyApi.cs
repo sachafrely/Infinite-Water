@@ -17,13 +17,26 @@ internal static class WaterWheelManagerLegacyApi
 			toSimulationSpace
 		);
 
+		SceneTree tree =
+			Engine.GetMainLoop() as SceneTree;
+
+		Node currentScene =
+			tree?.CurrentScene;
+
 		Node2D owner =
-			(Engine.GetMainLoop() as SceneTree)?.CurrentScene as Node2D;
+			currentScene?.FindChild(
+				"FluidSimulator",
+				true,
+				false
+			) as Node2D;
+
+		if (owner == null)
+			owner = currentScene as Node2D;
 
 		if (owner == null || EnergySystem.Instance == null)
 		{
 			GD.PushWarning(
-				"WaterWheelManager: Could not initialize wheel purchase UI because the current scene or economy is missing."
+				"WaterWheelManager: Could not initialize wheel purchase UI because the simulation owner or economy is missing."
 			);
 			return;
 		}
