@@ -1,98 +1,50 @@
 using Godot;
 
 /// <summary>
-/// Visual configuration and fallback creation for the BottomUi Sell Energy button.
-/// If the scene already contains the button, it is reused. If the scene is missing
-/// the visible button, one is created under BottomUI so the economy action is usable.
+/// Provides the visible BottomUI Sell Energy button.
+/// The scene's SellEnergyButton node is a 240x120 Control, so this script
+/// creates the actual clickable Button as its child instead of trying to place
+/// a separate fallback outside the BottomUI layout.
 /// </summary>
-public partial class SellEnergyButton : Node
+public partial class SellEnergyButton : Control
 {
 	private Button button;
 
 	public override void _Ready()
 	{
-		button = FindButton();
+		CreateButton();
+	}
 
-		if (button == null)
-			button = CreateFallbackButton();
+	private void CreateButton()
+	{
+		button = new Button();
+		button.Name = "SellEnergyActionButton";
+		button.Text = "Sell Energy";
+		button.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+		button.MouseFilter = MouseFilterEnum.Stop;
+		button.ZIndex = 1001;
+		button.CustomMinimumSize = new Vector2(150.0f, 44.0f);
+		button.Pressed += OnPressed;
+		AddChild(button);
 
-		if (button == null)
+		ApplyButtonStyle();
+
+		GD.Print("SellEnergyButton: Created visible Sell Energy action button inside BottomUI.");
+	}
+
+	private void OnPressed()
+	{
+		if (EnergySystem.Instance == null)
 			return;
 
-		button.Visible = true;
-		button.ZIndex = 1000;
-		button.CustomMinimumSize = new Vector2(150.0f, 44.0f);
-		ApplyButtonStyle();
-	}
-
-	private Button FindButton()
-	{
-		Node current = GetParent();
-		while (current != null)
-		{
-			if (current is Button parentButton)
-				return parentButton;
-
-			current = current.GetParent();
-		}
-
-		foreach (Node node in FindChildren("*", "Button", true, false))
-		{
-			if (node is Button childButton)
-				return childButton;
-		}
-
-		Node root = GetTree().CurrentScene;
-		if (root == null)
-			return null;
-
-		foreach (Node node in root.FindChildren("*", "Button", true, false))
-		{
-			if (node is not Button candidate)
-				continue;
-
-			string text = candidate.Text.Trim().ToLowerInvariant();
-			string name = candidate.Name.ToString().Trim().ToLowerInvariant();
-
-			if (text == "sell energy" ||
-				text.Replace(" ", "") == "sellenergy" ||
-				name.Replace(" ", "").Contains("sellenergy"))
-			{
-				return candidate;
-			}
-		}
-
-		return null;
-	}
-
-	private Button CreateFallbackButton()
-	{
-		Node root = GetTree().CurrentScene;
-		if (root == null)
-			return null;
-
-		Node bottomUi = root.FindChild("BottomUI", true, false);
-		if (bottomUi == null)
-			bottomUi = root.FindChild("BottomUi", true, false);
-
-		Node parent = bottomUi ?? root;
-
-		Button fallback = new Button();
-		fallback.Name = "SellEnergyButton";
-		fallback.Text = "Sell Energy";
-		fallback.Size = new Vector2(150.0f, 44.0f);
-		fallback.CustomMinimumSize = new Vector2(150.0f, 44.0f);
-		fallback.ZIndex = 1000;
-		fallback.MouseFilter = Control.MouseFilterEnum.Stop;
-		fallback.Position = new Vector2(16.0f, -60.0f);
-		parent.AddChild(fallback);
-
-		GD.Print("SellEnergyButton: Created fallback visible Sell Energy button.");
-		return fallback;
+		// Exactly one 10-energy chunk is sold per click.
+		EnergySystem.Instance.TrySellEnergyChunk();
 	}
 
 	private void ApplyButtonStyle()
 	{
+		button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+
 		button.AddThemeStyleboxOverride(
 			"normal",
 			CreateStyle(UiSettings.ButtonColor)
