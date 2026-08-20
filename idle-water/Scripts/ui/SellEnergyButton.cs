@@ -21,9 +21,6 @@ public partial class SellEnergyButton : Node
 
 	private Button FindButton()
 	{
-		if (this is Button selfButton)
-			return selfButton;
-
 		Node current = GetParent();
 		while (current != null)
 		{
@@ -31,6 +28,12 @@ public partial class SellEnergyButton : Node
 				return parentButton;
 
 			current = current.GetParent();
+		}
+
+		foreach (Node node in FindChildren("*", "Button", true, false))
+		{
+			if (node is Button childButton)
+				return childButton;
 		}
 
 		return null;
