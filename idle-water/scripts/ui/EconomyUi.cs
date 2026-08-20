@@ -75,7 +75,7 @@ public partial class EconomyUi : Control
 
 		energyLabel.AddThemeFontSizeOverride(
 			"font_size",
-			UiSettings.FontSizeMedium
+			UiSettings.FontSizBig
 		);
 
 		energyLabel.AddThemeColorOverride(
@@ -94,7 +94,7 @@ public partial class EconomyUi : Control
 
 		dollarsLabel.AddThemeFontSizeOverride(
 			"font_size",
-			UiSettings.FontSizeMedium
+			UiSettings.FontSizeBig
 		);
 
 		dollarsLabel.AddThemeColorOverride(
