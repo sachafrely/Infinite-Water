@@ -183,7 +183,7 @@ internal sealed class WheelPurchaseSystem
 /// <summary>
 /// Small world-space clickable control displayed above an unpurchased wheel.
 /// </summary>
-internal sealed class WheelPurchaseWorldUi : Control
+internal sealed partial class WheelPurchaseWorldUi : Control
 {
 	private readonly WheelPurchaseSystem purchaseSystem;
 	private readonly int wheelId;
@@ -216,7 +216,7 @@ internal sealed class WheelPurchaseWorldUi : Control
 /// <summary>
 /// Contextual confirmation window for a single wheel purchase.
 /// </summary>
-internal sealed class WheelPurchaseConfirmationWindow : PanelContainer
+internal sealed partial class WheelPurchaseConfirmationWindow : PanelContainer
 {
 	private readonly WheelPurchaseSystem purchaseSystem;
 	private readonly Label messageLabel;
