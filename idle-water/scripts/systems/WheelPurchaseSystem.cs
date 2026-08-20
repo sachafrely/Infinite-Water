@@ -14,7 +14,7 @@ internal sealed class WheelPurchaseSystem
 
 	private readonly WaterWheelManager wheelManager;
 	private readonly EnergySystem energySystem;
-	private readonly Node2D owner;
+	private readonly Node uiOwner;
 	private readonly bool[] wheelPurchased =
 		new bool[WaterWheelManager.MaxWheelCount];
 	private readonly Dictionary<int, WheelPurchaseWorldUi> purchaseUiByWheelId =
@@ -25,11 +25,11 @@ internal sealed class WheelPurchaseSystem
 	public WheelPurchaseSystem(
 		WaterWheelManager wheelManager,
 		EnergySystem energySystem,
-		Node2D owner)
+		Node uiOwner)
 	{
 		this.wheelManager = wheelManager;
 		this.energySystem = energySystem;
-		this.owner = owner;
+		this.uiOwner = uiOwner;
 
 		// New games start with exactly Wheel 3 active.
 		wheelPurchased[StartingWheelId - 1] = true;
@@ -108,7 +108,7 @@ internal sealed class WheelPurchaseSystem
 		{
 			confirmationWindow = new WheelPurchaseConfirmationWindow(this);
 			confirmationWindow.Name = "BuyWheelConfirmation";
-			owner.AddChild(confirmationWindow);
+			uiOwner.AddChild(confirmationWindow);
 		}
 
 		confirmationWindow.ShowForWheel(wheelId, position);
@@ -139,16 +139,16 @@ internal sealed class WheelPurchaseSystem
 
 			WheelPurchaseWorldUi ui = new WheelPurchaseWorldUi(this, wheelId);
 			ui.Name = "BuyWheel_" + wheelId;
-			ui.Position = wheelManager.GetWheelSimulationPosition(wheelId) + new Vector2(-52.0f, -78.0f);
-			ui.ZIndex = 1000;
+			ui.Position = wheelManager.GetWheelSimulationPosition(wheelId) + new Vector2(-60.0f, -50.0f);
+			ui.ZIndex = 500;
 			ui.Show();
 
-			owner.AddChild(ui);
+			uiOwner.AddChild(ui);
 			purchaseUiByWheelId[wheelId] = ui;
 
 			GD.Print(
 				"Buy Wheel UI created for Wheel " + wheelId +
-				" at simulation position " + ui.Position
+				" at GameView position " + ui.Position
 			);
 		}
 	}
@@ -171,7 +171,9 @@ internal sealed class WheelPurchaseSystem
 }
 
 /// <summary>
-/// Small world-space clickable control displayed above an unpurchased wheel.
+/// Small clickable control displayed in the GameView overlay above an unpurchased wheel.
+/// GameView uses the same 720x1160 coordinate space as the simulation viewport, so
+/// simulation coordinates can be used directly without a second camera transform.
 /// </summary>
 internal sealed partial class WheelPurchaseWorldUi : Control
 {
@@ -183,9 +185,8 @@ internal sealed partial class WheelPurchaseWorldUi : Control
 		this.purchaseSystem = purchaseSystem;
 		this.wheelId = wheelId;
 
-		MouseFilter = MouseFilterEnum.Pass;
-		ZIndex = 1000;
-		Position = Vector2.Zero;
+		MouseFilter = MouseFilterEnum.Ignore;
+		ZIndex = 500;
 		Size = new Vector2(120.0f, 40.0f);
 		CustomMinimumSize = new Vector2(120.0f, 40.0f);
 		Visible = true;
@@ -197,7 +198,7 @@ internal sealed partial class WheelPurchaseWorldUi : Control
 		button.Size = new Vector2(120.0f, 40.0f);
 		button.CustomMinimumSize = new Vector2(120.0f, 40.0f);
 		button.MouseFilter = MouseFilterEnum.Stop;
-		button.ZIndex = 1001;
+		button.ZIndex = 501;
 		button.Pressed += OnPressed;
 		AddChild(button);
 	}
@@ -221,7 +222,7 @@ internal sealed partial class WheelPurchaseConfirmationWindow : PanelContainer
 	{
 		this.purchaseSystem = purchaseSystem;
 
-		ZIndex = 1100;
+		ZIndex = 550;
 		CustomMinimumSize = new Vector2(280.0f, 120.0f);
 		MouseFilter = MouseFilterEnum.Stop;
 
