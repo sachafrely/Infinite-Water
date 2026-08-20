@@ -7,13 +7,6 @@ public class EnergySystem
 	// Energy production
 	// ============================================================
 
-	// Energy generated for every radian a wheel turns.
-	//
-	// Example:
-	// 1.0 radian/sec = 1.0 energy/sec
-	// 2.0 radian/sec = 2.0 energy/sec
-	//
-	// This is intentionally easy to tune.
 	public float EnergyPerRadian =
 		1.0f;
 
@@ -21,7 +14,7 @@ public class EnergySystem
 	// Economy
 	// ============================================================
 
-	// Selling is intentionally limited to complete 10-energy chunks.
+	// One sale is always exactly 10 energy for 1 dollar.
 	public const double EnergyPerDollar =
 		10.0;
 
@@ -107,32 +100,21 @@ public class EnergySystem
 	// ============================================================
 
 	/// <summary>
-	/// Sells every complete 10-energy chunk currently available.
+	/// Sells exactly one 10-energy chunk for 1 dollar.
 	/// Any remainder below 10 energy is kept.
-	/// Returns the number of dollars earned.
 	/// </summary>
-	public int SellFullEnergyChunks()
+	public bool TrySellEnergyChunk()
 	{
-		int chunks =
-			(int)Math.Floor(
-				energy /
-				EnergyPerDollar
-			);
-
-		if (chunks <= 0)
-			return 0;
-
-		double energySold =
-			chunks *
-			EnergyPerDollar;
+		if (energy < EnergyPerDollar)
+			return false;
 
 		energy -=
-			energySold;
+			EnergyPerDollar;
 
 		dollars +=
-			chunks;
+			1.0;
 
-		return chunks;
+		return true;
 	}
 
 	// ============================================================
@@ -158,7 +140,7 @@ public class EnergySystem
 			Engine.GetMainLoop() as SceneTree;
 
 		Node currentScene =
-		tree?.CurrentScene;
+			tree?.CurrentScene;
 
 		if (currentScene == null)
 			return;
