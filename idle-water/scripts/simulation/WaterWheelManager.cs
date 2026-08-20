@@ -59,8 +59,8 @@ internal sealed class WaterWheelManager
 	/// <summary>
 	/// Discovers all wheel marker locations without creating runtime wheels.
 	/// Locations are sorted by Y first and X second so wheel IDs are deterministic.
-	/// The map's fourth location in this stable top-to-bottom/left-to-right order
-	/// is the intended starting wheel.
+	/// The third location in this stable top-to-bottom/left-to-right order is the
+	/// intended starting wheel.
 	/// </summary>
 	public void DiscoverWheelLocations(
 		TileMapLayer environment,
@@ -165,7 +165,7 @@ internal sealed class WaterWheelManager
 		if (activeWheelIds.Contains(wheelId))
 			return true;
 
-		// Wheel 4 is initialized first and therefore owns the solver's primary
+		// Wheel 3 is initialized first and therefore owns the solver's primary
 		// wheel slot. Every later purchase uses a standalone FluidWheelState.
 		FluidWheelState wheelState;
 		if (wheelStates.Count == 0)
@@ -175,7 +175,7 @@ internal sealed class WaterWheelManager
 				GD.PushWarning(
 					"WaterWheelManager: Refusing to make Wheel " +
 					wheelId +
-					" the primary wheel. Starting Wheel 4 must be activated first."
+					" the primary wheel. Starting Wheel 3 must be activated first."
 				);
 				return false;
 			}
@@ -356,7 +356,7 @@ internal sealed class WaterWheelManager
 
 	public void StepAdditionalWheels(float dt)
 	{
-		// Runtime index 0 is always the explicitly designated primary Wheel 4.
+		// Runtime index 0 is always the explicitly designated primary Wheel 3.
 		for (int i = 1; i < wheelStates.Count; i++)
 			wheelStates[i].Step(dt);
 	}
