@@ -220,9 +220,22 @@ public partial class EconomyUi : Control
 		foreach (Node node in root.FindChildren("*", "Panel", true, false))
 			if (node is Panel panel) panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 
+		Node centerWindowContainer = root.FindChild("PanelContainer", true, false);
+		Node windowBackground = root.FindChild("WindowBackground", true, false);
+		Node centerWindowOwner = windowBackground?.GetParent();
+
 		foreach (Node node in root.FindChildren("*", "PanelContainer", true, false))
-			if (node is PanelContainer panelContainer && panelContainer != resourceBackground)
-				panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+		{
+			if (node is not PanelContainer panelContainer) continue;
+			// The CenterUI PanelContainer is the structural container for the shared
+			// window background. Styling it creates an empty rectangle when no window
+			// is open, so it must remain visually transparent.
+			if (panelContainer == centerWindowOwner || panelContainer == centerWindowContainer)
+				continue;
+			if (panelContainer == resourceBackground)
+				continue;
+			panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+		}
 	}
 
 	private void UpdateDisplay()
