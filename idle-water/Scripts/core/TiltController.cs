@@ -15,6 +15,10 @@ public sealed class TiltController
 	private const float SensorMinimumMagnitude = 1.0f;
 	private const float SensorSmoothing = 0.15f;
 
+	// GravityIndicator artwork points right at 0 degrees.
+	// -270 degrees is therefore the authored rotation for pointing down.
+	private const float GravityIndicatorRotationOffset = -Mathf.Pi * 1.5f;
+
 	private Vector3 smoothedAccelerometer = Vector3.Zero;
 	private bool hasSensorSample;
 
@@ -117,8 +121,6 @@ public sealed class TiltController
 	/// Rotates the Sprite2D named "GravityIndicator" to match the actual
 	/// gravity vector used by the simulation. The lookup is recursive so the
 	/// indicator can live anywhere in the UI hierarchy.
-	///
-	/// The sprite is assumed to be authored pointing downward at rotation 0.
 	/// </summary>
 	private void UpdateGravityIndicatorVisual()
 	{
@@ -131,9 +133,7 @@ public sealed class TiltController
 		}
 
 		Sprite2D indicator =
-			FindGravityIndicator(
-				tree.Root
-			);
+			FindGravityIndicator(tree.Root);
 
 		if (indicator == null)
 		{
@@ -145,11 +145,11 @@ public sealed class TiltController
 			return;
 		}
 
-		// GravityDirection.Angle() is measured from the +X axis.
-		// Subtract 90 degrees because the sprite points down at 0 degrees.
+		// The artwork points right at 0 degrees and down at -270 degrees.
+		// Add the gravity direction angle to that authored down rotation.
 		indicator.Rotation =
-			GravityDirection.Angle() -
-			Mathf.Pi * 0.5f;
+			GravityDirection.Angle() +
+			GravityIndicatorRotationOffset;
 	}
 
 	private static Sprite2D FindGravityIndicator(Node node)
