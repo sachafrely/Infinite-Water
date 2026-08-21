@@ -75,7 +75,8 @@ public partial class EconomyUi : Control
 		rainDisplay = new RainAmountDisplay();
 		rainDisplay.Name = "RainAmountDisplay";
 		rainDisplay.MouseFilter = MouseFilterEnum.Ignore;
-		rainDisplay.CustomMinimumSize = new Vector2(180.0f, 34.0f);
+		// 150% of the original 180x34 display.
+		rainDisplay.CustomMinimumSize = new Vector2(270.0f, 51.0f);
 		AddChild(rainDisplay);
 	}
 
@@ -208,22 +209,13 @@ public partial class EconomyUi : Control
 			}
 		}
 
-		Node bottomUi = root.FindChild("BottomUI", true, false) ?? root.FindChild("BottomUi", true, false);
-		if (bottomUi is Control bottomControl)
-		{
-			Button button = new Button();
-			button.Name = "SellEnergyButton";
-			button.Text = "Sell Energy";
-			button.CustomMinimumSize = new Vector2(120, 40);
-			button.Pressed += OnSellEnergyPressed;
-			bottomControl.AddChild(button);
-			sellEnergyButton = button;
-		}
+		// The Sell Energy button is placed in BottomUi by the Godot scene.
+		// Do not create a second fallback button here.
 	}
 
 	private void OnSellEnergyPressed()
 	{
-		EnergySystem.Instance?.TrySellEnergyChunk();
+		EnergySystem.Instance?.SellAllAvailableEnergy();
 		UpdateDisplay();
 	}
 
@@ -235,13 +227,13 @@ public partial class EconomyUi : Control
 		EnergySystem economy = EnergySystem.Instance;
 		if (economy == null)
 		{
-			energyLabel.Text = "Energy: 0.00";
-			dollarsLabel.Text = "Dollars: $0.00";
+			energyLabel.Text = "Energy: 0";
+			dollarsLabel.Text = "Dollars: $0";
 			return;
 		}
 
-		energyLabel.Text = "Energy: " + economy.Energy.ToString("F2");
-		dollarsLabel.Text = "Dollars: $" + economy.Dollars.ToString("F2");
+		energyLabel.Text = "Energy: " + System.Math.Floor(economy.Energy).ToString("F0");
+		dollarsLabel.Text = "Dollars: $" + System.Math.Floor(economy.Dollars).ToString("F0");
 
 		if (sellEnergyButton != null)
 			sellEnergyButton.Disabled = economy.Energy < EnergySystem.EnergyPerDollar;
@@ -255,9 +247,9 @@ public partial class EconomyUi : Control
 internal sealed partial class RainAmountDisplay : Control
 {
 	private const int SegmentCount = 10;
-	private const float SegmentWidth = 14.0f;
-	private const float SegmentHeight = 28.0f;
-	private const float SegmentGap = 3.0f;
+	private const float SegmentWidth = 21.0f;
+	private const float SegmentHeight = 42.0f;
+	private const float SegmentGap = 4.5f;
 	private float rainPercent;
 
 	public float RainPercent

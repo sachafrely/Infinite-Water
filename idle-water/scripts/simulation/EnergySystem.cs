@@ -14,7 +14,7 @@ public class EnergySystem
 	// Economy
 	// ============================================================
 
-	// One sale is exactly 10 energy for 1 dollar.
+	// 10 energy can be sold for 1 dollar.
 	public const double EnergyPerDollar =
 		10.0;
 
@@ -91,6 +91,23 @@ public class EnergySystem
 	// ============================================================
 	// Sell energy
 	// ============================================================
+
+	/// <summary>
+	/// Sells every complete 10-energy chunk currently available.
+	/// Each complete chunk gives 1 dollar. Any remainder below 10 energy is kept.
+	/// For example, 222 energy becomes 2 energy and gives 22 dollars.
+	/// </summary>
+	public int SellAllAvailableEnergy()
+	{
+		int chunks = (int)System.Math.Floor(energy / EnergyPerDollar);
+
+		if (chunks <= 0)
+			return 0;
+
+		energy -= chunks * EnergyPerDollar;
+		dollars += chunks;
+		return chunks;
+	}
 
 	/// <summary>
 	/// Sells exactly one 10-energy chunk for 1 dollar.
