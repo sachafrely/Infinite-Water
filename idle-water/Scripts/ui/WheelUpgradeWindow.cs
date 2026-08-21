@@ -5,6 +5,7 @@ public partial class WheelUpgradeWindow : Control
 {
     private const float WindowWidth = 300.0f;
     private const float RowHeight = 46.0f;
+    private const float CloseButtonHeight = 34.0f;
 
     private FluidSimulator simulator;
     private Action closeAction;
@@ -24,7 +25,7 @@ public partial class WheelUpgradeWindow : Control
 
     private void BuildWindow()
     {
-        CustomMinimumSize = new Vector2(WindowWidth, 190.0f);
+        CustomMinimumSize = new Vector2(WindowWidth, 250.0f);
         Size = CustomMinimumSize;
         MouseFilter = MouseFilterEnum.Stop;
 
@@ -40,13 +41,31 @@ public partial class WheelUpgradeWindow : Control
         margin.AddThemeConstantOverride("margin_bottom", 8);
         panel.AddChild(margin);
 
-        VBoxContainer rows = new VBoxContainer();
-        rows.AddThemeConstantOverride("separation", 4);
-        margin.AddChild(rows);
+        VBoxContainer content = new VBoxContainer();
+        content.AddThemeConstantOverride("separation", 5);
+        margin.AddChild(content);
 
-        CreateRow(rows, 0, WheelUpgradeType.BiggerPaddles, "Bigger Paddles");
-        CreateRow(rows, 1, WheelUpgradeType.LessFriction, "Less Friction");
-        CreateRow(rows, 2, WheelUpgradeType.MoreEfficient, "More Efficient");
+        CreateRow(content, 0, WheelUpgradeType.BiggerPaddles, "Bigger Paddles");
+        CreateRow(content, 1, WheelUpgradeType.LessFriction, "Less Friction");
+        CreateRow(content, 2, WheelUpgradeType.MoreEfficient, "More Efficient");
+
+        Control spacer = new Control
+        {
+            CustomMinimumSize = new Vector2(0.0f, 4.0f),
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill
+        };
+        content.AddChild(spacer);
+
+        Button closeButton = new Button
+        {
+            Text = "Close Window",
+            CustomMinimumSize = new Vector2(0.0f, CloseButtonHeight),
+            FocusMode = Control.FocusModeEnum.None,
+            MouseFilter = MouseFilterEnum.Stop
+        };
+        closeButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeSmall);
+        closeButton.Pressed += Close;
+        content.AddChild(closeButton);
     }
 
     private void CreateRow(VBoxContainer parent, int arrayIndex, WheelUpgradeType type, string title)
