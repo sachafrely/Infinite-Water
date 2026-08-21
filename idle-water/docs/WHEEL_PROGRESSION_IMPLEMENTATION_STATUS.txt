@@ -9,6 +9,7 @@ CURRENT VERIFIED GAME STATE
 - Five Buy Wheel windows are visible and centered on the five locked wheel tiles.
 - Buying a wheel works.
 - The water simulation continues to work after purchases.
+- Energy generation from a newly purchased wheel works.
 
 CORE RULE
 ---------
@@ -42,12 +43,13 @@ Status: COMPLETE
 - Existing PBF simulation systems are not recreated.
 
 PHASE 3 — DYNAMIC INDIVIDUAL WHEEL ACTIVATION
-Status: IMPLEMENTED
+Status: IMPLEMENTED AND RUNTIME VERIFIED
 
 - WaterWheelManager supports activation by exact map-position index.
 - Purchasing one wheel adds exactly one wheel to the existing simulation.
 - The solver, particles, spatial hash, coordinator, existing wheels, rain and
   existing energy are not recreated or reset.
+- Developer verified the purchased wheel generates energy correctly.
 
 PHASE 4 — ECONOMY
 Status: IMPLEMENTED
@@ -56,7 +58,7 @@ Status: IMPLEMENTED
 - Purchase spending remains atomic: activation succeeds before money is spent.
 
 PHASE 5 — FIVE INDEPENDENT BUY WINDOWS
-Status: IMPLEMENTED
+Status: IMPLEMENTED AND RUNTIME VERIFIED
 
 - Five small windows exist for the five locked wheel positions.
 - Windows are centered directly on their corresponding wheel tiles.
@@ -68,11 +70,12 @@ Status: IMPLEMENTED
 - The Buy Wheel text is larger than the previous label.
 - The price is no longer displayed inside the small Buy Wheel window.
 - All five windows remain independently purchasable when the player has $10.
+- Developer verified the windows are centered correctly.
 
 PHASE 5B — PURCHASE CONFIRMATION
-Status: IMPLEMENTED — RUNTIME TEST PENDING
+Status: IMPLEMENTED — FIX APPLIED, RUNTIME RETEST PENDING
 
-Clicking a Buy Wheel window now opens a confirmation window for that exact wheel.
+Clicking a Buy Wheel window opens a confirmation window for that exact wheel.
 The confirmation text is:
 
     Do you want to buy this wheel for 10$
@@ -82,7 +85,13 @@ The dialog provides:
     Yes
     No
 
-Yes performs the requested purchase. No closes the confirmation without buying.
+No closes the confirmation without buying.
+Yes performs the requested purchase and closes the confirmation window.
+
+The confirmation is now created inside the same UI hierarchy as the Buy Wheel
+windows and uses a substantially higher ZIndex so it renders in front of them.
+This is intentional because Godot draw ordering depends on CanvasItem ZIndex
+within the same canvas/layer; a higher ZIndex draws in front. urlGodot Control documentationhttps://docs.godotengine.org/en/stable/classes/class_control.html
 
 The confirmation dialog also uses square corners.
 
@@ -98,10 +107,10 @@ Status: NOT IMPLEMENTED
 Wheel ownership is runtime-only. Persistence will be implemented later.
 
 PHASE 7 — ENERGY VALIDATION
-Status: CODE IMPLEMENTED / RUNTIME TEST PENDING
+Status: RUNTIME VERIFIED FOR NEW WHEEL
 
-Runtime testing should confirm that a newly purchased wheel generates energy
-normally and existing wheels continue normally.
+Developer verified that a newly purchased wheel generates energy correctly.
+A broader long-duration validation remains useful later.
 
 PHASE 8 — PERFORMANCE VALIDATION
 Status: CODE SAFETY IMPLEMENTED / RUNTIME TEST PENDING
@@ -112,20 +121,17 @@ not rebuilt.
 NEXT RUNTIME CHECKPOINT
 -----------------------
 1. Run the game.
-2. Confirm each small window says only "Buy Wheel".
-3. Confirm the Buy Wheel text is visibly larger.
-4. Confirm windows are square-cornered and 76 x 38 pixels.
-5. Accumulate at least $10.
-6. Click any locked wheel's Buy Wheel window.
-7. Confirm a confirmation dialog opens saying "Do you want to buy this wheel for 10$".
-8. Confirm Yes and No are visible.
-9. Click No and confirm no wheel is purchased and no money is spent.
-10. Open another Buy Wheel window and click Yes.
-11. Confirm exactly that wheel appears.
-12. Confirm exactly $10 is deducted once.
-13. Confirm only that wheel's Buy Window disappears.
-14. Confirm the remaining locked wheels remain independently purchasable.
-15. Confirm water simulation still works normally.
+2. Click any locked wheel's Buy Wheel window.
+3. Confirm the confirmation window appears IN FRONT of the Buy Wheel window.
+4. Confirm Yes and No are visible and clickable.
+5. Click No and confirm the confirmation window closes without purchasing.
+6. Open another Buy Wheel confirmation.
+7. Click Yes and confirm the wheel appears and the confirmation window closes.
+8. Confirm exactly $10 is deducted once.
+9. Confirm only that wheel's Buy Window disappears.
+10. Confirm the remaining locked wheels remain independently purchasable.
+11. Confirm the purchased wheel generates energy.
+12. Confirm water simulation still works normally.
 
 IMPORTANT DESIGN RULE
 ---------------------
