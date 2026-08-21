@@ -82,17 +82,23 @@ public partial class WheelPurchaseUi : Control
         if (confirmationWindow != null && IsInstanceValid(confirmationWindow))
             confirmationWindow.QueueFree();
 
+        // Keep the confirmation dialog in the same UI hierarchy as the Buy Wheel
+        // windows so it is guaranteed to share their canvas/layer. Its higher
+        // z-index puts it in front of the Buy Wheel window that opened it.
         confirmationWindow = new WheelPurchaseConfirmationWindow();
         confirmationWindow.Name = "WheelPurchaseConfirmationWindow";
+        confirmationWindow.ZIndex = 2000;
         confirmationWindow.Setup(wheelIndex, simulator, OnPurchaseConfirmed, OnPurchaseCancelled);
-        GetTree().CurrentScene.AddChild(confirmationWindow);
+        AddChild(confirmationWindow);
     }
 
     private void OnPurchaseConfirmed(int wheelIndex)
     {
-        if (simulator != null)
-            simulator.TryPurchaseWheel(wheelIndex);
+        bool purchased = simulator != null && simulator.TryPurchaseWheel(wheelIndex);
         Refresh();
+
+        // The confirmation must disappear after a successful purchase.
+        // The dialog also closes itself, so this reference is cleared here only.
         confirmationWindow = null;
     }
 
