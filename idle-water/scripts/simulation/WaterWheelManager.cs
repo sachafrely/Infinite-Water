@@ -2,10 +2,6 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-/// <summary>
-/// Owns water wheel creation, visuals, wheel discovery and energy tracking.
-/// Wheel progression is kept above the running fluid simulation.
-/// </summary>
 internal sealed class WaterWheelManager
 {
     public const int MaxWheelCount = 6;
@@ -16,15 +12,11 @@ internal sealed class WaterWheelManager
     public const int WheelBladeCount = 8;
     public const float WheelBladeWidth = 7.5f;
     private const float CurrentGenerationThreshold = 0.002f;
-
-    // The intended starting wheel is the third marker from the top in the level.
-    // This is explicit so TileMap GetUsedCells() ordering can never select the wrong wheel.
     private const int PreferredInitialWheelSortedIndex = 2;
 
     private readonly PbfSolver solver;
     private readonly EnergySystem energySystem;
     private readonly Node2D owner;
-
     private readonly List<FluidWheelState> wheelStates = new List<FluidWheelState>();
     private readonly List<WaterWheelVisual> wheelVisuals = new List<WaterWheelVisual>();
     private readonly List<Vector2> wheelPositions = new List<Vector2>();
@@ -51,13 +43,7 @@ internal sealed class WaterWheelManager
         return index >= 0 && index < MaxWheelCount && wheelUnlocked[index];
     }
 
-    /// <summary>
-    /// Discovers every wheel marker first, then activates only the initial wheel.
-    /// Discovery itself never creates colliders or visuals.
-    /// </summary>
-    public void CreateWaterWheelsFromEnvironment(
-        TileMapLayer environment,
-        Func<Vector2, Vector2> toSimulationSpace)
+    public void CreateWaterWheelsFromEnvironment(TileMapLayer environment, Func<Vector2, Vector2> toSimulationSpace)
     {
         wheelPositions.Clear();
         Array.Clear(wheelUnlocked, 0, wheelUnlocked.Length);
@@ -76,24 +62,21 @@ internal sealed class WaterWheelManager
 
         foreach (Vector2I cell in environment.GetUsedCells())
         {
-            int sourceId = environment.GetCellSourceId(cell);
-            if (sourceId < 0)
+            if (environment.GetCellSourceId(cell) < 0)
                 continue;
 
             Vector2I atlasCoords = environment.GetCellAtlasCoords(cell);
             if (atlasCoords.X != WheelTileAtlasX || atlasCoords.Y != WheelTileAtlasY)
                 continue;
 
-            Vector2 tileCenterLocal = environment.MapToLocal(cell);
-            Vector2 tileCenterGlobal = environment.ToGlobal(tileCenterLocal);
-            Vector2 simulationPosition = toSimulationSpace(tileCenterGlobal);
-            wheelPositions.Add(simulationPosition);
+            Vector2 tileCenterGlobal = environment.ToGlobal(environment.MapToLocal(cell));
+            wheelPositions.Add(toSimulationSpace(tileCenterGlobal));
         }
 
         wheelPositions.Sort((a, b) =>
         {
-            int yCompare = a.Y.CompareTo(b.Y);
-            return yCompare != 0 ? yCompare : a.X.CompareTo(b.X);
+            int y = a.Y.CompareTo(b.Y);
+            return y != 0 ? y : a.X.CompareTo(b.X);
         });
 
         if (wheelPositions.Count > MaxWheelCount)
@@ -105,20 +88,17 @@ internal sealed class WaterWheelManager
             return;
         }
 
-        // New games start with exactly one wheel. The known intended wheel is
-        // the third wheel from the top in the current level layout.
-        int initialIndex = Math.Min(
-            PreferredInitialWheelSortedIndex,
-            wheelPositions.Count - 1
-        );
+        int initialPositionIndex = Math.Min(PreferredInitialWheelSortedIndex, wheelPositions.Count - 1);
+        Vector2 initialPosition = wheelPositions[initialPositionIndex];
 
-        Vector2 initialPosition = wheelPositions[initialIndex];
-        wheelUnlocked[initialIndex] = true;
+        // Slot 0 is the first owned wheel. Its physical position is explicitly
+        // the third marker from the top in the current level.
+        wheelUnlocked[0] = true;
         CreateWaterWheel(initialPosition);
 
         GD.Print(
             "Water wheel markers discovered: " + wheelPositions.Count + "/" + MaxWheelCount +
-            ". Active on new game: slot " + initialIndex + " at simulation " + initialPosition
+            ". Active wheel: slot 0 at simulation " + initialPosition
         );
     }
 
@@ -140,7 +120,6 @@ internal sealed class WaterWheelManager
             Vector2 tangent = new Vector2(-direction.Y, direction.X);
             Vector2 innerCenter = direction * WheelInnerRadius;
             Vector2 outerCenter = direction * WheelOuterRadius;
-
             Vector2[] blade =
             {
                 innerCenter + tangent * WheelBladeWidth,
@@ -161,7 +140,6 @@ internal sealed class WaterWheelManager
             float angle = Mathf.Tau * i / hubSegments;
             hub[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * WheelInnerRadius;
         }
-
         solver.AddPolygonCollider(new FluidPolygonCollider(hub));
 
         WaterWheelVisual visual = new WaterWheelVisual
@@ -182,7 +160,6 @@ internal sealed class WaterWheelManager
     {
         previousWheelAngles = new float[wheelStates.Count];
         wheelEnergyGeneratedThisFrame = new double[wheelStates.Count];
-
         for (int i = 0; i < wheelStates.Count; i++)
             previousWheelAngles[i] = wheelStates[i].Angle;
     }
@@ -190,10 +167,8 @@ internal sealed class WaterWheelManager
     public void ResetFrameEnergy()
     {
         energyGeneratedThisFrame = 0.0;
-
         if (wheelEnergyGeneratedThisFrame.Length != wheelStates.Count)
             wheelEnergyGeneratedThisFrame = new double[wheelStates.Count];
-
         Array.Clear(wheelEnergyGeneratedThisFrame, 0, wheelEnergyGeneratedThisFrame.Length);
     }
 
@@ -213,7 +188,6 @@ internal sealed class WaterWheelManager
             wheelEnergyGeneratedThisFrame = new double[wheelCount];
 
         bool currentGenerated = false;
-
         for (int i = 0; i < wheelCount; i++)
         {
             float currentAngle = wheelStates[i].Angle;
@@ -234,7 +208,6 @@ internal sealed class WaterWheelManager
 
             previousWheelAngles[i] = currentAngle;
         }
-
         return currentGenerated;
     }
 
