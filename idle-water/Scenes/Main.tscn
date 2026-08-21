@@ -741,7 +741,7 @@ grow_vertical = 2
 script = ExtResource("16_fq0cl")
 
 [node name="GravityIndicator" type="Sprite2D" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=521779533]
-position = Vector2(620, 81)
+position = Vector2(620, 210)
 rotation = -4.712389
 scale = Vector2(3, 3)
 texture = ExtResource("19_3tgeq")
