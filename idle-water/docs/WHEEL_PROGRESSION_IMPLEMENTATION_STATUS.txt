@@ -3,23 +3,23 @@ INFINITE WATER — WHEEL PROGRESSION IMPLEMENTATION STATUS
 Date: 21.08.2026
 Branch: feature/wheel-progression
 
-PURPOSE
--------
-Track the actual implementation state of the Wheel Progression system against
-WHEEL_PROGRESSION_GAMEPLAN.txt.
-
 CURRENT VERIFIED GAME STATE
 ---------------------------
-The developer has run the game from feature/wheel-progression and verified:
+- Developer verified exactly one starting wheel is visible and rotating.
+- Five Buy Wheel windows are visible.
+- Windows are centered on their corresponding wheel tiles.
+- Every window is intended to show exactly:
+    Buy Wheel
+    20$
 
-- Exactly one wheel is visible at startup.
-- The starting wheel is the intended wheel.
-- The starting wheel rotates normally.
-- The other wheel locations are not visible/active yet.
-- The existing fluid simulation continues to work normally.
-- Five Buy Wheel windows are now visible.
-- The developer requested the windows to be centered on the wheel tiles.
-- The developer requested the purchase price to be $20.
+CORE RULE
+---------
+The player may buy ANY of the five locked wheel positions at any time.
+There is NO sequential purchase order.
+
+A purchase window belongs to one specific wheel position. Clicking that window
+attempts to purchase that exact wheel. The other four locked wheels remain
+independently purchasable.
 
 IMPLEMENTED
 ------------
@@ -27,178 +27,123 @@ IMPLEMENTED
 PHASE 1 — DISCOVERY / CREATION SEPARATION
 Status: COMPLETE
 
-- Wheel marker positions are collected before activation.
-- Marker positions are converted to simulation coordinates.
-- Positions are sorted deterministically by Y, then X.
+- Wheel marker positions are discovered before activation.
+- Positions are converted to simulation coordinates and sorted deterministically.
 - Maximum discovered wheel locations remains 6.
 - Discovery does not instantiate all six wheel runtimes.
 
 PHASE 2 — INITIAL ONE-WHEEL STATE
 Status: COMPLETE
 
-- A new game activates exactly one wheel.
-- The current level's intended starting wheel is explicitly the third marker
-  from the top (sorted index 2).
-- That physical position becomes the primary runtime wheel.
-- Other wheel locations remain inactive.
+- A new game starts with exactly one wheel.
+- The intended starting wheel is the third marker from the top.
+- The other five wheel positions remain locked/inactive.
 - Existing PBF simulation systems are not recreated.
 
-PHASE 3 — DYNAMIC WHEEL ACTIVATION
+PHASE 3 — DYNAMIC INDIVIDUAL WHEEL ACTIVATION
 Status: IMPLEMENTED — RUNTIME TEST PENDING
 
-WaterWheelManager now provides:
-
+WaterWheelManager now supports:
 - IsWheelUnlocked(index)
-- UnlockedWheelCount
-- CanUnlockNextWheel()
-- GetNextLockedWheelIndex()
 - GetWheelPosition(index)
 - ActivateWheel(index)
-- TryUnlockNextWheel()
+- TryUnlockWheel(index)
 
-Important behavior:
+TryUnlockWheel(index) activates the exact requested wheel position. It does not
+search for or require the next locked wheel.
 
-- Only one new wheel is activated per unlock.
-- Existing FluidWheelState instances are not recreated.
-- Existing wheel visuals are not recreated.
-- The PbfSolver is not recreated.
-- ParticleData is not recreated.
-- SpatialHash is not recreated.
-- FluidSimulationCoordinator is not recreated.
-- Existing particles, rain and energy are not reset.
+Purchasing any wheel adds exactly one wheel to the existing running simulation.
+It does not recreate the solver, particles, spatial hash, coordinator, existing
+wheel states, rain, or existing energy.
 
-Runtime wheel indexes are deliberately kept separate from stable map-position
-indexes. This is required because the starting wheel is physical position 2,
-while runtime wheel index 0 is the primary wheel.
-
-PHASE 4 — ECONOMY INTEGRATION
+PHASE 4 — ECONOMY
 Status: IMPLEMENTED — RUNTIME TEST PENDING
 
-EnergySystem now provides:
+- WheelPurchaseCost = $20.
+- A purchase checks that the player has at least $20.
+- $20 is deducted only after the requested wheel is successfully activated.
+- Insufficient funds leave both wheel ownership and money unchanged.
 
-- WheelPurchaseCost = 20 dollars.
-- TrySpendDollars(amount) for atomic spending.
-
-TryUnlockNextWheel() follows the transaction safety rule:
-
-1. Find the first locked wheel position.
-2. Verify that $20 is available.
-3. Activate the wheel in the existing simulation.
-4. Spend $20 only after activation succeeds.
-5. Return success/failure.
-
-Insufficient money does not activate a wheel and does not change the dollar
-balance.
-
-PHASE 4 API BRIDGE
-------------------
-A partial FluidSimulator extension now exposes the progression system without
-requiring UI code to access WaterWheelManager directly:
-
-- ActiveWheelCount
-- UnlockedWheelCount
-- IsWheelUnlocked(index)
-- CanUnlockNextWheel()
-- TryPurchaseNextWheel()
-- GetNextLockedWheelIndex()
-- GetWheelPosition(index)
-
-This keeps purchase/UI code above the simulation layer.
-
-PHASE 5 — FIVE SMALL BUY WHEEL WINDOWS
+PHASE 5 — FIVE INDEPENDENT BUY WINDOWS
 Status: IMPLEMENTED — RUNTIME TEST PENDING
 
-The requested UI design is five small purchase windows, one for each additional
-locked wheel slot.
-
-Behavior:
-
-- The starting wheel has no Buy Wheel window.
-- Five small windows are created for the five additional wheel slots.
-- Each window is centered directly on the tile/position where its wheel will
-  appear. There is no additional top-right or side offset.
-- Every window always displays exactly two rows:
+- Five small windows exist for the five locked wheel positions.
+- Each window is centered directly on the corresponding wheel tile.
+- Each window always displays:
     Buy Wheel
     20$
-- The purchase price is defined centrally by EnergySystem.WheelPurchaseCost.
-- Only the next sequential purchase can be activated.
-- Future locked windows remain visible but their purchase buttons are disabled.
-- After a wheel is purchased, its window disappears and the next window becomes
-  the available purchase target.
-- The UI does not recreate or reset the fluid simulation.
-- The UI is generated at runtime and does not require five manually duplicated
-  UI nodes in the scene.
+- Each window is an independent purchase target.
+- There is no sequential-order restriction.
+- Having $20 enables every still-locked wheel window, not just one specific window.
+- Buying one wheel hides only that wheel's window.
+- The remaining locked-wheel windows stay visible and independently clickable.
 
-UI script:
+UI API
+------
+FluidSimulator now exposes:
+- TryPurchaseWheel(int wheelIndex)
 
-- idle-water/Scripts/ui/WheelPurchaseUi.cs
+WheelPurchaseUi calls TryPurchaseWheel with the exact wheel index represented by
+the clicked window.
 
-The UI is bootstrapped alongside the existing EconomyUi from EnergySystem.
+LEGACY COMPATIBILITY
+--------------------
+TryUnlockNextWheel remains available for compatibility with older code, but the
+new Buy Wheel UI does not use it. New gameplay/UI code should use
+TryPurchaseWheel(index).
 
 ENERGY TRACKING SAFETY
 ----------------------
-When a wheel is activated, the existing per-wheel energy arrays are resized
-without resetting the existing wheel data.
-
-The newly activated wheel's previous-angle baseline is initialized to its
-current angle. Therefore it should not generate artificial energy merely because
-it was created.
+When a wheel is activated, its previous-angle baseline is initialized to its
+current angle so it does not create an artificial energy spike on purchase.
+Existing wheel energy tracking is preserved.
 
 PHASE 6 — PERSISTENCE
 Status: NOT IMPLEMENTED
 
-Wheel ownership is currently runtime-only. Restarting the game will return to
-the fresh-game one-wheel state.
+Wheel ownership is runtime-only. Persistence will be implemented later.
 
 PHASE 7 — ENERGY VALIDATION
 Status: IMPLEMENTED IN CODE / TEST PENDING
 
-The new-wheel energy baseline protection is implemented. Runtime testing is
-still required to confirm that:
-
-- no artificial energy spike occurs on purchase;
-- the new wheel generates energy from real rotation;
-- existing wheels keep their normal production.
+Runtime testing still needs to confirm that a newly purchased wheel generates
+energy normally and existing wheels continue normally.
 
 PHASE 8 — PERFORMANCE VALIDATION
 Status: CODE SAFETY IMPLEMENTED / TEST PENDING
 
-The implementation does not scan locked positions every frame and does not
-rebuild the simulation when a wheel is activated.
+Purchasing a wheel adds only that wheel's colliders and visual. The simulation is
+not rebuilt.
 
-NEXT CHECKPOINT
----------------
-CHECKPOINT B:
-
+NEXT RUNTIME CHECKPOINT
+-----------------------
 1. Run the game.
-2. Confirm five small Buy Wheel windows are visible.
-3. Confirm each window is centered on its corresponding wheel tile.
-4. Confirm every window says "Buy Wheel" on row 1 and "20$" on row 2.
-5. Accumulate at least $20.
-6. Confirm the first purchase button becomes enabled.
-7. Purchase wheel 2.
-8. Confirm exactly one additional wheel appears.
-9. Confirm the original wheel remains active and rotating.
-10. Confirm the new wheel collides with water.
-11. Confirm $20 is deducted exactly once.
-12. Confirm the purchased wheel's Buy window disappears.
-13. Confirm the next Buy Wheel window becomes enabled.
-14. Confirm insufficient funds reject the purchase.
-15. Repeat until all five additional wheels can be activated.
+2. Confirm five windows are visible and centered on the five locked tiles.
+3. Confirm every window says Buy Wheel / 20$.
+4. Accumulate at least $20.
+5. Confirm ALL five locked-wheel buttons become enabled.
+6. Buy a non-first locked wheel (for example the lowest one).
+7. Confirm that exact wheel appears immediately.
+8. Confirm its own window disappears.
+9. Confirm the other four windows remain visible and enabled.
+10. Buy another arbitrary locked wheel, not necessarily adjacent to the first.
+11. Confirm the correct wheel appears and only its window disappears.
+12. Confirm $20 is deducted once per purchase.
+13. Confirm purchases continue to work until all five additional wheels are owned.
+14. Confirm insufficient funds disable/reject every purchase.
 
 IMPORTANT DESIGN RULE
 ---------------------
-PURCHASING A WHEEL ADDS ONE WHEEL TO THE EXISTING SIMULATION.
+PURCHASING A WHEEL ADDS ONE SPECIFIC WHEEL TO THE EXISTING SIMULATION.
 IT MUST NEVER RECREATE THE SIMULATION.
 
-FILES CHANGED FOR THIS IMPLEMENTATION
---------------------------------------
+FILES INVOLVED
+--------------
 - idle-water/scripts/simulation/WaterWheelManager.cs
 - idle-water/scripts/simulation/EnergySystem.cs
 - idle-water/scripts/simulation/FluidSimulator.WheelProgression.cs
 - idle-water/Scripts/ui/WheelPurchaseUi.cs
 - idle-water/docs/WHEEL_PROGRESSION_IMPLEMENTATION_STATUS.txt
 
-The original detailed implementation plan remains in:
-
+Original plan:
 - idle-water/docs/WHEEL_PROGRESSION_GAMEPLAN.txt
