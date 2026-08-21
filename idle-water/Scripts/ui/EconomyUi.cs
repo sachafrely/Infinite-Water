@@ -323,7 +323,7 @@ internal sealed partial class RainAmountDisplay : Control
 {
 	private const int SegmentCount = 10;
 	private const float SegmentWidth = 21.0f;
-	private const float SegmentHeight = 42.0f;
+	private const float SegmentHeight = 30.0f;
 	private const float SegmentGap = 4.5f;
 	private float rainPercent;
 
