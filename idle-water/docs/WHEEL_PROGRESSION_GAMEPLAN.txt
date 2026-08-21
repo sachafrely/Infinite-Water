@@ -1,0 +1,424 @@
+INFINITE WATER — WHEEL PROGRESSION GAME PLAN
+Created: 21.08.2026
+
+PURPOSE
+-------
+Implement the progression system:
+
+- A new game starts with exactly 1 active water wheel.
+- 5 additional wheel slots exist.
+- The additional wheels are purchased/unlocked one at a time.
+- Unlocked wheels become active in the existing fluid simulation.
+- Wheel ownership is persistent.
+- The implementation must not rebuild or otherwise destabilize the PBF fluid simulation.
+
+CORE DESIGN PRINCIPLE
+---------------------
+Wheel progression is an ownership/gameplay layer ABOVE the fluid simulation.
+
+The PBF solver, particles, spatial hash, density field, rain system and renderer
+must remain alive and unchanged when a wheel is purchased.
+
+Purchasing a wheel should only cause the existing WaterWheelManager to activate
+one additional wheel position and add that wheel's existing collider/visual/state
+to the already-running solver.
+
+CURRENT CODEBASE OBSERVATION
+----------------------------
+WaterWheelManager already owns wheel creation, wheel visuals, wheel state and
+wheel energy tracking. It supports MaxWheelCount = 6 and CreateWaterWheel()
+currently adds wheel colliders to the existing PbfSolver.
+
+FluidSimulator creates the PbfSolver and WaterWheelManager during startup.
+This architecture should be preserved.
+
+TARGET WHEEL MODEL
+------------------
+
+Slot 0: UNLOCKED on new game
+Slot 1: LOCKED
+Slot 2: LOCKED
+Slot 3: LOCKED
+Slot 4: LOCKED
+Slot 5: LOCKED
+
+Maximum active wheels: 6
+
+The six wheel positions should be discovered from the existing environment
+marker tiles. Discovering a position must NOT automatically create its wheel.
+
+WHEEL POSITION HANDLING
+-----------------------
+1. Scan the environment for wheel marker tiles.
+2. Convert marker positions into simulation coordinates.
+3. Store the positions in a deterministic list.
+4. Sort/order the positions so wheel slot assignment is stable.
+5. Do NOT create wheel colliders or visuals during discovery.
+6. Activate only the positions whose slots are unlocked.
+
+IMPORTANT:
+The wheel order must be deterministic. The previous problem where the wrong
+wheel was treated as the first wheel must not return.
+
+PREFERRED SLOT ORDER
+--------------------
+Use a deterministic ordering based on the environment positions. If the wheel
+layout is vertically arranged, order by Y position so the intended first wheel
+is consistently slot 0.
+
+If the exact desired first wheel is known from the current level layout, make
+that position explicitly slot 0 rather than relying on TileMap GetUsedCells()
+iteration order.
+
+IMPLEMENTATION PHASES
+---------------------
+
+PHASE 1 — SEPARATE DISCOVERY FROM CREATION
+
+Goal:
+Find all six wheel positions without activating all six wheels.
+
+Tasks:
+- Add a wheelPositions collection to WaterWheelManager.
+- Change environment scanning to register positions only.
+- Remove automatic creation of every discovered wheel.
+- Add deterministic position ordering.
+- Keep MaxWheelCount = 6.
+
+Acceptance criteria:
+- The game discovers up to six wheel positions.
+- No extra wheel colliders are created during discovery.
+- No extra wheel visuals are created during discovery.
+- Fluid simulation starts normally.
+
+PHASE 2 — INITIAL ONE-WHEEL STATE
+
+Goal:
+A new game has exactly one active wheel.
+
+Tasks:
+- Add wheelUnlocked[6] state or an equivalent ownership model.
+- Set slot 0 to true for a new game.
+- Set slots 1–5 to false.
+- Create only slot 0 after position discovery.
+- Initialize wheel energy tracking after the active wheel exists.
+
+Acceptance criteria:
+- New game visibly contains exactly one wheel.
+- The first wheel remains the correct intended wheel.
+- Water still collides with the first wheel.
+- The first wheel still generates energy.
+- No fluid simulation restart occurs.
+
+PHASE 3 — UNLOCK NEXT WHEEL
+
+Goal:
+Activate exactly one additional wheel when purchased.
+
+Recommended API:
+- IsWheelUnlocked(index)
+- UnlockedWheelCount
+- CanUnlockNextWheel()
+- UnlockNextWheel()
+
+UnlockNextWheel() should:
+1. Find the first locked slot.
+2. Verify that the corresponding wheel position exists.
+3. Mark the slot unlocked.
+4. Call the existing CreateWaterWheel(position).
+5. Update wheel energy tracking safely.
+6. Return success/failure.
+
+It must NOT:
+- recreate the PbfSolver
+- recreate ParticleData
+- recreate SpatialHash
+- recreate FluidSimulationCoordinator
+- reload the scene
+- clear existing particles
+- reset rain
+- reset energy
+- rebuild the complete simulation
+
+Acceptance criteria:
+- Buying wheel 2 activates only wheel 2.
+- Existing water continues moving normally.
+- Existing wheel 1 keeps its state and energy production.
+- Wheel 2 immediately participates in fluid collision.
+- Wheels 3–6 remain inactive.
+
+PHASE 4 — ECONOMY INTEGRATION
+
+Goal:
+Connect wheel unlocking to the existing money system.
+
+Tasks:
+- Define the purchase cost for each wheel.
+- Use the existing economy/money system.
+- Validate affordability before unlocking.
+- Deduct money only after a successful purchase.
+- Reject purchases when insufficient money is available.
+- Reject purchases after all six wheels are unlocked.
+
+Recommended transaction order:
+1. Determine next locked wheel.
+2. Determine its price.
+3. Check money.
+4. If insufficient: do nothing.
+5. If sufficient: deduct money.
+6. Unlock wheel.
+7. Update UI.
+8. Save progression.
+
+Do not deduct money if wheel activation fails.
+
+PHASE 5 — BUY WHEEL UI
+
+Goal:
+Provide a clear UI for the five locked wheels.
+
+UI states:
+
+LOCKED:
+- Wheel preview/slot indicator.
+- Price.
+- BUY WHEEL button.
+
+UNLOCKED:
+- Wheel indicator.
+- UNLOCKED/active state.
+- No purchase button required, or button disabled.
+
+Requirements:
+- The Buy Wheel window must use the existing UI style.
+- It must use the correct wheel slot, not an unrelated wheel index.
+- Opening the purchase UI must not affect the simulation.
+- Buying a wheel must close the confirmation/purchase UI after success.
+
+PHASE 6 — PERSISTENCE
+
+Goal:
+Wheel ownership survives restarting the game.
+
+Save only gameplay state, not simulation objects.
+
+Recommended saved value:
+- unlocked wheel count, OR
+- six boolean wheel ownership values.
+
+Do NOT save:
+- PbfSolver
+- ParticleData
+- FluidWheelState objects
+- colliders
+- visual nodes
+- particle positions
+- simulation runtime objects
+
+Startup order:
+1. Initialize game systems.
+2. Discover six wheel positions.
+3. Load saved wheel ownership.
+4. If no save exists, use [true,false,false,false,false,false].
+5. Create only unlocked wheels.
+6. Start normal simulation.
+
+Acceptance criteria:
+- New game starts with one wheel.
+- After purchasing three wheels, restarting starts with four active wheels.
+- Locked wheels remain inactive.
+- Existing simulation systems initialize normally.
+
+PHASE 7 — ENERGY TRACKING VALIDATION
+
+Goal:
+Ensure newly activated wheels contribute correctly to energy production.
+
+Tasks:
+- Verify wheel energy arrays resize correctly when a wheel is added.
+- Verify existing wheels retain their energy tracking.
+- Verify the new wheel starts with zero previous-frame movement rather than
+  generating artificial energy on activation.
+- Verify total energy generation includes all active wheels.
+
+Acceptance criteria:
+- Unlocking a wheel does not create a large artificial energy spike.
+- The new wheel generates energy only from actual rotation.
+- Existing wheel energy production is unchanged.
+
+PHASE 8 — PERFORMANCE SAFETY
+
+Goal:
+Make wheel unlocking safe for lower-end hardware.
+
+Rules:
+- Do not add per-frame searches for locked wheel positions.
+- Do not repeatedly scan the TileMap after startup.
+- Do not rebuild all wheel colliders when one wheel is unlocked.
+- Do not rebuild the complete simulation.
+- Create collider geometry only once per unlocked wheel.
+- Keep locked wheels completely outside the active solver collision set.
+
+Acceptance criteria:
+- Unlocking a wheel causes only a small one-time cost.
+- No recurring per-frame cost is added for locked wheels.
+- FPS remains stable after purchasing wheels.
+
+TEST PLAN
+---------
+
+TEST 1 — NEW GAME
+- Start with no save.
+- Confirm exactly one wheel exists.
+- Confirm it is the intended first wheel.
+- Confirm water simulation behaves normally.
+
+TEST 2 — PURCHASE WHEEL 2
+- Accumulate enough money.
+- Open Buy Wheel UI.
+- Purchase wheel 2.
+- Confirm exactly two wheels exist.
+- Confirm wheel 1 remains active.
+- Confirm wheel 2 interacts with water.
+- Confirm energy increases from wheel 2 rotation.
+
+TEST 3 — PURCHASE WHEELS 3–6
+- Purchase each wheel sequentially.
+- Confirm active count becomes 3, 4, 5, then 6.
+- Confirm no duplicate wheels appear.
+- Confirm no existing wheel disappears.
+
+TEST 4 — MAXIMUM
+- With all six unlocked, attempt another purchase.
+- Confirm purchase is rejected.
+- Confirm no money is deducted.
+- Confirm no simulation change occurs.
+
+TEST 5 — INSUFFICIENT MONEY
+- Attempt a purchase without enough money.
+- Confirm purchase is rejected.
+- Confirm no money is deducted.
+- Confirm no wheel is activated.
+
+TEST 6 — SAVE/LOAD
+- Start with one wheel.
+- Unlock several wheels.
+- Close/restart the game.
+- Confirm the same wheels are active.
+- Confirm locked wheels remain inactive.
+
+TEST 7 — LONG SIMULATION
+- Run the simulation for an extended period.
+- Unlock wheels during active water flow.
+- Watch for:
+  - particle explosions
+  - water accumulation
+  - solver instability
+  - FPS drops
+  - incorrect wheel rotation
+  - incorrect energy spikes
+
+TEST 8 — RAIN / ANTI-LAG
+- Run rain at high values.
+- Unlock wheels while rain is active.
+- Confirm Anti-Lag continues to operate normally.
+- Confirm wheel unlocking does not reset Anti-Lag state.
+
+TEST 9 — UI
+- Open Buy Wheel UI.
+- Open/close other windows as appropriate.
+- Confirm overlays are correctly positioned.
+- Confirm the correct wheel is shown for each purchase.
+- Confirm buttons do not block simulation input unexpectedly.
+
+FILES EXPECTED TO CHANGE
+------------------------
+Likely:
+- idle-water/scripts/simulation/WaterWheelManager.cs
+- idle-water/scripts/simulation/FluidSimulator.cs
+- existing economy/UI scripts for purchase integration
+- save/game-state script when persistence is implemented
+- relevant Buy Wheel UI scripts/scenes
+
+Avoid changing unless required:
+- PbfSolver.cs
+- ParticleData
+- SpatialHash
+- FluidSimulationCoordinator
+- FluidRenderer
+- RainSystem
+- AntiLagController
+
+The solver should remain the same system throughout the entire progression.
+
+IMPLEMENTATION CHECKPOINTS
+---------------------------
+CHECKPOINT A:
+One wheel only, no purchases yet.
+Simulation must be verified before continuing.
+
+CHECKPOINT B:
+Wheel 2 can be activated without restarting the simulation.
+Simulation must be verified before continuing.
+
+CHECKPOINT C:
+All five additional wheels can be activated sequentially.
+Simulation and performance must be verified.
+
+CHECKPOINT D:
+Purchase costs and UI are connected.
+Economy must be verified.
+
+CHECKPOINT E:
+Save/load is connected.
+Fresh-game and existing-save behavior must both be verified.
+
+CHECKPOINT F:
+Final six-wheel stress test.
+Run long enough to detect simulation instability and performance regressions.
+
+SUCCESS CRITERIA
+----------------
+The feature is complete when:
+
+[ ] New game starts with exactly one active wheel.
+[ ] The correct wheel is slot 0.
+[ ] Five additional wheel slots exist.
+[ ] Each additional wheel can be purchased independently.
+[ ] Wheels activate without restarting the fluid simulation.
+[ ] Existing particles are not reset when a wheel is purchased.
+[ ] Existing wheels remain active and stable.
+[ ] Newly unlocked wheels interact with water correctly.
+[ ] Each active wheel contributes to energy production.
+[ ] Purchase validation works.
+[ ] No purchase is possible beyond six wheels.
+[ ] Wheel ownership persists between sessions.
+[ ] Locked wheels add no recurring simulation overhead.
+[ ] No regression is introduced to rain, Anti-Lag, rendering or existing UI.
+[ ] Long-running six-wheel simulation remains stable.
+
+FINAL ARCHITECTURE
+------------------
+
+GameState / Save System
+        |
+        | wheel ownership
+        v
+Wheel Progression / Economy
+        |
+        | unlock slot
+        v
+WaterWheelManager
+        |
+        | create only unlocked wheel
+        v
+Existing PbfSolver
+        |
+        +-- Fluid particles
+        +-- Existing colliders
+        +-- New wheel collider
+
+The key rule is:
+
+PURCHASING A WHEEL ADDS ONE WHEEL TO THE EXISTING SIMULATION.
+IT DOES NOT RECREATE THE SIMULATION.
