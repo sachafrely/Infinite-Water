@@ -43,7 +43,7 @@ public partial class SellEnergyButton : Control
 		DrawRect(new Rect2(Vector2.Zero, Size), UiSettings.BorderColor, false, UiSettings.BorderSize);
 
 		Font font = ThemeDB.FallbackFont;
-		int fontSize = UiSettings.FontSizeMedium;
+		int fontSize = UiSettings.FontSizeBig;
 		string text = "Sell Energy";
 
 		Vector2 textSize = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
