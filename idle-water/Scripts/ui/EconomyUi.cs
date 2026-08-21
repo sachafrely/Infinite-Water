@@ -7,15 +7,16 @@ using Godot;
 /// </summary>
 public partial class EconomyUi : Control
 {
-	private const float RightMargin = 16.0f;
-	private const float TopMargin = 8.0f;
 	private const int ResourceDisplayPadding = 10;
+	private const float ResourceTopMargin = 8.0f;
+	private const float ResourceRightMargin = 16.0f;
+	private const float TopUiBackgroundHeight = 120.0f;
 
 	private Label energyLabel;
 	private Label dollarsLabel;
+	private HBoxContainer resourceDisplay;
 	private Button sellEnergyButton;
 	private Control rainDisplay;
-	private PanelContainer resourceBackground;
 	private bool attachedToTopUi;
 	private FieldInfo rainSystemField;
 	private PropertyInfo rainPercentProperty;
@@ -23,7 +24,7 @@ public partial class EconomyUi : Control
 	public override void _Ready()
 	{
 		MouseFilter = MouseFilterEnum.Ignore;
-		TopLevel = true;
+		TopLevel = false;
 		ZIndex = 1000;
 
 		CreateDisplay();
@@ -44,19 +45,30 @@ public partial class EconomyUi : Control
 		HideLegacyRainText();
 		ApplyGlobalUiBorders();
 		SetDisplayPosition();
+		QueueRedraw();
+	}
+
+	public override void _Draw()
+	{
+		if (Size.X <= 0.0f || Size.Y <= 0.0f)
+			return;
+
+		DrawRect(
+			new Rect2(Vector2.Zero, new Vector2(Size.X, TopUiBackgroundHeight)),
+			UiSettings.WindowColor,
+			true
+		);
+
+		DrawRect(
+			new Rect2(Vector2.Zero, new Vector2(Size.X, TopUiBackgroundHeight)),
+			UiSettings.BorderColor,
+			false,
+			UiSettings.BorderSize
+		);
 	}
 
 	private void CreateDisplay()
 	{
-		resourceBackground = new PanelContainer();
-		resourceBackground.Name = "ResourceDisplayBackground";
-		resourceBackground.MouseFilter = MouseFilterEnum.Ignore;
-		resourceBackground.AddThemeStyleboxOverride(
-			"panel",
-			UiSettings.CreateBox(UiSettings.DisplayBackgroundColor, UiSettings.BorderColor, (int)UiSettings.BorderSize)
-		);
-		AddChild(resourceBackground);
-
 		MarginContainer margin = new MarginContainer();
 		margin.Name = "ResourceDisplayMargin";
 		margin.MouseFilter = MouseFilterEnum.Ignore;
@@ -64,14 +76,14 @@ public partial class EconomyUi : Control
 		margin.AddThemeConstantOverride("margin_top", ResourceDisplayPadding);
 		margin.AddThemeConstantOverride("margin_right", ResourceDisplayPadding);
 		margin.AddThemeConstantOverride("margin_bottom", ResourceDisplayPadding);
-		resourceBackground.AddChild(margin);
+		AddChild(margin);
 
-		HBoxContainer container = new HBoxContainer();
-		container.Name = "ResourceDisplay";
-		container.MouseFilter = MouseFilterEnum.Ignore;
-		container.Alignment = BoxContainer.AlignmentMode.End;
-		container.AddThemeConstantOverride("separation", 16);
-		margin.AddChild(container);
+		resourceDisplay = new HBoxContainer();
+		resourceDisplay.Name = "ResourceDisplay";
+		resourceDisplay.MouseFilter = MouseFilterEnum.Ignore;
+		resourceDisplay.Alignment = BoxContainer.AlignmentMode.End;
+		resourceDisplay.AddThemeConstantOverride("separation", 16);
+		margin.AddChild(resourceDisplay);
 
 		energyLabel = new Label();
 		energyLabel.Name = "EnergyLabel";
@@ -87,8 +99,8 @@ public partial class EconomyUi : Control
 		dollarsLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
 		dollarsLabel.AddThemeColorOverride("font_color", UiSettings.FontColorBasic);
 
-		container.AddChild(energyLabel);
-		container.AddChild(dollarsLabel);
+		resourceDisplay.AddChild(energyLabel);
+		resourceDisplay.AddChild(dollarsLabel);
 	}
 
 	private void CreateRainDisplay()
@@ -120,17 +132,24 @@ public partial class EconomyUi : Control
 		Node root = GetTree().CurrentScene;
 		if (root == null || rainSystemField == null || rainPercentProperty == null)
 			return 0.0f;
+
 		FluidSimulator simulator = root.FindChild("FluidSimulation", true, false) as FluidSimulator;
 		if (simulator == null)
 			return 0.0f;
+
 		try
 		{
 			object rainSystem = rainSystemField.GetValue(simulator);
-			if (rainSystem == null) return 0.0f;
+			if (rainSystem == null)
+				return 0.0f;
+
 			object value = rainPercentProperty.GetValue(rainSystem);
 			return value is float percent ? percent : 0.0f;
 		}
-		catch { return 0.0f; }
+		catch
+		{
+			return 0.0f;
+		}
 	}
 
 	private void UpdateRainDisplay()
@@ -142,53 +161,80 @@ public partial class EconomyUi : Control
 	private void HideLegacyRainText()
 	{
 		Node root = GetTree().CurrentScene;
-		if (root == null) return;
+		if (root == null)
+			return;
+
 		foreach (Node node in root.FindChildren("*", "Label", true, false))
 		{
-			if (node is not Label label) continue;
-			if (label == energyLabel || label == dollarsLabel) continue;
+			if (node is not Label label)
+				continue;
+
+			if (label == energyLabel || label == dollarsLabel)
+				continue;
+
 			string text = label.Text.ToUpperInvariant();
-			if (text.Contains("RAIN") && text.Contains("NEXT CHANGE")) label.Visible = false;
+			if (text.Contains("RAIN") && text.Contains("NEXT CHANGE"))
+				label.Visible = false;
 		}
 	}
 
 	private void SetDisplayPosition()
 	{
-		if (!IsInsideTree()) return;
-		if (resourceBackground != null)
+		if (!IsInsideTree())
+			return;
+
+		SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+
+		if (resourceDisplay != null)
 		{
-			resourceBackground.ResetSize();
-			Vector2 viewportSize = GetViewportRect().Size;
-			resourceBackground.Position = new Vector2(viewportSize.X - resourceBackground.Size.X - RightMargin, TopMargin);
+			resourceDisplay.Position = new Vector2(
+				Mathf.Max(0.0f, Size.X - resourceDisplay.Size.X - ResourceRightMargin - ResourceDisplayPadding),
+				ResourceTopMargin
+			);
 		}
+
 		if (rainDisplay != null)
 			rainDisplay.Position = new Vector2(16.0f, 12.0f);
 	}
 
 	private void AttachToTopUi()
 	{
-		if (!IsInsideTree()) return;
+		if (!IsInsideTree())
+			return;
+
 		Node currentScene = GetTree().CurrentScene;
-		if (currentScene == null) return;
+		if (currentScene == null)
+			return;
+
 		Node topUi = currentScene.FindChild("TopUI", true, false) ?? currentScene.FindChild("TopUi", true, false);
-		if (topUi == null) return;
+		if (topUi == null)
+			return;
+
 		if (GetParent() != topUi)
 		{
 			GetParent()?.RemoveChild(this);
 			topUi.AddChild(this);
 		}
+
 		attachedToTopUi = true;
+		SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
 		SetDisplayPosition();
 	}
 
 	private void EnsureSellEnergyButton()
 	{
-		if (sellEnergyButton != null && IsInstanceValid(sellEnergyButton)) return;
+		if (sellEnergyButton != null && IsInstanceValid(sellEnergyButton))
+			return;
+
 		Node root = GetTree().CurrentScene;
-		if (root == null) return;
+		if (root == null)
+			return;
+
 		foreach (Node node in root.FindChildren("*", "Button", true, false))
 		{
-			if (node is not Button button) continue;
+			if (node is not Button button)
+				continue;
+
 			string text = button.Text.Trim().ToLowerInvariant().Replace(" ", "");
 			string name = button.Name.ToString().Trim().ToLowerInvariant().Replace(" ", "");
 			if (text == "sellenergy" || name.Contains("sellenergy"))
@@ -210,11 +256,14 @@ public partial class EconomyUi : Control
 	private void ApplyGlobalUiBorders()
 	{
 		Node root = GetTree().CurrentScene;
-		if (root == null) return;
+		if (root == null)
+			return;
 
 		foreach (Node node in root.FindChildren("*", "Button", true, false))
 		{
-			if (node is not Button button) continue;
+			if (node is not Button button)
+				continue;
+
 			button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonColor));
 			button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonColor));
 			button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.WindowColor));
@@ -223,26 +272,34 @@ public partial class EconomyUi : Control
 		}
 
 		foreach (Node node in root.FindChildren("*", "Panel", true, false))
-			if (node is Panel panel) panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+		{
+			if (node is Panel panel)
+				panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+		}
 
 		Node windowBackground = root.FindChild("WindowBackground", true, false);
 		Node centerWindowOwner = windowBackground?.GetParent();
 
 		foreach (Node node in root.FindChildren("*", "PanelContainer", true, false))
 		{
-			if (node is not PanelContainer panelContainer) continue;
+			if (node is not PanelContainer panelContainer)
+				continue;
+
 			// The CenterUI PanelContainer is the structural container for the shared
 			// window background. Styling it creates an empty rectangle when no window
 			// is open, so it must remain visually transparent.
-			if (panelContainer == centerWindowOwner || panelContainer == resourceBackground)
+			if (panelContainer == centerWindowOwner)
 				continue;
+
 			panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 		}
 	}
 
 	private void UpdateDisplay()
 	{
-		if (energyLabel == null || dollarsLabel == null) return;
+		if (energyLabel == null || dollarsLabel == null)
+			return;
+
 		EnergySystem economy = EnergySystem.Instance;
 		if (economy == null)
 		{
@@ -250,9 +307,12 @@ public partial class EconomyUi : Control
 			dollarsLabel.Text = "Dollars: $0";
 			return;
 		}
+
 		energyLabel.Text = "Energy: " + System.Math.Floor(economy.Energy).ToString("F0");
 		dollarsLabel.Text = "Dollars: $" + System.Math.Floor(economy.Dollars).ToString("F0");
-		if (sellEnergyButton != null) sellEnergyButton.Disabled = economy.Energy < EnergySystem.EnergyPerDollar;
+
+		if (sellEnergyButton != null)
+			sellEnergyButton.Disabled = economy.Energy < EnergySystem.EnergyPerDollar;
 	}
 }
 
@@ -263,10 +323,15 @@ internal sealed partial class RainAmountDisplay : Control
 	private const float SegmentHeight = 42.0f;
 	private const float SegmentGap = 4.5f;
 	private float rainPercent;
+
 	public float RainPercent
 	{
 		get => rainPercent;
-		set { rainPercent = Mathf.Clamp(value, 0.0f, 100.0f); QueueRedraw(); }
+		set
+		{
+			rainPercent = Mathf.Clamp(value, 0.0f, 100.0f);
+			QueueRedraw();
+		}
 	}
 
 	public override void _Draw()
@@ -275,6 +340,7 @@ internal sealed partial class RainAmountDisplay : Control
 		float totalWidth = SegmentCount * SegmentWidth + (SegmentCount - 1) * SegmentGap;
 		float startX = Mathf.Max(0.0f, (Size.X - totalWidth) * 0.5f);
 		float startY = Mathf.Max(0.0f, (Size.Y - SegmentHeight) * 0.5f);
+
 		for (int i = 0; i < SegmentCount; i++)
 		{
 			bool active = i < activeSegments;
