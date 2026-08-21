@@ -223,7 +223,7 @@ public partial class EconomyUi : Control
 
 	private void OnSellEnergyPressed()
 	{
-		EnergySystem.Instance?.TrySellEnergyChunk();
+		EnergySystem.Instance?.SellAllAvailableEnergy();
 		UpdateDisplay();
 	}
 
@@ -235,13 +235,13 @@ public partial class EconomyUi : Control
 		EnergySystem economy = EnergySystem.Instance;
 		if (economy == null)
 		{
-			energyLabel.Text = "Energy: 0.00";
-			dollarsLabel.Text = "Dollars: $0.00";
+			energyLabel.Text = "Energy: 0";
+			dollarsLabel.Text = "Dollars: $0";
 			return;
 		}
 
-		energyLabel.Text = "Energy: " + economy.Energy.ToString("F2");
-		dollarsLabel.Text = "Dollars: $" + economy.Dollars.ToString("F2");
+		energyLabel.Text = "Energy: " + System.Math.Floor(economy.Energy).ToString("F0");
+		dollarsLabel.Text = "Dollars: $" + System.Math.Floor(economy.Dollars).ToString("F0");
 
 		if (sellEnergyButton != null)
 			sellEnergyButton.Disabled = economy.Energy < EnergySystem.EnergyPerDollar;
