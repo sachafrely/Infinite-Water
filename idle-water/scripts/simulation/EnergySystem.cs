@@ -13,7 +13,14 @@ public class EnergySystem
 	public double Dollars => dollars;
 	public double TotalGenerated => totalGenerated;
 
-	public EnergySystem() { Instance = this; CreateEconomyUiDeferred(); CreateWheelPurchaseUiDeferred(); }
+	public EnergySystem()
+	{
+		Instance = this;
+		CreateEconomyUiDeferred();
+		CreateWheelPurchaseUiDeferred();
+		CreateWheelUpgradeUiDeferred();
+	}
+
 	public void AddEnergy(double amount) { if (amount <= 0.0) return; energy += amount; totalGenerated += amount; }
 	public bool TrySpendEnergy(double amount) { if (amount <= 0.0) return true; if (energy < amount) return false; energy -= amount; return true; }
 	public bool TrySpendDollars(double amount) { if (amount <= 0.0) return true; if (dollars < amount) return false; dollars -= amount; return true; }
@@ -33,5 +40,12 @@ public class EnergySystem
 		SceneTree tree = Engine.GetMainLoop() as SceneTree; Node currentScene = tree?.CurrentScene; if (currentScene == null) return;
 		if (currentScene.FindChild("WheelPurchaseUi", true, false) != null) return;
 		WheelPurchaseUi wheelPurchaseUi = new WheelPurchaseUi { Name = "WheelPurchaseUi" }; currentScene.CallDeferred(Node.MethodName.AddChild, wheelPurchaseUi);
+	}
+
+	private void CreateWheelUpgradeUiDeferred()
+	{
+		SceneTree tree = Engine.GetMainLoop() as SceneTree; Node currentScene = tree?.CurrentScene; if (currentScene == null) return;
+		if (currentScene.FindChild("WheelUpgradeUi", true, false) != null) return;
+		WheelUpgradeUi wheelUpgradeUi = new WheelUpgradeUi { Name = "WheelUpgradeUi" }; currentScene.CallDeferred(Node.MethodName.AddChild, wheelUpgradeUi);
 	}
 }
