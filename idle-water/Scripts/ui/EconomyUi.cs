@@ -75,7 +75,8 @@ public partial class EconomyUi : Control
 		rainDisplay = new RainAmountDisplay();
 		rainDisplay.Name = "RainAmountDisplay";
 		rainDisplay.MouseFilter = MouseFilterEnum.Ignore;
-		rainDisplay.CustomMinimumSize = new Vector2(180.0f, 34.0f);
+		// 150% of the original 180x34 display.
+		rainDisplay.CustomMinimumSize = new Vector2(270.0f, 51.0f);
 		AddChild(rainDisplay);
 	}
 
@@ -255,9 +256,9 @@ public partial class EconomyUi : Control
 internal sealed partial class RainAmountDisplay : Control
 {
 	private const int SegmentCount = 10;
-	private const float SegmentWidth = 14.0f;
-	private const float SegmentHeight = 28.0f;
-	private const float SegmentGap = 3.0f;
+	private const float SegmentWidth = 21.0f;
+	private const float SegmentHeight = 42.0f;
+	private const float SegmentGap = 4.5f;
 	private float rainPercent;
 
 	public float RainPercent
