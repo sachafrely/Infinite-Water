@@ -6,11 +6,9 @@ Branch: feature/wheel-progression
 CURRENT VERIFIED GAME STATE
 ---------------------------
 - Developer verified exactly one starting wheel is visible and rotating.
-- Five Buy Wheel windows are visible.
-- Windows are centered on their corresponding wheel tiles.
-- Every window is intended to show exactly:
-    Buy Wheel
-    20$
+- Five Buy Wheel windows are visible and centered on the five locked wheel tiles.
+- Buying a wheel works.
+- The water simulation continues to work after purchases.
 
 CORE RULE
 ---------
@@ -18,11 +16,14 @@ The player may buy ANY of the five locked wheel positions at any time.
 There is NO sequential purchase order.
 
 A purchase window belongs to one specific wheel position. Clicking that window
-attempts to purchase that exact wheel. The other four locked wheels remain
-independently purchasable.
+opens a confirmation dialog for that exact wheel. Confirming activates only that
+wheel. The other locked wheels remain independently purchasable.
 
-IMPLEMENTED
-------------
+PURCHASE ECONOMY
+----------------
+- Wheel purchase cost is $10.
+- $10 is deducted only after the requested wheel is successfully activated.
+- Insufficient funds reject the purchase without changing wheel ownership.
 
 PHASE 1 — DISCOVERY / CREATION SEPARATION
 Status: COMPLETE
@@ -41,56 +42,49 @@ Status: COMPLETE
 - Existing PBF simulation systems are not recreated.
 
 PHASE 3 — DYNAMIC INDIVIDUAL WHEEL ACTIVATION
-Status: IMPLEMENTED — RUNTIME TEST PENDING
+Status: IMPLEMENTED
 
-WaterWheelManager now supports:
-- IsWheelUnlocked(index)
-- GetWheelPosition(index)
-- ActivateWheel(index)
-- TryUnlockWheel(index)
-
-TryUnlockWheel(index) activates the exact requested wheel position. It does not
-search for or require the next locked wheel.
-
-Purchasing any wheel adds exactly one wheel to the existing running simulation.
-It does not recreate the solver, particles, spatial hash, coordinator, existing
-wheel states, rain, or existing energy.
+- WaterWheelManager supports activation by exact map-position index.
+- Purchasing one wheel adds exactly one wheel to the existing simulation.
+- The solver, particles, spatial hash, coordinator, existing wheels, rain and
+  existing energy are not recreated or reset.
 
 PHASE 4 — ECONOMY
-Status: IMPLEMENTED — RUNTIME TEST PENDING
+Status: IMPLEMENTED
 
-- WheelPurchaseCost = $20.
-- A purchase checks that the player has at least $20.
-- $20 is deducted only after the requested wheel is successfully activated.
-- Insufficient funds leave both wheel ownership and money unchanged.
+- WheelPurchaseCost = $10.
+- Purchase spending remains atomic: activation succeeds before money is spent.
 
 PHASE 5 — FIVE INDEPENDENT BUY WINDOWS
-Status: IMPLEMENTED — RUNTIME TEST PENDING
+Status: IMPLEMENTED
 
 - Five small windows exist for the five locked wheel positions.
-- Each window is centered directly on the corresponding wheel tile.
-- Each window always displays:
+- Windows are centered directly on their corresponding wheel tiles.
+- Windows have square, non-rounded corners.
+- Window size is 76 x 38 pixels, reduced by 40 pixels in width and 20 pixels in
+  height from the previous 116 x 58 pixel design.
+- The purchase window itself displays only:
     Buy Wheel
-    20$
-- Each window is an independent purchase target.
-- There is no sequential-order restriction.
-- Having $20 enables every still-locked wheel window, not just one specific window.
-- Buying one wheel hides only that wheel's window.
-- The remaining locked-wheel windows stay visible and independently clickable.
+- The Buy Wheel text is larger than the previous label.
+- The price is no longer displayed inside the small Buy Wheel window.
+- All five windows remain independently purchasable when the player has $10.
 
-UI API
-------
-FluidSimulator now exposes:
-- TryPurchaseWheel(int wheelIndex)
+PHASE 5B — PURCHASE CONFIRMATION
+Status: IMPLEMENTED — RUNTIME TEST PENDING
 
-WheelPurchaseUi calls TryPurchaseWheel with the exact wheel index represented by
-the clicked window.
+Clicking a Buy Wheel window now opens a confirmation window for that exact wheel.
+The confirmation text is:
 
-LEGACY COMPATIBILITY
---------------------
-TryUnlockNextWheel remains available for compatibility with older code, but the
-new Buy Wheel UI does not use it. New gameplay/UI code should use
-TryPurchaseWheel(index).
+    Do you want to buy this wheel for 10$
+
+The dialog provides:
+
+    Yes
+    No
+
+Yes performs the requested purchase. No closes the confirmation without buying.
+
+The confirmation dialog also uses square corners.
 
 ENERGY TRACKING SAFETY
 ----------------------
@@ -104,13 +98,13 @@ Status: NOT IMPLEMENTED
 Wheel ownership is runtime-only. Persistence will be implemented later.
 
 PHASE 7 — ENERGY VALIDATION
-Status: IMPLEMENTED IN CODE / TEST PENDING
+Status: CODE IMPLEMENTED / RUNTIME TEST PENDING
 
-Runtime testing still needs to confirm that a newly purchased wheel generates
-energy normally and existing wheels continue normally.
+Runtime testing should confirm that a newly purchased wheel generates energy
+normally and existing wheels continue normally.
 
 PHASE 8 — PERFORMANCE VALIDATION
-Status: CODE SAFETY IMPLEMENTED / TEST PENDING
+Status: CODE SAFETY IMPLEMENTED / RUNTIME TEST PENDING
 
 Purchasing a wheel adds only that wheel's colliders and visual. The simulation is
 not rebuilt.
@@ -118,19 +112,20 @@ not rebuilt.
 NEXT RUNTIME CHECKPOINT
 -----------------------
 1. Run the game.
-2. Confirm five windows are visible and centered on the five locked tiles.
-3. Confirm every window says Buy Wheel / 20$.
-4. Accumulate at least $20.
-5. Confirm ALL five locked-wheel buttons become enabled.
-6. Buy a non-first locked wheel (for example the lowest one).
-7. Confirm that exact wheel appears immediately.
-8. Confirm its own window disappears.
-9. Confirm the other four windows remain visible and enabled.
-10. Buy another arbitrary locked wheel, not necessarily adjacent to the first.
-11. Confirm the correct wheel appears and only its window disappears.
-12. Confirm $20 is deducted once per purchase.
-13. Confirm purchases continue to work until all five additional wheels are owned.
-14. Confirm insufficient funds disable/reject every purchase.
+2. Confirm each small window says only "Buy Wheel".
+3. Confirm the Buy Wheel text is visibly larger.
+4. Confirm windows are square-cornered and 76 x 38 pixels.
+5. Accumulate at least $10.
+6. Click any locked wheel's Buy Wheel window.
+7. Confirm a confirmation dialog opens saying "Do you want to buy this wheel for 10$".
+8. Confirm Yes and No are visible.
+9. Click No and confirm no wheel is purchased and no money is spent.
+10. Open another Buy Wheel window and click Yes.
+11. Confirm exactly that wheel appears.
+12. Confirm exactly $10 is deducted once.
+13. Confirm only that wheel's Buy Window disappears.
+14. Confirm the remaining locked wheels remain independently purchasable.
+15. Confirm water simulation still works normally.
 
 IMPORTANT DESIGN RULE
 ---------------------
@@ -143,6 +138,7 @@ FILES INVOLVED
 - idle-water/scripts/simulation/EnergySystem.cs
 - idle-water/scripts/simulation/FluidSimulator.WheelProgression.cs
 - idle-water/Scripts/ui/WheelPurchaseUi.cs
+- idle-water/Scripts/ui/WheelPurchaseConfirmationWindow.cs
 - idle-water/docs/WHEEL_PROGRESSION_IMPLEMENTATION_STATUS.txt
 
 Original plan:
