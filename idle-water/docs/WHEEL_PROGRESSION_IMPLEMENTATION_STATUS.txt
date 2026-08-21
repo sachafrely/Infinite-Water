@@ -1,0 +1,151 @@
+INFINITE WATER — WHEEL PROGRESSION IMPLEMENTATION STATUS
+==========================================================
+Date: 21.08.2026
+Branch: feature/wheel-progression
+
+CURRENT VERIFIED GAME STATE
+---------------------------
+- Developer verified exactly one starting wheel is visible and rotating.
+- Five Buy Wheel windows are visible and centered on the five locked wheel tiles.
+- Buying a wheel works.
+- The water simulation continues to work after purchases.
+- Energy generation from a newly purchased wheel works.
+
+CORE RULE
+---------
+The player may buy ANY of the five locked wheel positions at any time.
+There is NO sequential purchase order.
+
+A purchase window belongs to one specific wheel position. Clicking that window
+opens a confirmation dialog for that exact wheel. Confirming activates only that
+wheel. The other locked wheels remain independently purchasable.
+
+PURCHASE ECONOMY
+----------------
+- Wheel purchase cost is $10.
+- $10 is deducted only after the requested wheel is successfully activated.
+- Insufficient funds reject the purchase without changing wheel ownership.
+
+PHASE 1 — DISCOVERY / CREATION SEPARATION
+Status: COMPLETE
+
+- Wheel marker positions are discovered before activation.
+- Positions are converted to simulation coordinates and sorted deterministically.
+- Maximum discovered wheel locations remains 6.
+- Discovery does not instantiate all six wheel runtimes.
+
+PHASE 2 — INITIAL ONE-WHEEL STATE
+Status: COMPLETE
+
+- A new game starts with exactly one wheel.
+- The intended starting wheel is the third marker from the top.
+- The other five wheel positions remain locked/inactive.
+- Existing PBF simulation systems are not recreated.
+
+PHASE 3 — DYNAMIC INDIVIDUAL WHEEL ACTIVATION
+Status: IMPLEMENTED AND RUNTIME VERIFIED
+
+- WaterWheelManager supports activation by exact map-position index.
+- Purchasing one wheel adds exactly one wheel to the existing simulation.
+- The solver, particles, spatial hash, coordinator, existing wheels, rain and
+  existing energy are not recreated or reset.
+- Developer verified the purchased wheel generates energy correctly.
+
+PHASE 4 — ECONOMY
+Status: IMPLEMENTED
+
+- WheelPurchaseCost = $10.
+- Purchase spending remains atomic: activation succeeds before money is spent.
+
+PHASE 5 — FIVE INDEPENDENT BUY WINDOWS
+Status: IMPLEMENTED AND RUNTIME VERIFIED
+
+- Five small windows exist for the five locked wheel positions.
+- Windows are centered directly on their corresponding wheel tiles.
+- Windows have square, non-rounded corners.
+- Window size is 76 x 38 pixels, reduced by 40 pixels in width and 20 pixels in
+  height from the previous 116 x 58 pixel design.
+- The purchase window itself displays only:
+    Buy Wheel
+- The Buy Wheel text is larger than the previous label.
+- The price is no longer displayed inside the small Buy Wheel window.
+- All five windows remain independently purchasable when the player has $10.
+- Developer verified the windows are centered correctly.
+
+PHASE 5B — PURCHASE CONFIRMATION
+Status: IMPLEMENTED — FIX APPLIED, RUNTIME RETEST PENDING
+
+Clicking a Buy Wheel window opens a confirmation window for that exact wheel.
+The confirmation text is:
+
+    Do you want to buy this wheel for 10$
+
+The dialog provides:
+
+    Yes
+    No
+
+No closes the confirmation without buying.
+Yes performs the requested purchase and closes the confirmation window.
+
+The confirmation is now created inside the same UI hierarchy as the Buy Wheel
+windows and uses a substantially higher ZIndex so it renders in front of them.
+This is intentional because Godot draw ordering depends on CanvasItem ZIndex
+within the same canvas/layer; a higher ZIndex draws in front. urlGodot Control documentationhttps://docs.godotengine.org/en/stable/classes/class_control.html
+
+The confirmation dialog also uses square corners.
+
+ENERGY TRACKING SAFETY
+----------------------
+When a wheel is activated, its previous-angle baseline is initialized to its
+current angle so it does not create an artificial energy spike on purchase.
+Existing wheel energy tracking is preserved.
+
+PHASE 6 — PERSISTENCE
+Status: NOT IMPLEMENTED
+
+Wheel ownership is runtime-only. Persistence will be implemented later.
+
+PHASE 7 — ENERGY VALIDATION
+Status: RUNTIME VERIFIED FOR NEW WHEEL
+
+Developer verified that a newly purchased wheel generates energy correctly.
+A broader long-duration validation remains useful later.
+
+PHASE 8 — PERFORMANCE VALIDATION
+Status: CODE SAFETY IMPLEMENTED / RUNTIME TEST PENDING
+
+Purchasing a wheel adds only that wheel's colliders and visual. The simulation is
+not rebuilt.
+
+NEXT RUNTIME CHECKPOINT
+-----------------------
+1. Run the game.
+2. Click any locked wheel's Buy Wheel window.
+3. Confirm the confirmation window appears IN FRONT of the Buy Wheel window.
+4. Confirm Yes and No are visible and clickable.
+5. Click No and confirm the confirmation window closes without purchasing.
+6. Open another Buy Wheel confirmation.
+7. Click Yes and confirm the wheel appears and the confirmation window closes.
+8. Confirm exactly $10 is deducted once.
+9. Confirm only that wheel's Buy Window disappears.
+10. Confirm the remaining locked wheels remain independently purchasable.
+11. Confirm the purchased wheel generates energy.
+12. Confirm water simulation still works normally.
+
+IMPORTANT DESIGN RULE
+---------------------
+PURCHASING A WHEEL ADDS ONE SPECIFIC WHEEL TO THE EXISTING SIMULATION.
+IT MUST NEVER RECREATE THE SIMULATION.
+
+FILES INVOLVED
+--------------
+- idle-water/scripts/simulation/WaterWheelManager.cs
+- idle-water/scripts/simulation/EnergySystem.cs
+- idle-water/scripts/simulation/FluidSimulator.WheelProgression.cs
+- idle-water/Scripts/ui/WheelPurchaseUi.cs
+- idle-water/Scripts/ui/WheelPurchaseConfirmationWindow.cs
+- idle-water/docs/WHEEL_PROGRESSION_IMPLEMENTATION_STATUS.txt
+
+Original plan:
+- idle-water/docs/WHEEL_PROGRESSION_GAMEPLAN.txt
