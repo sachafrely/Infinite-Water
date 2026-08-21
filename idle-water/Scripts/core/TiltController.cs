@@ -39,6 +39,7 @@ public sealed class TiltController
 		{
 			GravityDirection = Vector2.Down;
 			CurrentGravityAcceleration = Vector2.Down * GravityMagnitude;
+			UpdateGravityIndicatorVisual();
 			return;
 		}
 
@@ -68,6 +69,7 @@ public sealed class TiltController
 		{
 			GravityDirection = Vector2.Down;
 			CurrentGravityAcceleration = Vector2.Down * GravityMagnitude;
+			UpdateGravityIndicatorVisual();
 			return;
 		}
 
@@ -80,6 +82,7 @@ public sealed class TiltController
 		{
 			GravityDirection = Vector2.Down;
 			CurrentGravityAcceleration = Vector2.Down * GravityMagnitude;
+			UpdateGravityIndicatorVisual();
 			return;
 		}
 
@@ -106,5 +109,67 @@ public sealed class TiltController
 
 		CurrentGravityAcceleration =
 			GravityDirection * GravityMagnitude;
+
+		UpdateGravityIndicatorVisual();
+	}
+
+	/// <summary>
+	/// Rotates the Sprite2D named "GravityIndicator" to match the actual
+	/// gravity vector used by the simulation. The lookup is recursive so the
+	/// indicator can live anywhere in the UI hierarchy.
+	///
+	/// The sprite is assumed to be authored pointing downward at rotation 0.
+	/// </summary>
+	private void UpdateGravityIndicatorVisual()
+	{
+		SceneTree tree =
+			Engine.GetMainLoop() as SceneTree;
+
+		if (tree == null || tree.Root == null)
+		{
+			return;
+		}
+
+		Sprite2D indicator =
+			FindGravityIndicator(
+				tree.Root
+			);
+
+		if (indicator == null)
+		{
+			return;
+		}
+
+		if (GravityDirection.LengthSquared() < 0.0001f)
+		{
+			return;
+		}
+
+		// GravityDirection.Angle() is measured from the +X axis.
+		// Subtract 90 degrees because the sprite points down at 0 degrees.
+		indicator.Rotation =
+			GravityDirection.Angle() -
+			Mathf.Pi * 0.5f;
+	}
+
+	private static Sprite2D FindGravityIndicator(Node node)
+	{
+		if (node is Sprite2D sprite && sprite.Name == "GravityIndicator")
+		{
+			return sprite;
+		}
+
+		foreach (Node child in node.GetChildren())
+		{
+			Sprite2D result =
+				FindGravityIndicator(child);
+
+			if (result != null)
+			{
+				return result;
+			}
+		}
+
+		return null;
 	}
 }
