@@ -1,9 +1,7 @@
 INFINITE WATER — WHEEL UPGRADES IMPLEMENTATION PLAN
 Created: 21.08.2026
+Updated: 21.08.2026
 Branch: feature/wheel-upgrades
-
-THIS IS OUR 3RD TRY TO IMPLEMENT THIS. TWO TIMES THE UPGRADE BUTTON WAS IN THE WRONG POSITION IN THE LAYERING. IT WAS BEHIND THE ENVIRONMENT. 
-PLEASE MAKE SURE WHEN YOU CREATE THE BUTTONS TO MAKE THEM TOP MOST. LOOK AT HOW THE BUY BUTTONS WERE MADE AS REFERENCE!
 
 PURPOSE
 -------
@@ -36,7 +34,7 @@ Do NOT:
 - rebuild the complete simulation
 
 An upgrade should only update the selected wheel's own parameters and then
-refresh the wheel's UI/visual state if necessary.
+refresh that wheel's UI/visual/physical state if necessary.
 
 UPGRADE UI FLOW
 ---------------
@@ -44,15 +42,19 @@ UPGRADE UI FLOW
 1. FIRST AVAILABLE / OWNED WHEEL
 
 As long as the selected wheel has at least one upgrade remaining, display an
-"Upgrade" window/button for that wheel.
+"Upgrade" entry for that wheel.
 
 The Upgrade entry should use a style similar to the existing "Buy" Window.
-It should be associated with the correct wheel, not a global unrelated wheel.
+It must be associated with the correct wheel, not a global unrelated wheel.
+
+The Upgrade UI must remain top-most, following the same working runtime creation
+and layering approach as the Buy Wheel UI. It must not be placed inside the
+SubViewport/SimulationViewport where the Environment TileMap can cover it.
 
 2. CLICK "UPGRADE"
 
-Open a new Upgrade window containing exactly three upgrade possibilities in
-this top-to-bottom order:
+Open a dedicated Upgrade window containing exactly three upgrade possibilities
+in this order:
 
 1. Bigger Paddles
 2. Less Friction
@@ -62,14 +64,6 @@ Each row contains:
 - the upgrade name on the left
 - a purchase button on the right
 - the current price inside that button
-
-Example:
-
-Bigger Paddles                         [20$]
-Less Friction                          [30$]
-More Efficient                         [40$]
-
-The exact visual styling should follow the existing Buy Window/UI settings.
 
 3. AVAILABILITY
 
@@ -84,33 +78,48 @@ Each individual upgrade has three possible levels:
 - Level 3: +60%
 
 Once an individual upgrade reaches level 3, its purchase button must become
-unavailable/disabled or otherwise clearly indicate that the upgrade is maxed.
+unavailable/disabled or clearly indicate that the upgrade is maxed.
 
-The main "Upgrade" entry should remain visible only while at least one of the
-three upgrade types still has a level available.
+The main Upgrade entry remains visible only while at least one of the three
+upgrade types still has a level available.
 
 UPGRADE COSTS
 -------------
-Each upgrade type uses the same three-step price progression:
+Each upgrade type uses the same price progression:
 
 Level 0 -> Level 1: 20$
 Level 1 -> Level 2: 30$
 Level 2 -> Level 3: 40$
+Level 3: unavailable
 
-Therefore, the next price is determined by the current level of that specific
-upgrade, not by the total number of upgrades purchased on the wheel.
+The price is determined independently from the current level of that specific
+upgrade.
 
-Example:
-- Bigger Paddles level 0 -> costs 20$
-- Bigger Paddles level 1 -> costs 30$
-- Bigger Paddles level 2 -> costs 40$
-- Bigger Paddles level 3 -> unavailable
+ECONOMY TRANSACTION RULES
+-------------------------
+Use the existing money/dollar system.
 
-The same sequence applies independently to Less Friction and More Efficient.
+Do not create a second currency or duplicate money state in the UI.
+
+PurchaseUpgrade() must:
+1. Validate wheel index.
+2. Validate that the wheel is unlocked/owned.
+3. Validate that the selected upgrade is below level 3.
+4. Determine the price from the current level.
+5. Check available money.
+6. Validate the upgrade calculation/application before committing the purchase
+   whenever possible.
+7. Deduct the exact price only for a valid purchase.
+8. Increase the selected upgrade level by exactly one.
+9. Apply the new effective wheel parameters.
+10. Refresh the UI.
+
+A failed purchase must never remove money without applying the corresponding
+upgrade.
 
 UPGRADE 1 — BIGGER PADDLES
 --------------------------
-Target: the selected wheel's paddle size in the Wheel script.
+Target: the selected wheel's paddle geometry.
 
 Effect per level:
 - Level 0: 100% of base paddle size
@@ -120,21 +129,101 @@ Effect per level:
 
 Maximum bonus: +60%.
 
-Implementation requirement:
-- Preserve the original/base paddle size separately from the upgraded value.
-- Calculate the effective paddle size from the base value and upgrade level.
-- Do not repeatedly multiply the already-upgraded value, because that would
-  compound the bonus incorrectly.
-
 Formula:
 EffectivePaddleSize = BasePaddleSize * (1.0 + 0.20 * BiggerPaddlesLevel)
 
-The change must affect the selected wheel only.
+IMPORTANT — VISUAL SIZE ALONE IS NOT ENOUGH
+
+The current runtime implementation has shown that changing a visual BladeWidth
+alone does not produce the required visible/physical result. Bigger Paddles must
+be implemented as a real geometry change.
+
+Required implementation:
+
+1. Preserve immutable/base paddle dimensions.
+
+Keep the original paddle width/height/length (whatever dimensions the active
+wheel implementation actually uses) as the authoritative base values.
+Do not use an already-upgraded value as the next base value.
+
+2. Calculate effective dimensions from the base values.
+
+For every upgrade application, calculate the complete effective paddle geometry
+from the base dimensions and BiggerPaddlesLevel. Never repeatedly multiply the
+current dimensions.
+
+3. Update the visual paddle geometry.
+
+The rendered paddle must use the calculated effective dimensions. The result
+must be visibly larger at Level 1, Level 2, and Level 3.
+
+4. Update the physical paddle collision geometry at the same time.
+
+The FluidPolygonCollider / paddle collision polygon must be rebuilt or resized
+for ONLY the selected wheel so that it covers the same effective paddle area as
+the visual paddle.
+
+The collision geometry must not remain at the original dimensions while the
+visual paddle becomes larger.
+
+5. Recalculate paddle vertices from base geometry.
+
+If the collider uses a polygon, regenerate its local vertices from the effective
+paddle width/height/length. Do not scale a previously generated upgraded polygon
+again.
+
+6. Preserve the correct local offset and rotation axis.
+
+The enlarged paddle must remain correctly centered/anchored relative to the
+wheel's rotation axis. When the wheel rotates, the enlarged collider must rotate
+with the paddle exactly as the original collider did.
+
+Pay particular attention to:
+- collider center
+- local position/offset
+- paddle rotation angle
+- distance from wheel center
+- inner and outer paddle edges
+- any pivot/anchor used by the visual blade
+
+The upgrade must enlarge the paddle itself, not accidentally move the entire
+paddle farther away from or closer to the wheel center.
+
+7. Rebuild only the selected wheel's geometry.
+
+It is acceptable to recreate/update the selected wheel's own paddle collider or
+polygon representation. It is NOT acceptable to rebuild all wheel colliders or
+the complete fluid simulation.
+
+8. Verify real particle interaction.
+
+The enlarged paddle must physically interact with water particles in the newly
+added area. A successful test must show that particles can collide with the
+new outer paddle area and that the larger paddle affects wheel behavior.
+
+9. Keep the simulation instance alive.
+
+Changing paddle geometry must not recreate PbfSolver, ParticleData, SpatialHash,
+or the scene.
+
+CORRECT BIGGER-PADDLES ACCEPTANCE CRITERIA
+
+Bigger Paddles is only considered complete when all of the following are true:
+- Level 1 visibly produces a 120% paddle size.
+- Level 2 visibly produces a 140% paddle size.
+- Level 3 visibly produces a 160% paddle size.
+- The physical collision geometry has the same effective size as the visual
+  paddle.
+- The collider follows the wheel's rotation correctly.
+- The enlarged outer paddle area can actually collide with particles.
+- Buying another level recalculates from the original base geometry rather than
+  compounding the previous level.
+- Upgrading one wheel does not change another wheel.
+- No fluid simulation restart occurs.
 
 UPGRADE 2 — LESS FRICTION
 -------------------------
-Target: the selected wheel's friction/damping and maximum speed in the Wheel
-script.
+Target: the selected wheel's friction/damping and maximum angular speed.
 
 Effect per level:
 - Level 0: base friction/damping and base max speed
@@ -142,31 +231,22 @@ Effect per level:
 - Level 2: 40% improvement
 - Level 3: 60% improvement
 
-Maximum bonus: +60%.
-
-The implementation must define the exact relationship between the existing
-Wheel friction/damping parameter and the upgrade.
-
-Recommended interpretation for friction/damping:
-A lower friction/damping value represents less resistance, therefore:
+Recommended relationship when a lower value means less resistance:
 EffectiveFriction = BaseFriction * (1.0 - 0.20 * LessFrictionLevel)
-
-For maximum level:
-EffectiveFriction = BaseFriction * 0.40
-
-Maximum speed should increase by the same percentage:
 EffectiveMaxSpeed = BaseMaxSpeed * (1.0 + 0.20 * LessFrictionLevel)
 
-Thus:
+Therefore:
 - Level 1: friction -20%, max speed +20%
 - Level 2: friction -40%, max speed +40%
 - Level 3: friction -60%, max speed +60%
 
-IMPORTANT:
-If the existing Wheel script uses a damping value whose semantics are opposite
-to friction, adapt the implementation to the actual variable semantics rather
-than blindly applying the formula above. The gameplay result must still be
-"less resistance + higher maximum speed".
+If the active wheel implementation uses damping semantics where a lower/higher
+value has the opposite meaning, adapt the calculation to the actual variable
+semantics. The gameplay result must remain less resistance and higher maximum
+speed.
+
+Runtime testing currently indicates Less Friction works and produces more energy /
+better wheel performance. It should still be covered by the controlled test plan.
 
 UPGRADE 3 — MORE EFFICIENT
 ---------------------------
@@ -178,68 +258,50 @@ Effect per level:
 - Level 2: 140%
 - Level 3: 160%
 
-Maximum bonus: +60%.
-
 Formula:
 EffectiveEnergyGeneration = BaseEnergyGeneration *
                              (1.0 + 0.20 * MoreEfficientLevel)
 
-The energy multiplier must apply only to the selected wheel.
+The multiplier must apply only to the selected wheel's energy-generation path.
+Do not multiply global energy generation or the total output of all wheels.
 
-IMPORTANT ENERGY RULE
----------------------
-Do not modify global energy generation.
-Do not multiply the total energy output of all wheels.
-The bonus must be attached to the individual wheel's energy-generation path.
-
-If WaterWheelManager currently aggregates wheel energy, the manager should
-continue aggregating the resulting per-wheel values. The upgrade belongs to the
-individual wheel state/calculation.
+Current runtime testing suggests More Efficient works, but it is not yet fully
+verified. A controlled before/after measurement with equivalent input is required
+before marking this upgrade completely confirmed.
 
 DATA MODEL
 ----------
-
-Each wheel needs three persistent upgrade levels:
+Each wheel needs three upgrade levels:
 
 - BiggerPaddlesLevel: 0..3
 - LessFrictionLevel: 0..3
 - MoreEfficientLevel: 0..3
 
-Recommended per-wheel state:
-
+Recommended state:
 WheelUpgradeState
 - int BiggerPaddlesLevel
 - int LessFrictionLevel
 - int MoreEfficientLevel
 
-This state must be associated with the wheel slot/index so that upgrading one
-wheel never changes another wheel.
-
-Prefer a dedicated upgrade state/model rather than scattering upgrade counters
-across UI scripts.
-
-The authoritative state should live in the gameplay/simulation layer, while UI
-scripts read that state and invoke upgrade requests.
+The state must be associated with the deterministic wheel slot/index so that
+upgrading one wheel never changes another wheel.
 
 WHEEL IDENTIFICATION
 --------------------
-
 Every Upgrade UI action must carry the wheel slot/index it belongs to.
 
 Do not rely on:
 - visual node order
 - UI child index
 - TileMap iteration order
-- currently selected wheel by accident
+- accidental current-wheel selection
 
-The existing deterministic wheel-slot ordering from
-WHEEL_PROGRESSION_GAMEPLAN.txt must remain authoritative. fileciteturn2file0L2-L2
+The deterministic wheel-slot ordering from WHEEL_PROGRESSION_GAMEPLAN.txt
+remains authoritative.
 
 RECOMMENDED API
 ---------------
-
 WaterWheelManager / wheel progression layer:
-
 - HasAvailableUpgrades(int wheelIndex)
 - GetUpgradeLevel(int wheelIndex, WheelUpgradeType type)
 - GetUpgradePrice(int wheelIndex, WheelUpgradeType type)
@@ -247,118 +309,78 @@ WaterWheelManager / wheel progression layer:
 - PurchaseUpgrade(int wheelIndex, WheelUpgradeType type)
 
 Possible enum:
-
-WheelUpgradeType
 - BiggerPaddles
 - LessFriction
 - MoreEfficient
 
-PurchaseUpgrade() should:
-1. Validate wheel index.
-2. Validate that the wheel is unlocked/owned.
-3. Validate that the selected upgrade is below level 3.
-4. Determine price from current upgrade level.
-5. Check available money.
-6. Deduct money only after validation succeeds.
-7. Increase the selected upgrade level by exactly one.
-8. Apply the new effective wheel parameters.
-9. Update UI.
-10. Save progression if persistence is already available.
-
-If applying the upgrade fails, the economy transaction must not leave the game
-in a state where money was removed but the upgrade was not applied. Prefer
-validation/calculation before committing the transaction.
-
 UPGRADE APPLICATION
 -------------------
+The wheel implementation should expose or internally calculate immutable base
+values and effective values for:
 
-The Wheel script should expose or internally calculate base values and effective
-values for:
-
-- BasePaddleSize
+- BasePaddleSize / base paddle geometry
 - BaseFriction / BaseDamping
 - BaseMaxSpeed
 - BaseEnergyGeneration
 
-Avoid modifying the base values permanently after every upgrade.
+Avoid permanently modifying the base values after every purchase.
 
 Instead:
 1. Keep immutable/base values.
 2. Store upgrade levels.
 3. Recalculate effective values whenever an upgrade level changes.
+4. Apply only the selected wheel's changes.
 
-Recommended pattern:
+Recommended conceptual pattern:
 
 ApplyUpgrades()
 {
-    PaddleSize = BasePaddleSize * PaddleMultiplier;
+    PaddleSize = CalculateEffectivePaddleSize();
+    RebuildOrResizeSelectedWheelPaddleCollider();
     Friction = CalculateEffectiveFriction();
-    MaxSpeed = BaseMaxSpeed * SpeedMultiplier;
-    EnergyGeneration = BaseEnergyGeneration * EnergyMultiplier;
+    MaxSpeed = CalculateEffectiveMaxSpeed();
+    EnergyGeneration = CalculateEffectiveEnergyGeneration();
 }
 
-This prevents:
-- compounding errors
-- duplicate upgrades after reload
-- incorrect values after multiple UI refreshes
-- accidental double application
+This prevents compounding errors and duplicate application.
 
 RUNTIME BEHAVIOR
 ----------------
+An upgrade purchased while the simulation is running must apply immediately.
 
-An upgrade purchased while the simulation is running should apply immediately
-to the selected wheel.
-
-Existing particles must continue using the same simulation instance.
+Existing particles continue using the same simulation instance.
 
 Expected behavior:
-- Bigger Paddles changes the wheel's paddle geometry/size in place.
+- Bigger Paddles changes visual AND physical paddle geometry in place.
 - Less Friction changes that wheel's resistance and speed limit immediately.
 - More Efficient changes that wheel's energy output immediately.
 
 No scene reload is allowed.
 
-If paddle geometry requires rebuilding a visual/collider representation, rebuild
-ONLY that wheel's own geometry. Do not rebuild the complete wheel collection or
-fluid simulation.
-
 UI IMPLEMENTATION
 -----------------
-
-UPGRADE ENTRY WINDOW
-
-For each owned/available wheel:
-- Show an "Upgrade" entry if HasAvailableUpgrades(wheelIndex) is true.
+UPGRADE ENTRY
+- Show an Upgrade entry if HasAvailableUpgrades(wheelIndex) is true.
 - Hide it once all three upgrade types reach level 3.
+- The first owned wheel must show it automatically while upgrades remain.
 
-The first available wheel must show this automatically as long as upgrades are
-available.
+UPGRADE WINDOW
+- Exactly three rows.
+- Order: Bigger Paddles, Less Friction, More Efficient.
+- Each row has its own purchase button.
+- Prices update independently to 20$, 30$, or 40$.
+- Maxed rows show MAX or otherwise become unavailable.
+- The window refreshes after every purchase.
+- The window closes when all three upgrade types are maxed.
 
-NEW UPGRADE WINDOW
-
-Rows:
-
-+----------------------------------------------+
-| Bigger Paddles                         [20$] |
-|                                              |
-| Less Friction                          [20$] |
-|                                              |
-| More Efficient                         [20$] |
-+----------------------------------------------+
-
-The prices shown above are the initial prices. Each row updates independently
-to 20$, 30$, or 40$ according to its current level.
-
-When maxed:
-- Replace/disable the price button appropriately.
-- Do not allow another purchase.
-
-The window must refresh after every purchase so the new price/maximum state is
-immediately visible.
+UI LAYERING REQUIREMENT
+- Create the Upgrade UI using the working Buy UI creation approach.
+- Keep the Upgrade UI on the current Main scene, outside the SimulationViewport.
+- Use a top-most ZIndex so Environment TileMapLayer cannot cover it.
+- Do not move it into FluidSimulation/GameView/SimulationViewport.
 
 STYLE
 -----
-
 Reuse the existing Buy Window visual language:
 - same background treatment
 - same borders
@@ -369,62 +391,33 @@ Reuse the existing Buy Window visual language:
 
 Do not introduce a separate visual design system for upgrades.
 
-ECONOMY INTEGRATION
--------------------
-
-Use the existing money/dollar system.
-
-Do not create a second currency.
-Do not duplicate money state in the upgrade UI.
-
-Transaction rules:
-- Insufficient money: no upgrade, no money deduction.
-- Valid purchase: deduct exact current upgrade price and apply one level.
-- Maxed upgrade: no purchase and no money deduction.
-- Locked/non-owned wheel: no purchase and no money deduction.
-
 PERSISTENCE
 -----------
+Upgrade levels must eventually persist per wheel.
 
-Upgrade levels must persist per wheel.
-
-Recommended saved state:
-
-Wheel 0:
-- BiggerPaddlesLevel
-- LessFrictionLevel
-- MoreEfficientLevel
-
-Wheel 1:
-- BiggerPaddlesLevel
-- LessFrictionLevel
-- MoreEfficientLevel
-
-...
-
-Wheel 5:
+Recommended saved state contains, for each wheel slot:
 - BiggerPaddlesLevel
 - LessFrictionLevel
 - MoreEfficientLevel
 
 Do not save runtime wheel nodes, colliders, particle state, or solver state.
 
-Startup order:
+Startup order when persistence is available:
 1. Initialize gameplay systems.
 2. Discover wheel positions.
 3. Load wheel ownership.
 4. Load per-wheel upgrade levels.
 5. Create unlocked wheels only.
-6. Apply each wheel's saved upgrades.
+6. Apply each wheel's saved upgrades, including visual and physical paddle
+   geometry.
 7. Start/continue normal simulation.
 
-If persistence has not yet been completed in the current wheel progression
-implementation, keep the upgrade state architecture compatible with the planned
-save system instead of creating a temporary incompatible format.
+If persistence is not yet complete, keep the upgrade state architecture
+compatible with the planned save system instead of creating a temporary
+incompatible format.
 
 PERFORMANCE SAFETY
 ------------------
-
 Upgrades must not introduce a recurring expensive operation.
 
 Rules:
@@ -434,8 +427,8 @@ Rules:
 - No rebuilding the PBF solver.
 - No complete simulation restart.
 - No repeated multiplication of already-upgraded values every frame.
-
-Only the selected wheel should be recalculated when its upgrade changes.
+- Rebuild/update only the selected wheel's paddle geometry when Bigger Paddles
+  changes.
 
 TEST PLAN
 ---------
@@ -443,67 +436,79 @@ TEST PLAN
 TEST 1 — INITIAL UPGRADE WINDOW
 - Start a new game.
 - Confirm the first available/owned wheel exists.
-- Confirm an "Upgrade" entry is visible.
+- Confirm an Upgrade entry is visible.
 - Confirm the entry disappears only when all three upgrades are maxed.
 
 TEST 2 — UPGRADE WINDOW CONTENT
 - Open Upgrade.
 - Confirm exactly three rows exist.
-- Confirm order:
-  1. Bigger Paddles
-  2. Less Friction
-  3. More Efficient
-- Confirm each row has its own price button on the right.
+- Confirm order: Bigger Paddles, Less Friction, More Efficient.
+- Confirm each row has its own price button.
 - Confirm initial prices are 20$.
 
-TEST 3 — BIGGER PADDLES
+TEST 3 — MONEY DEDUCTION
+- Purchase an upgrade with sufficient money.
+- Confirm the exact upgrade price is deducted.
+- Confirm the correct upgrade level increases by one.
+- Confirm no unrelated upgrade level changes.
+- Confirm an invalid/insufficient-money purchase deducts nothing.
+
+TEST 4 — BIGGER PADDLES VISUAL
+- Measure/record base paddle dimensions.
 - Purchase level 1.
-- Confirm paddle size becomes 120% of base.
+- Confirm the paddle is visibly 120% of base.
 - Purchase level 2.
-- Confirm paddle size becomes 140% of base.
+- Confirm the paddle is visibly 140% of base.
 - Purchase level 3.
-- Confirm paddle size becomes 160% of base.
-- Attempt level 4.
-- Confirm it is rejected.
+- Confirm the paddle is visibly 160% of base.
+- Attempt level 4 and confirm it is rejected.
 
-TEST 4 — LESS FRICTION
+TEST 5 — BIGGER PADDLES PHYSICS
+- Compare the visual paddle and physical collider at Level 0.
+- Purchase Level 1 and confirm the collider grows to the same effective size.
+- Repeat for Levels 2 and 3.
+- Confirm the collider remains correctly centered on the wheel.
+- Rotate the wheel and confirm the collider follows the paddle.
+- Confirm particles can collide with the newly added outer paddle area.
+- Confirm no other wheel's collider changes.
+- Confirm no simulation restart occurs.
+
+TEST 6 — BIGGER PADDLES NO COMPOUNDING
+- Record base paddle dimensions.
+- Purchase Level 1, then Level 2, then Level 3.
+- Confirm values are exactly 120%, 140%, 160% of BASE, not 120%, then
+  168%, then another compounded value.
+- Reapply/refresh the upgrade state and confirm the same values remain.
+
+TEST 7 — LESS FRICTION
+- Purchase level 1 and confirm resistance/friction is reduced by 20% and max
+  speed increases by 20%.
+- Purchase level 2 and confirm 40% total improvement.
+- Purchase level 3 and confirm 60% total improvement.
+- Attempt level 4 and confirm it is rejected.
+
+TEST 8 — MORE EFFICIENT
+- Measure baseline energy generation under equivalent conditions.
 - Purchase level 1.
-- Confirm resistance/friction is reduced by 20% and max speed increases by 20%.
-- Purchase level 2.
-- Confirm 40% total improvement.
-- Purchase level 3.
-- Confirm 60% total improvement.
-- Attempt level 4.
-- Confirm it is rejected.
+- Repeat the same measurement under equivalent conditions.
+- Confirm approximately +20% output for the selected wheel.
+- Repeat for Levels 2 and 3 and confirm +40% and +60% relative to base.
+- Confirm other wheels remain unchanged.
 
-TEST 5 — MORE EFFICIENT
-- Measure baseline energy generation.
-- Purchase level 1.
-- Confirm the selected wheel generates 20% more energy for equivalent input.
-- Purchase levels 2 and 3.
-- Confirm total bonus reaches 40% and 60%.
-- Confirm other wheels are unchanged.
-
-TEST 6 — INDEPENDENT UPGRADES
+TEST 9 — INDEPENDENT UPGRADES
 - Upgrade Bigger Paddles on wheel 1.
 - Upgrade Less Friction on wheel 2.
 - Upgrade More Efficient on wheel 3.
-- Confirm each wheel retains only its own upgrades.
+- Confirm each wheel retains only its own upgrades and effective values.
 
-TEST 7 — PRICE PROGRESSION
+TEST 10 — PRICE PROGRESSION
 For each upgrade type:
-- Level 0 purchase shows 20$.
-- After level 1, next price is 30$.
-- After level 2, next price is 40$.
-- After level 3, purchase is unavailable.
+- Level 0 purchase costs 20$.
+- After Level 1, next price is 30$.
+- After Level 2, next price is 40$.
+- After Level 3, purchase is unavailable.
 
-TEST 8 — INSUFFICIENT MONEY
-- Attempt each upgrade without enough money.
-- Confirm no money is removed.
-- Confirm no level changes.
-- Confirm wheel parameters remain unchanged.
-
-TEST 9 — RUNTIME SAFETY
+TEST 11 — RUNTIME SAFETY
 - Run the simulation with active water.
 - Purchase upgrades while particles are moving.
 - Confirm no simulation reset occurs.
@@ -511,22 +516,32 @@ TEST 9 — RUNTIME SAFETY
 - Confirm no large artificial energy spike occurs.
 - Confirm no wheel duplication occurs.
 
-TEST 10 — SAVE/LOAD
-- Upgrade several values on several wheels.
+TEST 12 — SAVE/LOAD
+- Once persistence exists, upgrade several values on several wheels.
 - Restart the game.
 - Confirm every wheel restores its own upgrade levels.
-- Confirm effective wheel parameters match the saved levels.
+- Confirm effective visual and physical paddle parameters match the saved levels.
 
-TEST 11 — PERFORMANCE
+TEST 13 — PERFORMANCE
 - Compare FPS before and after upgrades.
 - Confirm no recurring performance cost is introduced.
 - Confirm upgrading one wheel does not rebuild all wheel geometry.
 
-TEST 12 — MAXED STATE
+TEST 14 — MAXED STATE
 - Max all three upgrades on a wheel.
 - Confirm all three purchase buttons are unavailable.
-- Confirm the main "Upgrade" entry for that wheel is hidden/disabled.
+- Confirm the main Upgrade entry for that wheel is hidden/disabled.
 - Confirm no further money can be spent on that wheel's upgrades.
+
+CURRENT IMPLEMENTATION NOTES
+----------------------------
+Runtime testing on 21.08.2026 found:
+- Money deduction: CONFIRMED.
+- Less Friction: APPEARS TO WORK / RUNTIME POSITIVE RESULT.
+- More Efficient: APPEARS TO WORK / CONTROLLED MEASUREMENT STILL REQUIRED.
+- Bigger Paddles: NOT COMPLETE. Visual paddle size did not visibly increase as
+  expected, and the physical collider still needs to be updated to match the
+  effective paddle geometry.
 
 FILES EXPECTED TO CHANGE
 ------------------------
@@ -534,10 +549,11 @@ Likely:
 - idle-water/scripts/simulation/WaterWheelManager.cs
 - idle-water/scripts/simulation/WaterWheel.cs / Wheel.cs (whichever is the active
   wheel implementation)
+- idle-water/scripts/simulation/FluidPolygonCollider.cs
 - existing economy/money script
-- existing Upgrade/Buy Wheel UI scripts or new dedicated upgrade UI script
+- existing Upgrade/Buy Wheel UI scripts or dedicated upgrade UI scripts
 - relevant UI scene/resource files
-- save/game-state script
+- save/game-state script when persistence is implemented
 
 Avoid changing unless required:
 - PbfSolver.cs
@@ -546,91 +562,17 @@ Avoid changing unless required:
 - FluidSimulationCoordinator
 - FluidRenderer
 - RainSystem
-- AntiLagController
+- AntiLag systems
 
-CHECKPOINTS
------------
-
-CHECKPOINT A — DATA MODEL
-- Three upgrade levels exist per wheel.
-- Levels are independent and limited to 0..3.
-
-CHECKPOINT B — WHEEL EFFECTS
-- Bigger Paddles works.
-- Less Friction + Max Speed works.
-- More Efficient works.
-- No simulation restart occurs.
-
-CHECKPOINT C — ECONOMY
-- 20$/30$/40$ pricing works independently for each upgrade.
-- Money validation works.
-
-CHECKPOINT D — UI
-- Upgrade entry is visible for wheels with available upgrades.
-- Upgrade window contains the three correct rows in the required order.
-- Prices and maxed states update correctly.
-
-CHECKPOINT E — PERSISTENCE
-- Upgrade levels survive restart.
-- Effective values are reconstructed correctly.
-
-CHECKPOINT F — FINAL REGRESSION TEST
-- Test with multiple unlocked wheels.
-- Test during active rain.
-- Test during Anti-Lag operation.
-- Test long-running simulation.
-- Confirm no regression in wheel progression, energy, rendering or FPS.
-
-SUCCESS CRITERIA
-----------------
-
-[ ] New/owned wheels show an Upgrade entry while upgrades remain.
-[ ] Upgrade entry uses the existing Buy Window style.
-[ ] Clicking Upgrade opens the dedicated upgrade window.
-[ ] Exactly three upgrade possibilities are shown.
-[ ] Order is Bigger Paddles, Less Friction, More Efficient.
-[ ] Every row has a right-side price button.
-[ ] Initial upgrade price is 20$.
-[ ] Second level price is 30$.
-[ ] Third level price is 40$.
-[ ] Bigger Paddles provides +20% per level, maximum +60%.
-[ ] Less Friction provides -20% friction/damping per level, maximum -60%.
-[ ] Less Friction also provides +20% max speed per level, maximum +60%.
-[ ] More Efficient provides +20% energy generation per level, maximum +60%.
-[ ] Upgrade effects apply only to the selected wheel.
-[ ] No upgrade can exceed level 3.
-[ ] Money is deducted only for successful purchases.
-[ ] Upgrades apply without restarting the fluid simulation.
-[ ] Existing particles and wheel state remain active.
-[ ] Upgrade state persists per wheel.
-[ ] No recurring performance cost is introduced.
-[ ] All upgrade UI states correctly reflect current wheel state.
-
-FINAL ARCHITECTURE
-------------------
-
-GameState / Save System
-        |
-        | wheel ownership + upgrade levels
-        v
-Wheel Progression / Economy
-        |
-        | purchase upgrade
-        v
-WaterWheelManager
-        |
-        +-----------------------------+
-        |                             |
-        v                             v
-Selected Wheel                  Upgrade UI
-        |
-        +-- Bigger Paddles
-        +-- Less Friction / Max Speed
-        +-- More Efficient
-        |
-        v
-Existing PbfSolver / Simulation
-
-KEY RULE:
-AN UPGRADE MODIFIES ONE EXISTING WHEEL IN PLACE.
-IT DOES NOT RECREATE THE FLUID SIMULATION.
+COMPLETION CRITERIA
+-------------------
+Wheel Upgrades are complete only when:
+- all purchases correctly deduct money;
+- Bigger Paddles is visually and physically correct;
+- Less Friction is verified against its intended physics values;
+- More Efficient is verified with controlled measurements;
+- upgrades remain independent per wheel;
+- max levels and prices are enforced;
+- runtime upgrades do not restart or rebuild the fluid simulation;
+- performance remains acceptable;
+- persistence is integrated when the project's save system is available.
