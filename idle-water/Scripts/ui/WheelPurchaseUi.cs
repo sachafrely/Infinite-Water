@@ -1,11 +1,8 @@
-using System;
 using Godot;
 
 /// <summary>
-/// Creates the five small wheel-purchase windows for the five locked wheel slots.
-/// Each window is centered directly on the tile position where its wheel will
-/// appear. The window always uses the same two-row text:
-/// "Buy Wheel" followed by the current purchase price.
+/// Five small purchase windows, one for every locked wheel position.
+/// Every wheel can be purchased independently; there is no sequential order.
 /// </summary>
 public partial class WheelPurchaseUi : Control
 {
@@ -16,43 +13,27 @@ public partial class WheelPurchaseUi : Control
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
-
     private FluidSimulator simulator;
 
     public override void _Ready()
     {
         ZIndex = 900;
         MouseFilter = MouseFilterEnum.Pass;
-
         simulator = GetParent() as FluidSimulator;
         if (simulator == null)
-        {
-            simulator = GetTree().CurrentScene?.FindChild(
-                "FluidSimulation",
-                true,
-                false
-            ) as FluidSimulator;
-        }
-
+            simulator = GetTree().CurrentScene?.FindChild("FluidSimulation", true, false) as FluidSimulator;
         BuildWindows();
         CallDeferred(nameof(Refresh));
     }
 
-    public override void _Process(double delta)
-    {
-        Refresh();
-    }
+    public override void _Process(double delta) => Refresh();
 
     private void BuildWindows()
     {
-        if (simulator == null)
-            return;
-
+        if (simulator == null) return;
         for (int wheelIndex = 0; wheelIndex < MaxWheelCount; wheelIndex++)
         {
-            if (simulator.IsWheelUnlocked(wheelIndex))
-                continue;
-
+            if (simulator.IsWheelUnlocked(wheelIndex)) continue;
             PanelContainer panel = new PanelContainer();
             panel.Name = "BuyWheelWindow_" + (wheelIndex + 1);
             panel.CustomMinimumSize = new Vector2(WindowWidth, WindowHeight);
@@ -75,15 +56,13 @@ public partial class WheelPurchaseUi : Control
             content.AddThemeConstantOverride("separation", 1);
             panel.AddChild(content);
 
-            Label title = new Label();
-            title.Text = "Buy Wheel";
-            title.HorizontalAlignment = HorizontalAlignment.Center;
+            Label title = new Label { Text = "Buy Wheel", HorizontalAlignment = HorizontalAlignment.Center };
             title.AddThemeFontSizeOverride("font_size", 11);
             content.AddChild(title);
 
             Button button = new Button();
             button.Name = "BuyButton";
-            button.Text = EnergySystem.WheelPurchaseCost.ToString("F0") + "$";
+            button.Text = "20$";
             button.CustomMinimumSize = new Vector2(100.0f, 27.0f);
             button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             button.FocusMode = Control.FocusModeEnum.None;
@@ -91,7 +70,6 @@ public partial class WheelPurchaseUi : Control
             button.Pressed += () => OnBuyPressed(capturedIndex);
             content.AddChild(button);
             buttons[wheelIndex] = button;
-
             AddChild(panel);
             windows[wheelIndex] = panel;
         }
@@ -99,52 +77,26 @@ public partial class WheelPurchaseUi : Control
 
     private void OnBuyPressed(int wheelIndex)
     {
-        if (simulator == null)
-            return;
-
-        if (simulator.GetNextLockedWheelIndex() != wheelIndex)
-            return;
-
-        if (simulator.TryPurchaseNextWheel())
-            Refresh();
+        if (simulator == null || simulator.IsWheelUnlocked(wheelIndex)) return;
+        if (simulator.TryPurchaseWheel(wheelIndex)) Refresh();
     }
 
     private void Refresh()
     {
-        if (simulator == null || !IsInsideTree())
-            return;
-
+        if (simulator == null || !IsInsideTree()) return;
         for (int wheelIndex = 0; wheelIndex < MaxWheelCount; wheelIndex++)
         {
             PanelContainer panel = windows[wheelIndex];
-            if (panel == null)
-                continue;
-
-            if (simulator.IsWheelUnlocked(wheelIndex))
-            {
-                panel.Visible = false;
-                continue;
-            }
-
+            if (panel == null) continue;
+            if (simulator.IsWheelUnlocked(wheelIndex)) { panel.Visible = false; continue; }
             panel.Visible = true;
-
             Vector2 wheelPosition = simulator.GetWheelPosition(wheelIndex);
-
-            // Center the purchase window exactly on the wheel tile.
-            panel.Position = new Vector2(
-                wheelPosition.X - WindowWidth * 0.5f,
-                wheelPosition.Y - WindowHeight * 0.5f
-            );
-
+            panel.Position = new Vector2(wheelPosition.X - WindowWidth * 0.5f, wheelPosition.Y - WindowHeight * 0.5f);
             Button button = buttons[wheelIndex];
-            bool isNext = simulator.GetNextLockedWheelIndex() == wheelIndex;
-
             if (button != null)
             {
-                button.Text = EnergySystem.WheelPurchaseCost.ToString("F0") + "$";
-                button.Disabled = !isNext ||
-                    EnergySystem.Instance == null ||
-                    EnergySystem.Instance.Dollars < EnergySystem.WheelPurchaseCost;
+                button.Text = "20$";
+                button.Disabled = EnergySystem.Instance == null || EnergySystem.Instance.Dollars < EnergySystem.WheelPurchaseCost;
             }
         }
     }
