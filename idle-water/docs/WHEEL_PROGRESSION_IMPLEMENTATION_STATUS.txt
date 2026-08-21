@@ -17,6 +17,7 @@ The developer has run the game from feature/wheel-progression and verified:
 - The starting wheel rotates normally.
 - The other wheel locations are not visible/active yet.
 - The existing fluid simulation continues to work normally.
+- No Buy Wheel windows were visible before the current UI implementation.
 
 IMPLEMENTED
 ------------
@@ -102,6 +103,33 @@ requiring UI code to access WaterWheelManager directly:
 
 This keeps purchase/UI code above the simulation layer.
 
+PHASE 5 — FIVE SMALL BUY WHEEL WINDOWS
+Status: IMPLEMENTED — RUNTIME TEST PENDING
+
+The requested UI design is now explicitly five small purchase windows, one for
+each additional locked wheel slot.
+
+Behavior:
+
+- The starting wheel has no Buy Wheel window.
+- Five small windows are created for the five additional wheel slots.
+- Each window is positioned near its corresponding wheel marker position.
+- Each window displays BUY WHEEL and the current wheel purchase price when it
+  is the next wheel in the progression.
+- Locked future windows remain visible but disabled until their turn is reached.
+- After a wheel is purchased, its window disappears and the next wheel's
+  purchase button becomes available.
+- A purchase button can only unlock its own sequential slot.
+- The windows do not recreate or reset the fluid simulation.
+- The UI is generated at runtime so it does not require manually duplicating
+  five UI nodes in the scene.
+
+New UI script:
+
+- idle-water/Scripts/ui/WheelPurchaseUi.cs
+
+The UI is bootstrapped alongside the existing EconomyUi from EnergySystem.
+
 ENERGY TRACKING SAFETY
 ----------------------
 When a wheel is activated, the existing per-wheel energy arrays are resized
@@ -110,21 +138,6 @@ without resetting the existing wheel data.
 The newly activated wheel's previous-angle baseline is initialized to its
 current angle. Therefore it should not generate artificial energy merely because
 it was created.
-
-NOT YET IMPLEMENTED
--------------------
-
-PHASE 5 — BUY WHEEL UI
-Status: NOT YET IMPLEMENTED IN THIS BRANCH
-
-The existing Buy Wheel UI work on main remains separate from the runtime
-progression implementation. The next step is to connect the existing purchase
-controls/confirmation flow to:
-
-    FluidSimulator.TryPurchaseNextWheel()
-
-or to a wheel-specific purchase API when the UI needs to select a specific
-wheel position.
 
 PHASE 6 — PERSISTENCE
 Status: NOT IMPLEMENTED
@@ -155,15 +168,19 @@ NEXT CHECKPOINT
 CHECKPOINT B:
 
 1. Run the game.
-2. Accumulate at least $100.
-3. Call/connect the wheel purchase action.
-4. Confirm active wheel count changes from 1 to 2.
-5. Confirm exactly one additional wheel appears.
-6. Confirm the original wheel remains active and rotating.
-7. Confirm the new wheel collides with water.
-8. Confirm $100 is deducted exactly once.
-9. Confirm insufficient funds reject the purchase.
-10. Repeat until all five additional wheels can be activated.
+2. Confirm five small Buy Wheel windows are visible near the five locked wheel
+   positions.
+3. Accumulate at least $100.
+4. Confirm the first purchase window becomes enabled.
+5. Purchase wheel 2.
+6. Confirm exactly one additional wheel appears.
+7. Confirm the original wheel remains active and rotating.
+8. Confirm the new wheel collides with water.
+9. Confirm $100 is deducted exactly once.
+10. Confirm the purchased wheel's Buy window disappears.
+11. Confirm the next Buy Wheel window becomes enabled.
+12. Confirm insufficient funds reject the purchase.
+13. Repeat until all five additional wheels can be activated.
 
 IMPORTANT DESIGN RULE
 ---------------------
@@ -175,6 +192,8 @@ FILES CHANGED FOR THIS IMPLEMENTATION
 - idle-water/scripts/simulation/WaterWheelManager.cs
 - idle-water/scripts/simulation/EnergySystem.cs
 - idle-water/scripts/simulation/FluidSimulator.WheelProgression.cs
+- idle-water/Scripts/ui/WheelPurchaseUi.cs
+- idle-water/docs/WHEEL_PROGRESSION_IMPLEMENTATION_STATUS.txt
 
 The original detailed implementation plan remains in:
 
