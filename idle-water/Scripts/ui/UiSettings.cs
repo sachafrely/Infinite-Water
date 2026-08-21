@@ -12,9 +12,9 @@ public static class UiSettings
 	public static readonly Color ButtonColor = new Color(0.07f, 0.07f, 0.08f, 1.0f);
 	public static readonly Color DisplayBackgroundColor = new Color(0.30f, 0.30f, 0.30f, 0.96f);
 	public const float BorderSize = 2.0f;
-	public const int FontSizeBig = 28;
-	public const int FontSizeMedium = 22;
-	public const int FontSizeSmall = 18;
+	public const int FontSizeBig = 30;
+	public const int FontSizeMedium = 24;
+	public const int FontSizeSmall = 20;
 	public static readonly Color FontColorBasic = new Color(1.0f, 1.0f, 1.0f, 1.0f);
 	public static readonly Color FontColorEnergy = new Color(1.0f, 0.75f, 0.25f, 1.0f);
 	public static readonly Color FontColorWater = new Color(0.05f, 0.40f, 0.75f, 1.0f);
