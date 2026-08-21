@@ -17,7 +17,9 @@ The developer has run the game from feature/wheel-progression and verified:
 - The starting wheel rotates normally.
 - The other wheel locations are not visible/active yet.
 - The existing fluid simulation continues to work normally.
-- No Buy Wheel windows were visible before the current UI implementation.
+- Five Buy Wheel windows are now visible.
+- The developer requested the windows to be centered on the wheel tiles.
+- The developer requested the purchase price to be $20.
 
 IMPLEMENTED
 ------------
@@ -74,15 +76,15 @@ Status: IMPLEMENTED — RUNTIME TEST PENDING
 
 EnergySystem now provides:
 
-- WheelPurchaseCost = 100 dollars.
+- WheelPurchaseCost = 20 dollars.
 - TrySpendDollars(amount) for atomic spending.
 
 TryUnlockNextWheel() follows the transaction safety rule:
 
 1. Find the first locked wheel position.
-2. Verify that $100 is available.
+2. Verify that $20 is available.
 3. Activate the wheel in the existing simulation.
-4. Spend $100 only after activation succeeds.
+4. Spend $20 only after activation succeeds.
 5. Return success/failure.
 
 Insufficient money does not activate a wheel and does not change the dollar
@@ -106,25 +108,28 @@ This keeps purchase/UI code above the simulation layer.
 PHASE 5 — FIVE SMALL BUY WHEEL WINDOWS
 Status: IMPLEMENTED — RUNTIME TEST PENDING
 
-The requested UI design is now explicitly five small purchase windows, one for
-each additional locked wheel slot.
+The requested UI design is five small purchase windows, one for each additional
+locked wheel slot.
 
 Behavior:
 
 - The starting wheel has no Buy Wheel window.
 - Five small windows are created for the five additional wheel slots.
-- Each window is positioned near its corresponding wheel marker position.
-- Each window displays BUY WHEEL and the current wheel purchase price when it
-  is the next wheel in the progression.
-- Locked future windows remain visible but disabled until their turn is reached.
-- After a wheel is purchased, its window disappears and the next wheel's
-  purchase button becomes available.
-- A purchase button can only unlock its own sequential slot.
-- The windows do not recreate or reset the fluid simulation.
-- The UI is generated at runtime so it does not require manually duplicating
-  five UI nodes in the scene.
+- Each window is centered directly on the tile/position where its wheel will
+  appear. There is no additional top-right or side offset.
+- Every window always displays exactly two rows:
+    Buy Wheel
+    20$
+- The purchase price is defined centrally by EnergySystem.WheelPurchaseCost.
+- Only the next sequential purchase can be activated.
+- Future locked windows remain visible but their purchase buttons are disabled.
+- After a wheel is purchased, its window disappears and the next window becomes
+  the available purchase target.
+- The UI does not recreate or reset the fluid simulation.
+- The UI is generated at runtime and does not require five manually duplicated
+  UI nodes in the scene.
 
-New UI script:
+UI script:
 
 - idle-water/Scripts/ui/WheelPurchaseUi.cs
 
@@ -161,26 +166,25 @@ Status: CODE SAFETY IMPLEMENTED / TEST PENDING
 The implementation does not scan locked positions every frame and does not
 rebuild the simulation when a wheel is activated.
 
-Runtime FPS testing with multiple wheels is still required.
-
 NEXT CHECKPOINT
 ---------------
 CHECKPOINT B:
 
 1. Run the game.
-2. Confirm five small Buy Wheel windows are visible near the five locked wheel
-   positions.
-3. Accumulate at least $100.
-4. Confirm the first purchase window becomes enabled.
-5. Purchase wheel 2.
-6. Confirm exactly one additional wheel appears.
-7. Confirm the original wheel remains active and rotating.
-8. Confirm the new wheel collides with water.
-9. Confirm $100 is deducted exactly once.
-10. Confirm the purchased wheel's Buy window disappears.
-11. Confirm the next Buy Wheel window becomes enabled.
-12. Confirm insufficient funds reject the purchase.
-13. Repeat until all five additional wheels can be activated.
+2. Confirm five small Buy Wheel windows are visible.
+3. Confirm each window is centered on its corresponding wheel tile.
+4. Confirm every window says "Buy Wheel" on row 1 and "20$" on row 2.
+5. Accumulate at least $20.
+6. Confirm the first purchase button becomes enabled.
+7. Purchase wheel 2.
+8. Confirm exactly one additional wheel appears.
+9. Confirm the original wheel remains active and rotating.
+10. Confirm the new wheel collides with water.
+11. Confirm $20 is deducted exactly once.
+12. Confirm the purchased wheel's Buy window disappears.
+13. Confirm the next Buy Wheel window becomes enabled.
+14. Confirm insufficient funds reject the purchase.
+15. Repeat until all five additional wheels can be activated.
 
 IMPORTANT DESIGN RULE
 ---------------------
