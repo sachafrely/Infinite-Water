@@ -252,7 +252,7 @@ public partial class EconomyUi : Control
 /// Ten-segment graphical rain amount indicator.
 /// 0% = all grey, 10% = one blue segment, ... 100% = ten blue segments.
 /// </summary>
-internal sealed class RainAmountDisplay : Control
+internal sealed partial class RainAmountDisplay : Control
 {
 	private const int SegmentCount = 10;
 	private const float SegmentWidth = 14.0f;
