@@ -36,6 +36,7 @@ public class EnergySystem
 	{
 		Instance = this;
 		CreateEconomyUiDeferred();
+		CreateWheelPurchaseUiDeferred();
 	}
 
 	public void AddEnergy(
@@ -124,6 +125,26 @@ public class EnergySystem
 		currentScene.CallDeferred(
 			Node.MethodName.AddChild,
 			economyUi
+		);
+	}
+
+	private void CreateWheelPurchaseUiDeferred()
+	{
+		SceneTree tree = Engine.GetMainLoop() as SceneTree;
+		Node currentScene = tree?.CurrentScene;
+
+		if (currentScene == null)
+			return;
+
+		if (currentScene.FindChild("WheelPurchaseUi", true, false) != null)
+			return;
+
+		WheelPurchaseUi wheelPurchaseUi = new WheelPurchaseUi();
+		wheelPurchaseUi.Name = "WheelPurchaseUi";
+
+		currentScene.CallDeferred(
+			Node.MethodName.AddChild,
+			wheelPurchaseUi
 		);
 	}
 }
