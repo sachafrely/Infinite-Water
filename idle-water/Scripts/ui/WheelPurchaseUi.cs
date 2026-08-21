@@ -7,13 +7,14 @@ using Godot;
 public partial class WheelPurchaseUi : Control
 {
     private const int MaxWheelCount = 6;
-    private const float WindowWidth = 116.0f;
-    private const float WindowHeight = 58.0f;
+    private const float WindowWidth = 76.0f;
+    private const float WindowHeight = 38.0f;
     private const float BorderWidth = 2.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
     private FluidSimulator simulator;
+    private WheelPurchaseConfirmationWindow confirmationWindow;
 
     public override void _Ready()
     {
@@ -45,27 +46,22 @@ public partial class WheelPurchaseUi : Control
             background.BgColor = new Color(0.035f, 0.055f, 0.055f, 0.96f);
             background.BorderColor = new Color(0.75f, 0.75f, 0.75f, 1.0f);
             background.SetBorderWidthAll((int)BorderWidth);
-            background.CornerRadiusTopLeft = 3;
-            background.CornerRadiusTopRight = 3;
-            background.CornerRadiusBottomLeft = 3;
-            background.CornerRadiusBottomRight = 3;
+            // Deliberately no corner radius: the purchase window must have square edges.
             panel.AddThemeStyleboxOverride("panel", background);
 
             VBoxContainer content = new VBoxContainer();
             content.Alignment = BoxContainer.AlignmentMode.Center;
-            content.AddThemeConstantOverride("separation", 1);
+            content.AddThemeConstantOverride("separation", 0);
             panel.AddChild(content);
-
-            Label title = new Label { Text = "Buy Wheel", HorizontalAlignment = HorizontalAlignment.Center };
-            title.AddThemeFontSizeOverride("font_size", 11);
-            content.AddChild(title);
 
             Button button = new Button();
             button.Name = "BuyButton";
-            button.Text = "20$";
-            button.CustomMinimumSize = new Vector2(100.0f, 27.0f);
+            button.Text = "Buy Wheel";
+            button.CustomMinimumSize = new Vector2(WindowWidth - 4.0f, WindowHeight - 4.0f);
             button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            button.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             button.FocusMode = Control.FocusModeEnum.None;
+            button.AddThemeFontSizeOverride("font_size", 16);
             int capturedIndex = wheelIndex;
             button.Pressed += () => OnBuyPressed(capturedIndex);
             content.AddChild(button);
@@ -78,7 +74,31 @@ public partial class WheelPurchaseUi : Control
     private void OnBuyPressed(int wheelIndex)
     {
         if (simulator == null || simulator.IsWheelUnlocked(wheelIndex)) return;
-        if (simulator.TryPurchaseWheel(wheelIndex)) Refresh();
+        OpenConfirmation(wheelIndex);
+    }
+
+    private void OpenConfirmation(int wheelIndex)
+    {
+        if (confirmationWindow != null && IsInstanceValid(confirmationWindow))
+            confirmationWindow.QueueFree();
+
+        confirmationWindow = new WheelPurchaseConfirmationWindow();
+        confirmationWindow.Name = "WheelPurchaseConfirmationWindow";
+        confirmationWindow.Setup(wheelIndex, simulator, OnPurchaseConfirmed, OnPurchaseCancelled);
+        GetTree().CurrentScene.AddChild(confirmationWindow);
+    }
+
+    private void OnPurchaseConfirmed(int wheelIndex)
+    {
+        if (simulator != null)
+            simulator.TryPurchaseWheel(wheelIndex);
+        Refresh();
+        confirmationWindow = null;
+    }
+
+    private void OnPurchaseCancelled()
+    {
+        confirmationWindow = null;
     }
 
     private void Refresh()
@@ -94,10 +114,7 @@ public partial class WheelPurchaseUi : Control
             panel.Position = new Vector2(wheelPosition.X - WindowWidth * 0.5f, wheelPosition.Y - WindowHeight * 0.5f);
             Button button = buttons[wheelIndex];
             if (button != null)
-            {
-                button.Text = "20$";
                 button.Disabled = EnergySystem.Instance == null || EnergySystem.Instance.Dollars < EnergySystem.WheelPurchaseCost;
-            }
         }
     }
 }
