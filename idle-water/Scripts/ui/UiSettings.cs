@@ -8,7 +8,7 @@ using Godot;
 public static class UiSettings
 {
 	public static readonly Color BorderColor = new Color(0.75f, 0.75f, 0.75f, 1.0f);
-	public static readonly Color WindowColor = new Color(0.16f, 0.16f, 0.17f, 0.97f);
+	public static readonly Color WindowColor = new Color(0.16f, 0.16f, 0.17f, 0.50f);
 	public static readonly Color ButtonColor = new Color(0.07f, 0.07f, 0.08f, 1.0f);
 	public static readonly Color DisplayBackgroundColor = new Color(0.30f, 0.30f, 0.30f, 0.96f);
 	public const float BorderSize = 2.0f;
