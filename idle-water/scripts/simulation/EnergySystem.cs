@@ -4,7 +4,7 @@ public class EnergySystem
 {
 	public float EnergyPerRadian = 1.0f;
 	public const double EnergyPerDollar = 10.0;
-	public const double WheelPurchaseCost = 20.0;
+	public const double WheelPurchaseCost = 10.0;
 	private double dollars = 0.0;
 	public static EnergySystem Instance { get; private set; }
 	private double energy = 0.0;
