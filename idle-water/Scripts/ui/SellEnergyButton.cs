@@ -27,7 +27,7 @@ public partial class SellEnergyButton : Control
 			{
 				isPressed = false;
 				QueueRedraw();
-				SellOneChunk();
+				SellAllAvailableChunks();
 				GetViewport().SetInputAsHandled();
 			}
 		}
@@ -63,7 +63,7 @@ public partial class SellEnergyButton : Control
 		);
 	}
 
-	private void SellOneChunk()
+	private void SellAllAvailableChunks()
 	{
 		if (energySystem == null)
 			energySystem = EnergySystem.Instance;
@@ -71,7 +71,6 @@ public partial class SellEnergyButton : Control
 		if (energySystem == null)
 			return;
 
-		// Existing mechanic: exactly 10 Energy -> $1.
-		energySystem.TrySellEnergyChunk();
+		energySystem.SellAllAvailableEnergy();
 	}
 }
