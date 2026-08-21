@@ -4,127 +4,75 @@ using Godot;
 public class FluidWheelState
 {
 	private readonly Vector2 center;
-
 	private float angle;
 	private float angularVelocity;
 
-	// ------------------------------------------------------------
-	// Wheel tuning
-	// ------------------------------------------------------------
-
 	private const float TorqueScale = 0.003f;
-	private const float AngularDamping = 0.40f;
-	private const float MaxAngularVelocity = 20.0f;
+	private const float BaseAngularDamping = 0.40f;
+	private const float BaseMaxAngularVelocity = 20.0f;
 
 	private float accumulatedTorque;
+	private int biggerPaddlesLevel;
+	private int lessFrictionLevel;
+	private int moreEfficientLevel;
 
-	public Vector2 Center =>
-		center;
+	public Vector2 Center => center;
+	public float Angle => angle;
+	public float AngularVelocity => angularVelocity;
+	public int BiggerPaddlesLevel => biggerPaddlesLevel;
+	public int LessFrictionLevel => lessFrictionLevel;
+	public int MoreEfficientLevel => moreEfficientLevel;
+	public float PaddleSizeMultiplier => 1.0f + 0.20f * biggerPaddlesLevel;
+	public float EnergyGenerationMultiplier => 1.0f + 0.20f * moreEfficientLevel;
+	public float EffectiveAngularDamping => BaseAngularDamping * (1.0f - 0.20f * lessFrictionLevel);
+	public float EffectiveMaxAngularVelocity => BaseMaxAngularVelocity * (1.0f + 0.20f * lessFrictionLevel);
 
-	public float Angle =>
-		angle;
-
-	public float AngularVelocity =>
-		angularVelocity;
-
-	public FluidWheelState(
-		Vector2 wheelCenter)
+	public FluidWheelState(Vector2 wheelCenter)
 	{
-		center =
-			wheelCenter;
-
-		angle =
-			0.0f;
-
-		angularVelocity =
-			0.0f;
-
-		accumulatedTorque =
-			0.0f;
+		center = wheelCenter;
+		angle = 0.0f;
+		angularVelocity = 0.0f;
+		accumulatedTorque = 0.0f;
 	}
 
-	public void AddTorque(
-		float torque)
+	public void SetUpgradeLevels(int biggerPaddles, int lessFriction, int moreEfficient)
 	{
-		accumulatedTorque +=
-			torque;
+		biggerPaddlesLevel = Mathf.Clamp(biggerPaddles, 0, 3);
+		lessFrictionLevel = Mathf.Clamp(lessFriction, 0, 3);
+		moreEfficientLevel = Mathf.Clamp(moreEfficient, 0, 3);
+		angularVelocity = Mathf.Clamp(angularVelocity, -EffectiveMaxAngularVelocity, EffectiveMaxAngularVelocity);
 	}
 
-	public void Step(
-		float dt)
+	public void AddTorque(float torque)
+	{
+		accumulatedTorque += torque;
+	}
+
+	public void Step(float dt)
 	{
 		if (dt <= 0.0f)
 			return;
 
-		// --------------------------------------------------------
-		// Convert water torque into angular acceleration.
-		// --------------------------------------------------------
+		angularVelocity += accumulatedTorque * TorqueScale * dt;
+		accumulatedTorque = 0.0f;
 
-		angularVelocity +=
-			accumulatedTorque *
-			TorqueScale *
-			dt;
+		float damping = Mathf.Exp(-EffectiveAngularDamping * dt);
+		angularVelocity *= damping;
 
-		accumulatedTorque =
-			0.0f;
+		angularVelocity = Mathf.Clamp(angularVelocity, -EffectiveMaxAngularVelocity, EffectiveMaxAngularVelocity);
 
-		// --------------------------------------------------------
-		// Physical damping.
-		// --------------------------------------------------------
-
-		float damping =
-			Mathf.Exp(
-				-AngularDamping *
-				dt
-			);
-
-		angularVelocity *=
-			damping;
-
-		// --------------------------------------------------------
-		// Safety limit.
-		// --------------------------------------------------------
-
-		angularVelocity =
-			Mathf.Clamp(
-				angularVelocity,
-				-MaxAngularVelocity,
-				MaxAngularVelocity
-			);
-
-		// --------------------------------------------------------
-		// Integrate angle.
-		// --------------------------------------------------------
-
-		angle +=
-			angularVelocity *
-			dt;
-
-		// --------------------------------------------------------
-		// Keep angle numerically small.
-		// --------------------------------------------------------
+		angle += angularVelocity * dt;
 
 		if (angle > Mathf.Tau)
 			angle -= Mathf.Tau;
-
 		if (angle < -Mathf.Tau)
 			angle += Mathf.Tau;
 	}
 
-	public Vector2 GetSurfaceVelocity(
-		Vector2 worldPosition)
+	public Vector2 GetSurfaceVelocity(Vector2 worldPosition)
 	{
-		Vector2 radius =
-			worldPosition -
-			center;
-
-		return new Vector2(
-			-angularVelocity *
-			radius.Y,
-
-			angularVelocity *
-			radius.X
-		);
+		Vector2 radius = worldPosition - center;
+		return new Vector2(-angularVelocity * radius.Y, angularVelocity * radius.X);
 	}
 }
 
@@ -134,272 +82,110 @@ public class FluidWheelState
 
 public class FluidPolygonCollider
 {
-	// ------------------------------------------------------------
-	// Polygon
-	// ------------------------------------------------------------
-
 	private readonly Vector2[] localVertices;
 	private readonly Vector2[] vertices;
 	private readonly Vector2[] edges;
 	private readonly Vector2[] edgeNormals;
 	private readonly float[] edgeLengthSquared;
-
 	private readonly bool counterClockwise;
-
-	// ------------------------------------------------------------
-	// Collision
-	// ------------------------------------------------------------
 
 	private const float CollisionMargin = 1.0f;
 	private const float Epsilon = 0.000001f;
-
-	// ------------------------------------------------------------
-	// Swept collision
-	// ------------------------------------------------------------
-
 	private const float SweptStep = 1.5f;
 	private const int MaxSweptSteps = 64;
-
-	// ------------------------------------------------------------
-	// AABB
-	// ------------------------------------------------------------
 
 	private float minX;
 	private float maxX;
 	private float minY;
 	private float maxY;
-
-	// ------------------------------------------------------------
-	// Wheel
-	// ------------------------------------------------------------
-
 	private FluidWheelState wheel;
 
-	public bool IsWheel =>
-		wheel != null;
+	public bool IsWheel => wheel != null;
+	public FluidWheelState Wheel => wheel;
 
-	public FluidWheelState Wheel =>
-		wheel;
-
-	// ------------------------------------------------------------
-	// Constructor
-	// ------------------------------------------------------------
-
-	public FluidPolygonCollider(
-		Vector2[] polygon)
+	public FluidPolygonCollider(Vector2[] polygon)
 	{
-		if (
-			polygon == null ||
-			polygon.Length < 3)
-		{
-			throw new ArgumentException(
-				"Polygon collider requires at least 3 vertices."
-			);
-		}
+		if (polygon == null || polygon.Length < 3)
+			throw new ArgumentException("Polygon collider requires at least 3 vertices.");
 
-		int count =
-			polygon.Length;
+		int count = polygon.Length;
+		localVertices = new Vector2[count];
+		vertices = new Vector2[count];
+		edges = new Vector2[count];
+		edgeNormals = new Vector2[count];
+		edgeLengthSquared = new float[count];
 
-		localVertices =
-			new Vector2[count];
-
-		vertices =
-			new Vector2[count];
-
-		edges =
-			new Vector2[count];
-
-		edgeNormals =
-			new Vector2[count];
-
-		edgeLengthSquared =
-			new float[count];
-
-		Array.Copy(
-			polygon,
-			localVertices,
-			count
-		);
-
-		Array.Copy(
-			polygon,
-			vertices,
-			count
-		);
-
-		counterClockwise =
-			CalculateSignedArea() >
-			0.0f;
-
+		Array.Copy(polygon, localVertices, count);
+		Array.Copy(polygon, vertices, count);
+		counterClockwise = CalculateSignedArea() > 0.0f;
 		RebuildGeometry();
 	}
 
-	// ------------------------------------------------------------
-	// Configure as wheel
-	// ------------------------------------------------------------
-
-	public void ConfigureAsWheel(
-		FluidWheelState wheelState)
+	public void ConfigureAsWheel(FluidWheelState wheelState)
 	{
-		wheel =
-			wheelState;
-
+		wheel = wheelState;
 		UpdateWheelGeometry();
 	}
-
-	// ------------------------------------------------------------
-	// Rotate wheel geometry
-	// ------------------------------------------------------------
 
 	public void UpdateWheelGeometry()
 	{
 		if (wheel == null)
 			return;
 
-		Vector2 center =
-			wheel.Center;
+		Vector2 center = wheel.Center;
+		float angle = wheel.Angle;
+		float cos = Mathf.Cos(angle);
+		float sin = Mathf.Sin(angle);
 
-		float angle =
-			wheel.Angle;
-
-		float cos =
-			Mathf.Cos(angle);
-
-		float sin =
-			Mathf.Sin(angle);
-
-		for (
-			int i = 0;
-			i < localVertices.Length;
-			i++)
+		for (int i = 0; i < localVertices.Length; i++)
 		{
-			Vector2 local =
-				localVertices[i];
-
-			vertices[i] =
-				center +
-				new Vector2(
-					local.X * cos -
-					local.Y * sin,
-
-					local.X * sin +
-					local.Y * cos
-				);
+			Vector2 local = localVertices[i];
+			vertices[i] = center + new Vector2(local.X * cos - local.Y * sin, local.X * sin + local.Y * cos);
 		}
 
 		RebuildGeometry();
 	}
 
-	// ------------------------------------------------------------
-	// Rebuild edge geometry
-	// ------------------------------------------------------------
-
 	private void RebuildGeometry()
 	{
-		int count =
-			vertices.Length;
+		int count = vertices.Length;
+		minX = vertices[0].X;
+		maxX = vertices[0].X;
+		minY = vertices[0].Y;
+		maxY = vertices[0].Y;
 
-		minX =
-			vertices[0].X;
-
-		maxX =
-			vertices[0].X;
-
-		minY =
-			vertices[0].Y;
-
-		maxY =
-			vertices[0].Y;
-
-		for (
-			int i = 1;
-			i < count;
-			i++)
+		for (int i = 1; i < count; i++)
 		{
-			Vector2 v =
-				vertices[i];
-
-			if (v.X < minX)
-				minX = v.X;
-
-			if (v.X > maxX)
-				maxX = v.X;
-
-			if (v.Y < minY)
-				minY = v.Y;
-
-			if (v.Y > maxY)
-				maxY = v.Y;
+			Vector2 v = vertices[i];
+			if (v.X < minX) minX = v.X;
+			if (v.X > maxX) maxX = v.X;
+			if (v.Y < minY) minY = v.Y;
+			if (v.Y > maxY) maxY = v.Y;
 		}
 
-		for (
-			int i = 0;
-			i < count;
-			i++)
+		for (int i = 0; i < count; i++)
 		{
-			Vector2 a =
-				vertices[i];
+			Vector2 a = vertices[i];
+			Vector2 b = vertices[(i + 1) % count];
+			Vector2 edge = b - a;
+			edges[i] = edge;
+			float lengthSquared = edge.LengthSquared();
+			edgeLengthSquared[i] = lengthSquared;
 
-			Vector2 b =
-				vertices[
-					(i + 1) %
-					count
-				];
-
-			Vector2 edge =
-				b - a;
-
-			edges[i] =
-				edge;
-
-			float lengthSquared =
-				edge.LengthSquared();
-
-			edgeLengthSquared[i] =
-				lengthSquared;
-
-			if (
-				lengthSquared <=
-				Epsilon)
+			if (lengthSquared <= Epsilon)
 			{
-				edgeNormals[i] =
-					Vector2.Zero;
-
+				edgeNormals[i] = Vector2.Zero;
 				continue;
 			}
 
-			Vector2 normal;
-
-			if (counterClockwise)
-			{
-				normal =
-					new Vector2(
-						edge.Y,
-						-edge.X
-					);
-			}
-			else
-			{
-				normal =
-					new Vector2(
-						-edge.Y,
-						edge.X
-					);
-			}
-
-			edgeNormals[i] =
-				normal.Normalized();
+			Vector2 normal = counterClockwise
+				? new Vector2(edge.Y, -edge.X)
+				: new Vector2(-edge.Y, edge.X);
+			edgeNormals[i] = normal.Normalized();
 		}
 	}
 
-	// ============================================================
-	// AABB access for the solver broad phase
-	// ============================================================
-	public void GetBounds(
-		out float outMinX,
-		out float outMaxX,
-		out float outMinY,
-		out float outMaxY)
+	public void GetBounds(out float outMinX, out float outMaxX, out float outMinY, out float outMaxY)
 	{
 		outMinX = minX;
 		outMaxX = maxX;
@@ -407,494 +193,161 @@ public class FluidPolygonCollider
 		outMaxY = maxY;
 	}
 
-	// ============================================================
-	// Standard collision
-	// ============================================================
-
-	public bool ResolveCollision(
-		Vector2 position,
-		float particleRadius,
-		out Vector2 correctedPosition,
-		out Vector2 normal)
+	public bool ResolveCollision(Vector2 position, float particleRadius, out Vector2 correctedPosition, out Vector2 normal)
 	{
-		correctedPosition =
-			position;
+		correctedPosition = position;
+		normal = Vector2.Zero;
+		float collisionRadius = particleRadius + CollisionMargin;
 
-		normal =
-			Vector2.Zero;
-
-		float collisionRadius =
-			particleRadius +
-			CollisionMargin;
-
-		// --------------------------------------------------------
-		// Broad phase
-		// --------------------------------------------------------
-
-		if (
-			position.X <
-			minX - collisionRadius ||
-
-			position.X >
-			maxX + collisionRadius ||
-
-			position.Y <
-			minY - collisionRadius ||
-
-			position.Y >
-			maxY + collisionRadius)
-		{
+		if (position.X < minX - collisionRadius || position.X > maxX + collisionRadius || position.Y < minY - collisionRadius || position.Y > maxY + collisionRadius)
 			return false;
-		}
 
-		// --------------------------------------------------------
-		// Find closest edge.
-		// --------------------------------------------------------
+		int vertexCount = vertices.Length;
+		float closestDistanceSquared = float.MaxValue;
+		Vector2 closestPoint = Vector2.Zero;
+		Vector2 closestEdgeNormal = Vector2.Zero;
 
-		int vertexCount =
-			vertices.Length;
-
-		float closestDistanceSquared =
-			float.MaxValue;
-
-		Vector2 closestPoint =
-			Vector2.Zero;
-
-		Vector2 closestEdgeNormal =
-			Vector2.Zero;
-
-		for (
-			int i = 0;
-			i < vertexCount;
-			i++)
+		for (int i = 0; i < vertexCount; i++)
 		{
-			Vector2 a =
-				vertices[i];
-
-			Vector2 edge =
-				edges[i];
-
-			float edgeLengthSq =
-				edgeLengthSquared[i];
-
-			if (
-				edgeLengthSq <=
-				Epsilon)
-			{
+			Vector2 a = vertices[i];
+			Vector2 edge = edges[i];
+			float edgeLengthSq = edgeLengthSquared[i];
+			if (edgeLengthSq <= Epsilon)
 				continue;
-			}
 
-			Vector2 toPoint =
-				position -
-				a;
+			Vector2 toPoint = position - a;
+			float t = toPoint.Dot(edge) / edgeLengthSq;
+			if (t < 0.0f) t = 0.0f;
+			else if (t > 1.0f) t = 1.0f;
 
-			float t =
-				toPoint.Dot(edge) /
-				edgeLengthSq;
+			Vector2 point = a + edge * t;
+			float dx = position.X - point.X;
+			float dy = position.Y - point.Y;
+			float distanceSquared = dx * dx + dy * dy;
 
-			if (t < 0.0f)
-				t = 0.0f;
-			else if (t > 1.0f)
-				t = 1.0f;
-
-			Vector2 point =
-				a +
-				edge *
-				t;
-
-			float dx =
-				position.X -
-				point.X;
-
-			float dy =
-				position.Y -
-				point.Y;
-
-			float distanceSquared =
-				dx * dx +
-				dy * dy;
-
-			if (
-				distanceSquared <
-				closestDistanceSquared)
+			if (distanceSquared < closestDistanceSquared)
 			{
-				closestDistanceSquared =
-					distanceSquared;
-
-				closestPoint =
-					point;
-
-				closestEdgeNormal =
-					edgeNormals[i];
+				closestDistanceSquared = distanceSquared;
+				closestPoint = point;
+				closestEdgeNormal = edgeNormals[i];
 			}
 		}
 
-		if (
-			closestDistanceSquared ==
-			float.MaxValue)
-		{
+		if (closestDistanceSquared == float.MaxValue || closestEdgeNormal.LengthSquared() <= Epsilon)
 			return false;
-		}
 
-		if (
-			closestEdgeNormal.LengthSquared() <=
-			Epsilon)
-		{
+		bool inside = IsPointInside(position);
+		float collisionRadiusSquared = collisionRadius * collisionRadius;
+		if (!inside && closestDistanceSquared > collisionRadiusSquared)
 			return false;
-		}
 
-		bool inside =
-			IsPointInside(
-				position
-			);
-
-		float collisionRadiusSquared =
-			collisionRadius *
-			collisionRadius;
-
-		if (
-			!inside &&
-			closestDistanceSquared >
-			collisionRadiusSquared)
-		{
-			return false;
-		}
-
-		normal =
-			closestEdgeNormal;
-
-		// --------------------------------------------------------
-		// Particle inside polygon.
-		// --------------------------------------------------------
+		normal = closestEdgeNormal;
 
 		if (inside)
 		{
-			correctedPosition =
-				closestPoint +
-				normal *
-				collisionRadius;
-
+			correctedPosition = closestPoint + normal * collisionRadius;
 			return true;
 		}
 
-		// --------------------------------------------------------
-		// Particle intersecting polygon.
-		// --------------------------------------------------------
-
-		float collisionDistance =
-			Mathf.Sqrt(
-				closestDistanceSquared
-			);
-
-		float penetration =
-			collisionRadius -
-			collisionDistance;
-
+		float collisionDistance = Mathf.Sqrt(closestDistanceSquared);
+		float penetration = collisionRadius - collisionDistance;
 		if (penetration > 0.0f)
 		{
-			correctedPosition =
-				position +
-				normal *
-				penetration;
-
+			correctedPosition = position + normal * penetration;
 			return true;
 		}
 
 		return false;
 	}
 
-	// ============================================================
-	// Swept collision
-	//
-	// Tests the whole path from startPosition to endPosition.
-	//
-	// This is specifically important for the small wheel:
-	// a particle may be outside the blade at the beginning and
-	// outside the blade again at the end, while crossing directly
-	// through the blade in between.
-	// ============================================================
-
-	public bool ResolveSweptCollision(
-		Vector2 startPosition,
-		Vector2 endPosition,
-		float particleRadius,
-		out Vector2 correctedPosition,
-		out Vector2 normal,
-		out Vector2 contactPosition)
+	public bool ResolveSweptCollision(Vector2 startPosition, Vector2 endPosition, float particleRadius, out Vector2 correctedPosition, out Vector2 normal, out Vector2 contactPosition)
 	{
-		correctedPosition =
-			endPosition;
+		correctedPosition = endPosition;
+		normal = Vector2.Zero;
+		contactPosition = endPosition;
+		Vector2 movement = endPosition - startPosition;
+		float distanceSquared = movement.LengthSquared();
 
-		normal =
-			Vector2.Zero;
-
-		contactPosition =
-			endPosition;
-
-		Vector2 movement =
-			endPosition -
-			startPosition;
-
-		float distanceSquared =
-			movement.LengthSquared();
-
-		// --------------------------------------------------------
-		// First check the starting position.
-		//
-		// This handles a particle that was already touching the
-		// blade from the previous iteration.
-		// --------------------------------------------------------
-
-		if (
-			ResolveCollision(
-				startPosition,
-				particleRadius,
-				out Vector2 startCorrected,
-				out Vector2 startNormal
-			))
+		if (ResolveCollision(startPosition, particleRadius, out Vector2 startCorrected, out Vector2 startNormal))
 		{
-			correctedPosition =
-				startCorrected;
-
-			normal =
-				startNormal;
-
-			contactPosition =
-				startPosition;
-
+			correctedPosition = startCorrected;
+			normal = startNormal;
+			contactPosition = startPosition;
 			return true;
 		}
 
-		if (
-			distanceSquared <=
-			Epsilon)
+		if (distanceSquared <= Epsilon)
 		{
-			if (
-				ResolveCollision(
-					endPosition,
-					particleRadius,
-					out correctedPosition,
-					out normal
-				))
+			if (ResolveCollision(endPosition, particleRadius, out correctedPosition, out normal))
 			{
-				contactPosition =
-					endPosition;
-
+				contactPosition = endPosition;
 				return true;
 			}
-
 			return false;
 		}
 
-		float distance =
-			Mathf.Sqrt(
-				distanceSquared
-			);
+		float distance = Mathf.Sqrt(distanceSquared);
+		int steps = (int)MathF.Ceiling(distance / SweptStep);
+		if (steps < 1) steps = 1;
+		if (steps > MaxSweptSteps) steps = MaxSweptSteps;
 
-		int steps =
-			(int)MathF.Ceiling(
-				distance /
-				SweptStep
-			);
-
-		if (steps < 1)
-			steps = 1;
-
-		if (steps > MaxSweptSteps)
-			steps = MaxSweptSteps;
-
-		// --------------------------------------------------------
-		// Walk along the particle path.
-		// --------------------------------------------------------
-
-		Vector2 previous =
-			startPosition;
-
-		for (
-			int step = 1;
-			step <= steps;
-			step++)
+		Vector2 previous = startPosition;
+		for (int step = 1; step <= steps; step++)
 		{
-			float t =
-				(float)step /
-				steps;
-
-			Vector2 current =
-				startPosition +
-				movement *
-				t;
-
-			if (
-				ResolveCollision(
-					current,
-					particleRadius,
-					out Vector2 currentCorrected,
-					out Vector2 currentNormal
-				))
+			float t = (float)step / steps;
+			Vector2 current = startPosition + movement * t;
+			if (ResolveCollision(current, particleRadius, out _, out _))
 			{
-				// ------------------------------------------------
-				// The first sampled collision is the contact.
-				// ------------------------------------------------
-
-				// Refine the collision location between the last
-				// non-colliding point and the first colliding point.
-				Vector2 low =
-					previous;
-
-				Vector2 high =
-					current;
-
-				for (
-					int refinement = 0;
-					refinement < 4;
-					refinement++)
+				Vector2 low = previous;
+				Vector2 high = current;
+				for (int refinement = 0; refinement < 4; refinement++)
 				{
-					Vector2 middle =
-						(low + high) *
-						0.5f;
-
-					if (
-						ResolveCollision(
-							middle,
-							particleRadius,
-							out _,
-							out _
-						))
-					{
-						high =
-							middle;
-					}
-					else
-					{
-						low =
-							middle;
-					}
+					Vector2 middle = (low + high) * 0.5f;
+					if (ResolveCollision(middle, particleRadius, out _, out _)) high = middle;
+					else low = middle;
 				}
 
-				Vector2 hitPosition =
-					high;
-
-				ResolveCollision(
-					hitPosition,
-					particleRadius,
-					out Vector2 hitCorrected,
-					out Vector2 hitNormal
-				);
-
-				correctedPosition =
-					hitCorrected;
-
-				normal =
-					hitNormal;
-
-				contactPosition =
-					hitPosition;
-
+				Vector2 hitPosition = high;
+				ResolveCollision(hitPosition, particleRadius, out Vector2 hitCorrected, out Vector2 hitNormal);
+				correctedPosition = hitCorrected;
+				normal = hitNormal;
+				contactPosition = hitPosition;
 				return true;
 			}
-
-			previous =
-				current;
+			previous = current;
 		}
 
 		return false;
 	}
 
-	// ------------------------------------------------------------
-	// Signed area
-	// ------------------------------------------------------------
-
 	private float CalculateSignedArea()
 	{
-		float area =
-			0.0f;
-
-		int count =
-			localVertices.Length;
-
-		for (
-			int i = 0;
-			i < count;
-			i++)
+		float area = 0.0f;
+		int count = localVertices.Length;
+		for (int i = 0; i < count; i++)
 		{
-			Vector2 a =
-				localVertices[i];
-
-			Vector2 b =
-				localVertices[
-					(i + 1) %
-					count
-				];
-
-			area +=
-				a.X * b.Y -
-				b.X * a.Y;
+			Vector2 a = localVertices[i];
+			Vector2 b = localVertices[(i + 1) % count];
+			area += a.X * b.Y - b.X * a.Y;
 		}
-
-		return area *
-			0.5f;
+		return area * 0.5f;
 	}
 
-	// ------------------------------------------------------------
-	// Point inside convex polygon
-	// ------------------------------------------------------------
-
-	private bool IsPointInside(
-		Vector2 point)
+	private bool IsPointInside(Vector2 point)
 	{
-		bool hasPositive =
-			false;
-
-		bool hasNegative =
-			false;
-
-		int count =
-			vertices.Length;
-
-		for (
-			int i = 0;
-			i < count;
-			i++)
+		bool hasPositive = false;
+		bool hasNegative = false;
+		int count = vertices.Length;
+		for (int i = 0; i < count; i++)
 		{
-			Vector2 a =
-				vertices[i];
-
-			Vector2 edge =
-				edges[i];
-
-			Vector2 toPoint =
-				point -
-				a;
-
-			float cross =
-				edge.X *
-				toPoint.Y -
-				edge.Y *
-				toPoint.X;
-
-			if (
-				cross >
-				Epsilon)
-			{
-				hasPositive =
-					true;
-			}
-			else if (
-				cross <
-				-Epsilon)
-			{
-				hasNegative =
-					true;
-			}
-
-			if (
-				hasPositive &&
-				hasNegative)
-			{
-				return false;
-			}
+			Vector2 a = vertices[i];
+			Vector2 edge = edges[i];
+			Vector2 toPoint = point - a;
+			float cross = edge.X * toPoint.Y - edge.Y * toPoint.X;
+			if (cross > Epsilon) hasPositive = true;
+			else if (cross < -Epsilon) hasNegative = true;
+			if (hasPositive && hasNegative) return false;
 		}
-
 		return true;
 	}
 }
