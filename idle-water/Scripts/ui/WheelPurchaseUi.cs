@@ -3,34 +3,24 @@ using Godot;
 
 /// <summary>
 /// Creates the five small wheel-purchase windows for the five locked wheel slots.
-///
-/// The windows are placed in the same simulation canvas as the wheel positions,
-/// so each purchase window stays next to its corresponding wheel while the
-/// simulation camera moves.
-///
-/// Only the next locked wheel can actually be purchased. The other four windows
-/// remain visible but disabled until their turn is reached. This makes it clear
-/// that all five wheel slots exist without allowing the player to skip the
-/// sequential progression.
+/// Each window is centered directly on the tile position where its wheel will
+/// appear. The window always uses the same two-row text:
+/// "Buy Wheel" followed by the current purchase price.
 /// </summary>
 public partial class WheelPurchaseUi : Control
 {
     private const int MaxWheelCount = 6;
     private const float WindowWidth = 116.0f;
     private const float WindowHeight = 58.0f;
-    private const float VerticalOffset = -78.0f;
-    private const float HorizontalOffset = 52.0f;
     private const float BorderWidth = 2.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
-    private readonly Label[] labels = new Label[MaxWheelCount];
 
     private FluidSimulator simulator;
 
     public override void _Ready()
     {
-        MouseFilter = MouseFilterEnum.Ignore;
         ZIndex = 900;
         MouseFilter = MouseFilterEnum.Pass;
 
@@ -86,15 +76,14 @@ public partial class WheelPurchaseUi : Control
             panel.AddChild(content);
 
             Label title = new Label();
-            title.Text = "WHEEL " + (wheelIndex + 1);
+            title.Text = "Buy Wheel";
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 11);
             content.AddChild(title);
-            labels[wheelIndex] = title;
 
             Button button = new Button();
             button.Name = "BuyButton";
-            button.Text = "BUY $" + EnergySystem.WheelPurchaseCost.ToString("F0");
+            button.Text = EnergySystem.WheelPurchaseCost.ToString("F0") + "$";
             button.CustomMinimumSize = new Vector2(100.0f, 27.0f);
             button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             button.FocusMode = Control.FocusModeEnum.None;
@@ -113,8 +102,6 @@ public partial class WheelPurchaseUi : Control
         if (simulator == null)
             return;
 
-        // Purchases are sequential. A button is only enabled for the next
-        // locked slot, so this also protects against stale UI state.
         if (simulator.GetNextLockedWheelIndex() != wheelIndex)
             return;
 
@@ -142,23 +129,23 @@ public partial class WheelPurchaseUi : Control
             panel.Visible = true;
 
             Vector2 wheelPosition = simulator.GetWheelPosition(wheelIndex);
+
+            // Center the purchase window exactly on the wheel tile.
             panel.Position = new Vector2(
-                wheelPosition.X - WindowWidth * 0.5f + HorizontalOffset,
-                wheelPosition.Y + VerticalOffset
+                wheelPosition.X - WindowWidth * 0.5f,
+                wheelPosition.Y - WindowHeight * 0.5f
             );
 
-            bool isNext = simulator.GetNextLockedWheelIndex() == wheelIndex;
             Button button = buttons[wheelIndex];
+            bool isNext = simulator.GetNextLockedWheelIndex() == wheelIndex;
+
             if (button != null)
             {
+                button.Text = EnergySystem.WheelPurchaseCost.ToString("F0") + "$";
                 button.Disabled = !isNext ||
                     EnergySystem.Instance == null ||
                     EnergySystem.Instance.Dollars < EnergySystem.WheelPurchaseCost;
             }
-
-            Label title = labels[wheelIndex];
-            if (title != null)
-                title.Text = isNext ? "BUY WHEEL" : "LOCKED";
         }
     }
 }
