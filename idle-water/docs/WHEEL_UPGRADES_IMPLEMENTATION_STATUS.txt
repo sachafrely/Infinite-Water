@@ -1,0 +1,110 @@
+INFINITE WATER — WHEEL UPGRADES IMPLEMENTATION STATUS
+Updated: 21.08.2026
+Branch: feature/wheel-upgrades
+
+BASELINE
+--------
+Implementation restarted from the clean wheel-upgrades baseline requested by the
+user. The implementation plan in WHEEL_UPGRADES_IMPLEMENTATION_PLAN.txt is the
+authoritative specification.
+
+UI ARCHITECTURE
+---------------
+DONE
+- WheelUpgradeUi is created by EnergySystem using the same current-scene runtime
+  creation pattern as WheelPurchaseUi.
+- Upgrade UI is therefore a child of the Main scene, outside the SimulationViewport.
+- Upgrade entry ZIndex is 900 and is absolute, so it is above the Environment
+  TileMapLayer (Environment ZIndex 20).
+- Upgrade entry panels use ZIndex 901 and MouseFilter.Stop.
+- Upgrade buttons are created entirely by script; no Godot editor node is required.
+- Wheel positions are converted from simulation space to Main/GameView screen
+  coordinates using the existing GameView/Camera mapping.
+- The first owned wheel automatically gets an Upgrade entry while upgrades remain.
+- The entry is associated with its deterministic wheel slot/index.
+
+UPGRADE WINDOW
+--------------
+DONE
+- Clicking Upgrade opens a dedicated WheelUpgradeWindow.
+- Exactly three upgrade rows are provided in the required order:
+  1. Bigger Paddles
+  2. Less Friction
+  3. More Efficient
+- Each row has an independent level display and purchase button.
+- Prices follow 20$, 30$, 40$ according to the individual upgrade's current level.
+- Maxed upgrades show MAX and cannot be purchased.
+- Insufficient money disables the purchase button.
+- The window refreshes after a successful purchase.
+- The window closes when all three upgrade types are maxed.
+
+DATA / ECONOMY
+--------------
+DONE
+- Added WheelUpgradeType enum.
+- Added WheelUpgradeState with three independent 0..3 levels.
+- Added per-wheel upgrade state to WaterWheelManager, indexed by wheel slot.
+- Added HasAvailableUpgrades/GetUpgradeLevel/GetUpgradePrice/CanPurchaseUpgrade/
+  PurchaseUpgrade APIs.
+- Purchase validation checks ownership, max level, price, and available dollars.
+- Existing EnergySystem dollars are used; no second currency was introduced.
+- Money is deducted only for a valid purchase.
+
+WHEEL EFFECTS
+-------------
+DONE
+- FluidWheelState now stores the three upgrade levels.
+- Bigger Paddles multiplier: 100%, 120%, 140%, 160%.
+- Less Friction reduces effective angular damping by 20%/40%/60% and increases
+  maximum angular velocity by the same percentage.
+- More Efficient applies a 100%/120%/140%/160% multiplier to energy generated
+  by the individual wheel.
+- Effective values are calculated from upgrade levels rather than repeatedly
+  multiplying already-upgraded values.
+- Existing wheel instances and the PBF solver are retained; upgrades are applied
+  in place.
+
+PARTIAL / NEEDS RUNTIME VERIFICATION
+------------------------------------
+- Bigger Paddles currently updates the wheel visual BladeWidth using the level
+  multiplier. The existing FluidPolygonCollider geometry remains at its original
+  paddle dimensions; collider resizing should be added only if runtime testing
+  shows that the gameplay requirement needs the physical paddle collider to grow.
+- Upgrade levels are currently runtime state only. The existing project does not
+  yet have a completed persistent save/load system, so save serialization is
+  intentionally not invented here.
+- The complete TEST PLAN from WHEEL_UPGRADES_IMPLEMENTATION_PLAN.txt still needs
+  to be run in Godot.
+
+SIMULATION SAFETY
+-----------------
+DONE
+- No PbfSolver recreation.
+- No ParticleData recreation.
+- No SpatialHash recreation.
+- No scene reload.
+- No global energy multiplier.
+- No full wheel collection rebuild when purchasing an upgrade.
+- Upgrade state belongs to the selected wheel slot.
+
+FILES ADDED / CHANGED
+---------------------
+Added:
+- idle-water/Scripts/simulation/WheelUpgradeType.cs
+- idle-water/Scripts/simulation/WheelUpgradeState.cs
+- idle-water/Scripts/ui/WheelUpgradeUi.cs
+- idle-water/Scripts/ui/WheelUpgradeWindow.cs
+- idle-water/docs/WHEEL_UPGRADES_IMPLEMENTATION_STATUS.txt
+
+Changed:
+- idle-water/Scripts/simulation/EnergySystem.cs
+- idle-water/scripts/simulation/WaterWheelManager.cs
+- idle-water/scripts/simulation/FluidSimulator.WheelProgression.cs
+- idle-water/scripts/simulation/FluidPolygonCollider.cs
+
+IMPORTANT UI LAYERING NOTE
+--------------------------
+The Upgrade UI intentionally follows the working Buy UI creation path:
+EnergySystem creates the Control on the current Main scene with CallDeferred.
+It must NOT be moved into FluidSimulation or GameView/SimulationViewport.
+That keeps it outside the SubViewport and above the Environment TileMapLayer.
