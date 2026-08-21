@@ -209,17 +209,8 @@ public partial class EconomyUi : Control
 			}
 		}
 
-		Node bottomUi = root.FindChild("BottomUI", true, false) ?? root.FindChild("BottomUi", true, false);
-		if (bottomUi is Control bottomControl)
-		{
-			Button button = new Button();
-			button.Name = "SellEnergyButton";
-			button.Text = "Sell Energy";
-			button.CustomMinimumSize = new Vector2(120, 40);
-			button.Pressed += OnSellEnergyPressed;
-			bottomControl.AddChild(button);
-			sellEnergyButton = button;
-		}
+		// The Sell Energy button is placed in BottomUi by the Godot scene.
+		// Do not create a second fallback button here.
 	}
 
 	private void OnSellEnergyPressed()
