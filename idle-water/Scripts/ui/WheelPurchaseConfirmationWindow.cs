@@ -21,7 +21,7 @@ public partial class WheelPurchaseConfirmationWindow : Control
 
     public override void _Ready()
     {
-        ZIndex = 1000;
+        ZIndex = 2000;
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Stop;
 
@@ -35,6 +35,7 @@ public partial class WheelPurchaseConfirmationWindow : Control
         style.BgColor = new Color(0.035f, 0.055f, 0.055f, 0.98f);
         style.BorderColor = new Color(0.75f, 0.75f, 0.75f, 1.0f);
         style.SetBorderWidthAll(2);
+        // Deliberately square: confirmation window has no rounded edges.
         panel.AddThemeStyleboxOverride("panel", style);
         AddChild(panel);
 
@@ -68,9 +69,16 @@ public partial class WheelPurchaseConfirmationWindow : Control
     private void Confirm()
     {
         if (simulator == null || !simulator.IsWheelUnlocked(wheelIndex))
+        {
             confirmed?.Invoke(wheelIndex);
+            // OnPurchaseConfirmed performs the purchase and clears its reference,
+            // but this dialog owns its own lifetime and must close explicitly.
+            QueueFree();
+        }
         else
+        {
             Cancel();
+        }
     }
 
     private void Cancel()
