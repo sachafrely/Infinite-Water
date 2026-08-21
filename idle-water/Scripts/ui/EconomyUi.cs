@@ -10,7 +10,6 @@ public partial class EconomyUi : Control
 	private const int ResourceDisplayPadding = 10;
 	private const float ResourceTopMargin = 8.0f;
 	private const float ResourceRightMargin = 16.0f;
-	private const float TopUiBackgroundHeight = 120.0f;
 
 	private Label energyLabel;
 	private Label dollarsLabel;
@@ -53,14 +52,16 @@ public partial class EconomyUi : Control
 		if (Size.X <= 0.0f || Size.Y <= 0.0f)
 			return;
 
+		// Follow the actual TopUI height so a height changed in Godot is respected.
+		float backgroundHeight = Size.Y;
 		DrawRect(
-			new Rect2(Vector2.Zero, new Vector2(Size.X, TopUiBackgroundHeight)),
+			new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
 			UiSettings.WindowColor,
 			true
 		);
 
 		DrawRect(
-			new Rect2(Vector2.Zero, new Vector2(Size.X, TopUiBackgroundHeight)),
+			new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
 			UiSettings.BorderColor,
 			false,
 			UiSettings.BorderSize
@@ -285,9 +286,6 @@ public partial class EconomyUi : Control
 			if (node is not PanelContainer panelContainer)
 				continue;
 
-			// The CenterUI PanelContainer is the structural container for the shared
-			// window background. Styling it creates an empty rectangle when no window
-			// is open, so it must remain visually transparent.
 			if (panelContainer == centerWindowOwner)
 				continue;
 
@@ -299,6 +297,11 @@ public partial class EconomyUi : Control
 	{
 		if (energyLabel == null || dollarsLabel == null)
 			return;
+
+		// Explicitly enforce the centralized Big font so the TopUI resource text
+		// cannot fall back to a scene/theme font size.
+		energyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
+		dollarsLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
 
 		EnergySystem economy = EnergySystem.Instance;
 		if (economy == null)
