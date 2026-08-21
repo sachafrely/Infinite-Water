@@ -9,7 +9,7 @@ public partial class EconomyUi : Control
 {
 	private const float RightMargin = 16.0f;
 	private const float TopMargin = 8.0f;
-	private const float ResourceDisplayPadding = 10.0f;
+	private const int ResourceDisplayPadding = 10;
 
 	private Label energyLabel;
 	private Label dollarsLabel;
@@ -57,16 +57,21 @@ public partial class EconomyUi : Control
 		);
 		AddChild(resourceBackground);
 
+		MarginContainer margin = new MarginContainer();
+		margin.Name = "ResourceDisplayMargin";
+		margin.MouseFilter = MouseFilterEnum.Ignore;
+		margin.AddThemeConstantOverride("margin_left", ResourceDisplayPadding);
+		margin.AddThemeConstantOverride("margin_top", ResourceDisplayPadding);
+		margin.AddThemeConstantOverride("margin_right", ResourceDisplayPadding);
+		margin.AddThemeConstantOverride("margin_bottom", ResourceDisplayPadding);
+		resourceBackground.AddChild(margin);
+
 		HBoxContainer container = new HBoxContainer();
 		container.Name = "ResourceDisplay";
 		container.MouseFilter = MouseFilterEnum.Ignore;
 		container.Alignment = BoxContainer.AlignmentMode.End;
 		container.AddThemeConstantOverride("separation", 16);
-		container.AddThemeConstantOverride("margin_left", (int)ResourceDisplayPadding);
-		container.AddThemeConstantOverride("margin_top", (int)ResourceDisplayPadding);
-		container.AddThemeConstantOverride("margin_right", (int)ResourceDisplayPadding);
-		container.AddThemeConstantOverride("margin_bottom", (int)ResourceDisplayPadding);
-		resourceBackground.AddChild(container);
+		margin.AddChild(container);
 
 		energyLabel = new Label();
 		energyLabel.Name = "EnergyLabel";
@@ -220,7 +225,6 @@ public partial class EconomyUi : Control
 		foreach (Node node in root.FindChildren("*", "Panel", true, false))
 			if (node is Panel panel) panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 
-		Node centerWindowContainer = root.FindChild("PanelContainer", true, false);
 		Node windowBackground = root.FindChild("WindowBackground", true, false);
 		Node centerWindowOwner = windowBackground?.GetParent();
 
@@ -230,9 +234,7 @@ public partial class EconomyUi : Control
 			// The CenterUI PanelContainer is the structural container for the shared
 			// window background. Styling it creates an empty rectangle when no window
 			// is open, so it must remain visually transparent.
-			if (panelContainer == centerWindowOwner || panelContainer == centerWindowContainer)
-				continue;
-			if (panelContainer == resourceBackground)
+			if (panelContainer == centerWindowOwner || panelContainer == resourceBackground)
 				continue;
 			panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 		}
