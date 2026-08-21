@@ -9,6 +9,7 @@ public partial class EconomyUi : Control
 {
 	private const float RightMargin = 16.0f;
 	private const float TopMargin = 8.0f;
+	private const float ResourceDisplayPadding = 10.0f;
 
 	private Label energyLabel;
 	private Label dollarsLabel;
@@ -50,7 +51,10 @@ public partial class EconomyUi : Control
 		resourceBackground = new PanelContainer();
 		resourceBackground.Name = "ResourceDisplayBackground";
 		resourceBackground.MouseFilter = MouseFilterEnum.Ignore;
-		resourceBackground.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.DisplayBackgroundColor));
+		resourceBackground.AddThemeStyleboxOverride(
+			"panel",
+			UiSettings.CreateBox(UiSettings.DisplayBackgroundColor, UiSettings.BorderColor, (int)UiSettings.BorderSize)
+		);
 		AddChild(resourceBackground);
 
 		HBoxContainer container = new HBoxContainer();
@@ -58,6 +62,10 @@ public partial class EconomyUi : Control
 		container.MouseFilter = MouseFilterEnum.Ignore;
 		container.Alignment = BoxContainer.AlignmentMode.End;
 		container.AddThemeConstantOverride("separation", 16);
+		container.AddThemeConstantOverride("margin_left", (int)ResourceDisplayPadding);
+		container.AddThemeConstantOverride("margin_top", (int)ResourceDisplayPadding);
+		container.AddThemeConstantOverride("margin_right", (int)ResourceDisplayPadding);
+		container.AddThemeConstantOverride("margin_bottom", (int)ResourceDisplayPadding);
 		resourceBackground.AddChild(container);
 
 		energyLabel = new Label();
@@ -206,14 +214,15 @@ public partial class EconomyUi : Control
 			button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonColor));
 			button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.WindowColor));
 			button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonColor));
-			button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(new Color(0.10f, 0.10f, 0.10f, 1.0f), new Color(0.45f, 0.45f, 0.45f, 1.0f)));
+			button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(new Color(0.10f, 0.10f, 0.10f, 1.0f), UiSettings.BorderColor));
 		}
 
 		foreach (Node node in root.FindChildren("*", "Panel", true, false))
 			if (node is Panel panel) panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 
 		foreach (Node node in root.FindChildren("*", "PanelContainer", true, false))
-			if (node is PanelContainer panelContainer) panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+			if (node is PanelContainer panelContainer && panelContainer != resourceBackground)
+				panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 	}
 
 	private void UpdateDisplay()
