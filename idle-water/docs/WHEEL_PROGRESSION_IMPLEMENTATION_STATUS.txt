@@ -1,0 +1,181 @@
+INFINITE WATER — WHEEL PROGRESSION IMPLEMENTATION STATUS
+==========================================================
+Date: 21.08.2026
+Branch: feature/wheel-progression
+
+PURPOSE
+-------
+Track the actual implementation state of the Wheel Progression system against
+WHEEL_PROGRESSION_GAMEPLAN.txt.
+
+CURRENT VERIFIED GAME STATE
+---------------------------
+The developer has run the game from feature/wheel-progression and verified:
+
+- Exactly one wheel is visible at startup.
+- The starting wheel is the intended wheel.
+- The starting wheel rotates normally.
+- The other wheel locations are not visible/active yet.
+- The existing fluid simulation continues to work normally.
+
+IMPLEMENTED
+------------
+
+PHASE 1 — DISCOVERY / CREATION SEPARATION
+Status: COMPLETE
+
+- Wheel marker positions are collected before activation.
+- Marker positions are converted to simulation coordinates.
+- Positions are sorted deterministically by Y, then X.
+- Maximum discovered wheel locations remains 6.
+- Discovery does not instantiate all six wheel runtimes.
+
+PHASE 2 — INITIAL ONE-WHEEL STATE
+Status: COMPLETE
+
+- A new game activates exactly one wheel.
+- The current level's intended starting wheel is explicitly the third marker
+  from the top (sorted index 2).
+- That physical position becomes the primary runtime wheel.
+- Other wheel locations remain inactive.
+- Existing PBF simulation systems are not recreated.
+
+PHASE 3 — DYNAMIC WHEEL ACTIVATION
+Status: IMPLEMENTED — RUNTIME TEST PENDING
+
+WaterWheelManager now provides:
+
+- IsWheelUnlocked(index)
+- UnlockedWheelCount
+- CanUnlockNextWheel()
+- GetNextLockedWheelIndex()
+- GetWheelPosition(index)
+- ActivateWheel(index)
+- TryUnlockNextWheel()
+
+Important behavior:
+
+- Only one new wheel is activated per unlock.
+- Existing FluidWheelState instances are not recreated.
+- Existing wheel visuals are not recreated.
+- The PbfSolver is not recreated.
+- ParticleData is not recreated.
+- SpatialHash is not recreated.
+- FluidSimulationCoordinator is not recreated.
+- Existing particles, rain and energy are not reset.
+
+Runtime wheel indexes are deliberately kept separate from stable map-position
+indexes. This is required because the starting wheel is physical position 2,
+while runtime wheel index 0 is the primary wheel.
+
+PHASE 4 — ECONOMY INTEGRATION
+Status: IMPLEMENTED — RUNTIME TEST PENDING
+
+EnergySystem now provides:
+
+- WheelPurchaseCost = 100 dollars.
+- TrySpendDollars(amount) for atomic spending.
+
+TryUnlockNextWheel() follows the transaction safety rule:
+
+1. Find the first locked wheel position.
+2. Verify that $100 is available.
+3. Activate the wheel in the existing simulation.
+4. Spend $100 only after activation succeeds.
+5. Return success/failure.
+
+Insufficient money does not activate a wheel and does not change the dollar
+balance.
+
+PHASE 4 API BRIDGE
+------------------
+A partial FluidSimulator extension now exposes the progression system without
+requiring UI code to access WaterWheelManager directly:
+
+- ActiveWheelCount
+- UnlockedWheelCount
+- IsWheelUnlocked(index)
+- CanUnlockNextWheel()
+- TryPurchaseNextWheel()
+- GetNextLockedWheelIndex()
+- GetWheelPosition(index)
+
+This keeps purchase/UI code above the simulation layer.
+
+ENERGY TRACKING SAFETY
+----------------------
+When a wheel is activated, the existing per-wheel energy arrays are resized
+without resetting the existing wheel data.
+
+The newly activated wheel's previous-angle baseline is initialized to its
+current angle. Therefore it should not generate artificial energy merely because
+it was created.
+
+NOT YET IMPLEMENTED
+-------------------
+
+PHASE 5 — BUY WHEEL UI
+Status: NOT YET IMPLEMENTED IN THIS BRANCH
+
+The existing Buy Wheel UI work on main remains separate from the runtime
+progression implementation. The next step is to connect the existing purchase
+controls/confirmation flow to:
+
+    FluidSimulator.TryPurchaseNextWheel()
+
+or to a wheel-specific purchase API when the UI needs to select a specific
+wheel position.
+
+PHASE 6 — PERSISTENCE
+Status: NOT IMPLEMENTED
+
+Wheel ownership is currently runtime-only. Restarting the game will return to
+the fresh-game one-wheel state.
+
+PHASE 7 — ENERGY VALIDATION
+Status: IMPLEMENTED IN CODE / TEST PENDING
+
+The new-wheel energy baseline protection is implemented. Runtime testing is
+still required to confirm that:
+
+- no artificial energy spike occurs on purchase;
+- the new wheel generates energy from real rotation;
+- existing wheels keep their normal production.
+
+PHASE 8 — PERFORMANCE VALIDATION
+Status: CODE SAFETY IMPLEMENTED / TEST PENDING
+
+The implementation does not scan locked positions every frame and does not
+rebuild the simulation when a wheel is activated.
+
+Runtime FPS testing with multiple wheels is still required.
+
+NEXT CHECKPOINT
+---------------
+CHECKPOINT B:
+
+1. Run the game.
+2. Accumulate at least $100.
+3. Call/connect the wheel purchase action.
+4. Confirm active wheel count changes from 1 to 2.
+5. Confirm exactly one additional wheel appears.
+6. Confirm the original wheel remains active and rotating.
+7. Confirm the new wheel collides with water.
+8. Confirm $100 is deducted exactly once.
+9. Confirm insufficient funds reject the purchase.
+10. Repeat until all five additional wheels can be activated.
+
+IMPORTANT DESIGN RULE
+---------------------
+PURCHASING A WHEEL ADDS ONE WHEEL TO THE EXISTING SIMULATION.
+IT MUST NEVER RECREATE THE SIMULATION.
+
+FILES CHANGED FOR THIS IMPLEMENTATION
+--------------------------------------
+- idle-water/scripts/simulation/WaterWheelManager.cs
+- idle-water/scripts/simulation/EnergySystem.cs
+- idle-water/scripts/simulation/FluidSimulator.WheelProgression.cs
+
+The original detailed implementation plan remains in:
+
+- idle-water/docs/WHEEL_PROGRESSION_GAMEPLAN.txt
