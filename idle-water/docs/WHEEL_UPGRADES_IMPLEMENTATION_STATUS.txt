@@ -2,20 +2,84 @@ INFINITE WATER — WHEEL UPGRADES IMPLEMENTATION STATUS
 Updated: 21.08.2026
 Branch: feature/wheel-upgrades
 
-BASELINE
---------
-Implementation restarted from the clean wheel-upgrades baseline requested by the
-user. The implementation plan in WHEEL_UPGRADES_IMPLEMENTATION_PLAN.txt is the
-authoritative specification.
+CURRENT RUNTIME TEST STATUS
+---------------------------
+The current wheel-upgrades implementation has been tested in-game after the
+latest implementation pass. The following observations are based on runtime
+behavior rather than code inspection alone.
+
+CONFIRMED WORKING
+-----------------
+- Buying an upgrade deducts the corresponding amount of money.
+- Less Friction appears to work correctly: the upgraded wheel produces more
+  energy / performs better in runtime testing.
+- The upgrade purchase flow and per-upgrade economy behavior are functioning.
+
+PARTIALLY VERIFIED
+------------------
+- More Efficient appears to increase energy generation, but this has not yet
+  been verified with a controlled before/after measurement. Treat this as
+  likely working, but NOT fully confirmed until an equivalent-input test is
+  performed.
+
+NOT YET CORRECT / NEEDS IMPLEMENTATION
+--------------------------------------
+- Bigger Paddles does not currently produce a clearly visible increase in
+  paddle size during runtime testing.
+- The current implementation changes the wheel visual BladeWidth, but the
+  paddle/collider geometry used for physical interaction does not yet grow
+  correctly with the upgrade.
+- Bigger Paddles therefore must remain an incomplete feature until both the
+  visual geometry and the physical paddle interaction are updated together.
+
+CORRECT BIGGER-PADDLES PHYSICS REQUIREMENT
+------------------------------------------
+The implementation must treat paddle size as real physical geometry, not only
+as a visual multiplier.
+
+Required behavior:
+- Keep immutable/base paddle dimensions for every wheel.
+- Calculate effective paddle dimensions from the base dimensions and the
+  Bigger Paddles level.
+- Update the wheel's visual paddle geometry to the effective dimensions.
+- Update the corresponding physical collision geometry to the SAME effective
+  dimensions.
+- Ensure the enlarged paddle occupies the correct position/orientation around
+  the wheel's rotation axis.
+- Ensure collision detection uses the enlarged geometry, so water particles can
+  actually contact the newly added paddle area.
+- Rebuild/update ONLY the selected wheel's paddle collider/geometry. Never
+  rebuild the complete wheel collection or fluid simulation.
+- Do not repeatedly scale an already-scaled collider or visual node. Always
+  calculate from the immutable base dimensions and the upgrade level.
+- Verify that the paddle's collision shape follows the wheel rotation and that
+  its center/offset remains correct after resizing.
+- Verify that enlarging a paddle does not create an unintended permanent offset,
+  gap, overlap, or collision region unrelated to the paddle itself.
+
+Recommended implementation sequence:
+1. Identify the authoritative base paddle width/height/length values.
+2. Store those base values separately from the runtime effective values.
+3. Calculate EffectivePaddleSize = BasePaddleSize *
+   (1.0 + 0.20 * BiggerPaddlesLevel).
+4. Update the visual paddle geometry from the effective dimensions.
+5. Recreate or resize only that wheel's FluidPolygonCollider / paddle collision
+   geometry from the same effective dimensions.
+6. Recalculate the collider's local polygon/vertices and local offset so the
+   enlarged paddle remains centered correctly relative to the wheel.
+7. Keep the existing wheel transform/rotation and fluid simulation instance.
+8. Test particle interaction with the newly enlarged outer paddle area.
+
+This is the required physics implementation for Bigger Paddles before the
+upgrade can be marked fully complete.
 
 UI ARCHITECTURE
 ---------------
 DONE
 - WheelUpgradeUi is created by EnergySystem using the same current-scene runtime
   creation pattern as WheelPurchaseUi.
-- Upgrade UI is therefore a child of the Main scene, outside the SimulationViewport.
-- Upgrade entry ZIndex is 900 and is absolute, so it is above the Environment
-  TileMapLayer (Environment ZIndex 20).
+- Upgrade UI is a child of the Main scene, outside the SimulationViewport.
+- Upgrade entry ZIndex is 900 and is absolute, above the Environment TileMapLayer.
 - Upgrade entry panels use ZIndex 901 and MouseFilter.Stop.
 - Upgrade buttons are created entirely by script; no Godot editor node is required.
 - Wheel positions are converted from simulation space to Main/GameView screen
@@ -48,33 +112,30 @@ DONE
   PurchaseUpgrade APIs.
 - Purchase validation checks ownership, max level, price, and available dollars.
 - Existing EnergySystem dollars are used; no second currency was introduced.
-- Money is deducted only for a valid purchase.
+- Valid purchases deduct money.
 
 WHEEL EFFECTS
 -------------
-DONE
-- FluidWheelState now stores the three upgrade levels.
-- Bigger Paddles multiplier: 100%, 120%, 140%, 160%.
-- Less Friction reduces effective angular damping by 20%/40%/60% and increases
-  maximum angular velocity by the same percentage.
-- More Efficient applies a 100%/120%/140%/160% multiplier to energy generated
-  by the individual wheel.
-- Effective values are calculated from upgrade levels rather than repeatedly
-  multiplying already-upgraded values.
-- Existing wheel instances and the PBF solver are retained; upgrades are applied
-  in place.
+LESS FRICTION — RUNTIME RESULT: WORKING
+- Less Friction reduces effective angular resistance and increases the wheel's
+  maximum angular velocity according to the configured upgrade level.
+- Runtime testing indicates the upgraded wheel performs better / generates more
+  energy.
 
-PARTIAL / NEEDS RUNTIME VERIFICATION
-------------------------------------
-- Bigger Paddles currently updates the wheel visual BladeWidth using the level
-  multiplier. The existing FluidPolygonCollider geometry remains at its original
-  paddle dimensions; collider resizing should be added only if runtime testing
-  shows that the gameplay requirement needs the physical paddle collider to grow.
-- Upgrade levels are currently runtime state only. The existing project does not
-  yet have a completed persistent save/load system, so save serialization is
-  intentionally not invented here.
-- The complete TEST PLAN from WHEEL_UPGRADES_IMPLEMENTATION_PLAN.txt still needs
-  to be run in Godot.
+MORE EFFICIENT — RUNTIME RESULT: PROBABLY WORKING
+- More Efficient applies the configured 100%/120%/140%/160% energy-generation
+  multiplier to the individual wheel.
+- Runtime behavior appears correct, but a controlled measurement is still
+  required before marking this fully verified.
+
+BIGGER PADDLES — RUNTIME RESULT: NOT COMPLETE
+- The intended level multipliers are 100%, 120%, 140%, 160%.
+- The current visual BladeWidth update is not sufficient: the paddle does not
+  visibly appear larger in runtime testing.
+- The physical paddle collision geometry also needs to be resized to match the
+  visual geometry.
+- See CORRECT BIGGER-PADDLES PHYSICS REQUIREMENT above and the implementation
+  plan for the required geometry/collider approach.
 
 SIMULATION SAFETY
 -----------------
@@ -86,6 +147,24 @@ DONE
 - No global energy multiplier.
 - No full wheel collection rebuild when purchasing an upgrade.
 - Upgrade state belongs to the selected wheel slot.
+
+PERSISTENCE
+-----------
+NOT COMPLETE
+- Upgrade levels are currently runtime state only.
+- The existing project does not yet have a completed persistent save/load system.
+- Do not invent a temporary incompatible save format as part of this upgrade work.
+
+REMAINING WORK
+--------------
+1. Implement physically correct Bigger Paddles geometry.
+2. Make visual and collision paddle dimensions use the same calculated effective
+   size.
+3. Verify paddle placement/offset and rotation after collider resizing.
+4. Verify that enlarged paddle geometry actually affects particle collisions.
+5. Perform a controlled More Efficient before/after energy measurement.
+6. Run the complete wheel-upgrades test plan.
+7. Add persistence when the project's save/load system is implemented.
 
 FILES ADDED / CHANGED
 ---------------------
