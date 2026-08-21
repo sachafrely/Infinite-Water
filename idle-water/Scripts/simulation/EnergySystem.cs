@@ -9,7 +9,7 @@ public class EnergySystem
 		10.0;
 
 	public const double WheelPurchaseCost =
-		100.0;
+		20.0;
 
 	private double dollars = 0.0;
 
