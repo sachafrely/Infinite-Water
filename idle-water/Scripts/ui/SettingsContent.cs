@@ -14,12 +14,14 @@ public partial class SettingsContent : Control
 	private const float SeparatorWidth = UiSettings.BorderSize;
 
 	private const float TiltLabelWidth = 80.0f;
-	private const float SliderTopOffset = 58.0f;
+	// Move the complete Tilt settings area higher to use the free space above it.
+	private const float SliderTopOffset = 28.0f;
 	private const float SliderBarHeight = 8.0f;
 	private const float SliderHandleWidth = 24.0f;
 	private const float SliderHandleHeight = 44.0f;
 	private const float SliderLeft = 115.0f;
-	private const float SliderRightMargin = 105.0f;
+	// Leave an additional 60px of space on the right for the GravityIndicator.
+	private const float SliderRightMargin = 165.0f;
 	private const float SliderHitPadding = 10.0f;
 
 	private const float MinimumTiltInfluenceRatio = 0.0f;
