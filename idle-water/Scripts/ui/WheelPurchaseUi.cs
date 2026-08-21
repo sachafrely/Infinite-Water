@@ -61,7 +61,7 @@ public partial class WheelPurchaseUi : Control
             button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             button.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             button.FocusMode = Control.FocusModeEnum.None;
-            button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
+            button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
             int capturedIndex = wheelIndex;
             button.Pressed += () => OnBuyPressed(capturedIndex);
             content.AddChild(button);
