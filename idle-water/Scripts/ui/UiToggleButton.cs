@@ -59,9 +59,6 @@ public partial class UiToggleButton : Control
 	{
 		buttonRect = new Rect2(0, 0, Size.X, Size.Y);
 
-		// There are only two button states:
-		// closed = dark ButtonColor
-		// open   = brighter WindowColor
 		Color backgroundColor = wasWindowOpen
 			? UiSettings.WindowColor
 			: UiSettings.ButtonColor;
@@ -80,7 +77,7 @@ public partial class UiToggleButton : Control
 		);
 
 		Font font = ThemeDB.FallbackFont;
-		int fontSize = UiSettings.FontSizeMedium;
+		int fontSize = UiSettings.FontSizeBig;
 
 		Vector2 textSize = font.GetStringSize(
 			ButtonText,

@@ -7,7 +7,7 @@ using Godot;
 public partial class WheelPurchaseUi : Control
 {
     private const int MaxWheelCount = 6;
-    private const float WindowWidth = 76.0f;
+    private const float WindowWidth = 61.0f;
     private const float WindowHeight = 38.0f;
     private const float BorderWidth = 2.0f;
 
@@ -56,12 +56,12 @@ public partial class WheelPurchaseUi : Control
 
             Button button = new Button();
             button.Name = "BuyButton";
-            button.Text = "Buy Wheel";
+            button.Text = "Buy";
             button.CustomMinimumSize = new Vector2(WindowWidth - 4.0f, WindowHeight - 4.0f);
             button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             button.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             button.FocusMode = Control.FocusModeEnum.None;
-            button.AddThemeFontSizeOverride("font_size", 16);
+            button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
             int capturedIndex = wheelIndex;
             button.Pressed += () => OnBuyPressed(capturedIndex);
             content.AddChild(button);
@@ -82,9 +82,9 @@ public partial class WheelPurchaseUi : Control
         if (confirmationWindow != null && IsInstanceValid(confirmationWindow))
             confirmationWindow.QueueFree();
 
-        // Keep the confirmation dialog in the same UI hierarchy as the Buy Wheel
-        // windows so it is guaranteed to share their canvas/layer. Its higher
-        // z-index puts it in front of the Buy Wheel window that opened it.
+        // Keep the confirmation dialog in the same UI hierarchy as the Buy windows
+        // so it is guaranteed to share their canvas/layer. Its higher z-index puts it
+        // in front of the Buy window that opened it.
         confirmationWindow = new WheelPurchaseConfirmationWindow();
         confirmationWindow.Name = "WheelPurchaseConfirmationWindow";
         confirmationWindow.ZIndex = 2000;
