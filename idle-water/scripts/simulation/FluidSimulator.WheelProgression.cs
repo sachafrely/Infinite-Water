@@ -2,49 +2,18 @@ using Godot;
 
 public partial class FluidSimulator
 {
-	/// <summary>
-	/// Number of wheel runtimes currently active in the running simulation.
-	/// </summary>
-	public int ActiveWheelCount =>
-		waterWheelManager?.WheelCount ?? 0;
+	public int ActiveWheelCount => waterWheelManager?.WheelCount ?? 0;
+	public int UnlockedWheelCount => waterWheelManager?.UnlockedWheelCount ?? 0;
+	public bool IsWheelUnlocked(int wheelIndex) => waterWheelManager != null && waterWheelManager.IsWheelUnlocked(wheelIndex);
+	public bool CanUnlockNextWheel() => waterWheelManager != null && waterWheelManager.CanUnlockNextWheel();
+	public bool TryPurchaseNextWheel() => waterWheelManager != null && waterWheelManager.TryUnlockNextWheel();
 
-	/// <summary>
-	/// Number of wheel locations currently owned by the player.
-	/// </summary>
-	public int UnlockedWheelCount =>
-		waterWheelManager?.UnlockedWheelCount ?? 0;
-
-	public bool IsWheelUnlocked(int wheelIndex)
+	/// <summary>Purchases the specific wheel represented by a Buy Wheel window.</summary>
+	public bool TryPurchaseWheel(int wheelIndex)
 	{
-		return waterWheelManager != null &&
-			waterWheelManager.IsWheelUnlocked(wheelIndex);
+		return waterWheelManager != null && waterWheelManager.TryUnlockWheel(wheelIndex);
 	}
 
-	public bool CanUnlockNextWheel()
-	{
-		return waterWheelManager != null &&
-			waterWheelManager.CanUnlockNextWheel();
-	}
-
-	/// <summary>
-	/// Purchases the next locked wheel for the fixed wheel purchase price.
-	/// The purchase activates one wheel in the existing simulation only.
-	/// </summary>
-	public bool TryPurchaseNextWheel()
-	{
-		if (waterWheelManager == null)
-			return false;
-
-		return waterWheelManager.TryUnlockNextWheel();
-	}
-
-	public int GetNextLockedWheelIndex()
-	{
-		return waterWheelManager?.GetNextLockedWheelIndex() ?? -1;
-	}
-
-	public Vector2 GetWheelPosition(int wheelIndex)
-	{
-		return waterWheelManager?.GetWheelPosition(wheelIndex) ?? Vector2.Zero;
-	}
+	public int GetNextLockedWheelIndex() => waterWheelManager?.GetNextLockedWheelIndex() ?? -1;
+	public Vector2 GetWheelPosition(int wheelIndex) => waterWheelManager?.GetWheelPosition(wheelIndex) ?? Vector2.Zero;
 }
