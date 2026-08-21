@@ -5,6 +5,7 @@ public partial class WheelUpgradeUi : Control
     private const int MaxWheelCount = 6;
     private const float WindowWidth = 90.0f;
     private const float WindowHeight = 38.0f;
+    private const float UpgradeWindowGap = 8.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
@@ -15,8 +16,6 @@ public partial class WheelUpgradeUi : Control
     public override void _Ready()
     {
         // Match WheelPurchaseUi: this is created on the Main scene by EnergySystem.
-        // Therefore it is outside the simulation SubViewport and can render above
-        // the Environment TileMapLayer.
         ZIndex = 900;
         ZAsRelative = false;
         MouseFilter = MouseFilterEnum.Pass;
@@ -102,11 +101,23 @@ public partial class WheelUpgradeUi : Control
         upgradeWindow.Setup(wheelIndex, simulator, () => upgradeWindow = null);
 
         Vector2 anchor = simulator.GetWheelUiPosition(wheelIndex);
-        Vector2 size = upgradeWindow.GetMinimumSize();
+        Vector2 size = upgradeWindow.Size;
         Vector2 viewportSize = GetViewportRect().Size;
-        Vector2 position = anchor + new Vector2(WindowWidth * 0.5f + 8.0f, -size.Y * 0.5f);
-        position.X = Mathf.Clamp(position.X, 4.0f, Mathf.Max(4.0f, viewportSize.X - size.X - 4.0f));
-        position.Y = Mathf.Clamp(position.Y, 4.0f, Mathf.Max(4.0f, viewportSize.Y - size.Y - 4.0f));
+
+        // Center the upgrade window around the wheel. Only shift it when necessary
+        // to keep the full window inside the screen bounds.
+        Vector2 position = anchor - size * 0.5f;
+        position.X = Mathf.Clamp(
+            position.X,
+            4.0f,
+            Mathf.Max(4.0f, viewportSize.X - size.X - 4.0f)
+        );
+        position.Y = Mathf.Clamp(
+            position.Y,
+            4.0f,
+            Mathf.Max(4.0f, viewportSize.Y - size.Y - 4.0f)
+        );
+
         upgradeWindow.Position = position;
     }
 
