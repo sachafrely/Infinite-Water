@@ -19,6 +19,7 @@ public partial class WheelPurchaseUi : Control
     public override void _Ready()
     {
         ZIndex = 900;
+        ZAsRelative = false;
         MouseFilter = MouseFilterEnum.Pass;
         simulator = GetParent() as FluidSimulator;
         if (simulator == null)
@@ -41,12 +42,12 @@ public partial class WheelPurchaseUi : Control
             panel.Size = new Vector2(WindowWidth, WindowHeight);
             panel.MouseFilter = MouseFilterEnum.Stop;
             panel.ZIndex = 901;
+            panel.ZAsRelative = false;
 
             StyleBoxFlat background = new StyleBoxFlat();
             background.BgColor = new Color(0.035f, 0.055f, 0.055f, 0.96f);
             background.BorderColor = new Color(0.75f, 0.75f, 0.75f, 1.0f);
             background.SetBorderWidthAll((int)BorderWidth);
-            // Deliberately no corner radius: the purchase window must have square edges.
             panel.AddThemeStyleboxOverride("panel", background);
 
             VBoxContainer content = new VBoxContainer();
@@ -74,20 +75,21 @@ public partial class WheelPurchaseUi : Control
     private void OnBuyPressed(int wheelIndex)
     {
         if (simulator == null || simulator.IsWheelUnlocked(wheelIndex)) return;
+
+        WheelUpgradeUi upgradeUi = GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi;
+        upgradeUi?.CloseUpgradeWindow();
+
         OpenConfirmation(wheelIndex);
     }
 
     private void OpenConfirmation(int wheelIndex)
     {
-        if (confirmationWindow != null && IsInstanceValid(confirmationWindow))
-            confirmationWindow.QueueFree();
+        ClosePurchaseWindow();
 
-        // Keep the confirmation dialog in the same UI hierarchy as the Buy windows
-        // so it is guaranteed to share their canvas/layer. Its higher z-index puts it
-        // in front of the Buy window that opened it.
         confirmationWindow = new WheelPurchaseConfirmationWindow();
         confirmationWindow.Name = "WheelPurchaseConfirmationWindow";
         confirmationWindow.ZIndex = 2000;
+        confirmationWindow.ZAsRelative = false;
         confirmationWindow.Setup(wheelIndex, simulator, OnPurchaseConfirmed, OnPurchaseCancelled);
         AddChild(confirmationWindow);
     }
@@ -96,14 +98,19 @@ public partial class WheelPurchaseUi : Control
     {
         bool purchased = simulator != null && simulator.TryPurchaseWheel(wheelIndex);
         Refresh();
-
-        // The confirmation must disappear after a successful purchase.
-        // The dialog also closes itself, so this reference is cleared here only.
         confirmationWindow = null;
     }
 
     private void OnPurchaseCancelled()
     {
+        confirmationWindow = null;
+    }
+
+    public void ClosePurchaseWindow()
+    {
+        if (confirmationWindow != null && IsInstanceValid(confirmationWindow))
+            confirmationWindow.QueueFree();
+
         confirmationWindow = null;
     }
 
