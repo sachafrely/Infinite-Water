@@ -9,7 +9,6 @@ public partial class WheelPurchaseUi : Control
     private const int MaxWheelCount = 6;
     private const float WindowWidth = 61.0f;
     private const float WindowHeight = 38.0f;
-    private const float BorderWidth = 2.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
@@ -43,12 +42,7 @@ public partial class WheelPurchaseUi : Control
             panel.MouseFilter = MouseFilterEnum.Stop;
             panel.ZIndex = 901;
             panel.ZAsRelative = false;
-
-            StyleBoxFlat background = new StyleBoxFlat();
-            background.BgColor = new Color(0.035f, 0.055f, 0.055f, 0.96f);
-            background.BorderColor = new Color(0.75f, 0.75f, 0.75f, 1.0f);
-            background.SetBorderWidthAll((int)BorderWidth);
-            panel.AddThemeStyleboxOverride("panel", background);
+            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
 
             VBoxContainer content = new VBoxContainer();
             content.Alignment = BoxContainer.AlignmentMode.Center;
@@ -63,6 +57,7 @@ public partial class WheelPurchaseUi : Control
             button.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             button.FocusMode = Control.FocusModeEnum.None;
             button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+            ApplyButtonStyle(button, true);
             int capturedIndex = wheelIndex;
             button.Pressed += () => OnBuyPressed(capturedIndex);
             content.AddChild(button);
@@ -70,6 +65,21 @@ public partial class WheelPurchaseUi : Control
             AddChild(panel);
             windows[wheelIndex] = panel;
         }
+    }
+
+    private void ApplyButtonStyle(Button button, bool available)
+    {
+        button.Disabled = false;
+        button.AddThemeColorOverride("font_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
+        button.AddThemeColorOverride("font_hover_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
+        button.AddThemeColorOverride("font_pressed_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
+        button.AddThemeColorOverride("font_focus_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
+        button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
+        button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
     }
 
     private void OnBuyPressed(int wheelIndex)
@@ -149,7 +159,10 @@ public partial class WheelPurchaseUi : Control
             panel.Position = new Vector2(wheelPosition.X - WindowWidth * 0.5f, wheelPosition.Y - WindowHeight * 0.5f);
             Button button = buttons[wheelIndex];
             if (button != null)
-                button.Disabled = EnergySystem.Instance == null || EnergySystem.Instance.Dollars < EnergySystem.WheelPurchaseCost;
+            {
+                bool available = EnergySystem.Instance != null && EnergySystem.Instance.Dollars >= EnergySystem.WheelPurchaseCost;
+                ApplyButtonStyle(button, available);
+            }
         }
     }
 }
