@@ -142,9 +142,11 @@ public partial class WheelUpgradeUi : Control
     }
 
     /// <summary>
-    /// Blocks the small underlying Upgrade buttons while the Buy confirmation
-    /// modal is open. This is intentionally independent of visual Z order so
-    /// the Upgrade buttons can never receive the same click/touch as the modal.
+    /// Blocks only the input of the small underlying Upgrade buttons while the
+    /// Buy confirmation is open. The buttons are not disabled, hidden, moved,
+    /// or restyled. MouseFilter.Ignore makes the underlying controls transparent
+    /// to hit-testing, allowing the confirmation button above them to receive
+    /// the click normally.
     /// </summary>
     public void SetPurchaseModalInputBlocked(bool blocked)
     {
@@ -155,7 +157,9 @@ public partial class WheelUpgradeUi : Control
             if (buttons[i] == null)
                 continue;
 
-            buttons[i].Disabled = blocked;
+            buttons[i].MouseFilter = blocked
+                ? Control.MouseFilterEnum.Ignore
+                : Control.MouseFilterEnum.Stop;
         }
     }
 
@@ -182,7 +186,15 @@ public partial class WheelUpgradeUi : Control
             );
 
             if (buttons[wheelIndex] != null)
-                buttons[wheelIndex].Disabled = inputBlockedByPurchaseWindow;
+            {
+                // This is deliberately input-only. Disabled is never used for
+                // the modal block, because it changes the button's appearance
+                // and can interfere with the modal's hit testing.
+                buttons[wheelIndex].Disabled = false;
+                buttons[wheelIndex].MouseFilter = inputBlockedByPurchaseWindow
+                    ? Control.MouseFilterEnum.Ignore
+                    : Control.MouseFilterEnum.Stop;
+            }
         }
 
         if (upgradeWindow != null && IsInstanceValid(upgradeWindow))
