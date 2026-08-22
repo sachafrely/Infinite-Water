@@ -26,7 +26,7 @@ Commit: c529881855b2a30384de179f38840eca4b91127b
 - Close Window uses the centralized button theme.
 - Existing medium font size remains in use.
 
-3. TOP UI RESOURCE LAYOUT — STARTED
+3. TOP UI RESOURCE LAYOUT — VERIFIED BY USER
 Commit: b1bd960d92960a576a859c287af71413eaffb44e
 
 Implemented:
@@ -37,15 +37,75 @@ Implemented:
 - TopUI rendered background and border use UiSettings.
 - Existing global button/panel styling now routes through UiSettings.
 
-NOT YET VERIFIED IN GODOT:
-- Actual visual flicker behavior.
-- Exact visual centering in the running project.
+User verification on 2026-08-22:
+- Rain amount vertical alignment: GOOD.
+- TopUI background/border: GOOD.
+- Top-right energy/dollar layout was included in the verification request;
+  no negative feedback was reported for the alignment after the latest test.
+
+4. PURCHASE MODAL INPUT BLOCKING — CORRECTED, NEEDS GODOT RE-TEST
+Commits:
+- 5374eec07e96428b3169d44f2f8c9f9b9f984a21
+- c90419b11bdeeec9b27f3864c995a06fede4ca29
+- 2993962ebc23589e26c96d1d8c8b26f0aab9caac
+
+Problem reported by user:
+- Upgrade buttons could still be clicked underneath the Buy confirmation
+  window, despite other UI being blocked.
+
+Implementation correction:
+- Purchase confirmation is now hosted directly on the main scene rather than
+  as a child of WheelPurchaseUi.
+- Confirmation uses ZAsRelative = false and a high absolute ZIndex.
+- Full-screen transparent ColorRect consumes mouse input.
+- Confirmation panel remains above the blocker and uses centralized styling.
+- This avoids the previous sibling UI Z-order/input-layer conflict between
+  WheelPurchaseUi and WheelUpgradeUi.
+
+STATUS:
+- Code corrected.
+- NOT YET VERIFIED IN GODOT after this correction.
+
+5. BUY / UPGRADE BUTTON SIZE + POSITION — CORRECTED, NEEDS GODOT RE-TEST
+Commits:
+- 2993962ebc23589e26c96d1d8c8b26f0aab9caac
+- e5f1f2b315309c362c0b0438d5caff4d2622441d
+
+User feedback:
+- Buy button size: GOOD.
+- Upgrade button: too small.
+- Upgrade button: too far right.
+
+Implementation correction:
+- Upgrade button size increased from 90x38 to 106x54.
+- Upgrade button moved 6 px left relative to the wheel.
+- Upgrade button now uses centralized UiSettings button theme.
+- Active upgrade button uses ButtonWindowOpenColor.
+- Buy button remains at the previously accepted position/size.
+
+STATUS:
+- Code corrected.
+- NOT YET VERIFIED IN GODOT after this correction.
+
+6. CURRENT USER-VERIFIED UI ITEMS
+----------------------------------
+GOOD:
+- Top-left rain amount vertical alignment.
+- TopUI rendered background/border appearance.
+- Buy button size.
+
+NEEDS RE-TEST:
+- Buy modal must block Upgrade buttons underneath.
+- Upgrade button size.
+- Upgrade button horizontal position.
+- Confirmation modal theme appearance after re-parenting.
+- Top-right resource flicker/digit-width behavior should be checked once more.
 
 NEXT IMPLEMENTATION ORDER
 -------------------------
-1. Modal input architecture and click-through prevention.
+1. Re-test/finalize purchase modal input blocking.
 2. Buy Window rework and Buy/Upgrade mutual exclusion.
-3. Buy/Upgrade button size and wheel-relative positioning.
+3. Click outside small windows -> close without triggering underlying controls.
 4. Automatic upgrade affordability refresh.
 5. Statistics graph border/layout/left-label/bottom-spacing fixes.
 6. Tilt slider positioning.
