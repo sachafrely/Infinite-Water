@@ -32,7 +32,7 @@ public partial class WheelUpgradeWindow : Control
 
         PanelContainer panel = new PanelContainer();
         panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
         AddChild(panel);
 
         MarginContainer margin = new MarginContainer();
@@ -75,6 +75,7 @@ public partial class WheelUpgradeWindow : Control
             MouseFilter = MouseFilterEnum.Stop
         };
         closeButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        UiSettings.ApplyButtonTheme(closeButton);
         closeButton.Pressed += Close;
         content.AddChild(closeButton);
     }
@@ -114,6 +115,7 @@ public partial class WheelUpgradeWindow : Control
             MouseFilter = MouseFilterEnum.Stop
         };
         button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        UiSettings.ApplyButtonTheme(button);
         button.Pressed += () => Purchase(type);
         row.AddChild(button);
         purchaseButtons[arrayIndex] = button;
