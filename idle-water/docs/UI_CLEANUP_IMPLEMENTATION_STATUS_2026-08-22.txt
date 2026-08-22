@@ -1,0 +1,356 @@
+INFINITE WATER — UI CLEANUP / POLISH IMPLEMENTATION STATUS
+Created: 22.08.2026
+Branch: ui-cleanup-2026-08-22
+Base: main
+
+PURPOSE
+-------
+This document tracks the UI cleanup and interaction fixes requested after the
+Wheel Upgrades implementation was merged into main.
+
+INSTRUCTION REVIEW
+------------------
+The requested changes are clear enough to implement and are ordered below in a
+recommended dependency-safe order rather than the order in which they were
+reported.
+
+The work is grouped as:
+1. Central UI settings/theme foundation.
+2. Window/input/modal behavior.
+3. Buy/Upgrade interaction and geometry.
+4. Top UI alignment/rendering.
+5. Statistics graph layout and styling.
+6. Settings-window positioning.
+7. Anti-lag notification.
+8. Final visual/integration verification.
+
+IMPORTANT INTERPRETATION
+------------------------
+"Window background color", "buttonpressed", "buttonunpressed",
+"buttonwindowopen", "fontcolorenabled", and "fontcolordisabled" should become
+central UiSettings values and be used consistently by all requested buttons and
+small windows. Existing UI-specific styles should not silently override the
+central theme unless the existing design requires a special case.
+
+The requested standard border is:
+- white with a very slight blue tint
+- 0% transparency / fully opaque
+- 3 px width
+
+The requested window/button colors are:
+- Window background: bright gray, 20% transparency
+- ButtonPressed: very bright gray, 0% transparency
+- ButtonUnpressed: middle gray, 0% transparency
+- ButtonWindowOpen: bright gray, 0% transparency
+- FontColorEnabled: central UiSettings value
+- FontColorDisabled: central UiSettings value
+
+All buttons, including the three bottom buttons, must use these settings.
+
+TASK 1 — BUY/UPGRADE INPUT BLOCKING
+-----------------------------------
+Problem:
+The player can click through the "Buy Wheel? YES" button when an Upgrade button
+is positioned below it.
+
+Required behavior:
+- A visible/clickable Buy Wheel confirmation window must consume mouse input.
+- Underlying Upgrade buttons must not receive the same click.
+- Modal windows must have a blocking Control/Panel layer covering their intended
+  interaction area.
+- Input order must be deterministic; do not depend on incidental scene order.
+
+Acceptance:
+- Click Buy Wheel -> YES.
+- Confirm only the Buy action happens.
+- No Upgrade action happens from the same click.
+
+TASK 2 — TOP UI RAIN AMOUNT ALIGNMENT
+-------------------------------------
+The TopUI frame is 60 px high.
+
+Required:
+- Vertically center the top-left rain amount inside the 60 px TopUI frame.
+- Correct margins/anchors/alignment rather than adding arbitrary offsets.
+- Keep horizontal placement unchanged unless necessary for centering.
+
+Acceptance:
+- Rain amount is visually centered vertically in the 60 px frame at all normal
+  displayed values.
+
+TASK 3 — CENTRAL UI SETTINGS / THEME
+------------------------------------
+Add/use central UiSettings values for:
+- WindowBackgroundColor
+- ButtonPressedColor
+- ButtonUnpressedColor
+- ButtonWindowOpenColor
+- FontColorEnabled
+- FontColorDisabled
+- Standard Border Color
+- Standard Border Width
+
+Exact requested values/semantics:
+- Window background = bright gray with 20% transparency.
+- Button pressed = brighter gray, opaque.
+- Button unpressed = middle gray, opaque.
+- Button window open = bright gray, opaque.
+- Standard border = almost-white with a very subtle blue tint, opaque, 3 px.
+
+Use the existing UiSettings architecture rather than duplicating hard-coded
+colors in each UI script.
+
+TASK 4 — BUTTON THEME APPLICATION
+---------------------------------
+Apply the centralized button settings to:
+- Buy button
+- Upgrade button
+- Buy Window buttons
+- Upgrade Window buttons
+- Bottom three buttons
+- Other applicable standard UI buttons
+
+Buttons must visually distinguish:
+- normal/unpressed
+- pressed
+- window-open state
+- enabled/disabled font color
+
+TASK 5 — BUY / UPGRADE BUTTON SIZE
+----------------------------------
+Increase the Buy and Upgrade buttons by:
+- +16 px total width
+- +16 px total height
+
+Interpretation:
+If the current size is W x H, target W+16 x H+16.
+Do not accidentally add 16 px to each side unless the existing layout requires
+that to produce the requested total increase.
+
+TASK 6 — BUY WINDOW REWORK
+--------------------------
+The Buy button should behave like the Upgrade button.
+
+Required flow:
+- The Buy button is always pressable while buying the relevant wheel is valid.
+- Clicking Buy does NOT directly complete the purchase.
+- Clicking Buy opens a Buy Wheel window.
+- The window contains buying text and a purchase button styled like the Upgrade
+  purchase buttons.
+- Purchase price = 10$.
+- Include a Close Window button at the bottom.
+- The actual purchase occurs only when the purchase button inside the window is
+  pressed.
+
+The Buy window must be modal and must not allow clicks through to Upgrade UI.
+
+TASK 7 — MUTUAL BUY / UPGRADE WINDOWS
+--------------------------------------
+Only one of these windows may be open at a time.
+
+Required:
+- Opening Upgrade closes Buy.
+- Opening Buy closes Upgrade.
+- No duplicate overlapping modal windows.
+- The currently open window receives input priority.
+
+TASK 8 — CLICK OUTSIDE TO CLOSE SMALL WINDOWS
+---------------------------------------------
+Small Buy and Upgrade windows should close when the player clicks/taps in the
+game outside the active window.
+
+Required:
+- Clicking inside the window keeps it open and allows normal window controls.
+- Clicking outside closes it.
+- The outside click must not activate an underlying game button in the same
+  input event.
+- Implement this through a modal/outside-click layer, not per-button hacks.
+
+TASK 9 — UPGRADE PRICE AUTO-REFRESH
+-----------------------------------
+Upgrade prices/buttons must refresh automatically when the player's money
+changes.
+
+Current problem:
+Prices such as 20$, 30$ remain dark gray after money becomes available.
+
+Required:
+- Subscribe to or otherwise observe the existing money/energy currency update.
+- Re-evaluate each upgrade button's affordability when money changes.
+- Update font color/state immediately.
+- Do not require reopening the Upgrade window.
+- Do not create a duplicate money system.
+
+TASK 10 — TOP-RIGHT ENERGY TEXT FLICKER
+---------------------------------------
+Problem:
+The top-right text flickers when selling energy and shifts horizontally when
+the displayed number changes digit count, e.g. 9 -> 10.
+
+Required:
+- Give the value display a stable layout width/alignment.
+- Anchor/align the changing numeric text so its container does not move.
+- Avoid recreating the label/node unnecessarily on each money/energy update.
+- Selling energy must not cause visible flicker.
+
+Acceptance:
+- 9 -> 10 -> 9 does not move the surrounding layout.
+- Selling energy updates cleanly with no flicker.
+
+TASK 11 — TOP UI RENDERED WINDOW BACKGROUND/BORDER
+--------------------------------------------------
+The rendered TopUI window portion must use the correct centralized UiSettings:
+- Window background color
+- Standard border color
+- Standard border width
+
+Do not introduce a separate hard-coded rendering color for this section.
+The existing TopUI box should remain the authoritative geometry.
+
+TASK 12 — STATISTICS GRAPH BORDER
+---------------------------------
+The Rain Amount graph must use the standard border settings from UiSettings:
+- standard border width
+- standard border color
+
+No graph-specific hard-coded border should override the central standard border.
+
+TASK 13 — STATISTICS GRAPH SIZING / BOTTOM SPACE
+------------------------------------------------
+Both statistics graphs must remain exactly the same size.
+
+Increase bottom margin/space in each graph so the bottom labels/text have enough
+room.
+
+Move the bottom text approximately 10 px lower because it currently overlaps
+the graph.
+
+Important:
+- Do not resize one graph differently from the other.
+- Apply identical graph container dimensions and identical bottom spacing to both.
+
+TASK 14 — STATISTICS GRAPH LEFT LABELS
+--------------------------------------
+The text that belongs on the LEFT side of each graph (for example "Value" and
+"Energy") must be returned to the left side.
+
+Do not move those labels to the right side.
+
+Acceptance:
+- Left-axis/value label remains visibly on the left.
+- Right-side legend/statistics remains separate.
+- Both graphs use the same layout convention.
+
+TASK 15 — TILT SLIDER POSITION
+------------------------------
+Move the Tilt slider area higher in the Settings window.
+
+The current top margin is still too large.
+
+Use the existing Settings layout structure and reduce the unnecessary top
+spacing rather than applying an unrelated global UI offset.
+
+TASK 16 — ANTILAG CLEANUP MESSAGE
+---------------------------------
+During AntiLag cleanup, display a text box in the top center of the game:
+
+"FPS low, cleaning up simulation..."
+
+Required:
+- Visible while the cleanup state is active.
+- Positioned in the top center without overlapping the existing top-left rain
+  or top-right energy UI.
+- Hidden when cleanup finishes / normal state resumes.
+- Use the centralized UI theme where appropriate.
+
+TASK 17 — BUY / UPGRADE WHEEL POSITION
+--------------------------------------
+The Buy and Upgrade buttons are horizontally slightly too far right relative
+to the wheel.
+
+Move them slightly LEFT while preserving their vertical relationship to the
+wheel and their current visual relationship with the wheel.
+
+This should be a small coordinate/layout correction, not a wholesale UI redesign.
+
+TASK 18 — FINAL INTEGRATION / REGRESSION TESTS
+-----------------------------------------------
+Before merging:
+
+A. Modal interaction
+- Buy window blocks Upgrade underneath.
+- Upgrade window blocks Buy underneath.
+- Opening one closes the other.
+- Clicking outside closes the active small window.
+- Outside click does not activate an underlying button.
+
+B. Buy flow
+- Buy button remains pressable.
+- Buy opens modal.
+- Modal shows 10$ purchase button.
+- Purchase deducts 10$ and unlocks the wheel correctly.
+- Close Window closes without purchase.
+
+C. Upgrade flow
+- Upgrade opens modal.
+- Prices update when money changes.
+- Enabled/disabled font colors update immediately.
+- Bigger Paddles, Less Friction and More Efficient remain functional.
+
+D. Top UI
+- Rain amount vertically centered in 60 px frame.
+- Energy text does not flicker or shift when digit count changes.
+- Rendered TopUI background/border use UiSettings.
+- AntiLag message appears correctly.
+
+E. Graphs
+- Both graphs are identical size.
+- Bottom spacing is increased equally.
+- Bottom text is approximately 10 px lower.
+- Left labels are on the left.
+- Rain graph uses UiSettings border width/color.
+
+F. Settings
+- Tilt slider is visibly higher.
+
+G. Theme
+- Window background is bright gray at 20% transparency.
+- Pressed button is bright opaque gray.
+- Unpressed button is middle opaque gray.
+- Open-window button is bright opaque gray.
+- Enabled/disabled font colors are used consistently.
+- Standard border is 3 px, opaque, near-white with a subtle blue tint.
+
+IMPLEMENTATION ORDER
+--------------------
+1. Inspect existing UiSettings and identify current color/border APIs.
+2. Add/finalize centralized theme values.
+3. Fix modal/window input architecture.
+4. Rework Buy window and mutual Buy/Upgrade behavior.
+5. Fix Buy/Upgrade button dimensions and wheel-relative positioning.
+6. Add automatic Upgrade affordability refresh.
+7. Fix TopUI rain/energy layout and rendered background/border.
+8. Fix statistics graph layout, borders, labels, and bottom spacing.
+9. Move Tilt slider upward.
+10. Add AntiLag cleanup notification.
+11. Run full regression pass and update this document with actual results.
+
+PROGRESS LOG
+------------
+22.08.2026 — Branch created from main after Wheel Upgrades merge.
+22.08.2026 — Requirements reviewed and reorganized into dependency-safe tasks.
+22.08.2026 — Implementation not yet started; this document is the initial
+planning/status baseline.
+
+RULE FOR FUTURE UPDATES
+-----------------------
+After each meaningful implementation step, update the PROGRESS LOG with:
+- date
+- task(s) completed
+- commit SHA
+- any known issue/regression
+- test result
+
+Do not mark a task complete merely because code was changed. Mark it complete
+only after inspecting the resulting implementation and, where possible,
+running/testing it in Godot.
