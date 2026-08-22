@@ -34,6 +34,8 @@ IMPLEMENTATION ORDER
    - Upgrade button position moves slightly left for horizontal centering on the wheel.
    - Buy and Upgrade buttons become 16 px wider and 16 px higher in total.
    - Upgrade text/color/availability refreshes automatically when money changes.
+   - IMPORTANT: Currently the Upgrade button becomes visually dark when the Buy window is open. This is NOT intended behavior and must be fixed.
+   - Final intended behavior: the Upgrade button background/color must NOT change when the Buy window is open; only the Upgrade button text may change according to its enabled/disabled/availability state, using the centralized fontColorEnabled/fontColorDisabled rules.
    - TODO: Use the "Ui Size Medium" value from UiSettings.cs for the Buy and Upgrade UI font size.
    - TODO: Keep the Upgrade window at its current good size; do NOT enlarge it.
    - TODO: Make only the Buy window somewhat larger.
@@ -87,7 +89,9 @@ PROGRESS
 - Implemented TopUI resource positioning improvements: rain display is vertically centered in the 60 px TopUI frame, and Energy/Dollars use fixed label widths plus centered vertical positioning to prevent position changes when digit counts change.
 - TopUI rendering continues to use UiSettings window/border values.
 - Added the anti-lag cleanup message "FPS low, cleaning up simulation..." to the TopUI and tied its visibility to the existing AntiLagController active state without changing simulation behavior.
-- These changes are pending developer testing.
+- Developer confirmed the Settings/Statistics -> Buy/Upgrade tests succeeded, empty-space clicks keep Settings/Statistics open, the rain display is well aligned, and the top-right display no longer jumps.
+- Newly observed issue recorded: the Upgrade button currently becomes visually dark while the Buy window is open. This is not intended; final behavior must keep the button background unchanged and only change text according to availability/enabled state.
+- Anti-lag cleanup message testing remains pending.
 
 [2026-08-22]
 - Created branch: ui-layering-fixes-20260822 from main.
