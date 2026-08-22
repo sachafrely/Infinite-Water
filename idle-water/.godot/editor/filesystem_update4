@@ -1,4 +1,3 @@
-res://Scenes/Main.tscn
 res://Scripts/rendering/WaterWheelVisual.cs
 res://Scripts/rendering/FluidRenderer.cs
 res://Scripts/ui/SellEnergyButton.cs
@@ -17,4 +16,4 @@ res://Scripts/ui/WheelUpgradeUi.cs
 res://Scripts/ui/WheelUpgradeWindow.cs
 res://Scripts/ui/WheelPurchaseUi.cs
 res://Scripts/ui/EconomyUi.cs
-res://Scripts/ui/UiSettings.cs
+res://Scenes/Main.tscn

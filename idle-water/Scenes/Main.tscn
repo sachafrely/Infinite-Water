@@ -584,13 +584,13 @@ offset_right = 40.0
 offset_bottom = 40.0
 
 [node name="Screen1" type="Sprite2D" parent="Decorations" unique_id=1926054615]
-z_index = 50
+z_index = 20
 position = Vector2(82, 734.99)
 scale = Vector2(1.3, 1.3)
 texture = ExtResource("16_0sclb")
 
 [node name="Screen2" type="Sprite2D" parent="Decorations" unique_id=1374277766]
-z_index = 50
+z_index = 20
 position = Vector2(82, 697.42)
 scale = Vector2(1.3, 1.3)
 texture = ExtResource("17_sxkr1")
@@ -601,7 +601,7 @@ scale = Vector2(2, 2)
 texture = ExtResource("4_v1gob")
 
 [node name="Chair" type="Sprite2D" parent="Decorations" unique_id=2076643011]
-z_index = 50
+z_index = 21
 position = Vector2(63, 764.82)
 scale = Vector2(1.5, 1.5)
 texture = ExtResource("13_h1m7h")
@@ -612,7 +612,7 @@ scale = Vector2(2, 2)
 texture = ExtResource("15_2w5on")
 
 [node name="Table" type="Sprite2D" parent="Decorations" unique_id=980513908]
-z_index = 31
+z_index = 20
 position = Vector2(75, 770.825)
 scale = Vector2(1.5, 1.5)
 texture = ExtResource("15_346fj")
@@ -682,9 +682,10 @@ mouse_filter = 2
 [node name="MoneyDisplay" type="Node" parent="TopUI/CurrenciesContainer" unique_id=1858069315]
 
 [node name="CenterUI" type="Control" parent="." unique_id=1096158914]
+z_index = 22
 layout_mode = 3
 anchors_preset = 0
-offset_top = 840.0
+offset_top = 761.0
 offset_right = 720.0
 offset_bottom = 1180.0
 
@@ -735,13 +736,13 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_bottom = 373.0
+offset_bottom = 76.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("16_fq0cl")
 
 [node name="GravityIndicator" type="Sprite2D" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=521779533]
-position = Vector2(620, 110)
+position = Vector2(620, 95.305)
 rotation = -4.712389
 scale = Vector2(3, 3)
 texture = ExtResource("19_3tgeq")
