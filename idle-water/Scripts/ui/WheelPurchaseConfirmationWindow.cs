@@ -94,18 +94,17 @@ public partial class WheelPurchaseConfirmationWindow : Control
             position = screenTouch.Position;
         }
 
-        if (!pressed)
+        if (!pressed || panel == null)
             return;
 
-        // _Input runs before GUI hit-testing. This is intentional: the modal must
-        // be able to recognize an outside click even when its full-screen Control
-        // is not receiving _GuiInput because of its parent/scene geometry.
-        if (panel != null && !panel.GetGlobalRect().HasPoint(position))
+        // _Input runs before GUI hit-testing. Only consume the event when it is
+        // outside the actual dialog. Events inside the dialog must continue to
+        // GUI hit-testing so the Yes/No buttons can receive their Pressed signal.
+        if (!panel.GetGlobalRect().HasPoint(position))
+        {
             Cancel();
-
-        // Whether the tap was inside or outside, the modal owns this input while
-        // it is open so no underlying wheel/upgrade control can react to it.
-        GetViewport().SetInputAsHandled();
+            GetViewport().SetInputAsHandled();
+        }
     }
 
     private void Confirm()
