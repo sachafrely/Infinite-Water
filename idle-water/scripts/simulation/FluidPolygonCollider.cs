@@ -22,8 +22,8 @@ public class FluidWheelState
 	public int BiggerPaddlesLevel => biggerPaddlesLevel;
 	public int LessFrictionLevel => lessFrictionLevel;
 	public int MoreEfficientLevel => moreEfficientLevel;
-	public float PaddleSizeMultiplier => 1.0f + 0.15f * biggerPaddlesLevel;
-	public float WheelRadiusMultiplier => 1.0f + 0.17f * biggerPaddlesLevel;
+	public float PaddleSizeMultiplier => 1.0f + 0.05f * biggerPaddlesLevel;
+	public float WheelRadiusMultiplier => 1.0f + 0.08f * biggerPaddlesLevel;
 	public float EnergyGenerationMultiplier => 1.0f + 0.20f * moreEfficientLevel;
 	public float EffectiveAngularDamping => BaseAngularDamping * (1.0f - 0.20f * lessFrictionLevel);
 	public float EffectiveMaxAngularVelocity => BaseMaxAngularVelocity * (1.0f + 0.20f * lessFrictionLevel);
