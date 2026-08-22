@@ -32,8 +32,9 @@ IMPLEMENTATION ORDER
    - Upgrade button position moves slightly left for horizontal centering on the wheel.
    - Buy and Upgrade buttons become 16 px wider and 16 px higher in total.
    - Upgrade text/color/availability refreshes automatically when money changes.
-   - TODO: Use the "Ui Size Medium" value from UiSettings.cs for the Buy and Upgrade windows.
-   - TODO: Make both Buy and Upgrade windows somewhat larger while keeping their existing functionality and centered layout.
+   - TODO: Use the "Ui Size Medium" value from UiSettings.cs for the Buy and Upgrade UI font size.
+   - TODO: Keep the Upgrade window at its current good size; do NOT enlarge it.
+   - TODO: Make only the Buy window somewhat larger.
 
 4. Centralized UI styling in UiSettings.cs
    - Add/use window background color: middle grey 0.5, 30% transparency as requested (effective opacity 0.7 per the request; resolve implementation semantics carefully rather than changing unrelated alpha behavior).
@@ -81,6 +82,7 @@ PROGRESS
 - Developer confirmed Settings opens/closes normally, Statistics opens/closes normally, and the initial UI settings change did not break anything.
 - Implemented the first Buy/Upgrade layering safety step: purchase confirmation uses a blocking full-screen control and cannot pass input through to Upgrade controls underneath.
 - Buy and Upgrade windows are mutually exclusive at the interaction level.
+- Developer correction received: Upgrade window size is already good and must not be enlarged. Only its font size needs to use UiSettings "Ui Size Medium". Only the Buy window should be enlarged.
 - Developer feedback checkpoint pending for Buy/Upgrade modal behavior.
 
 SAFETY RULES FOR THIS ATTEMPT
