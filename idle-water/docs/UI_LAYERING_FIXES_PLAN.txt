@@ -21,6 +21,7 @@ IMPLEMENTATION ORDER
    - Buy and Upgrade windows are mutually exclusive.
    - Clicking empty game space outside a small window closes that small window.
    - Settings and Statistics windows MUST NOT close when clicking outside them. Their existing open/close behavior must be preserved.
+   - Clicking on BUY or UPGRADE must close an open SETTINGS or STATISTICS window.
    - Preserve existing Settings and Statistics open/close functions.
    - Android input: use pressed/unpressed states; do not rely on hover.
    - Use a modal/input-blocking layer where needed so visual layering and input hit-testing agree.
@@ -73,6 +74,7 @@ IMPLEMENTATION ORDER
    - After the baseline inspection and first safe layering change, report the exact implementation state and ask the developer to test/confirm before proceeding with more invasive scene changes.
    - Repeat feedback checkpoints after Buy/Upgrade modal behavior and after any Settings/Statistics changes.
    - Settings and Statistics must retain their existing open/close behavior; outside-click closing is explicitly NOT desired.
+   - Verify that clicking BUY or UPGRADE closes Settings/Statistics while still allowing the clicked Buy/Upgrade control to work normally.
    - Before finalizing, verify that Settings and Statistics still open and close correctly, modal windows block clicks underneath, and no scene-node assumptions were invented.
 
 PROGRESS
@@ -91,7 +93,8 @@ PROGRESS
 - Developer confirmed Upgrade window outside-click closing works on both Windows and Android.
 - Developer explicitly reverted the attempted Settings/Statistics outside-click implementation. Settings and Statistics must NOT close when clicking outside them.
 - Added the requirement that the Buy confirmation window be centered around the Buy button/wheel in the same manner as the Upgrade window.
-- Latest fix: when the Buy confirmation is open, the underlying Upgrade buttons are explicitly disabled so they cannot receive a click/touch even if visual/input layer ordering would otherwise allow it. The buttons are restored when the Buy confirmation closes or completes.
+- Developer confirmed the Buy-window click blocking now works reliably every time, including when an Upgrade button is underneath the Buy window.
+- Added requirement: clicking BUY or UPGRADE must close an open SETTINGS or STATISTICS window, while the clicked Buy/Upgrade control must still function normally.
 
 SAFETY RULES FOR THIS ATTEMPT
 - Small, reviewable commits/changes.
