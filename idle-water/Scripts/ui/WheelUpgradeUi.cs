@@ -63,9 +63,10 @@ public partial class WheelUpgradeUi : Control
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                 SizeFlagsVertical = Control.SizeFlags.ExpandFill,
                 FocusMode = Control.FocusModeEnum.None,
-                MouseFilter = MouseFilterEnum.Stop
+                MouseFilter = Control.MouseFilterEnum.Stop
             };
             button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+            ApplyButtonStyle(button, true);
 
             int capturedIndex = wheelIndex;
             button.Pressed += () => OnUpgradePressed(capturedIndex);
@@ -75,6 +76,24 @@ public partial class WheelUpgradeUi : Control
             windows[wheelIndex] = panel;
             buttons[wheelIndex] = button;
         }
+    }
+
+    private void ApplyButtonStyle(Button button, bool available)
+    {
+        button.Disabled = false;
+        Color textColor = available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled;
+
+        button.AddThemeColorOverride("font_color", textColor);
+        button.AddThemeColorOverride("font_hover_color", textColor);
+        button.AddThemeColorOverride("font_pressed_color", textColor);
+        button.AddThemeColorOverride("font_focus_color", textColor);
+        button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
+
+        button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
     }
 
     private void OnUpgradePressed(int wheelIndex)
@@ -194,17 +213,13 @@ public partial class WheelUpgradeUi : Control
 
             if (buttons[wheelIndex] != null)
             {
-                // This is deliberately input-only. Disabled is never used for
-                // the modal block, because it changes the button's appearance.
-                buttons[wheelIndex].Disabled = false;
+                bool available = simulator.HasAvailableWheelUpgrades(wheelIndex);
+                ApplyButtonStyle(buttons[wheelIndex], available);
                 buttons[wheelIndex].MouseFilter = inputBlockedByPurchaseWindow
                     ? Control.MouseFilterEnum.Ignore
                     : Control.MouseFilterEnum.Stop;
             }
 
-            // The containing panel must receive the same input-only treatment as
-            // the button. Otherwise it can still intercept a click over the
-            // confirmation even when the child Button ignores mouse/touch input.
             panel.MouseFilter = inputBlockedByPurchaseWindow
                 ? Control.MouseFilterEnum.Ignore
                 : Control.MouseFilterEnum.Stop;
