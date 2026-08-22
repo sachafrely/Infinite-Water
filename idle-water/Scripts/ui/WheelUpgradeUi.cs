@@ -5,7 +5,6 @@ public partial class WheelUpgradeUi : Control
     private const int MaxWheelCount = 6;
     private const float WindowWidth = 90.0f;
     private const float WindowHeight = 38.0f;
-    private const float UpgradeWindowGap = 8.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
@@ -15,7 +14,6 @@ public partial class WheelUpgradeUi : Control
 
     public override void _Ready()
     {
-        // Match WheelPurchaseUi: this is created on the Main scene by EnergySystem.
         ZIndex = 900;
         ZAsRelative = false;
         MouseFilter = MouseFilterEnum.Pass;
@@ -85,13 +83,17 @@ public partial class WheelUpgradeUi : Control
         if (!simulator.HasAvailableWheelUpgrades(wheelIndex))
             return;
 
+        // Buy and Upgrade are mutually exclusive. Close any active purchase dialog
+        // before opening the upgrade dialog.
+        WheelPurchaseUi purchaseUi = GetTree().Root.FindChild("WheelPurchaseUi", true, false) as WheelPurchaseUi;
+        purchaseUi?.ClosePurchaseWindow();
+
         OpenUpgradeWindow(wheelIndex);
     }
 
     private void OpenUpgradeWindow(int wheelIndex)
     {
-        if (upgradeWindow != null && IsInstanceValid(upgradeWindow))
-            upgradeWindow.QueueFree();
+        CloseUpgradeWindow();
 
         upgradeWindow = new WheelUpgradeWindow();
         upgradeWindow.Name = "WheelUpgradeWindow";
@@ -104,8 +106,6 @@ public partial class WheelUpgradeUi : Control
         Vector2 size = upgradeWindow.Size;
         Vector2 viewportSize = GetViewportRect().Size;
 
-        // Center the upgrade window around the wheel. Only shift it when necessary
-        // to keep the full window inside the screen bounds.
         Vector2 position = anchor - size * 0.5f;
         position.X = Mathf.Clamp(
             position.X,
@@ -119,6 +119,14 @@ public partial class WheelUpgradeUi : Control
         );
 
         upgradeWindow.Position = position;
+    }
+
+    public void CloseUpgradeWindow()
+    {
+        if (upgradeWindow != null && IsInstanceValid(upgradeWindow))
+            upgradeWindow.QueueFree();
+
+        upgradeWindow = null;
     }
 
     private void Refresh()
@@ -139,7 +147,7 @@ public partial class WheelUpgradeUi : Control
 
             Vector2 wheelPosition = simulator.GetWheelUiPosition(wheelIndex);
             panel.Position = new Vector2(
-                wheelPosition.X - WindowWidth * 0.5f,
+                wheelPosition.X - WindowWidth * 0.5f - 4.0f,
                 wheelPosition.Y - WindowHeight * 0.5f
             );
 
@@ -151,8 +159,7 @@ public partial class WheelUpgradeUi : Control
         {
             if (!simulator.IsWheelUnlocked(upgradeWindow.WheelIndex) || !simulator.HasAvailableWheelUpgrades(upgradeWindow.WheelIndex))
             {
-                upgradeWindow.QueueFree();
-                upgradeWindow = null;
+                CloseUpgradeWindow();
             }
         }
     }
