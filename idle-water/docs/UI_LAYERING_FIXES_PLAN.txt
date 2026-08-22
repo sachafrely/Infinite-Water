@@ -20,7 +20,7 @@ IMPLEMENTATION ORDER
    - Ensure Buy Wheel confirmation YES cannot be clicked through when an Upgrade button is visually underneath it.
    - Buy and Upgrade windows are mutually exclusive.
    - Clicking empty game space outside a small window closes that small window.
-   - Clicking outside Settings/Statistics closes them too, including clicking Buy/Upgrade.
+   - Settings and Statistics windows MUST NOT close when clicking outside them. Their existing open/close behavior must be preserved.
    - Preserve existing Settings and Statistics open/close functions.
    - Android input: use pressed/unpressed states; do not rely on hover.
    - Use a modal/input-blocking layer where needed so visual layering and input hit-testing agree.
@@ -29,6 +29,7 @@ IMPLEMENTATION ORDER
    - Buy button remains always pressable and opens a purchase window.
    - Purchase window contains buying text, a Buy button, $10 cost, and a bottom Close button.
    - Opening Buy closes Upgrade; opening Upgrade closes Buy.
+   - The Buy confirmation window must be centered around the Buy button/wheel position in the same way the Upgrade window is centered around its Upgrade button/wheel position.
    - Upgrade button position moves slightly left for horizontal centering on the wheel.
    - Buy and Upgrade buttons become 16 px wider and 16 px higher in total.
    - Upgrade text/color/availability refreshes automatically when money changes.
@@ -51,8 +52,8 @@ IMPLEMENTATION ORDER
 
 5. TopUI layout and text stability
    - Center the top-left rain amount vertically inside the 60 px TopUI frame.
-   - Fix top-right text flicker when selling energy.
-   - Keep the top-right text position stable when digit count changes (e.g. 9 -> 10).
+   - Fix the top-right Energy/Dollars text flicker when selling energy.
+   - Keep the top-right text position stable when the number changes, e.g. 9 -> 10.
 
 6. Statistics graphs
    - Increase bottom margin of each graph for labels/text.
@@ -70,7 +71,8 @@ IMPLEMENTATION ORDER
 
 9. Verification / feedback checkpoints
    - After the baseline inspection and first safe layering change, report the exact implementation state and ask the developer to test/confirm before proceeding with more invasive scene changes.
-   - Repeat feedback checkpoints after Buy/Upgrade modal behavior and after Settings/Statistics input behavior are stabilized.
+   - Repeat feedback checkpoints after Buy/Upgrade modal behavior and after any Settings/Statistics changes.
+   - Settings and Statistics must retain their existing open/close behavior; outside-click closing is explicitly NOT desired.
    - Before finalizing, verify that Settings and Statistics still open and close correctly, modal windows block clicks underneath, and no scene-node assumptions were invented.
 
 PROGRESS
@@ -85,7 +87,11 @@ PROGRESS
 - Developer correction received: Upgrade window size is already good and must not be enlarged. Only its font size needs to use UiSettings "Ui Size Medium". Only the Buy window should be enlarged.
 - Developer tested the Buy/Upgrade modal behavior: click-through is correctly blocked; opening Buy/Upgrade closes the other window correctly.
 - Developer found that outside-click handling initially failed, then confirmed the revised implementation works.
-- Final Buy confirmation checkpoint passed: inside click keeps it open; Yes purchases; No closes; outside click closes. This is now considered verified.
+- Final Buy confirmation checkpoint passed: inside click keeps it open; Yes purchases; No closes; outside click closes.
+- Developer confirmed Upgrade window outside-click closing works on both Windows and Android.
+- Developer explicitly reverted the attempted Settings/Statistics outside-click implementation. Settings and Statistics must NOT close when clicking outside them.
+- Added the requirement that the Buy confirmation window be centered around the Buy button/wheel in the same manner as the Upgrade window.
+- Latest fix: when the Buy confirmation is open, the underlying Upgrade buttons are explicitly disabled so they cannot receive a click/touch even if visual/input layer ordering would otherwise allow it. The buttons are restored when the Buy confirmation closes or completes.
 
 SAFETY RULES FOR THIS ATTEMPT
 - Small, reviewable commits/changes.
