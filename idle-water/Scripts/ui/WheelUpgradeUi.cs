@@ -3,9 +3,8 @@ using Godot;
 public partial class WheelUpgradeUi : Control
 {
     private const int MaxWheelCount = 6;
-    private const float WindowWidth = 90.0f;
-    private const float WindowHeight = 38.0f;
-    private const float UpgradeWindowGap = 8.0f;
+    private const float WindowWidth = 106.0f;
+    private const float WindowHeight = 54.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
@@ -15,7 +14,6 @@ public partial class WheelUpgradeUi : Control
 
     public override void _Ready()
     {
-        // Match WheelPurchaseUi: this is created on the Main scene by EnergySystem.
         ZIndex = 900;
         ZAsRelative = false;
         MouseFilter = MouseFilterEnum.Pass;
@@ -46,8 +44,7 @@ public partial class WheelUpgradeUi : Control
                 ZIndex = 901,
                 ZAsRelative = false
             };
-
-            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 
             VBoxContainer content = new VBoxContainer
             {
@@ -67,6 +64,7 @@ public partial class WheelUpgradeUi : Control
                 MouseFilter = MouseFilterEnum.Stop
             };
             button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+            UiSettings.ApplyButtonTheme(button);
 
             int capturedIndex = wheelIndex;
             button.Pressed += () => OnUpgradePressed(capturedIndex);
@@ -95,7 +93,7 @@ public partial class WheelUpgradeUi : Control
 
         upgradeWindow = new WheelUpgradeWindow();
         upgradeWindow.Name = "WheelUpgradeWindow";
-        upgradeWindow.ZIndex = 2000;
+        upgradeWindow.ZIndex = 5000;
         upgradeWindow.ZAsRelative = false;
         AddChild(upgradeWindow);
         upgradeWindow.Setup(wheelIndex, simulator, () => upgradeWindow = null);
@@ -104,20 +102,10 @@ public partial class WheelUpgradeUi : Control
         Vector2 size = upgradeWindow.Size;
         Vector2 viewportSize = GetViewportRect().Size;
 
-        // Center the upgrade window around the wheel. Only shift it when necessary
-        // to keep the full window inside the screen bounds.
+        // The upgrade button itself is positioned 6 px left of the wheel.
         Vector2 position = anchor - size * 0.5f;
-        position.X = Mathf.Clamp(
-            position.X,
-            4.0f,
-            Mathf.Max(4.0f, viewportSize.X - size.X - 4.0f)
-        );
-        position.Y = Mathf.Clamp(
-            position.Y,
-            4.0f,
-            Mathf.Max(4.0f, viewportSize.Y - size.Y - 4.0f)
-        );
-
+        position.X = Mathf.Clamp(position.X - 6.0f, 4.0f, Mathf.Max(4.0f, viewportSize.X - size.X - 4.0f));
+        position.Y = Mathf.Clamp(position.Y, 4.0f, Mathf.Max(4.0f, viewportSize.Y - size.Y - 4.0f));
         upgradeWindow.Position = position;
     }
 
@@ -139,12 +127,16 @@ public partial class WheelUpgradeUi : Control
 
             Vector2 wheelPosition = simulator.GetWheelUiPosition(wheelIndex);
             panel.Position = new Vector2(
-                wheelPosition.X - WindowWidth * 0.5f,
+                wheelPosition.X - WindowWidth * 0.5f - 6.0f,
                 wheelPosition.Y - WindowHeight * 0.5f
             );
 
             if (buttons[wheelIndex] != null)
+            {
+                bool isOpen = upgradeWindow != null && IsInstanceValid(upgradeWindow) && upgradeWindow.WheelIndex == wheelIndex;
+                UiSettings.ApplyButtonTheme(buttons[wheelIndex], isOpen);
                 buttons[wheelIndex].Disabled = false;
+            }
         }
 
         if (upgradeWindow != null && IsInstanceValid(upgradeWindow))
