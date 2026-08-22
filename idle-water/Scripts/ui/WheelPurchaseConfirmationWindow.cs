@@ -3,7 +3,8 @@ using Godot;
 
 /// <summary>
 /// Confirmation dialog for a specific wheel purchase.
-/// The full-screen control is intentionally modal so clicks cannot reach UI behind it.
+/// The dialog is attached to the main scene and uses a full-screen modal input
+/// blocker so clicks cannot reach Buy or Upgrade UI behind it.
 /// </summary>
 public partial class WheelPurchaseConfirmationWindow : Control
 {
@@ -22,55 +23,61 @@ public partial class WheelPurchaseConfirmationWindow : Control
 
     public override void _Ready()
     {
-        ZIndex = 2000;
+        ZIndex = 5000;
+        ZAsRelative = false;
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Stop;
 
-        ColorRect blocker = new ColorRect();
-        blocker.Name = "ModalInputBlocker";
+        ColorRect blocker = new ColorRect
+        {
+            Name = "ModalInputBlocker",
+            Color = new Color(0, 0, 0, 0),
+            MouseFilter = MouseFilterEnum.Stop
+        };
         blocker.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        blocker.Color = new Color(0, 0, 0, 0);
-        blocker.MouseFilter = MouseFilterEnum.Stop;
         AddChild(blocker);
 
-        PanelContainer panel = new PanelContainer();
-        panel.Name = "ConfirmationPanel";
-        panel.CustomMinimumSize = new Vector2(340, 150);
-        panel.Size = new Vector2(340, 150);
+        PanelContainer panel = new PanelContainer
+        {
+            Name = "ConfirmationPanel",
+            CustomMinimumSize = new Vector2(340, 150),
+            Size = new Vector2(340, 150),
+            MouseFilter = MouseFilterEnum.Stop,
+            ZIndex = 1
+        };
         panel.Position = GetViewportRect().Size * 0.5f - panel.Size * 0.5f;
-        panel.MouseFilter = MouseFilterEnum.Stop;
-        panel.ZIndex = 1;
-
         panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
-        blocker.AddChild(panel);
+        AddChild(panel);
 
-        VBoxContainer content = new VBoxContainer();
-        content.Alignment = BoxContainer.AlignmentMode.Center;
+        VBoxContainer content = new VBoxContainer
+        {
+            Alignment = BoxContainer.AlignmentMode.Center
+        };
         content.AddThemeConstantOverride("separation", 10);
         panel.AddChild(content);
 
-        Label message = new Label();
-        message.Text = "Do you want to buy this wheel for 10$";
-        message.HorizontalAlignment = HorizontalAlignment.Center;
+        Label message = new Label
+        {
+            Text = "Do you want to buy this wheel for 10$",
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
         message.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
         message.AddThemeColorOverride("font_color", UiSettings.FontColorEnabled);
         content.AddChild(message);
 
-        HBoxContainer buttons = new HBoxContainer();
-        buttons.Alignment = BoxContainer.AlignmentMode.Center;
+        HBoxContainer buttons = new HBoxContainer
+        {
+            Alignment = BoxContainer.AlignmentMode.Center
+        };
         buttons.AddThemeConstantOverride("separation", 12);
         content.AddChild(buttons);
 
-        Button yes = new Button { Text = "Yes" };
-        yes.CustomMinimumSize = new Vector2(106, 40);
-        yes.FocusMode = Control.FocusModeEnum.None;
+        Button yes = new Button { Text = "Yes", CustomMinimumSize = new Vector2(106, 40), FocusMode = Control.FocusModeEnum.None };
         UiSettings.ApplyButtonTheme(yes);
         yes.Pressed += Confirm;
         buttons.AddChild(yes);
 
-        Button no = new Button { Text = "No" };
-        no.CustomMinimumSize = new Vector2(106, 40);
-        no.FocusMode = Control.FocusModeEnum.None;
+        Button no = new Button { Text = "No", CustomMinimumSize = new Vector2(106, 40), FocusMode = Control.FocusModeEnum.None };
         UiSettings.ApplyButtonTheme(no);
         no.Pressed += Cancel;
         buttons.AddChild(no);
