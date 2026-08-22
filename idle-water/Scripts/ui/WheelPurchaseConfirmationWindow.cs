@@ -16,6 +16,8 @@ public partial class WheelPurchaseConfirmationWindow : Control
     private Action<int> confirmed;
     private Action cancelled;
     private PanelContainer panel;
+    private Button yesButton;
+    private Button noButton;
 
     public void Setup(int index, FluidSimulator fluidSimulator, Action<int> onConfirmed, Action onCancelled)
     {
@@ -64,21 +66,24 @@ public partial class WheelPurchaseConfirmationWindow : Control
         buttons.AddThemeConstantOverride("separation", 16);
         content.AddChild(buttons);
 
-        Button yes = new Button { Text = "Yes" };
-        yes.CustomMinimumSize = new Vector2(100, 40);
-        yes.FocusMode = Control.FocusModeEnum.None;
-        yes.MouseFilter = MouseFilterEnum.Stop;
-        yes.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-        yes.Pressed += Confirm;
-        buttons.AddChild(yes);
+        yesButton = new Button { Text = "Yes" };
+        yesButton.CustomMinimumSize = new Vector2(100, 40);
+        yesButton.FocusMode = Control.FocusModeEnum.None;
+        // The modal handles Yes/No input explicitly in _Input. Ignoring GUI
+        // hit-testing here prevents a lower sibling control from ever competing
+        // with the confirmation buttons while preserving their visual appearance.
+        yesButton.MouseFilter = MouseFilterEnum.Ignore;
+        yesButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        yesButton.Pressed += Confirm;
+        buttons.AddChild(yesButton);
 
-        Button no = new Button { Text = "No" };
-        no.CustomMinimumSize = new Vector2(100, 40);
-        no.FocusMode = Control.FocusModeEnum.None;
-        no.MouseFilter = MouseFilterEnum.Stop;
-        no.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-        no.Pressed += Cancel;
-        buttons.AddChild(no);
+        noButton = new Button { Text = "No" };
+        noButton.CustomMinimumSize = new Vector2(100, 40);
+        noButton.FocusMode = Control.FocusModeEnum.None;
+        noButton.MouseFilter = MouseFilterEnum.Ignore;
+        noButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        noButton.Pressed += Cancel;
+        buttons.AddChild(noButton);
     }
 
     public override void _Input(InputEvent @event)
@@ -102,8 +107,25 @@ public partial class WheelPurchaseConfirmationWindow : Control
         if (!pressed || panel == null)
             return;
 
-        // Only consume outside clicks. Events inside the dialog continue through
-        // Godot GUI hit-testing so the Yes/No buttons receive their Pressed signal.
+        // Handle the modal buttons at the _Input stage. This is deliberately
+        // before Control GUI hit-testing, so a sibling Upgrade button underneath
+        // the modal can never block the Yes/No action.
+        if (yesButton != null && yesButton.GetGlobalRect().HasPoint(position))
+        {
+            Confirm();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (noButton != null && noButton.GetGlobalRect().HasPoint(position))
+        {
+            Cancel();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        // Only consume outside clicks. Events inside the dialog that are not on
+        // Yes/No simply keep the dialog open.
         if (!panel.GetGlobalRect().HasPoint(position))
         {
             Cancel();
