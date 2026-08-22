@@ -3,6 +3,7 @@ using Godot;
 
 /// <summary>
 /// Confirmation dialog for a specific wheel purchase.
+/// The full-screen control is intentionally modal so clicks cannot reach UI behind it.
 /// </summary>
 public partial class WheelPurchaseConfirmationWindow : Control
 {
@@ -25,29 +26,34 @@ public partial class WheelPurchaseConfirmationWindow : Control
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Stop;
 
+        ColorRect blocker = new ColorRect();
+        blocker.Name = "ModalInputBlocker";
+        blocker.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        blocker.Color = new Color(0, 0, 0, 0);
+        blocker.MouseFilter = MouseFilterEnum.Stop;
+        AddChild(blocker);
+
         PanelContainer panel = new PanelContainer();
         panel.Name = "ConfirmationPanel";
-        panel.CustomMinimumSize = new Vector2(300, 120);
-        panel.Size = new Vector2(300, 120);
+        panel.CustomMinimumSize = new Vector2(340, 150);
+        panel.Size = new Vector2(340, 150);
         panel.Position = GetViewportRect().Size * 0.5f - panel.Size * 0.5f;
+        panel.MouseFilter = MouseFilterEnum.Stop;
+        panel.ZIndex = 1;
 
-        StyleBoxFlat style = new StyleBoxFlat();
-        style.BgColor = new Color(0.035f, 0.055f, 0.055f, 0.98f);
-        style.BorderColor = new Color(0.75f, 0.75f, 0.75f, 1.0f);
-        style.SetBorderWidthAll(2);
-        // Deliberately square: confirmation window has no rounded edges.
-        panel.AddThemeStyleboxOverride("panel", style);
-        AddChild(panel);
+        panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+        blocker.AddChild(panel);
 
         VBoxContainer content = new VBoxContainer();
         content.Alignment = BoxContainer.AlignmentMode.Center;
-        content.AddThemeConstantOverride("separation", 8);
+        content.AddThemeConstantOverride("separation", 10);
         panel.AddChild(content);
 
         Label message = new Label();
         message.Text = "Do you want to buy this wheel for 10$";
         message.HorizontalAlignment = HorizontalAlignment.Center;
-        message.AddThemeFontSizeOverride("font_size", 16);
+        message.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        message.AddThemeColorOverride("font_color", UiSettings.FontColorEnabled);
         content.AddChild(message);
 
         HBoxContainer buttons = new HBoxContainer();
@@ -56,12 +62,16 @@ public partial class WheelPurchaseConfirmationWindow : Control
         content.AddChild(buttons);
 
         Button yes = new Button { Text = "Yes" };
-        yes.CustomMinimumSize = new Vector2(90, 32);
+        yes.CustomMinimumSize = new Vector2(106, 40);
+        yes.FocusMode = Control.FocusModeEnum.None;
+        UiSettings.ApplyButtonTheme(yes);
         yes.Pressed += Confirm;
         buttons.AddChild(yes);
 
         Button no = new Button { Text = "No" };
-        no.CustomMinimumSize = new Vector2(90, 32);
+        no.CustomMinimumSize = new Vector2(106, 40);
+        no.FocusMode = Control.FocusModeEnum.None;
+        UiSettings.ApplyButtonTheme(no);
         no.Pressed += Cancel;
         buttons.AddChild(no);
     }
@@ -71,8 +81,6 @@ public partial class WheelPurchaseConfirmationWindow : Control
         if (simulator == null || !simulator.IsWheelUnlocked(wheelIndex))
         {
             confirmed?.Invoke(wheelIndex);
-            // OnPurchaseConfirmed performs the purchase and clears its reference,
-            // but this dialog owns its own lifetime and must close explicitly.
             QueueFree();
         }
         else
