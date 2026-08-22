@@ -5,7 +5,7 @@ public class EnergySystem
 	public float EnergyPerRadian = 1.0f;
 	public const double EnergyPerDollar = 10.0;
 	public const double WheelPurchaseCost = 10.0;
-	private double dollars = 0.0;
+	private double dollars = 200.0;
 	public static EnergySystem Instance { get; private set; }
 	private double energy = 0.0;
 	private double totalGenerated = 0.0;
@@ -26,7 +26,7 @@ public class EnergySystem
 	public bool TrySpendDollars(double amount) { if (amount <= 0.0) return true; if (dollars < amount) return false; dollars -= amount; return true; }
 	public int SellAllAvailableEnergy() { int chunks = (int)System.Math.Floor(energy / EnergyPerDollar); if (chunks <= 0) return 0; energy -= chunks * EnergyPerDollar; dollars += chunks; return chunks; }
 	public bool TrySellEnergyChunk() { if (energy < EnergyPerDollar) return false; energy -= EnergyPerDollar; dollars += 1.0; return true; }
-	public void Reset() { energy = 0.0; dollars = 0.0; totalGenerated = 0.0; }
+	public void Reset() { energy = 0.0; dollars = 200.0; totalGenerated = 0.0; }
 
 	private void CreateEconomyUiDeferred()
 	{
