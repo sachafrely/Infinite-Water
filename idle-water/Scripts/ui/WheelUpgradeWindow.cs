@@ -12,6 +12,7 @@ public partial class WheelUpgradeWindow : Control
     private Action closeAction;
     private readonly Button[] purchaseButtons = new Button[3];
     private readonly Label[] levelLabels = new Label[3];
+    private PanelContainer panel;
 
     public int WheelIndex { get; private set; } = -1;
 
@@ -29,9 +30,12 @@ public partial class WheelUpgradeWindow : Control
         CustomMinimumSize = new Vector2(WindowWidth, WindowHeight);
         Size = CustomMinimumSize;
         MouseFilter = MouseFilterEnum.Stop;
+        ZIndex = 2000;
+        ZAsRelative = false;
 
-        PanelContainer panel = new PanelContainer();
+        panel = new PanelContainer();
         panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        panel.MouseFilter = MouseFilterEnum.Stop;
         panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
         AddChild(panel);
 
@@ -77,6 +81,37 @@ public partial class WheelUpgradeWindow : Control
         closeButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
         closeButton.Pressed += Close;
         content.AddChild(closeButton);
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+        bool pressed = false;
+        Vector2 position = Vector2.Zero;
+
+        if (@event is InputEventMouseButton mouseButton &&
+            mouseButton.ButtonIndex == MouseButton.Left &&
+            mouseButton.Pressed)
+        {
+            pressed = true;
+            position = mouseButton.GlobalPosition;
+        }
+        else if (@event is InputEventScreenTouch screenTouch && screenTouch.Pressed)
+        {
+            pressed = true;
+            position = screenTouch.Position;
+        }
+
+        if (!pressed || panel == null || !IsInstanceValid(panel))
+            return;
+
+        // _Input runs before GUI hit-testing. Only consume clicks/touches outside
+        // the actual Upgrade window. Events inside it must continue to GUI
+        // processing so all Upgrade and Close buttons keep working.
+        if (!panel.GetGlobalRect().HasPoint(position))
+        {
+            Close();
+            GetViewport().SetInputAsHandled();
+        }
     }
 
     private void CreateRow(VBoxContainer parent, int arrayIndex, WheelUpgradeType type, string title)
