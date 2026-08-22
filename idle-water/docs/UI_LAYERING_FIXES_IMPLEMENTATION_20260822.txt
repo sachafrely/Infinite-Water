@@ -20,7 +20,8 @@ IMPLEMENTATION ORDER
    - Ensure Buy Wheel confirmation YES cannot be clicked through when an Upgrade button is visually underneath it.
    - Buy and Upgrade windows are mutually exclusive.
    - Clicking empty game space outside a small window closes that small window.
-   - Clicking outside Settings/Statistics closes them too, including clicking Buy/Upgrade.
+   - Settings/Statistics do NOT close when clicking arbitrary empty space outside them.
+   - Clicking BUY or UPGRADE closes an open Settings or Statistics window.
    - Preserve existing Settings and Statistics open/close functions.
    - Android input: use pressed/unpressed states; do not rely on hover.
    - Use a modal/input-blocking layer where needed so visual layering and input hit-testing agree.
@@ -29,9 +30,12 @@ IMPLEMENTATION ORDER
    - Buy button remains always pressable and opens a purchase window.
    - Purchase window contains buying text, a Buy button, $10 cost, and a bottom Close button.
    - Opening Buy closes Upgrade; opening Upgrade closes Buy.
+   - Buy window is centered around the Buy button/wheel in the same way as the Upgrade window.
    - Upgrade button position moves slightly left for horizontal centering on the wheel.
    - Buy and Upgrade buttons become 16 px wider and 16 px higher in total.
    - Upgrade text/color/availability refreshes automatically when money changes.
+   - Known observed issue to preserve as a TODO: while the Buy window is open, the underlying Upgrade button must NOT become dark. Its background/pressed state must not change merely because the Buy modal is open; only its text color/availability should reflect state.
+   - Confirmed final modal behavior: the Upgrade button underneath a Buy confirmation cannot receive the click, while the YES/NO controls above it remain clickable. This was tested and confirmed after the final input-handling fix.
 
 4. Centralized UI styling in UiSettings.cs
    - Add/use window background color: middle grey 0.5, 30% transparency as requested (effective opacity 0.7 per the request; resolve implementation semantics carefully rather than changing unrelated alpha behavior).
@@ -47,9 +51,10 @@ IMPLEMENTATION ORDER
    - Settings and Statistics buttons use buttonPressed while their windows are open, and therefore are not transparent.
 
 5. TopUI layout and text stability
-   - Center the top-left rain amount vertically inside the 60 px TopUI frame.
-   - Fix top-right text flicker when selling energy.
-   - Keep the top-right text position stable when digit count changes (e.g. 9 -> 10).
+   - Center the top-left rain amount vertically inside the 60 px TopUI frame. COMPLETED AND TESTED: developer reports the rain display is very well aligned.
+   - Fix top-right text flicker when selling energy. COMPLETED AND TESTED.
+   - Keep the top-right text position stable when digit count changes (e.g. 9 -> 10). COMPLETED AND TESTED: developer reports the display no longer jumps around.
+   - Keep TopUI background and border sourced from UiSettings.cs.
 
 6. Statistics graphs
    - Increase bottom margin of each graph for labels/text.
@@ -64,11 +69,18 @@ IMPLEMENTATION ORDER
 8. Anti-lag feedback
    - Add a Top-Center message during anti-lag cleanup: "FPS low, cleaning up simulation..."
    - The message should be shown only for the cleanup state and must not interfere with normal gameplay input.
+   - COMPLETED AND TESTED: developer confirmed the anti-lag cleanup message appears and looks good.
+   - Message position was then moved 120 px downward as requested.
+   - Message font size uses UiSettings.FontSizeMedium.
+   - Message font color uses UiSettings.FontColorEnabled (white).
 
 9. Verification / feedback checkpoints
    - After the baseline inspection and first safe layering change, report the exact implementation state and ask the developer to test/confirm before proceeding with more invasive scene changes.
    - Repeat feedback checkpoints after Buy/Upgrade modal behavior and after Settings/Statistics input behavior are stabilized.
    - Before finalizing, verify that Settings and Statistics still open and close correctly, modal windows block clicks underneath, and no scene-node assumptions were invented.
+   - Developer confirmed Settings and Statistics open/close correctly and that empty-space clicks do not close them.
+   - Developer confirmed clicking BUY or UPGRADE closes Settings/Statistics correctly.
+   - Developer confirmed the Buy/Upgrade button layering/input issue is fixed: YES/NO remain clickable even when an Upgrade button is visually behind the confirmation, while the underlying Upgrade button remains non-clickable.
 
 PROGRESS
 [2026-08-22]
@@ -78,8 +90,11 @@ PROGRESS
 - Step 1 completed: centralized requested UI style values and changed StatisticsWindow input ownership without breaking existing Settings/Statistics behavior.
 - Developer feedback received: Statistics opens and closes correctly; Settings opens and closes correctly; no existing click-through problem was introduced; UI style/border changes did not break anything.
 - Step 2 completed: strengthened Buy/Upgrade mutual exclusion and purchase confirmation input ownership. Purchase confirmation is now an explicit full-screen input-blocking modal with ZAsRelative=false. Opening Buy closes an active Upgrade window; opening Upgrade closes an active purchase confirmation. Upgrade controls are also shifted 4 px left as the first positioning correction.
-- No Godot scene-node creation or script binding was required for Step 2 because the required runtime UI nodes/scripts already exist and are instantiated by the current scripts.
-- NEXT: developer should test Step 2 before further modal/window restructuring. Specifically test that a Buy confirmation cannot click through to Upgrade, Buy closes Upgrade, Upgrade closes Buy confirmation, and clicking outside the purchase confirmation closes it.
+- Later testing identified a hit-testing problem where an Upgrade button behind the Buy confirmation could block the YES control. The final fix was implemented without changing the visual Buy-window layering: the modal handles YES/NO input explicitly and the underlying Upgrade controls do not receive the click. Developer confirmed this final behavior.
+- Settings/Statistics interaction was verified: clicking BUY or UPGRADE closes those windows, while arbitrary empty-space clicks do not close them.
+- TopUI fixes verified: rain display is vertically well aligned; top-right resource display no longer jumps/flickers when energy changes digit count or is sold.
+- Anti-lag cleanup message verified visible and good-looking; it was subsequently moved 120 px lower and centralized to UiSettings medium font size and enabled/white font color.
+- Current work remaining is primarily the centralized button styling, Buy/Upgrade sizing/font refinements, graph spacing/labels/borders, Upgrade availability refresh, and Tilt Slider positioning.
 
 SAFETY RULES FOR THIS ATTEMPT
 - Small, reviewable commits/changes.
