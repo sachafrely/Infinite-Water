@@ -7,9 +7,8 @@ using Godot;
 public partial class WheelPurchaseUi : Control
 {
     private const int MaxWheelCount = 6;
-    private const float WindowWidth = 61.0f;
-    private const float WindowHeight = 38.0f;
-    private const float BorderWidth = 2.0f;
+    private const float WindowWidth = 77.0f;
+    private const float WindowHeight = 54.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
@@ -41,13 +40,7 @@ public partial class WheelPurchaseUi : Control
             panel.Size = new Vector2(WindowWidth, WindowHeight);
             panel.MouseFilter = MouseFilterEnum.Stop;
             panel.ZIndex = 901;
-
-            StyleBoxFlat background = new StyleBoxFlat();
-            background.BgColor = new Color(0.035f, 0.055f, 0.055f, 0.96f);
-            background.BorderColor = new Color(0.75f, 0.75f, 0.75f, 1.0f);
-            background.SetBorderWidthAll((int)BorderWidth);
-            // Deliberately no corner radius: the purchase window must have square edges.
-            panel.AddThemeStyleboxOverride("panel", background);
+            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 
             VBoxContainer content = new VBoxContainer();
             content.Alignment = BoxContainer.AlignmentMode.Center;
@@ -82,9 +75,6 @@ public partial class WheelPurchaseUi : Control
         if (confirmationWindow != null && IsInstanceValid(confirmationWindow))
             confirmationWindow.QueueFree();
 
-        // Keep the confirmation dialog in the same UI hierarchy as the Buy windows
-        // so it is guaranteed to share their canvas/layer. Its higher z-index puts it
-        // in front of the Buy window that opened it.
         confirmationWindow = new WheelPurchaseConfirmationWindow();
         confirmationWindow.Name = "WheelPurchaseConfirmationWindow";
         confirmationWindow.ZIndex = 2000;
@@ -96,9 +86,6 @@ public partial class WheelPurchaseUi : Control
     {
         bool purchased = simulator != null && simulator.TryPurchaseWheel(wheelIndex);
         Refresh();
-
-        // The confirmation must disappear after a successful purchase.
-        // The dialog also closes itself, so this reference is cleared here only.
         confirmationWindow = null;
     }
 
@@ -117,10 +104,13 @@ public partial class WheelPurchaseUi : Control
             if (simulator.IsWheelUnlocked(wheelIndex)) { panel.Visible = false; continue; }
             panel.Visible = true;
             Vector2 wheelPosition = simulator.GetWheelPosition(wheelIndex);
-            panel.Position = new Vector2(wheelPosition.X - WindowWidth * 0.5f, wheelPosition.Y - WindowHeight * 0.5f);
+            panel.Position = new Vector2(wheelPosition.X - WindowWidth * 0.5f - 6.0f, wheelPosition.Y - WindowHeight * 0.5f);
             Button button = buttons[wheelIndex];
             if (button != null)
-                button.Disabled = EnergySystem.Instance == null || EnergySystem.Instance.Dollars < EnergySystem.WheelPurchaseCost;
+            {
+                UiSettings.ApplyButtonTheme(button, false);
+                button.Disabled = false;
+            }
         }
     }
 }
