@@ -2,7 +2,9 @@ using System;
 using Godot;
 
 /// <summary>
-/// Confirmation dialog for a specific wheel purchase.
+/// Full-screen modal confirmation dialog for a specific wheel purchase.
+/// The root Control owns the entire input area so controls underneath can never
+/// receive the same touch/click while this dialog is open.
 /// </summary>
 public partial class WheelPurchaseConfirmationWindow : Control
 {
@@ -10,6 +12,7 @@ public partial class WheelPurchaseConfirmationWindow : Control
     private FluidSimulator simulator;
     private Action<int> confirmed;
     private Action cancelled;
+    private PanelContainer panel;
 
     public void Setup(int index, FluidSimulator fluidSimulator, Action<int> onConfirmed, Action onCancelled)
     {
@@ -22,20 +25,23 @@ public partial class WheelPurchaseConfirmationWindow : Control
     public override void _Ready()
     {
         ZIndex = 2000;
+        ZAsRelative = false;
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Stop;
 
-        PanelContainer panel = new PanelContainer();
+        panel = new PanelContainer();
         panel.Name = "ConfirmationPanel";
         panel.CustomMinimumSize = new Vector2(300, 120);
         panel.Size = new Vector2(300, 120);
         panel.Position = GetViewportRect().Size * 0.5f - panel.Size * 0.5f;
+        panel.MouseFilter = MouseFilterEnum.Stop;
+        panel.ZIndex = 1;
 
-        StyleBoxFlat style = new StyleBoxFlat();
-        style.BgColor = new Color(0.035f, 0.055f, 0.055f, 0.98f);
-        style.BorderColor = new Color(0.75f, 0.75f, 0.75f, 1.0f);
-        style.SetBorderWidthAll(2);
-        // Deliberately square: confirmation window has no rounded edges.
+        StyleBoxFlat style = UiSettings.CreateBox(
+            UiSettings.WindowColor,
+            UiSettings.BorderColor,
+            (int)UiSettings.BorderSize
+        );
         panel.AddThemeStyleboxOverride("panel", style);
         AddChild(panel);
 
@@ -57,13 +63,31 @@ public partial class WheelPurchaseConfirmationWindow : Control
 
         Button yes = new Button { Text = "Yes" };
         yes.CustomMinimumSize = new Vector2(90, 32);
+        yes.FocusMode = Control.FocusModeEnum.None;
+        yes.MouseFilter = MouseFilterEnum.Stop;
         yes.Pressed += Confirm;
         buttons.AddChild(yes);
 
         Button no = new Button { Text = "No" };
         no.CustomMinimumSize = new Vector2(90, 32);
+        no.FocusMode = Control.FocusModeEnum.None;
+        no.MouseFilter = MouseFilterEnum.Stop;
         no.Pressed += Cancel;
         buttons.AddChild(no);
+    }
+
+    public override void _GuiInput(InputEvent @event)
+    {
+        if (@event is InputEventMouseButton mouseButton &&
+            mouseButton.ButtonIndex == MouseButton.Left &&
+            mouseButton.Pressed)
+        {
+            // A click/touch outside the actual confirmation panel closes the modal.
+            if (panel != null && !panel.GetGlobalRect().HasPoint(mouseButton.GlobalPosition))
+                Cancel();
+
+            GetViewport().SetInputAsHandled();
+        }
     }
 
     private void Confirm()
@@ -71,8 +95,6 @@ public partial class WheelPurchaseConfirmationWindow : Control
         if (simulator == null || !simulator.IsWheelUnlocked(wheelIndex))
         {
             confirmed?.Invoke(wheelIndex);
-            // OnPurchaseConfirmed performs the purchase and clears its reference,
-            // but this dialog owns its own lifetime and must close explicitly.
             QueueFree();
         }
         else
