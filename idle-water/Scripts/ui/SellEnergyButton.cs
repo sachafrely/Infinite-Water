@@ -12,8 +12,25 @@ public partial class SellEnergyButton : Control
 		QueueRedraw();
 	}
 
+	public override void _Process(double delta)
+	{
+		bool available = IsAvailable();
+		if (!available && isPressed)
+		{
+			isPressed = false;
+			QueueRedraw();
+		}
+		else
+		{
+			QueueRedraw();
+		}
+	}
+
 	public override void _GuiInput(InputEvent @event)
 	{
+		if (!IsAvailable())
+			return;
+
 		if (@event is InputEventMouseButton mouseButton &&
 			mouseButton.ButtonIndex == MouseButton.Left)
 		{
@@ -35,9 +52,10 @@ public partial class SellEnergyButton : Control
 
 	public override void _Draw()
 	{
+		bool available = IsAvailable();
 		Color background = isPressed
-			? new Color(0.72f, 0.72f, 0.72f, 1.0f)
-			: UiSettings.ButtonColor;
+			? UiSettings.ButtonPressedColor
+			: UiSettings.ButtonUnpressedColor;
 
 		DrawRect(new Rect2(Vector2.Zero, Size), background, true);
 		DrawRect(new Rect2(Vector2.Zero, Size), UiSettings.BorderColor, false, UiSettings.BorderSize);
@@ -59,8 +77,16 @@ public partial class SellEnergyButton : Control
 			HorizontalAlignment.Left,
 			-1,
 			fontSize,
-			UiSettings.FontColorBasic
+			available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled
 		);
+	}
+
+	private bool IsAvailable()
+	{
+		if (energySystem == null)
+			energySystem = EnergySystem.Instance;
+
+		return energySystem != null && energySystem.Energy >= EnergySystem.EnergyPerDollar;
 	}
 
 	private void SellAllAvailableChunks()
