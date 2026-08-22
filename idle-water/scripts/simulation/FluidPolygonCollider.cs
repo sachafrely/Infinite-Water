@@ -58,9 +58,7 @@ public class FluidWheelState
 
 		float damping = Mathf.Exp(-EffectiveAngularDamping * dt);
 		angularVelocity *= damping;
-
 		angularVelocity = Mathf.Clamp(angularVelocity, -EffectiveMaxAngularVelocity, EffectiveMaxAngularVelocity);
-
 		angle += angularVelocity * dt;
 
 		if (angle > Mathf.Tau)
@@ -75,10 +73,6 @@ public class FluidWheelState
 		return new Vector2(-angularVelocity * radius.Y, angularVelocity * radius.X);
 	}
 }
-
-// ================================================================
-// Polygon collider
-// ================================================================
 
 public class FluidPolygonCollider
 {
@@ -99,6 +93,11 @@ public class FluidPolygonCollider
 	private float minY;
 	private float maxY;
 	private FluidWheelState wheel;
+	private bool isWheelPaddle;
+	private float paddleInnerRadius;
+	private float paddleOuterRadius;
+	private Vector2 paddleDirection;
+	private Vector2 paddleTangent;
 
 	public bool IsWheel => wheel != null;
 	public FluidWheelState Wheel => wheel;
@@ -123,7 +122,25 @@ public class FluidPolygonCollider
 
 	public void ConfigureAsWheel(FluidWheelState wheelState)
 	{
+		ConfigureAsWheel(wheelState, false, 0.0f, 0.0f);
+	}
+
+	public void ConfigureAsWheel(FluidWheelState wheelState, bool paddle, float innerRadius, float outerRadius)
+	{
 		wheel = wheelState;
+		isWheelPaddle = paddle;
+		paddleInnerRadius = innerRadius;
+		paddleOuterRadius = outerRadius;
+
+		if (isWheelPaddle)
+		{
+			Vector2 average = Vector2.Zero;
+			for (int i = 0; i < localVertices.Length; i++)
+				average += localVertices[i];
+			paddleDirection = average.LengthSquared() > Epsilon ? average.Normalized() : Vector2.Right;
+			paddleTangent = new Vector2(-paddleDirection.Y, paddleDirection.X);
+		}
+
 		UpdateWheelGeometry();
 	}
 
@@ -136,10 +153,26 @@ public class FluidPolygonCollider
 		float angle = wheel.Angle;
 		float cos = Mathf.Cos(angle);
 		float sin = Mathf.Sin(angle);
+		float multiplier = isWheelPaddle ? wheel.PaddleSizeMultiplier : 1.0f;
+		float effectiveOuterRadius = paddleOuterRadius * multiplier;
 
 		for (int i = 0; i < localVertices.Length; i++)
 		{
 			Vector2 local = localVertices[i];
+
+			if (isWheelPaddle)
+			{
+				float radial = local.Dot(paddleDirection);
+				float tangent = local.Dot(paddleTangent);
+				float baseLength = paddleOuterRadius - paddleInnerRadius;
+				if (baseLength > Epsilon)
+				{
+					float normalizedLength = (radial - paddleInnerRadius) / baseLength;
+					radial = paddleInnerRadius + normalizedLength * (effectiveOuterRadius - paddleInnerRadius);
+				}
+				local = paddleDirection * radial + paddleTangent * tangent;
+			}
+
 			vertices[i] = center + new Vector2(local.X * cos - local.Y * sin, local.X * sin + local.Y * cos);
 		}
 
@@ -178,9 +211,7 @@ public class FluidPolygonCollider
 				continue;
 			}
 
-			Vector2 normal = counterClockwise
-				? new Vector2(edge.Y, -edge.X)
-				: new Vector2(-edge.Y, edge.X);
+			Vector2 normal = counterClockwise ? new Vector2(edge.Y, -edge.X) : new Vector2(-edge.Y, edge.X);
 			edgeNormals[i] = normal.Normalized();
 		}
 	}
@@ -236,12 +267,11 @@ public class FluidPolygonCollider
 		if (closestDistanceSquared == float.MaxValue || closestEdgeNormal.LengthSquared() <= Epsilon)
 			return false;
 
+		normal = closestEdgeNormal;
 		bool inside = IsPointInside(position);
 		float collisionRadiusSquared = collisionRadius * collisionRadius;
 		if (!inside && closestDistanceSquared > collisionRadiusSquared)
 			return false;
-
-		normal = closestEdgeNormal;
 
 		if (inside)
 		{
