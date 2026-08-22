@@ -5,7 +5,7 @@ public partial class EconomyUi : Control
 {
     private const int ResourceDisplayPadding = 10;
     private const float ResourceRightMargin = 16.0f;
-    private const float AntiLagVerticalOffset = 120.0f;
+    private const float AntiLagVerticalOffset = 90.0f;
 
     private Label energyLabel;
     private Label dollarsLabel;
