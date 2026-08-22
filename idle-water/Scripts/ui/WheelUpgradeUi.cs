@@ -87,10 +87,20 @@ public partial class WheelUpgradeUi : Control
         if (!simulator.HasAvailableWheelUpgrades(wheelIndex))
             return;
 
+        // UPGRADE explicitly closes Settings/Statistics, but does not change
+        // their normal outside-click behavior. The Upgrade action continues.
+        CloseSettingsAndStatisticsWindow();
+
         WheelPurchaseUi purchaseUi = GetTree().Root.FindChild("WheelPurchaseUi", true, false) as WheelPurchaseUi;
         purchaseUi?.ClosePurchaseWindow();
 
         OpenUpgradeWindow(wheelIndex);
+    }
+
+    private void CloseSettingsAndStatisticsWindow()
+    {
+        UiWindowManager windowManager = GetTree().Root.FindChild("UiWindowManager", true, false) as UiWindowManager;
+        windowManager?.CloseActiveWindow();
     }
 
     private void OpenUpgradeWindow(int wheelIndex)
