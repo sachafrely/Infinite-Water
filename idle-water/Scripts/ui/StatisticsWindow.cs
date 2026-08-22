@@ -4,7 +4,10 @@ public partial class StatisticsWindow : Control
 {
 	public override void _Ready()
 	{
-		MouseFilter = Control.MouseFilterEnum.Ignore;
+		// The Statistics window is modal while open. It must consume touches so
+		// controls underneath (including wheel Buy/Upgrade controls) cannot be
+		// activated through the window.
+		MouseFilter = Control.MouseFilterEnum.Stop;
 		QueueRedraw();
 	}
 
@@ -19,7 +22,7 @@ public partial class StatisticsWindow : Control
 		if (Size.X <= 0.0f || Size.Y <= 0.0f)
 			return;
 
-		DrawRect(new Rect2(Vector2.Zero, Size), UiSettings.WindowColor, true);
+		DrawRect(new Rect2(Vector2.Zero, Size), UiSettings.WindowBackgroundColor, true);
 		DrawRect(new Rect2(Vector2.Zero, Size), UiSettings.BorderColor, false, UiSettings.BorderSize);
 	}
 
