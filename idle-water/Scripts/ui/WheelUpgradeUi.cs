@@ -142,11 +142,11 @@ public partial class WheelUpgradeUi : Control
     }
 
     /// <summary>
-    /// Blocks only the input of the small underlying Upgrade buttons while the
-    /// Buy confirmation is open. The buttons are not disabled, hidden, moved,
-    /// or restyled. MouseFilter.Ignore makes the underlying controls transparent
-    /// to hit-testing, allowing the confirmation button above them to receive
-    /// the click normally.
+    /// Blocks the complete underlying Upgrade control hierarchy while the Buy
+    /// confirmation is open. Both the button and its containing PanelContainer
+    /// must ignore hit-testing; blocking only the Button still lets the parent
+    /// PanelContainer intercept the click before the confirmation can receive it.
+    /// No visual state is changed.
     /// </summary>
     public void SetPurchaseModalInputBlocked(bool blocked)
     {
@@ -154,12 +154,19 @@ public partial class WheelUpgradeUi : Control
 
         for (int i = 0; i < buttons.Length; i++)
         {
-            if (buttons[i] == null)
-                continue;
+            if (buttons[i] != null)
+            {
+                buttons[i].MouseFilter = blocked
+                    ? Control.MouseFilterEnum.Ignore
+                    : Control.MouseFilterEnum.Stop;
+            }
 
-            buttons[i].MouseFilter = blocked
-                ? Control.MouseFilterEnum.Ignore
-                : Control.MouseFilterEnum.Stop;
+            if (windows[i] != null)
+            {
+                windows[i].MouseFilter = blocked
+                    ? Control.MouseFilterEnum.Ignore
+                    : Control.MouseFilterEnum.Stop;
+            }
         }
     }
 
@@ -188,13 +195,19 @@ public partial class WheelUpgradeUi : Control
             if (buttons[wheelIndex] != null)
             {
                 // This is deliberately input-only. Disabled is never used for
-                // the modal block, because it changes the button's appearance
-                // and can interfere with the modal's hit testing.
+                // the modal block, because it changes the button's appearance.
                 buttons[wheelIndex].Disabled = false;
                 buttons[wheelIndex].MouseFilter = inputBlockedByPurchaseWindow
                     ? Control.MouseFilterEnum.Ignore
                     : Control.MouseFilterEnum.Stop;
             }
+
+            // The containing panel must receive the same input-only treatment as
+            // the button. Otherwise it can still intercept a click over the
+            // confirmation even when the child Button ignores mouse/touch input.
+            panel.MouseFilter = inputBlockedByPurchaseWindow
+                ? Control.MouseFilterEnum.Ignore
+                : Control.MouseFilterEnum.Stop;
         }
 
         if (upgradeWindow != null && IsInstanceValid(upgradeWindow))
