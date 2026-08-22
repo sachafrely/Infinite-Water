@@ -1,5 +1,4 @@
 res://Scenes/Main.tscn
-res://Scripts/simulation/FluidPolygonCollider.cs
 res://Scripts/rendering/WaterWheelVisual.cs
 res://Scripts/rendering/FluidRenderer.cs
 res://Scripts/ui/SellEnergyButton.cs
@@ -14,7 +13,8 @@ res://Scripts/ui/StatisticsGraph.cs
 res://Scripts/simulation/TileMapPhysics.cs
 res://Scripts/simulation/FluidSimulator.cs
 res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
-res://Scripts/ui/WheelPurchaseUi.cs
-res://Scripts/ui/EconomyUi.cs
 res://Scripts/ui/WheelUpgradeUi.cs
 res://Scripts/ui/WheelUpgradeWindow.cs
+res://Scripts/ui/WheelPurchaseUi.cs
+res://Scripts/ui/EconomyUi.cs
+res://Scripts/ui/UiSettings.cs

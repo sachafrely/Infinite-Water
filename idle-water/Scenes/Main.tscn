@@ -682,7 +682,6 @@ mouse_filter = 2
 [node name="MoneyDisplay" type="Node" parent="TopUI/CurrenciesContainer" unique_id=1858069315]
 
 [node name="CenterUI" type="Control" parent="." unique_id=1096158914]
-visible = false
 layout_mode = 3
 anchors_preset = 0
 offset_top = 840.0

@@ -8,7 +8,7 @@ using Godot;
 public static class UiSettings
 {
 	// Shared window styling.
-	public static readonly Color BorderColor = new Color(0.12f, 0.12f, 0.12f, 1.0f);
+	public static readonly Color BorderColor = new Color(0.30f, 0.30f, 0.30f, 1.0f);
 	public static readonly Color WindowBackgroundColor = new Color(0.50f, 0.50f, 0.50f, 0.70f);
 	public static readonly Color ButtonPressedColor = new Color(0.60f, 0.60f, 0.60f, 1.0f);
 	public static readonly Color ButtonUnpressedColor = new Color(0.40f, 0.40f, 0.40f, 1.0f);
