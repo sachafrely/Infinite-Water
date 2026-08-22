@@ -8,6 +8,9 @@ using Godot;
 /// </summary>
 public partial class WheelPurchaseConfirmationWindow : Control
 {
+    private const float WindowWidth = 360.0f;
+    private const float WindowHeight = 160.0f;
+
     private int wheelIndex;
     private FluidSimulator simulator;
     private Action<int> confirmed;
@@ -31,8 +34,8 @@ public partial class WheelPurchaseConfirmationWindow : Control
 
         panel = new PanelContainer();
         panel.Name = "ConfirmationPanel";
-        panel.CustomMinimumSize = new Vector2(300, 120);
-        panel.Size = new Vector2(300, 120);
+        panel.CustomMinimumSize = new Vector2(WindowWidth, WindowHeight);
+        panel.Size = new Vector2(WindowWidth, WindowHeight);
         panel.Position = GetViewportRect().Size * 0.5f - panel.Size * 0.5f;
         panel.MouseFilter = MouseFilterEnum.Stop;
         panel.ZIndex = 1;
@@ -47,7 +50,7 @@ public partial class WheelPurchaseConfirmationWindow : Control
 
         VBoxContainer content = new VBoxContainer();
         content.Alignment = BoxContainer.AlignmentMode.Center;
-        content.AddThemeConstantOverride("separation", 8);
+        content.AddThemeConstantOverride("separation", 12);
         panel.AddChild(content);
 
         Label message = new Label();
@@ -58,20 +61,22 @@ public partial class WheelPurchaseConfirmationWindow : Control
 
         HBoxContainer buttons = new HBoxContainer();
         buttons.Alignment = BoxContainer.AlignmentMode.Center;
-        buttons.AddThemeConstantOverride("separation", 12);
+        buttons.AddThemeConstantOverride("separation", 16);
         content.AddChild(buttons);
 
         Button yes = new Button { Text = "Yes" };
-        yes.CustomMinimumSize = new Vector2(90, 32);
+        yes.CustomMinimumSize = new Vector2(100, 40);
         yes.FocusMode = Control.FocusModeEnum.None;
         yes.MouseFilter = MouseFilterEnum.Stop;
+        yes.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
         yes.Pressed += Confirm;
         buttons.AddChild(yes);
 
         Button no = new Button { Text = "No" };
-        no.CustomMinimumSize = new Vector2(90, 32);
+        no.CustomMinimumSize = new Vector2(100, 40);
         no.FocusMode = Control.FocusModeEnum.None;
         no.MouseFilter = MouseFilterEnum.Stop;
+        no.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
         no.Pressed += Cancel;
         buttons.AddChild(no);
     }
@@ -97,9 +102,8 @@ public partial class WheelPurchaseConfirmationWindow : Control
         if (!pressed || panel == null)
             return;
 
-        // _Input runs before GUI hit-testing. Only consume the event when it is
-        // outside the actual dialog. Events inside the dialog must continue to
-        // GUI hit-testing so the Yes/No buttons can receive their Pressed signal.
+        // Only consume outside clicks. Events inside the dialog continue through
+        // Godot GUI hit-testing so the Yes/No buttons receive their Pressed signal.
         if (!panel.GetGlobalRect().HasPoint(position))
         {
             Cancel();
