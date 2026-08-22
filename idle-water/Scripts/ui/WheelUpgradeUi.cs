@@ -11,6 +11,7 @@ public partial class WheelUpgradeUi : Control
 
     private FluidSimulator simulator;
     private WheelUpgradeWindow upgradeWindow;
+    private bool inputBlockedByPurchaseWindow;
 
     public override void _Ready()
     {
@@ -78,13 +79,14 @@ public partial class WheelUpgradeUi : Control
 
     private void OnUpgradePressed(int wheelIndex)
     {
+        if (inputBlockedByPurchaseWindow)
+            return;
+
         if (simulator == null || !simulator.IsWheelUnlocked(wheelIndex))
             return;
         if (!simulator.HasAvailableWheelUpgrades(wheelIndex))
             return;
 
-        // Buy and Upgrade are mutually exclusive. Close any active purchase dialog
-        // before opening the upgrade dialog.
         WheelPurchaseUi purchaseUi = GetTree().Root.FindChild("WheelPurchaseUi", true, false) as WheelPurchaseUi;
         purchaseUi?.ClosePurchaseWindow();
 
@@ -129,6 +131,24 @@ public partial class WheelUpgradeUi : Control
         upgradeWindow = null;
     }
 
+    /// <summary>
+    /// Blocks the small underlying Upgrade buttons while the Buy confirmation
+    /// modal is open. This is intentionally independent of visual Z order so
+    /// the Upgrade buttons can never receive the same click/touch as the modal.
+    /// </summary>
+    public void SetPurchaseModalInputBlocked(bool blocked)
+    {
+        inputBlockedByPurchaseWindow = blocked;
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            if (buttons[i] == null)
+                continue;
+
+            buttons[i].Disabled = blocked;
+        }
+    }
+
     private void Refresh()
     {
         if (simulator == null || !IsInsideTree())
@@ -152,7 +172,7 @@ public partial class WheelUpgradeUi : Control
             );
 
             if (buttons[wheelIndex] != null)
-                buttons[wheelIndex].Disabled = false;
+                buttons[wheelIndex].Disabled = inputBlockedByPurchaseWindow;
         }
 
         if (upgradeWindow != null && IsInstanceValid(upgradeWindow))
