@@ -41,7 +41,6 @@ internal sealed class WaterWheelManager
 	public bool CanUnlockNextWheel() { for (int i = 0; i < wheelPositions.Count && i < MaxWheelCount; i++) if (!wheelUnlocked[i]) return true; return false; }
 	public int GetNextLockedWheelIndex() { for (int i = 0; i < wheelPositions.Count && i < MaxWheelCount; i++) if (!wheelUnlocked[i]) return i; return -1; }
 	public Vector2 GetWheelPosition(int index) => index >= 0 && index < wheelPositions.Count ? wheelPositions[index] : Vector2.Zero;
-
 	public bool HasAvailableUpgrades(int wheelIndex) => IsWheelUnlocked(wheelIndex) && wheelUpgradeStates[wheelIndex].HasAvailableUpgrade;
 	public int GetUpgradeLevel(int wheelIndex, WheelUpgradeType type) => wheelIndex < 0 || wheelIndex >= MaxWheelCount ? 0 : wheelUpgradeStates[wheelIndex].GetLevel(type);
 	public int GetUpgradePrice(int wheelIndex, WheelUpgradeType type) => wheelIndex < 0 || wheelIndex >= MaxWheelCount ? 0 : wheelUpgradeStates[wheelIndex].GetPrice(type);
@@ -77,13 +76,9 @@ internal sealed class WaterWheelManager
 		wheel.SetUpgradeLevels(state.BiggerPaddlesLevel, state.LessFrictionLevel, state.MoreEfficientLevel);
 		if (activeIndex < wheelVisuals.Count && wheelVisuals[activeIndex] != null)
 		{
-			// Bigger Paddles: paddle length +15% per level, complete wheel radius +17% per level.
-			// Paddle thickness remains exactly the base WheelBladeWidth.
-			wheelVisuals[activeIndex].OuterRadius = WheelOuterRadius * wheel.WheelRadiusMultiplier;
-			wheelVisuals[activeIndex].PaddleInnerRadius =
-				wheelVisuals[activeIndex].OuterRadius -
-				(WheelOuterRadius - WheelInnerRadius) * wheel.PaddleSizeMultiplier;
-			wheelVisuals[activeIndex].BladeWidth = WheelBladeWidth;
+			float outerRadius = WheelOuterRadius * wheel.WheelRadiusMultiplier;
+			float paddleInnerRadius = outerRadius - (WheelOuterRadius - WheelInnerRadius) * wheel.PaddleSizeMultiplier;
+			wheelVisuals[activeIndex].SetGeometry(outerRadius, paddleInnerRadius, WheelBladeWidth);
 		}
 	}
 
@@ -157,7 +152,6 @@ internal sealed class WaterWheelManager
 
 	public void InitializeWheelEnergyTracking() { previousWheelAngles = new float[wheelStates.Count]; wheelEnergyGeneratedThisFrame = new double[wheelStates.Count]; for (int i = 0; i < wheelStates.Count; i++) previousWheelAngles[i] = wheelStates[i].Angle; }
 	public void ResetFrameEnergy() { energyGeneratedThisFrame = 0.0; if (wheelEnergyGeneratedThisFrame.Length != wheelStates.Count) wheelEnergyGeneratedThisFrame = new double[wheelStates.Count]; Array.Clear(wheelEnergyGeneratedThisFrame, 0, wheelEnergyGeneratedThisFrame.Length); }
-
 	public bool UpdateEnergyFromWheelRotation()
 	{
 		int wheelCount = wheelStates.Count; if (wheelCount <= 0) return false;
