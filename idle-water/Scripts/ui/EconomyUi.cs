@@ -1,14 +1,11 @@
 using System.Reflection;
 using Godot;
 
-/// <summary>
-/// Small economy and rain display for the existing TopUI plus the Sell Energy action.
-/// This is intentionally isolated from the fluid renderer and simulation code.
-/// </summary>
 public partial class EconomyUi : Control
 {
     private const int ResourceDisplayPadding = 10;
     private const float ResourceRightMargin = 16.0f;
+    private const float AntiLagVerticalOffset = 120.0f;
 
     private Label energyLabel;
     private Label dollarsLabel;
@@ -56,19 +53,8 @@ public partial class EconomyUi : Control
         if (Size.X <= 0.0f || Size.Y <= 0.0f)
             return;
 
-        float backgroundHeight = Size.Y;
-        DrawRect(
-            new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
-            UiSettings.WindowColor,
-            true
-        );
-
-        DrawRect(
-            new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
-            UiSettings.BorderColor,
-            false,
-            UiSettings.BorderSize
-        );
+        DrawRect(new Rect2(Vector2.Zero, new Vector2(Size.X, Size.Y)), UiSettings.WindowColor, true);
+        DrawRect(new Rect2(Vector2.Zero, new Vector2(Size.X, Size.Y)), UiSettings.BorderColor, false, UiSettings.BorderSize);
     }
 
     private void CreateDisplay()
@@ -156,10 +142,7 @@ public partial class EconomyUi : Control
     private FluidSimulator FindSimulator()
     {
         Node root = GetTree().CurrentScene;
-        if (root == null)
-            return null;
-
-        return root.FindChild("FluidSimulation", true, false) as FluidSimulator;
+        return root?.FindChild("FluidSimulation", true, false) as FluidSimulator;
     }
 
     private float GetCurrentRainPercent()
@@ -171,10 +154,7 @@ public partial class EconomyUi : Control
         try
         {
             object rainSystem = rainSystemField.GetValue(simulator);
-            if (rainSystem == null)
-                return 0.0f;
-
-            object value = rainPercentProperty.GetValue(rainSystem);
+            object value = rainSystem == null ? null : rainPercentProperty.GetValue(rainSystem);
             return value is float percent ? percent : 0.0f;
         }
         catch
@@ -192,10 +172,7 @@ public partial class EconomyUi : Control
         try
         {
             object controller = antiLagControllerField.GetValue(simulator);
-            if (controller == null)
-                return false;
-
-            object value = antiLagIsActiveProperty.GetValue(controller);
+            object value = controller == null ? null : antiLagIsActiveProperty.GetValue(controller);
             return value is bool active && active;
         }
         catch
@@ -212,10 +189,8 @@ public partial class EconomyUi : Control
 
     private void UpdateAntiLagDisplay()
     {
-        if (antiLagLabel == null)
-            return;
-
-        antiLagLabel.Visible = IsAntiLagCleanupActive();
+        if (antiLagLabel != null)
+            antiLagLabel.Visible = IsAntiLagCleanupActive();
     }
 
     private void HideLegacyRainText()
@@ -226,10 +201,7 @@ public partial class EconomyUi : Control
 
         foreach (Node node in root.FindChildren("*", "Label", true, false))
         {
-            if (node is not Label label)
-                continue;
-
-            if (label == energyLabel || label == dollarsLabel || label == antiLagLabel)
+            if (node is not Label label || label == energyLabel || label == dollarsLabel || label == antiLagLabel)
                 continue;
 
             string text = label.Text.ToUpperInvariant();
@@ -255,13 +227,12 @@ public partial class EconomyUi : Control
 
         if (rainDisplay != null)
         {
-            // TopUI is 60 px high. Center the 51 px rain display vertically.
             rainDisplay.Position = new Vector2(16.0f, Mathf.Max(0.0f, (Size.Y - rainDisplay.Size.Y) * 0.5f));
         }
 
         if (antiLagLabel != null)
         {
-            antiLagLabel.Position = new Vector2(0.0f, 0.0f);
+            antiLagLabel.Position = new Vector2(0.0f, AntiLagVerticalOffset);
             antiLagLabel.Size = new Vector2(Size.X, Size.Y);
         }
     }
@@ -353,7 +324,6 @@ public partial class EconomyUi : Control
         {
             if (node is not PanelContainer panelContainer)
                 continue;
-
             if (panelContainer == centerWindowOwner)
                 continue;
 
