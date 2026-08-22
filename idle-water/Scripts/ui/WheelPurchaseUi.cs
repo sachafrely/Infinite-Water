@@ -76,10 +76,20 @@ public partial class WheelPurchaseUi : Control
     {
         if (simulator == null || simulator.IsWheelUnlocked(wheelIndex)) return;
 
+        // BUY explicitly closes Settings/Statistics, but does not change their
+        // normal outside-click behavior. The Buy action continues afterwards.
+        CloseSettingsAndStatisticsWindow();
+
         WheelUpgradeUi upgradeUi = GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi;
         upgradeUi?.CloseUpgradeWindow();
 
         OpenConfirmation(wheelIndex);
+    }
+
+    private void CloseSettingsAndStatisticsWindow()
+    {
+        UiWindowManager windowManager = GetTree().Root.FindChild("UiWindowManager", true, false) as UiWindowManager;
+        windowManager?.CloseActiveWindow();
     }
 
     private void OpenConfirmation(int wheelIndex)
