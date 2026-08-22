@@ -80,6 +80,9 @@ internal sealed class WaterWheelManager
 			// Bigger Paddles: paddle length +15% per level, complete wheel radius +17% per level.
 			// Paddle thickness remains exactly the base WheelBladeWidth.
 			wheelVisuals[activeIndex].OuterRadius = WheelOuterRadius * wheel.WheelRadiusMultiplier;
+			wheelVisuals[activeIndex].PaddleInnerRadius =
+				wheelVisuals[activeIndex].OuterRadius -
+				(WheelOuterRadius - WheelInnerRadius) * wheel.PaddleSizeMultiplier;
 			wheelVisuals[activeIndex].BladeWidth = WheelBladeWidth;
 		}
 	}
@@ -141,7 +144,7 @@ internal sealed class WaterWheelManager
 		Vector2[] hub = new Vector2[hubSegments];
 		for (int i = 0; i < hubSegments; i++) { float angle = Mathf.Tau * i / hubSegments; hub[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * WheelInnerRadius; }
 		FluidPolygonCollider hubCollider = new FluidPolygonCollider(hub); hubCollider.ConfigureAsWheel(wheelState); solver.AddPolygonCollider(hubCollider);
-		WaterWheelVisual visual = new WaterWheelVisual { Position = center, OuterRadius = WheelOuterRadius, InnerRadius = WheelInnerRadius, BladeCount = WheelBladeCount, BladeWidth = WheelBladeWidth };
+		WaterWheelVisual visual = new WaterWheelVisual { Position = center, OuterRadius = WheelOuterRadius, InnerRadius = WheelInnerRadius, PaddleInnerRadius = WheelInnerRadius, BladeCount = WheelBladeCount, BladeWidth = WheelBladeWidth };
 		owner.AddChild(visual); visual.SetWheelAngle(wheelState.Angle); wheelVisuals.Add(visual); return true;
 	}
 
