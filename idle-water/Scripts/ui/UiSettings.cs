@@ -7,20 +7,30 @@ using Godot;
 /// </summary>
 public static class UiSettings
 {
-	public static readonly Color BorderColor = new Color(0.75f, 0.75f, 0.75f, 1.0f);
-	public static readonly Color WindowColor = new Color(0.16f, 0.16f, 0.17f, 0.50f);
-	public static readonly Color ButtonColor = new Color(0.07f, 0.07f, 0.08f, 1.0f);
+	// Shared window styling.
+	public static readonly Color BorderColor = new Color(0.12f, 0.12f, 0.12f, 1.0f);
+	public static readonly Color WindowBackgroundColor = new Color(0.50f, 0.50f, 0.50f, 0.70f);
+	public static readonly Color ButtonPressedColor = new Color(0.60f, 0.60f, 0.60f, 1.0f);
+	public static readonly Color ButtonUnpressedColor = new Color(0.40f, 0.40f, 0.40f, 1.0f);
+	public static readonly Color FontColorEnabled = new Color(1.0f, 1.0f, 1.0f, 1.0f);
+	public static readonly Color FontColorDisabled = new Color(0.0f, 0.0f, 0.0f, 1.0f);
+
+	// Compatibility aliases for existing UI code. These keep the first pass
+	// safe while callers are migrated to the more explicit names.
+	public static readonly Color WindowColor = WindowBackgroundColor;
+	public static readonly Color ButtonColor = ButtonUnpressedColor;
+	public static readonly Color FontColorBasic = FontColorEnabled;
+
 	public static readonly Color DisplayBackgroundColor = new Color(0.30f, 0.30f, 0.30f, 0.96f);
-	public const float BorderSize = 2.0f;
+	public const float BorderSize = 3.0f;
 	public const int FontSizeBig = 30;
 	public const int FontSizeMedium = 24;
 	public const int FontSizeSmall = 20;
-	public static readonly Color FontColorBasic = new Color(1.0f, 1.0f, 1.0f, 1.0f);
 	public static readonly Color FontColorEnergy = new Color(1.0f, 0.75f, 0.25f, 1.0f);
 	public static readonly Color FontColorWater = new Color(0.05f, 0.40f, 0.75f, 1.0f);
 	public static readonly Color FontColorFps = new Color(0.40f, 0.40f, 0.40f, 1.0f);
 
-	public static StyleBoxFlat CreateBox(Color background, Color? border = null, int borderWidth = 2)
+	public static StyleBoxFlat CreateBox(Color background, Color? border = null, int borderWidth = (int)BorderSize)
 	{
 		StyleBoxFlat box = new StyleBoxFlat();
 		box.BgColor = background;
