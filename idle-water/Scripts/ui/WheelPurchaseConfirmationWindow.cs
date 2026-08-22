@@ -53,7 +53,7 @@ public partial class WheelPurchaseConfirmationWindow : Control
         Label message = new Label();
         message.Text = "Do you want to buy this wheel for 10$";
         message.HorizontalAlignment = HorizontalAlignment.Center;
-        message.AddThemeFontSizeOverride("font_size", 16);
+        message.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
         content.AddChild(message);
 
         HBoxContainer buttons = new HBoxContainer();
@@ -82,8 +82,18 @@ public partial class WheelPurchaseConfirmationWindow : Control
             mouseButton.ButtonIndex == MouseButton.Left &&
             mouseButton.Pressed)
         {
-            // A click/touch outside the actual confirmation panel closes the modal.
             if (panel != null && !panel.GetGlobalRect().HasPoint(mouseButton.GlobalPosition))
+                Cancel();
+
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        // Android can deliver a tap as InputEventScreenTouch. Handle it explicitly
+        // so tapping empty space outside the confirmation also closes the modal.
+        if (@event is InputEventScreenTouch screenTouch && screenTouch.Pressed)
+        {
+            if (panel != null && !panel.GetGlobalRect().HasPoint(screenTouch.Position))
                 Cancel();
 
             GetViewport().SetInputAsHandled();
