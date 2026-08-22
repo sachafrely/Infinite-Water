@@ -40,8 +40,9 @@ Implemented:
 User verification on 2026-08-22:
 - Rain amount vertical alignment: GOOD.
 - TopUI background/border: GOOD.
-- Top-right energy/dollar layout was included in the verification request;
-  no negative feedback was reported for the alignment after the latest test.
+- Top-right resource text flickering: FIXED SUCCESSFULLY.
+- Top-right resource text no longer visibly shifts when the displayed value
+  changes digit count (for example 9 -> 10).
 
 4. PURCHASE MODAL INPUT BLOCKING — CORRECTED, NEEDS GODOT RE-TEST
 Commits:
@@ -92,6 +93,7 @@ STATUS:
 GOOD:
 - Top-left rain amount vertical alignment.
 - TopUI rendered background/border appearance.
+- Top-right resource text flickering / digit-width behavior.
 - Buy button size.
 
 NEEDS RE-TEST:
@@ -99,7 +101,6 @@ NEEDS RE-TEST:
 - Upgrade button size.
 - Upgrade button horizontal position.
 - Confirmation modal theme appearance after re-parenting.
-- Top-right resource flicker/digit-width behavior should be checked once more.
 
 NEXT IMPLEMENTATION ORDER
 -------------------------
