@@ -8,8 +8,8 @@ using Godot;
 public partial class EconomyUi : Control
 {
 	private const int ResourceDisplayPadding = 10;
-	private const float ResourceTopMargin = 8.0f;
 	private const float ResourceRightMargin = 16.0f;
+	private const float StableResourceLabelWidth = 180.0f;
 
 	private Label energyLabel;
 	private Label dollarsLabel;
@@ -52,20 +52,8 @@ public partial class EconomyUi : Control
 		if (Size.X <= 0.0f || Size.Y <= 0.0f)
 			return;
 
-		// Follow the actual TopUI height so a height changed in Godot is respected.
-		float backgroundHeight = Size.Y;
-		DrawRect(
-			new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
-			UiSettings.WindowColor,
-			true
-		);
-
-		DrawRect(
-			new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
-			UiSettings.BorderColor,
-			false,
-			UiSettings.BorderSize
-		);
+		DrawRect(new Rect2(Vector2.Zero, Size), UiSettings.WindowColor, true);
+		DrawRect(new Rect2(Vector2.Zero, Size), UiSettings.BorderColor, false, UiSettings.BorderSize);
 	}
 
 	private void CreateDisplay()
@@ -74,9 +62,7 @@ public partial class EconomyUi : Control
 		margin.Name = "ResourceDisplayMargin";
 		margin.MouseFilter = MouseFilterEnum.Ignore;
 		margin.AddThemeConstantOverride("margin_left", ResourceDisplayPadding);
-		margin.AddThemeConstantOverride("margin_top", ResourceDisplayPadding);
 		margin.AddThemeConstantOverride("margin_right", ResourceDisplayPadding);
-		margin.AddThemeConstantOverride("margin_bottom", ResourceDisplayPadding);
 		AddChild(margin);
 
 		resourceDisplay = new HBoxContainer();
@@ -90,6 +76,7 @@ public partial class EconomyUi : Control
 		energyLabel.Name = "EnergyLabel";
 		energyLabel.MouseFilter = MouseFilterEnum.Ignore;
 		energyLabel.HorizontalAlignment = HorizontalAlignment.Right;
+		energyLabel.CustomMinimumSize = new Vector2(StableResourceLabelWidth, 0.0f);
 		energyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
 		energyLabel.AddThemeColorOverride("font_color", UiSettings.FontColorEnergy);
 
@@ -97,6 +84,7 @@ public partial class EconomyUi : Control
 		dollarsLabel.Name = "DollarsLabel";
 		dollarsLabel.MouseFilter = MouseFilterEnum.Ignore;
 		dollarsLabel.HorizontalAlignment = HorizontalAlignment.Right;
+		dollarsLabel.CustomMinimumSize = new Vector2(StableResourceLabelWidth, 0.0f);
 		dollarsLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
 		dollarsLabel.AddThemeColorOverride("font_color", UiSettings.FontColorBasic);
 
@@ -188,14 +176,20 @@ public partial class EconomyUi : Control
 
 		if (resourceDisplay != null)
 		{
+			float centeredY = Mathf.Max(0.0f, (Size.Y - resourceDisplay.Size.Y) * 0.5f);
 			resourceDisplay.Position = new Vector2(
 				Mathf.Max(0.0f, Size.X - resourceDisplay.Size.X - ResourceRightMargin - ResourceDisplayPadding),
-				ResourceTopMargin
+				centeredY
 			);
 		}
 
 		if (rainDisplay != null)
-			rainDisplay.Position = new Vector2(16.0f, 12.0f);
+		{
+			rainDisplay.Position = new Vector2(
+				16.0f,
+				Mathf.Max(0.0f, (Size.Y - rainDisplay.Size.Y) * 0.5f)
+			);
+		}
 	}
 
 	private void AttachToTopUi()
@@ -262,14 +256,8 @@ public partial class EconomyUi : Control
 
 		foreach (Node node in root.FindChildren("*", "Button", true, false))
 		{
-			if (node is not Button button)
-				continue;
-
-			button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonColor));
-			button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonColor));
-			button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.WindowColor));
-			button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonColor));
-			button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(new Color(0.10f, 0.10f, 0.10f, 1.0f), UiSettings.BorderColor));
+			if (node is Button button)
+				UiSettings.ApplyButtonTheme(button);
 		}
 
 		foreach (Node node in root.FindChildren("*", "Panel", true, false))
@@ -278,18 +266,10 @@ public partial class EconomyUi : Control
 				panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 		}
 
-		Node windowBackground = root.FindChild("WindowBackground", true, false);
-		Node centerWindowOwner = windowBackground?.GetParent();
-
 		foreach (Node node in root.FindChildren("*", "PanelContainer", true, false))
 		{
-			if (node is not PanelContainer panelContainer)
-				continue;
-
-			if (panelContainer == centerWindowOwner)
-				continue;
-
-			panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+			if (node is PanelContainer panelContainer)
+				panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 		}
 	}
 
@@ -298,8 +278,6 @@ public partial class EconomyUi : Control
 		if (energyLabel == null || dollarsLabel == null)
 			return;
 
-		// Explicitly enforce the centralized Big font so the TopUI resource text
-		// cannot fall back to a scene/theme font size.
 		energyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
 		dollarsLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
 
