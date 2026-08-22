@@ -76,28 +76,36 @@ public partial class WheelPurchaseConfirmationWindow : Control
         buttons.AddChild(no);
     }
 
-    public override void _GuiInput(InputEvent @event)
+    public override void _Input(InputEvent @event)
     {
+        bool pressed = false;
+        Vector2 position = Vector2.Zero;
+
         if (@event is InputEventMouseButton mouseButton &&
             mouseButton.ButtonIndex == MouseButton.Left &&
             mouseButton.Pressed)
         {
-            if (panel != null && !panel.GetGlobalRect().HasPoint(mouseButton.GlobalPosition))
-                Cancel();
-
-            GetViewport().SetInputAsHandled();
-            return;
+            pressed = true;
+            position = mouseButton.GlobalPosition;
         }
-
-        // Android can deliver a tap as InputEventScreenTouch. Handle it explicitly
-        // so tapping empty space outside the confirmation also closes the modal.
-        if (@event is InputEventScreenTouch screenTouch && screenTouch.Pressed)
+        else if (@event is InputEventScreenTouch screenTouch && screenTouch.Pressed)
         {
-            if (panel != null && !panel.GetGlobalRect().HasPoint(screenTouch.Position))
-                Cancel();
-
-            GetViewport().SetInputAsHandled();
+            pressed = true;
+            position = screenTouch.Position;
         }
+
+        if (!pressed)
+            return;
+
+        // _Input runs before GUI hit-testing. This is intentional: the modal must
+        // be able to recognize an outside click even when its full-screen Control
+        // is not receiving _GuiInput because of its parent/scene geometry.
+        if (panel != null && !panel.GetGlobalRect().HasPoint(position))
+            Cancel();
+
+        // Whether the tap was inside or outside, the modal owns this input while
+        // it is open so no underlying wheel/upgrade control can react to it.
+        GetViewport().SetInputAsHandled();
     }
 
     private void Confirm()
