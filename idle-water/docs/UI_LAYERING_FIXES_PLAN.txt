@@ -84,9 +84,8 @@ PROGRESS
 - Buy and Upgrade windows are mutually exclusive at the interaction level.
 - Developer correction received: Upgrade window size is already good and must not be enlarged. Only its font size needs to use UiSettings "Ui Size Medium". Only the Buy window should be enlarged.
 - Developer tested the Buy/Upgrade modal behavior: click-through is correctly blocked; opening Buy/Upgrade closes the other window correctly.
-- Developer found one remaining modal issue: clicking outside the Buy confirmation did not close it.
-- Fixed the confirmation modal to explicitly handle both mouse clicks and Android InputEventScreenTouch outside the confirmation panel. The modal remains input-blocking.
-- Developer feedback checkpoint pending for the outside-click fix.
+- Developer found that outside-click handling initially failed, then confirmed the revised implementation works.
+- Final Buy confirmation checkpoint passed: inside click keeps it open; Yes purchases; No closes; outside click closes. This is now considered verified.
 
 SAFETY RULES FOR THIS ATTEMPT
 - Small, reviewable commits/changes.
