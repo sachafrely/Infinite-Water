@@ -35,22 +35,35 @@ public partial class WaterWheelVisual : Node2D
 		UpdatePainter();
 	}
 
+	public void SetGeometry(float outerRadius, float paddleInnerRadius, float bladeWidth)
+	{
+		OuterRadius = outerRadius;
+		PaddleInnerRadius = paddleInnerRadius;
+		BladeWidth = bladeWidth;
+
+		if (wheelViewport == null || wheelPainter == null)
+			return;
+
+		ResizePixelViewport();
+		UpdatePainter();
+	}
+
 	private void SetupPixelViewport()
 	{
-		float worldDiameter = OuterRadius * 2.0f + 12.0f;
-		viewportSize = Mathf.Max(Mathf.CeilToInt(worldDiameter / PixelSize) + ViewportMargin * 2, 16);
+		ResizePixelViewport();
 		wheelViewport = new SubViewport
 		{
 			Name = "WheelPixelViewport",
-			Size = new Vector2I(viewportSize, viewportSize),
 			TransparentBg = true,
 			RenderTargetUpdateMode = SubViewport.UpdateMode.Always,
 			CanvasItemDefaultTextureFilter = Viewport.DefaultCanvasItemTextureFilter.Nearest
 		};
 		AddChild(wheelViewport);
+
 		wheelPainter = new WheelPainter { Name = "WheelPainter", Wheel = this };
 		wheelViewport.AddChild(wheelPainter);
-		wheelPainter.Position = new Vector2(viewportSize * 0.5f, viewportSize * 0.5f);
+		ResizePixelViewport();
+
 		wheelSprite = new Sprite2D
 		{
 			Name = "WheelPixelSprite",
@@ -61,6 +74,18 @@ public partial class WaterWheelVisual : Node2D
 			Position = Vector2.Zero
 		};
 		AddChild(wheelSprite);
+	}
+
+	private void ResizePixelViewport()
+	{
+		float worldDiameter = OuterRadius * 2.0f + 12.0f;
+		viewportSize = Mathf.Max(Mathf.CeilToInt(worldDiameter / PixelSize) + ViewportMargin * 2, 16);
+
+		if (wheelViewport != null)
+			wheelViewport.Size = new Vector2I(viewportSize, viewportSize);
+
+		if (wheelPainter != null)
+			wheelPainter.Position = new Vector2(viewportSize * 0.5f, viewportSize * 0.5f);
 	}
 
 	public override void _Process(double delta)
