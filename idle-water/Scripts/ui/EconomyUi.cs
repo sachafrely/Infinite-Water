@@ -7,350 +7,416 @@ using Godot;
 /// </summary>
 public partial class EconomyUi : Control
 {
-	private const int ResourceDisplayPadding = 10;
-	private const float ResourceTopMargin = 8.0f;
-	private const float ResourceRightMargin = 16.0f;
+    private const int ResourceDisplayPadding = 10;
+    private const float ResourceRightMargin = 16.0f;
 
-	private Label energyLabel;
-	private Label dollarsLabel;
-	private HBoxContainer resourceDisplay;
-	private Button sellEnergyButton;
-	private Control rainDisplay;
-	private bool attachedToTopUi;
-	private FieldInfo rainSystemField;
-	private PropertyInfo rainPercentProperty;
+    private Label energyLabel;
+    private Label dollarsLabel;
+    private HBoxContainer resourceDisplay;
+    private Button sellEnergyButton;
+    private Control rainDisplay;
+    private Label antiLagLabel;
+    private bool attachedToTopUi;
+    private FieldInfo rainSystemField;
+    private PropertyInfo rainPercentProperty;
+    private FieldInfo antiLagControllerField;
+    private PropertyInfo antiLagIsActiveProperty;
 
-	public override void _Ready()
-	{
-		MouseFilter = MouseFilterEnum.Ignore;
-		TopLevel = false;
-		ZIndex = 1000;
+    public override void _Ready()
+    {
+        MouseFilter = MouseFilterEnum.Ignore;
+        TopLevel = false;
+        ZIndex = 1000;
 
-		CreateDisplay();
-		CreateRainDisplay();
-		CacheRainAccess();
-		CallDeferred(nameof(AttachToTopUi));
-		CallDeferred(nameof(EnsureSellEnergyButton));
-	}
+        CreateDisplay();
+        CreateRainDisplay();
+        CreateAntiLagDisplay();
+        CacheRainAccess();
+        CallDeferred(nameof(AttachToTopUi));
+        CallDeferred(nameof(EnsureSellEnergyButton));
+    }
 
-	public override void _Process(double delta)
-	{
-		if (!attachedToTopUi)
-			AttachToTopUi();
+    public override void _Process(double delta)
+    {
+        if (!attachedToTopUi)
+            AttachToTopUi();
 
-		EnsureSellEnergyButton();
-		UpdateDisplay();
-		UpdateRainDisplay();
-		HideLegacyRainText();
-		ApplyGlobalUiBorders();
-		SetDisplayPosition();
-		QueueRedraw();
-	}
+        EnsureSellEnergyButton();
+        UpdateDisplay();
+        UpdateRainDisplay();
+        UpdateAntiLagDisplay();
+        HideLegacyRainText();
+        ApplyGlobalUiBorders();
+        SetDisplayPosition();
+        QueueRedraw();
+    }
 
-	public override void _Draw()
-	{
-		if (Size.X <= 0.0f || Size.Y <= 0.0f)
-			return;
+    public override void _Draw()
+    {
+        if (Size.X <= 0.0f || Size.Y <= 0.0f)
+            return;
 
-		// Follow the actual TopUI height so a height changed in Godot is respected.
-		float backgroundHeight = Size.Y;
-		DrawRect(
-			new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
-			UiSettings.WindowColor,
-			true
-		);
+        float backgroundHeight = Size.Y;
+        DrawRect(
+            new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
+            UiSettings.WindowColor,
+            true
+        );
 
-		DrawRect(
-			new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
-			UiSettings.BorderColor,
-			false,
-			UiSettings.BorderSize
-		);
-	}
+        DrawRect(
+            new Rect2(Vector2.Zero, new Vector2(Size.X, backgroundHeight)),
+            UiSettings.BorderColor,
+            false,
+            UiSettings.BorderSize
+        );
+    }
 
-	private void CreateDisplay()
-	{
-		MarginContainer margin = new MarginContainer();
-		margin.Name = "ResourceDisplayMargin";
-		margin.MouseFilter = MouseFilterEnum.Ignore;
-		margin.AddThemeConstantOverride("margin_left", ResourceDisplayPadding);
-		margin.AddThemeConstantOverride("margin_top", ResourceDisplayPadding);
-		margin.AddThemeConstantOverride("margin_right", ResourceDisplayPadding);
-		margin.AddThemeConstantOverride("margin_bottom", ResourceDisplayPadding);
-		AddChild(margin);
+    private void CreateDisplay()
+    {
+        MarginContainer margin = new MarginContainer();
+        margin.Name = "ResourceDisplayMargin";
+        margin.MouseFilter = MouseFilterEnum.Ignore;
+        margin.AddThemeConstantOverride("margin_left", ResourceDisplayPadding);
+        margin.AddThemeConstantOverride("margin_top", 0);
+        margin.AddThemeConstantOverride("margin_right", ResourceDisplayPadding);
+        margin.AddThemeConstantOverride("margin_bottom", 0);
+        AddChild(margin);
 
-		resourceDisplay = new HBoxContainer();
-		resourceDisplay.Name = "ResourceDisplay";
-		resourceDisplay.MouseFilter = MouseFilterEnum.Ignore;
-		resourceDisplay.Alignment = BoxContainer.AlignmentMode.End;
-		resourceDisplay.AddThemeConstantOverride("separation", 16);
-		margin.AddChild(resourceDisplay);
+        resourceDisplay = new HBoxContainer();
+        resourceDisplay.Name = "ResourceDisplay";
+        resourceDisplay.MouseFilter = MouseFilterEnum.Ignore;
+        resourceDisplay.Alignment = BoxContainer.AlignmentMode.End;
+        resourceDisplay.AddThemeConstantOverride("separation", 16);
+        margin.AddChild(resourceDisplay);
 
-		energyLabel = new Label();
-		energyLabel.Name = "EnergyLabel";
-		energyLabel.MouseFilter = MouseFilterEnum.Ignore;
-		energyLabel.HorizontalAlignment = HorizontalAlignment.Right;
-		energyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
-		energyLabel.AddThemeColorOverride("font_color", UiSettings.FontColorEnergy);
+        energyLabel = new Label();
+        energyLabel.Name = "EnergyLabel";
+        energyLabel.MouseFilter = MouseFilterEnum.Ignore;
+        energyLabel.HorizontalAlignment = HorizontalAlignment.Right;
+        energyLabel.CustomMinimumSize = new Vector2(180.0f, 0.0f);
+        energyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
+        energyLabel.AddThemeColorOverride("font_color", UiSettings.FontColorEnergy);
 
-		dollarsLabel = new Label();
-		dollarsLabel.Name = "DollarsLabel";
-		dollarsLabel.MouseFilter = MouseFilterEnum.Ignore;
-		dollarsLabel.HorizontalAlignment = HorizontalAlignment.Right;
-		dollarsLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
-		dollarsLabel.AddThemeColorOverride("font_color", UiSettings.FontColorBasic);
+        dollarsLabel = new Label();
+        dollarsLabel.Name = "DollarsLabel";
+        dollarsLabel.MouseFilter = MouseFilterEnum.Ignore;
+        dollarsLabel.HorizontalAlignment = HorizontalAlignment.Right;
+        dollarsLabel.CustomMinimumSize = new Vector2(160.0f, 0.0f);
+        dollarsLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
+        dollarsLabel.AddThemeColorOverride("font_color", UiSettings.FontColorBasic);
 
-		resourceDisplay.AddChild(energyLabel);
-		resourceDisplay.AddChild(dollarsLabel);
-	}
+        resourceDisplay.AddChild(energyLabel);
+        resourceDisplay.AddChild(dollarsLabel);
+    }
 
-	private void CreateRainDisplay()
-	{
-		rainDisplay = new RainAmountDisplay();
-		rainDisplay.Name = "RainAmountDisplay";
-		rainDisplay.MouseFilter = MouseFilterEnum.Ignore;
-		rainDisplay.CustomMinimumSize = new Vector2(270.0f, 51.0f);
-		AddChild(rainDisplay);
-	}
+    private void CreateRainDisplay()
+    {
+        rainDisplay = new RainAmountDisplay();
+        rainDisplay.Name = "RainAmountDisplay";
+        rainDisplay.MouseFilter = MouseFilterEnum.Ignore;
+        rainDisplay.CustomMinimumSize = new Vector2(270.0f, 51.0f);
+        AddChild(rainDisplay);
+    }
 
-	private void CacheRainAccess()
-	{
-		try
-		{
-			rainSystemField = typeof(FluidSimulator).GetField("rainSystem", BindingFlags.Instance | BindingFlags.NonPublic);
-			if (rainSystemField != null)
-				rainPercentProperty = rainSystemField.FieldType.GetProperty("CurrentRainPercent");
-		}
-		catch
-		{
-			rainSystemField = null;
-			rainPercentProperty = null;
-		}
-	}
+    private void CreateAntiLagDisplay()
+    {
+        antiLagLabel = new Label();
+        antiLagLabel.Name = "AntiLagCleanupLabel";
+        antiLagLabel.MouseFilter = MouseFilterEnum.Ignore;
+        antiLagLabel.HorizontalAlignment = HorizontalAlignment.Center;
+        antiLagLabel.VerticalAlignment = VerticalAlignment.Center;
+        antiLagLabel.Text = "FPS low, cleaning up simulation...";
+        antiLagLabel.Visible = false;
+        antiLagLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        antiLagLabel.AddThemeColorOverride("font_color", UiSettings.FontColorEnabled);
+        AddChild(antiLagLabel);
+    }
 
-	private float GetCurrentRainPercent()
-	{
-		Node root = GetTree().CurrentScene;
-		if (root == null || rainSystemField == null || rainPercentProperty == null)
-			return 0.0f;
+    private void CacheRainAccess()
+    {
+        try
+        {
+            rainSystemField = typeof(FluidSimulator).GetField("rainSystem", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (rainSystemField != null)
+                rainPercentProperty = rainSystemField.FieldType.GetProperty("CurrentRainPercent");
 
-		FluidSimulator simulator = root.FindChild("FluidSimulation", true, false) as FluidSimulator;
-		if (simulator == null)
-			return 0.0f;
+            antiLagControllerField = typeof(FluidSimulator).GetField("antiLagController", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (antiLagControllerField != null)
+                antiLagIsActiveProperty = antiLagControllerField.FieldType.GetProperty("IsActive");
+        }
+        catch
+        {
+            rainSystemField = null;
+            rainPercentProperty = null;
+            antiLagControllerField = null;
+            antiLagIsActiveProperty = null;
+        }
+    }
 
-		try
-		{
-			object rainSystem = rainSystemField.GetValue(simulator);
-			if (rainSystem == null)
-				return 0.0f;
+    private FluidSimulator FindSimulator()
+    {
+        Node root = GetTree().CurrentScene;
+        if (root == null)
+            return null;
 
-			object value = rainPercentProperty.GetValue(rainSystem);
-			return value is float percent ? percent : 0.0f;
-		}
-		catch
-		{
-			return 0.0f;
-		}
-	}
+        return root.FindChild("FluidSimulation", true, false) as FluidSimulator;
+    }
 
-	private void UpdateRainDisplay()
-	{
-		if (rainDisplay is RainAmountDisplay display)
-			display.RainPercent = GetCurrentRainPercent();
-	}
+    private float GetCurrentRainPercent()
+    {
+        FluidSimulator simulator = FindSimulator();
+        if (simulator == null || rainSystemField == null || rainPercentProperty == null)
+            return 0.0f;
 
-	private void HideLegacyRainText()
-	{
-		Node root = GetTree().CurrentScene;
-		if (root == null)
-			return;
+        try
+        {
+            object rainSystem = rainSystemField.GetValue(simulator);
+            if (rainSystem == null)
+                return 0.0f;
 
-		foreach (Node node in root.FindChildren("*", "Label", true, false))
-		{
-			if (node is not Label label)
-				continue;
+            object value = rainPercentProperty.GetValue(rainSystem);
+            return value is float percent ? percent : 0.0f;
+        }
+        catch
+        {
+            return 0.0f;
+        }
+    }
 
-			if (label == energyLabel || label == dollarsLabel)
-				continue;
+    private bool IsAntiLagCleanupActive()
+    {
+        FluidSimulator simulator = FindSimulator();
+        if (simulator == null || antiLagControllerField == null || antiLagIsActiveProperty == null)
+            return false;
 
-			string text = label.Text.ToUpperInvariant();
-			if (text.Contains("RAIN") && text.Contains("NEXT CHANGE"))
-				label.Visible = false;
-		}
-	}
+        try
+        {
+            object controller = antiLagControllerField.GetValue(simulator);
+            if (controller == null)
+                return false;
 
-	private void SetDisplayPosition()
-	{
-		if (!IsInsideTree())
-			return;
+            object value = antiLagIsActiveProperty.GetValue(controller);
+            return value is bool active && active;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
-		SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+    private void UpdateRainDisplay()
+    {
+        if (rainDisplay is RainAmountDisplay display)
+            display.RainPercent = GetCurrentRainPercent();
+    }
 
-		if (resourceDisplay != null)
-		{
-			resourceDisplay.Position = new Vector2(
-				Mathf.Max(0.0f, Size.X - resourceDisplay.Size.X - ResourceRightMargin - ResourceDisplayPadding),
-				ResourceTopMargin
-			);
-		}
+    private void UpdateAntiLagDisplay()
+    {
+        if (antiLagLabel == null)
+            return;
 
-		if (rainDisplay != null)
-			rainDisplay.Position = new Vector2(16.0f, 12.0f);
-	}
+        antiLagLabel.Visible = IsAntiLagCleanupActive();
+    }
 
-	private void AttachToTopUi()
-	{
-		if (!IsInsideTree())
-			return;
+    private void HideLegacyRainText()
+    {
+        Node root = GetTree().CurrentScene;
+        if (root == null)
+            return;
 
-		Node currentScene = GetTree().CurrentScene;
-		if (currentScene == null)
-			return;
+        foreach (Node node in root.FindChildren("*", "Label", true, false))
+        {
+            if (node is not Label label)
+                continue;
 
-		Node topUi = currentScene.FindChild("TopUI", true, false) ?? currentScene.FindChild("TopUi", true, false);
-		if (topUi == null)
-			return;
+            if (label == energyLabel || label == dollarsLabel || label == antiLagLabel)
+                continue;
 
-		if (GetParent() != topUi)
-		{
-			GetParent()?.RemoveChild(this);
-			topUi.AddChild(this);
-		}
+            string text = label.Text.ToUpperInvariant();
+            if (text.Contains("RAIN") && text.Contains("NEXT CHANGE"))
+                label.Visible = false;
+        }
+    }
 
-		attachedToTopUi = true;
-		SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-		SetDisplayPosition();
-	}
+    private void SetDisplayPosition()
+    {
+        if (!IsInsideTree())
+            return;
 
-	private void EnsureSellEnergyButton()
-	{
-		if (sellEnergyButton != null && IsInstanceValid(sellEnergyButton))
-			return;
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
 
-		Node root = GetTree().CurrentScene;
-		if (root == null)
-			return;
+        if (resourceDisplay != null)
+        {
+            resourceDisplay.Position = new Vector2(
+                Mathf.Max(0.0f, Size.X - resourceDisplay.Size.X - ResourceRightMargin),
+                Mathf.Max(0.0f, (Size.Y - resourceDisplay.Size.Y) * 0.5f)
+            );
+        }
 
-		foreach (Node node in root.FindChildren("*", "Button", true, false))
-		{
-			if (node is not Button button)
-				continue;
+        if (rainDisplay != null)
+        {
+            // TopUI is 60 px high. Center the 51 px rain display vertically.
+            rainDisplay.Position = new Vector2(16.0f, Mathf.Max(0.0f, (Size.Y - rainDisplay.Size.Y) * 0.5f));
+        }
 
-			string text = button.Text.Trim().ToLowerInvariant().Replace(" ", "");
-			string name = button.Name.ToString().Trim().ToLowerInvariant().Replace(" ", "");
-			if (text == "sellenergy" || name.Contains("sellenergy"))
-			{
-				sellEnergyButton = button;
-				if (!sellEnergyButton.IsConnected(Button.SignalName.Pressed, Callable.From(OnSellEnergyPressed)))
-					sellEnergyButton.Pressed += OnSellEnergyPressed;
-				return;
-			}
-		}
-	}
+        if (antiLagLabel != null)
+        {
+            antiLagLabel.Position = new Vector2(0.0f, 0.0f);
+            antiLagLabel.Size = new Vector2(Size.X, Size.Y);
+        }
+    }
 
-	private void OnSellEnergyPressed()
-	{
-		EnergySystem.Instance?.SellAllAvailableEnergy();
-		UpdateDisplay();
-	}
+    private void AttachToTopUi()
+    {
+        if (!IsInsideTree())
+            return;
 
-	private void ApplyGlobalUiBorders()
-	{
-		Node root = GetTree().CurrentScene;
-		if (root == null)
-			return;
+        Node currentScene = GetTree().CurrentScene;
+        if (currentScene == null)
+            return;
 
-		foreach (Node node in root.FindChildren("*", "Button", true, false))
-		{
-			if (node is not Button button)
-				continue;
+        Node topUi = currentScene.FindChild("TopUI", true, false) ?? currentScene.FindChild("TopUi", true, false);
+        if (topUi == null)
+            return;
 
-			button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonColor));
-			button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonColor));
-			button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.WindowColor));
-			button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonColor));
-			button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(new Color(0.10f, 0.10f, 0.10f, 1.0f), UiSettings.BorderColor));
-		}
+        if (GetParent() != topUi)
+        {
+            GetParent()?.RemoveChild(this);
+            topUi.AddChild(this);
+        }
 
-		foreach (Node node in root.FindChildren("*", "Panel", true, false))
-		{
-			if (node is Panel panel)
-				panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
-		}
+        attachedToTopUi = true;
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        SetDisplayPosition();
+    }
 
-		Node windowBackground = root.FindChild("WindowBackground", true, false);
-		Node centerWindowOwner = windowBackground?.GetParent();
+    private void EnsureSellEnergyButton()
+    {
+        if (sellEnergyButton != null && IsInstanceValid(sellEnergyButton))
+            return;
 
-		foreach (Node node in root.FindChildren("*", "PanelContainer", true, false))
-		{
-			if (node is not PanelContainer panelContainer)
-				continue;
+        Node root = GetTree().CurrentScene;
+        if (root == null)
+            return;
 
-			if (panelContainer == centerWindowOwner)
-				continue;
+        foreach (Node node in root.FindChildren("*", "Button", true, false))
+        {
+            if (node is not Button button)
+                continue;
 
-			panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
-		}
-	}
+            string text = button.Text.Trim().ToLowerInvariant().Replace(" ", "");
+            string name = button.Name.ToString().Trim().ToLowerInvariant().Replace(" ", "");
+            if (text == "sellenergy" || name.Contains("sellenergy"))
+            {
+                sellEnergyButton = button;
+                if (!sellEnergyButton.IsConnected(Button.SignalName.Pressed, Callable.From(OnSellEnergyPressed)))
+                    sellEnergyButton.Pressed += OnSellEnergyPressed;
+                return;
+            }
+        }
+    }
 
-	private void UpdateDisplay()
-	{
-		if (energyLabel == null || dollarsLabel == null)
-			return;
+    private void OnSellEnergyPressed()
+    {
+        EnergySystem.Instance?.SellAllAvailableEnergy();
+        UpdateDisplay();
+    }
 
-		// Explicitly enforce the centralized Big font so the TopUI resource text
-		// cannot fall back to a scene/theme font size.
-		energyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
-		dollarsLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
+    private void ApplyGlobalUiBorders()
+    {
+        Node root = GetTree().CurrentScene;
+        if (root == null)
+            return;
 
-		EnergySystem economy = EnergySystem.Instance;
-		if (economy == null)
-		{
-			energyLabel.Text = "Energy: 0";
-			dollarsLabel.Text = "Dollars: $0";
-			return;
-		}
+        foreach (Node node in root.FindChildren("*", "Button", true, false))
+        {
+            if (node is not Button button)
+                continue;
 
-		energyLabel.Text = "Energy: " + System.Math.Floor(economy.Energy).ToString("F0");
-		dollarsLabel.Text = "Dollars: $" + System.Math.Floor(economy.Dollars).ToString("F0");
+            button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonColor));
+            button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonColor));
+            button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.WindowColor));
+            button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonColor));
+            button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(new Color(0.10f, 0.10f, 0.10f, 1.0f), UiSettings.BorderColor));
+        }
 
-		if (sellEnergyButton != null)
-			sellEnergyButton.Disabled = economy.Energy < EnergySystem.EnergyPerDollar;
-	}
+        foreach (Node node in root.FindChildren("*", "Panel", true, false))
+        {
+            if (node is Panel panel)
+                panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+        }
+
+        Node windowBackground = root.FindChild("WindowBackground", true, false);
+        Node centerWindowOwner = windowBackground?.GetParent();
+
+        foreach (Node node in root.FindChildren("*", "PanelContainer", true, false))
+        {
+            if (node is not PanelContainer panelContainer)
+                continue;
+
+            if (panelContainer == centerWindowOwner)
+                continue;
+
+            panelContainer.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+        }
+    }
+
+    private void UpdateDisplay()
+    {
+        if (energyLabel == null || dollarsLabel == null)
+            return;
+
+        energyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
+        dollarsLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
+
+        EnergySystem economy = EnergySystem.Instance;
+        if (economy == null)
+        {
+            energyLabel.Text = "Energy: 0";
+            dollarsLabel.Text = "Dollars: $0";
+            return;
+        }
+
+        energyLabel.Text = "Energy: " + System.Math.Floor(economy.Energy).ToString("F0");
+        dollarsLabel.Text = "Dollars: $" + System.Math.Floor(economy.Dollars).ToString("F0");
+
+        if (sellEnergyButton != null)
+            sellEnergyButton.Disabled = economy.Energy < EnergySystem.EnergyPerDollar;
+    }
 }
 
 internal sealed partial class RainAmountDisplay : Control
 {
-	private const int SegmentCount = 10;
-	private const float SegmentWidth = 21.0f;
-	private const float SegmentHeight = 30.0f;
-	private const float SegmentGap = 4.5f;
-	private float rainPercent;
+    private const int SegmentCount = 10;
+    private const float SegmentWidth = 21.0f;
+    private const float SegmentHeight = 30.0f;
+    private const float SegmentGap = 4.5f;
+    private float rainPercent;
 
-	public float RainPercent
-	{
-		get => rainPercent;
-		set
-		{
-			rainPercent = Mathf.Clamp(value, 0.0f, 100.0f);
-			QueueRedraw();
-		}
-	}
+    public float RainPercent
+    {
+        get => rainPercent;
+        set
+        {
+            rainPercent = Mathf.Clamp(value, 0.0f, 100.0f);
+            QueueRedraw();
+        }
+    }
 
-	public override void _Draw()
-	{
-		int activeSegments = Mathf.RoundToInt(rainPercent / 10.0f);
-		float totalWidth = SegmentCount * SegmentWidth + (SegmentCount - 1) * SegmentGap;
-		float startX = Mathf.Max(0.0f, (Size.X - totalWidth) * 0.5f);
-		float startY = Mathf.Max(0.0f, (Size.Y - SegmentHeight) * 0.5f);
+    public override void _Draw()
+    {
+        int activeSegments = Mathf.RoundToInt(rainPercent / 10.0f);
+        float totalWidth = SegmentCount * SegmentWidth + (SegmentCount - 1) * SegmentGap;
+        float startX = Mathf.Max(0.0f, (Size.X - totalWidth) * 0.5f);
+        float startY = Mathf.Max(0.0f, (Size.Y - SegmentHeight) * 0.5f);
 
-		for (int i = 0; i < SegmentCount; i++)
-		{
-			bool active = i < activeSegments;
-			Color fill = active ? UiSettings.FontColorWater : new Color(0.30f, 0.30f, 0.30f, 1.0f);
-			Rect2 rect = new Rect2(startX + i * (SegmentWidth + SegmentGap), startY, SegmentWidth, SegmentHeight);
-			DrawRect(rect, fill, true);
-			DrawRect(rect, UiSettings.BorderColor, false, 1.0f);
-		}
-	}
+        for (int i = 0; i < SegmentCount; i++)
+        {
+            bool active = i < activeSegments;
+            Color fill = active ? UiSettings.FontColorWater : new Color(0.30f, 0.30f, 0.30f, 1.0f);
+            Rect2 rect = new Rect2(startX + i * (SegmentWidth + SegmentGap), startY, SegmentWidth, SegmentHeight);
+            DrawRect(rect, fill, true);
+            DrawRect(rect, UiSettings.BorderColor, false, 1.0f);
+        }
+    }
 }
