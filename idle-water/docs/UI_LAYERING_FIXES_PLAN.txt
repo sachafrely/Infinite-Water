@@ -1,0 +1,92 @@
+INFINITE-WATER — UI / WINDOW / GRAPH FIXES
+Implementation plan and progress
+Date: 2026-08-22
+Branch: ui-layering-fixes-20260822
+
+PURPOSE
+This is the second attempt at this UI pass. The primary safety requirement is to preserve the existing Settings and Statistics window opening/closing behavior while fixing window layering, input blocking, styling, graph layout, and related UI issues.
+
+INSTRUCTION REVIEW
+The requested work is clear enough to implement. I have reordered it into implementation groups so that input/layering behavior is stabilized before visual tuning. This reduces the risk of repeating the previous failure where window layering broke Settings/Statistics behavior.
+
+IMPLEMENTATION ORDER
+1. Baseline and safety
+   - Inspect current UI scripts, scene node hierarchy, UI settings, window open/close flow, wheel purchase/upgrade flow, graph rendering, and rendered TopUI background.
+   - Do not alter the Fluid Simulation.
+   - Identify whether existing scene Nodes must be added/reparented or scripts bound in Godot. If so, stop and ask the developer to create/bind them rather than guessing scene structure.
+
+2. Window layering and input ownership (highest priority)
+   - Ensure every modal/small window is above the controls that open it.
+   - Ensure Buy Wheel confirmation YES cannot be clicked through when an Upgrade button is visually underneath it.
+   - Buy and Upgrade windows are mutually exclusive.
+   - Clicking empty game space outside a small window closes that small window.
+   - Clicking outside Settings/Statistics closes them too, including clicking Buy/Upgrade.
+   - Preserve existing Settings and Statistics open/close functions.
+   - Android input: use pressed/unpressed states; do not rely on hover.
+   - Use a modal/input-blocking layer where needed so visual layering and input hit-testing agree.
+
+3. Buy / Upgrade behavior
+   - Buy button remains always pressable and opens a purchase window.
+   - Purchase window contains buying text, a Buy button, $10 cost, and a bottom Close button.
+   - Opening Buy closes Upgrade; opening Upgrade closes Buy.
+   - Upgrade button position moves slightly left for horizontal centering on the wheel.
+   - Buy and Upgrade buttons become 16 px wider and 16 px higher in total.
+   - Upgrade text/color/availability refreshes automatically when money changes.
+   - TODO: Use the "Ui Size Medium" value from UiSettings.cs for the Buy and Upgrade windows.
+   - TODO: Make both Buy and Upgrade windows somewhat larger while keeping their existing functionality and centered layout.
+
+4. Centralized UI styling in UiSettings.cs
+   - Add/use window background color: middle grey 0.5, 30% transparency as requested (effective opacity 0.7 per the request; resolve implementation semantics carefully rather than changing unrelated alpha behavior).
+   - buttonPressed: middle grey 0.6, 0% transparency.
+   - buttonUnpressed: middle grey 0.4, 0% transparency.
+   - fontColorEnabled: white.
+   - fontColorDisabled: black.
+   - Standard border: dark grey, 0% transparency, 3 px.
+   - All buttons, including the bottom three, use these centralized settings.
+   - Rendered TopUI window part uses the same centralized background/border settings.
+   - Rain amount graph uses UiSettings border width and color.
+   - All relevant scripts read border width from UiSettings.cs instead of local constants.
+   - Settings and Statistics buttons use buttonPressed while their windows are open, and therefore are not transparent.
+
+5. TopUI layout and text stability
+   - Center the top-left rain amount vertically inside the 60 px TopUI frame.
+   - Fix top-right text flicker when selling energy.
+   - Keep the top-right text position stable when digit count changes (e.g. 9 -> 10).
+
+6. Statistics graphs
+   - Increase bottom margin of each graph for labels/text.
+   - Move bottom text approximately 10 px lower so it no longer overlaps the graph.
+   - Keep both graphs exactly the same size.
+   - Restore left-side graph labels (value / energy) to the left side.
+   - Apply UiSettings border width/color to the rain amount graph.
+
+7. Settings layout
+   - Move the Tilt Slider further upward; reduce its excessive top margin.
+
+8. Anti-lag feedback
+   - Add a Top-Center message during anti-lag cleanup: "FPS low, cleaning up simulation..."
+   - The message should be shown only for the cleanup state and must not interfere with normal gameplay input.
+
+9. Verification / feedback checkpoints
+   - After the baseline inspection and first safe layering change, report the exact implementation state and ask the developer to test/confirm before proceeding with more invasive scene changes.
+   - Repeat feedback checkpoints after Buy/Upgrade modal behavior and after Settings/Statistics input behavior are stabilized.
+   - Before finalizing, verify that Settings and Statistics still open and close correctly, modal windows block clicks underneath, and no scene-node assumptions were invented.
+
+PROGRESS
+[2026-08-22]
+- Created branch: ui-layering-fixes-20260822 from main.
+- Confirmed the repository contains the relevant UI scripts including UiSettings.cs, SettingsWindow.cs, StatisticsWindow.cs, WheelUpgradeUi.cs, WheelUpgradeWindow.cs, WheelPurchaseUi.cs, and RenderedWindowBackground.cs.
+- Added this implementation plan before changing gameplay/UI code.
+- Added centralized UI colors/border settings without breaking existing Settings/Statistics behavior.
+- Developer confirmed Settings opens/closes normally, Statistics opens/closes normally, and the initial UI settings change did not break anything.
+- Implemented the first Buy/Upgrade layering safety step: purchase confirmation uses a blocking full-screen control and cannot pass input through to Upgrade controls underneath.
+- Buy and Upgrade windows are mutually exclusive at the interaction level.
+- Developer feedback checkpoint pending for Buy/Upgrade modal behavior.
+
+SAFETY RULES FOR THIS ATTEMPT
+- Small, reviewable commits/changes.
+- No Fluid Simulation changes unless required to expose existing state to UI.
+- Prefer script-side fixes when the existing Nodes already exist.
+- If a required Node, Control, CanvasLayer, or script binding is missing, explicitly ask the developer to create/bind it in Godot.
+- Never solve an input problem only by changing visual Z/layer order; hit-testing must also be corrected.
+- Never remove or replace the established Settings/Statistics open/close pathway without tracing and preserving it first.
