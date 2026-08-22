@@ -55,6 +55,7 @@ IMPLEMENTATION ORDER
    - Center the top-left rain amount vertically inside the 60 px TopUI frame.
    - Fix the top-right Energy/Dollars text flicker when selling energy.
    - Keep the top-right text position stable when the number changes, e.g. 9 -> 10.
+   - Keep the TopUI background and border driven by UiSettings.cs.
 
 6. Statistics graphs
    - Increase bottom margin of each graph for labels/text.
@@ -78,6 +79,16 @@ IMPLEMENTATION ORDER
    - Before finalizing, verify that Settings and Statistics still open and close correctly, modal windows block clicks underneath, and no scene-node assumptions were invented.
 
 PROGRESS
+[2026-08-23]
+- Buy-window click blocking was confirmed reliable by the developer, including when an Upgrade button is underneath it.
+- Implemented BUY -> close active Settings/Statistics, then continue with the Buy action.
+- Implemented UPGRADE -> close active Settings/Statistics, then continue with the Upgrade action.
+- These changes use the existing UiWindowManager and do not add outside-click closing to Settings/Statistics.
+- Implemented TopUI resource positioning improvements: rain display is vertically centered in the 60 px TopUI frame, and Energy/Dollars use fixed label widths plus centered vertical positioning to prevent position changes when digit counts change.
+- TopUI rendering continues to use UiSettings window/border values.
+- Added the anti-lag cleanup message "FPS low, cleaning up simulation..." to the TopUI and tied its visibility to the existing AntiLagController active state without changing simulation behavior.
+- These changes are pending developer testing.
+
 [2026-08-22]
 - Created branch: ui-layering-fixes-20260822 from main.
 - Confirmed the repository contains the relevant UI scripts including UiSettings.cs, SettingsWindow.cs, StatisticsWindow.cs, WheelUpgradeUi.cs, WheelUpgradeWindow.cs, WheelPurchaseUi.cs, and RenderedWindowBackground.cs.
