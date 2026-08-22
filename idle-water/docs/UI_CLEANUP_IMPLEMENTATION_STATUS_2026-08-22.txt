@@ -42,8 +42,8 @@ The requested window/button colors are:
 - ButtonPressed: very bright gray, 0% transparency
 - ButtonUnpressed: middle gray, 0% transparency
 - ButtonWindowOpen: bright gray, 0% transparency
-- FontColorEnabled: central UiSettings value
-- FontColorDisabled: central UiSettings value
+- FontColorEnabled: central UiSettings value = BRIGHT GREY
+- FontColorDisabled: central UiSettings value = DARK GREY
 
 All buttons, including the three bottom buttons, must use these settings.
 
