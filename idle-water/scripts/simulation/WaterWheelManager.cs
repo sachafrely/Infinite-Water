@@ -115,11 +115,14 @@ internal sealed class WaterWheelManager
 
 		if (activeIndex < wheelVisuals.Count && wheelVisuals[activeIndex] != null)
 		{
-			wheelVisuals[activeIndex].BladeWidth = WheelBladeWidth * wheel.PaddleSizeMultiplier;
+			// Bigger Paddles changes radial length / wheel radius only.
+			// Paddle thickness remains exactly the base WheelBladeWidth.
+			float multiplier = wheel.PaddleSizeMultiplier;
+			wheelVisuals[activeIndex].OuterRadius = WheelOuterRadius * multiplier;
+			wheelVisuals[activeIndex].BladeWidth = WheelBladeWidth;
 		}
 	}
 
-	/// <summary>Purchases any locked wheel. Wheel purchases are NOT sequential.</summary>
 	public bool TryUnlockWheel(int wheelPositionIndex)
 	{
 		if (wheelPositionIndex < 0 || wheelPositionIndex >= wheelPositions.Count || wheelPositionIndex >= MaxWheelCount || wheelUnlocked[wheelPositionIndex]) return false;
@@ -174,13 +177,15 @@ internal sealed class WaterWheelManager
 			Vector2 outerCenter = direction * WheelOuterRadius;
 			Vector2[] blade = { innerCenter + tangent * WheelBladeWidth, outerCenter + tangent * WheelBladeWidth, outerCenter - tangent * WheelBladeWidth, innerCenter - tangent * WheelBladeWidth };
 			FluidPolygonCollider collider = new FluidPolygonCollider(blade);
-			collider.ConfigureAsWheel(wheelState);
+			collider.ConfigureAsWheel(wheelState, true, WheelInnerRadius, WheelOuterRadius);
 			solver.AddPolygonCollider(collider);
 		}
 		const int hubSegments = 16;
 		Vector2[] hub = new Vector2[hubSegments];
 		for (int i = 0; i < hubSegments; i++) { float angle = Mathf.Tau * i / hubSegments; hub[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * WheelInnerRadius; }
-		solver.AddPolygonCollider(new FluidPolygonCollider(hub));
+		FluidPolygonCollider hubCollider = new FluidPolygonCollider(hub);
+		hubCollider.ConfigureAsWheel(wheelState);
+		solver.AddPolygonCollider(hubCollider);
 		WaterWheelVisual visual = new WaterWheelVisual { Position = center, OuterRadius = WheelOuterRadius, InnerRadius = WheelInnerRadius, BladeCount = WheelBladeCount, BladeWidth = WheelBladeWidth };
 		owner.AddChild(visual);
 		visual.SetWheelAngle(wheelState.Angle);
