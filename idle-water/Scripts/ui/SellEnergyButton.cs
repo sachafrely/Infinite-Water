@@ -86,7 +86,7 @@ public partial class SellEnergyButton : Control
 		if (energySystem == null)
 			energySystem = EnergySystem.Instance;
 
-		return energySystem != null && energySystem.Energy >= EnergySystem.EnergyPerDollar;
+		return energySystem != null && energySystem.Energy >= 10.0;
 	}
 
 	private void SellAllAvailableChunks()
