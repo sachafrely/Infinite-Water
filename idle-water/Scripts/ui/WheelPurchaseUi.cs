@@ -86,6 +86,9 @@ public partial class WheelPurchaseUi : Control
     {
         ClosePurchaseWindow();
 
+        WheelUpgradeUi upgradeUi = GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi;
+        upgradeUi?.SetPurchaseModalInputBlocked(true);
+
         confirmationWindow = new WheelPurchaseConfirmationWindow();
         confirmationWindow.Name = "WheelPurchaseConfirmationWindow";
         confirmationWindow.ZIndex = 2000;
@@ -98,12 +101,20 @@ public partial class WheelPurchaseUi : Control
     {
         bool purchased = simulator != null && simulator.TryPurchaseWheel(wheelIndex);
         Refresh();
+        ReleaseUpgradeInputBlock();
         confirmationWindow = null;
     }
 
     private void OnPurchaseCancelled()
     {
+        ReleaseUpgradeInputBlock();
         confirmationWindow = null;
+    }
+
+    private void ReleaseUpgradeInputBlock()
+    {
+        WheelUpgradeUi upgradeUi = GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi;
+        upgradeUi?.SetPurchaseModalInputBlocked(false);
     }
 
     public void ClosePurchaseWindow()
@@ -111,6 +122,7 @@ public partial class WheelPurchaseUi : Control
         if (confirmationWindow != null && IsInstanceValid(confirmationWindow))
             confirmationWindow.QueueFree();
 
+        ReleaseUpgradeInputBlock();
         confirmationWindow = null;
     }
 
