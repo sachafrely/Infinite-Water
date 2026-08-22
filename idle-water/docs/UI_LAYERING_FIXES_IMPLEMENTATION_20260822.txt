@@ -75,7 +75,11 @@ PROGRESS
 - Created branch: ui-layering-fixes-20260822 from main.
 - Confirmed the repository contains the relevant UI scripts including UiSettings.cs, SettingsWindow.cs, StatisticsWindow.cs, WheelUpgradeUi.cs, WheelUpgradeWindow.cs, WheelPurchaseUi.cs, and RenderedWindowBackground.cs.
 - Added this implementation plan before changing gameplay/UI code.
-- Next step: inspect the current implementations and scene structure before making the first code change.
+- Step 1 completed: centralized requested UI style values and changed StatisticsWindow input ownership without breaking existing Settings/Statistics behavior.
+- Developer feedback received: Statistics opens and closes correctly; Settings opens and closes correctly; no existing click-through problem was introduced; UI style/border changes did not break anything.
+- Step 2 completed: strengthened Buy/Upgrade mutual exclusion and purchase confirmation input ownership. Purchase confirmation is now an explicit full-screen input-blocking modal with ZAsRelative=false. Opening Buy closes an active Upgrade window; opening Upgrade closes an active purchase confirmation. Upgrade controls are also shifted 4 px left as the first positioning correction.
+- No Godot scene-node creation or script binding was required for Step 2 because the required runtime UI nodes/scripts already exist and are instantiated by the current scripts.
+- NEXT: developer should test Step 2 before further modal/window restructuring. Specifically test that a Buy confirmation cannot click through to Upgrade, Buy closes Upgrade, Upgrade closes Buy confirmation, and clicking outside the purchase confirmation closes it.
 
 SAFETY RULES FOR THIS ATTEMPT
 - Small, reviewable commits/changes.
@@ -83,4 +87,4 @@ SAFETY RULES FOR THIS ATTEMPT
 - Prefer script-side fixes when the existing Nodes already exist.
 - If a required Node, Control, CanvasLayer, or script binding is missing, explicitly ask the developer to create/bind it in Godot.
 - Never solve an input problem only by changing visual Z/layer order; hit-testing must also be corrected.
-- Never remove or replace the established Settings/Statistics open/close pathway without tracing and preserving it first.
+- Never remove or replace the established Settings/Statistics open/close pathway without tracing and preserving it.
