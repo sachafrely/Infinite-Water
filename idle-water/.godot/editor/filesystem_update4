@@ -1,3 +1,4 @@
+res://Scenes/Main.tscn
 res://Scripts/rendering/WaterWheelVisual.cs
 res://Scripts/rendering/FluidRenderer.cs
 res://Scripts/ui/SellEnergyButton.cs

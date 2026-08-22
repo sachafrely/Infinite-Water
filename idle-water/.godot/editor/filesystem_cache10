@@ -1,5 +1,5 @@
 9cad1ddce9e5a63143ba340c9520626b
-::res://::1787405930
+::res://::1787408029
 export_presets.cfg::TextFile::-1::1787385444::0::1::::<><><>0<>0<><>::
 icon.svg::CompressedTexture2D::6269370588664782730::1786113595::1786796455::1::::<><><>0<>0<>f9e22cb99bc16227c55628614734dd1b<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
 ::res://assets/::1786826673
@@ -34,14 +34,14 @@ Tileset_purple.png::CompressedTexture2D::4278799098543738413::1786894003::178689
 06.png::CompressedTexture2D::2834340800288496751::1786809637::1786826663::1::::<><><>0<>0<>f5c3a890dd472c0151d26a1e73a408ba<>res://.godot/imported/06.png-e19df2509a63cd44b6e30a14ae062ea6.ctex::
 07.png::CompressedTexture2D::2291047190412751271::1786809637::1786826663::1::::<><><>0<>0<>15d84fe7d154c4e915647ffda55d1c9b<>res://.godot/imported/07.png-3551ef41028de7cd66324100436a9d4a.ctex::
 ArrowBlue.png::CompressedTexture2D::8672460831875985935::1787086935::1787086938::1::::<><><>0<>0<>a63c71b824c9946aabad30a85a34843d<>res://.godot/imported/ArrowBlue.png-a4a181dd45bc9c508c297d6423922fb5.ctex::
-::res://docs/::1787405869
+::res://docs/::1787407972
 architecture.md::TextFile::-1::1786806180::0::1::::<><><>0<>0<><>::
 PROFILEROUTPUT 18082026.txt::TextFile::-1::1787087360::0::1::::<><><>0<>0<><>::
 refactor-plan.md::TextFile::-1::1787401376::0::1::::<><><>0<>0<><>::
 roadmap.txt::TextFile::-1::1787401376::0::1::::<><><>0<>0<><>::
 SPECIAL THANKS.txt::TextFile::-1::1786809637::0::1::::<><><>0<>0<><>::
 UI_CLEANUP_IMPLEMENTATION_STATUS_2026-08-22.txt::TextFile::-1::1787405896::0::1::::<><><>0<>0<><>::
-UI_OVERHAUL_PROGRESS_LOG_2026-08-22.txt::TextFile::-1::1787405869::0::1::::<><><>0<>0<><>::
+UI_OVERHAUL_PROGRESS_LOG_2026-08-22.txt::TextFile::-1::1787407972::0::1::::<><><>0<>0<><>::
 WHEEL_PROGRESSION_GAMEPLAN.txt::TextFile::-1::1787401376::0::1::::<><><>0<>0<><>::
 WHEEL_PROGRESSION_IMPLEMENTATION_STATUS.txt::TextFile::-1::1787401376::0::1::::<><><>0<>0<><>::
 WHEEL_UPGRADES_IMPLEMENTATION_PLAN.txt::TextFile::-1::1787405178::0::1::::<><><>0<>0<><>::
@@ -115,7 +115,7 @@ PbfState.cs::CSharpScript::8021265557473124243::1786806180::0::1::::<><><>0<>0<>
 ISolver.cs::CSharpScript::8876761352774482908::1786804100::0::1::::<><><>0<>0<><>::
 SolverConfig.cs::CSharpScript::881408952242810574::1786806180::0::1::::<><><>0<>0<><>::
 ::res://Scripts/systems/::1787401375
-::res://Scripts/ui/::1787405869
+::res://Scripts/ui/::1787407972
 EconomyUi.cs::CSharpScript::7003653212646707196::1787405869::0::1::::<>Control<><>0<>0<><>::
 RenderedWindowBackground.cs::CSharpScript::2271014620645515295::1787137527::0::1::::<>Control<><>0<>1<><>::
 SellEnergyButton.cs::CSharpScript::1047263294914992000::1787401376::0::1::::<>Control<><>0<>0<><>::
@@ -127,8 +127,8 @@ StatisticsWindow.cs::CSharpScript::728222080132292588::1787401376::0::1::::<>Con
 UiSettings.cs::CSharpScript::278247019129021212::1787405869::0::1::::<><><>0<>0<><>::
 UiToggleButton.cs::CSharpScript::3738632076351638641::1787401376::0::1::::<>Control<><>0<>0<><>::
 UiWindowManager.cs::CSharpScript::7749885727368299795::1787401376::0::1::::<>Node<><>0<>0<><>::
-WheelPurchaseConfirmationWindow.cs::CSharpScript::3664064996218439742::1787405869::0::1::::<>Control<><>0<>0<><>::
-WheelPurchaseUi.cs::CSharpScript::8576335546802391150::1787405869::0::1::::<>Control<><>0<>0<><>::
-WheelUpgradeUi.cs::CSharpScript::579293890342042400::1787405178::0::1::::<>Control<><>0<>0<><>::
+WheelPurchaseConfirmationWindow.cs::CSharpScript::3664064996218439742::1787407972::0::1::::<>Control<><>0<>0<><>::
+WheelPurchaseUi.cs::CSharpScript::8576335546802391150::1787407972::0::1::::<>Control<><>0<>0<><>::
+WheelUpgradeUi.cs::CSharpScript::579293890342042400::1787407972::0::1::::<>Control<><>0<>0<><>::
 WheelUpgradeWindow.cs::CSharpScript::3289394571082647821::1787405869::0::1::::<>Control<><>0<>0<><>::
 ::res://Scripts/utils/::1786802957
