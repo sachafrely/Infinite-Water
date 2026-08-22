@@ -1,0 +1,61 @@
+INFINITE WATER — UI OVERHAUL PROGRESS LOG
+Branch: ui-cleanup-2026-08-22
+
+2026-08-22 — STARTED IMPLEMENTATION
+
+1. CENTRAL UI THEME FOUNDATION — STARTED / PARTIALLY COMPLETE
+Commit: e12e3c9d69529ef0b91efc8a92f8cfe8f5eed801
+
+Implemented in UiSettings.cs:
+- WindowColor: bright gray with 20% transparency.
+- ButtonPressedColor: brighter opaque gray.
+- ButtonUnpressedColor: middle opaque gray.
+- ButtonWindowOpenColor: bright opaque gray.
+- FontColorEnabled.
+- FontColorDisabled.
+- Standard border: very light blue-tinted white, opaque.
+- Standard border width: 3 px.
+- Added ApplyButtonTheme() so standard button styling can be reused instead
+  of duplicated per-window colors.
+
+2. UPGRADE WINDOW THEME — COMPLETE FOR THIS WINDOW
+Commit: c529881855b2a30384de179f38840eca4b91127b
+
+- Upgrade window now uses centralized WindowColor/border settings.
+- Upgrade purchase buttons use the centralized button theme.
+- Close Window uses the centralized button theme.
+- Existing medium font size remains in use.
+
+3. TOP UI RESOURCE LAYOUT — STARTED
+Commit: b1bd960d92960a576a859c287af71413eaffb44e
+
+Implemented:
+- Top-right Energy/Dollars labels now have stable widths to prevent the visible
+  horizontal shift when values change from one digit to two digits.
+- Top-right resource display is vertically centered against the TopUI height.
+- Top-left rain display is vertically centered against the TopUI height.
+- TopUI rendered background and border use UiSettings.
+- Existing global button/panel styling now routes through UiSettings.
+
+NOT YET VERIFIED IN GODOT:
+- Actual visual flicker behavior.
+- Exact visual centering in the running project.
+
+NEXT IMPLEMENTATION ORDER
+-------------------------
+1. Modal input architecture and click-through prevention.
+2. Buy Window rework and Buy/Upgrade mutual exclusion.
+3. Buy/Upgrade button size and wheel-relative positioning.
+4. Automatic upgrade affordability refresh.
+5. Statistics graph border/layout/left-label/bottom-spacing fixes.
+6. Tilt slider positioning.
+7. AntiLag cleanup message.
+8. Apply centralized theme to remaining bottom buttons and all remaining
+   applicable windows/buttons.
+9. Full regression test and final status update.
+
+IMPORTANT
+---------
+No task is considered fully complete until it has been inspected in the Godot
+project and tested where practical. This log deliberately distinguishes
+implemented code from verified behavior.
