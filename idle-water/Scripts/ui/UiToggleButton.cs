@@ -60,8 +60,8 @@ public partial class UiToggleButton : Control
 		buttonRect = new Rect2(0, 0, Size.X, Size.Y);
 
 		Color backgroundColor = wasWindowOpen
-			? UiSettings.WindowColor
-			: UiSettings.ButtonColor;
+			? UiSettings.ButtonPressedColor
+			: UiSettings.ButtonUnpressedColor;
 
 		DrawRect(
 			buttonRect,
@@ -98,7 +98,7 @@ public partial class UiToggleButton : Control
 			HorizontalAlignment.Left,
 			-1,
 			fontSize,
-			UiSettings.FontColorBasic
+			UiSettings.FontColorEnabled
 		);
 	}
 
