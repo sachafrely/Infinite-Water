@@ -21,8 +21,7 @@ public partial class WheelPurchaseUi : Control
         ZAsRelative = false;
         MouseFilter = MouseFilterEnum.Pass;
         simulator = GetParent() as FluidSimulator;
-        if (simulator == null)
-            simulator = GetTree().CurrentScene?.FindChild("FluidSimulation", true, false) as FluidSimulator;
+        if (simulator == null) simulator = GetTree().CurrentScene?.FindChild("FluidSimulation", true, false) as FluidSimulator;
         BuildWindows();
         CallDeferred(nameof(Refresh));
     }
@@ -35,29 +34,32 @@ public partial class WheelPurchaseUi : Control
         for (int wheelIndex = 0; wheelIndex < MaxWheelCount; wheelIndex++)
         {
             if (simulator.IsWheelUnlocked(wheelIndex)) continue;
-            PanelContainer panel = new PanelContainer();
-            panel.Name = "BuyWheelWindow_" + (wheelIndex + 1);
-            panel.CustomMinimumSize = new Vector2(WindowWidth, WindowHeight);
-            panel.Size = new Vector2(WindowWidth, WindowHeight);
-            panel.MouseFilter = MouseFilterEnum.Stop;
-            panel.ZIndex = 901;
-            panel.ZAsRelative = false;
-            // The outer panel is only the layout/input container. Its border is removed
-            // so the visible button has exactly one UiSettings.BorderSize border.
+            PanelContainer panel = new PanelContainer
+            {
+                Name = "BuyWheelWindow_" + (wheelIndex + 1),
+                CustomMinimumSize = new Vector2(WindowWidth, WindowHeight),
+                Size = new Vector2(WindowWidth, WindowHeight),
+                MouseFilter = MouseFilterEnum.Stop,
+                ZIndex = 901,
+                ZAsRelative = false
+            };
             panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.WindowColor, 0));
 
-            VBoxContainer content = new VBoxContainer();
-            content.Alignment = BoxContainer.AlignmentMode.Center;
+            VBoxContainer content = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
             content.AddThemeConstantOverride("separation", 0);
             panel.AddChild(content);
 
-            Button button = new Button();
-            button.Name = "BuyButton";
-            button.Text = "Buy";
-            button.CustomMinimumSize = new Vector2(WindowWidth - 4.0f, WindowHeight - 4.0f);
-            button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            button.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-            button.FocusMode = Control.FocusModeEnum.None;
+            Button button = new Button
+            {
+                Name = "BuyButton",
+                Text = "Buy",
+                CustomMinimumSize = new Vector2(WindowWidth, WindowHeight),
+                Size = new Vector2(WindowWidth, WindowHeight),
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+                SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+                FocusMode = Control.FocusModeEnum.None
+            };
+            button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
             ApplyButtonStyle(button, true);
             int capturedIndex = wheelIndex;
             button.Pressed += () => OnBuyPressed(capturedIndex);
@@ -88,33 +90,32 @@ public partial class WheelPurchaseUi : Control
     {
         if (simulator == null || simulator.IsWheelUnlocked(wheelIndex)) return;
         CloseSettingsAndStatisticsWindow();
-        WheelUpgradeUi upgradeUi = GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi;
-        upgradeUi?.CloseUpgradeWindow();
+        (GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi)?.CloseUpgradeWindow();
         OpenConfirmation(wheelIndex);
     }
 
     private void CloseSettingsAndStatisticsWindow()
     {
-        UiWindowManager windowManager = GetTree().Root.FindChild("UiWindowManager", true, false) as UiWindowManager;
-        windowManager?.CloseActiveWindow();
+        (GetTree().Root.FindChild("UiWindowManager", true, false) as UiWindowManager)?.CloseActiveWindow();
     }
 
     private void OpenConfirmation(int wheelIndex)
     {
         ClosePurchaseWindow();
-        WheelUpgradeUi upgradeUi = GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi;
-        upgradeUi?.SetPurchaseModalInputBlocked(true);
-        confirmationWindow = new WheelPurchaseConfirmationWindow();
-        confirmationWindow.Name = "WheelPurchaseConfirmationWindow";
-        confirmationWindow.ZIndex = 2000;
-        confirmationWindow.ZAsRelative = false;
+        (GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi)?.SetPurchaseModalInputBlocked(true);
+        confirmationWindow = new WheelPurchaseConfirmationWindow
+        {
+            Name = "WheelPurchaseConfirmationWindow",
+            ZIndex = 2000,
+            ZAsRelative = false
+        };
         confirmationWindow.Setup(wheelIndex, simulator, OnPurchaseConfirmed, OnPurchaseCancelled);
         AddChild(confirmationWindow);
     }
 
     private void OnPurchaseConfirmed(int wheelIndex)
     {
-        bool purchased = simulator != null && simulator.TryPurchaseWheel(wheelIndex);
+        simulator?.TryPurchaseWheel(wheelIndex);
         Refresh();
         ReleaseUpgradeInputBlock();
         confirmationWindow = null;
@@ -128,14 +129,12 @@ public partial class WheelPurchaseUi : Control
 
     private void ReleaseUpgradeInputBlock()
     {
-        WheelUpgradeUi upgradeUi = GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi;
-        upgradeUi?.SetPurchaseModalInputBlocked(false);
+        (GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi)?.SetPurchaseModalInputBlocked(false);
     }
 
     public void ClosePurchaseWindow()
     {
-        if (confirmationWindow != null && IsInstanceValid(confirmationWindow))
-            confirmationWindow.QueueFree();
+        if (confirmationWindow != null && IsInstanceValid(confirmationWindow)) confirmationWindow.QueueFree();
         ReleaseUpgradeInputBlock();
         confirmationWindow = null;
     }
