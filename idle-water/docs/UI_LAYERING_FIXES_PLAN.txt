@@ -49,7 +49,7 @@ IMPLEMENTATION ORDER
    - Standard border: dark grey, 0% transparency, 3 px.
    - All buttons, including the bottom three, use these centralized settings.
    - Rendered TopUI window part uses the same centralized background/border settings.
-   - Rain amount graph MUST use UiSettings.cs border width and border color.
+   - Rain amount graph uses UiSettings.cs border width and border color. COMPLETED in the 23.08 graph pass.
    - All relevant scripts read border width from UiSettings.cs instead of local constants.
    - Settings and Statistics buttons use buttonPressed while their windows are open, and therefore are not transparent.
 
@@ -59,15 +59,15 @@ IMPLEMENTATION ORDER
    - Keep the top-right text position stable when the number changes, e.g. 9 -> 10. COMPLETED AND TESTED.
    - Keep the TopUI background and border driven by UiSettings.cs.
 
-6. Statistics graphs — CURRENT TODO (23.08)
-   - [ ] Apply the correct UiSettings.cs border WIDTH to the rain amount graph.
-   - [ ] Apply the correct UiSettings.cs border COLOR to the rain amount graph.
-   - [ ] Increase the BOTTOM MARGIN of BOTH graphs so there is clearly more room for the bottom text/labels.
-   - [ ] Move the bottom text of BOTH graphs approximately 10 px LOWER so it no longer overlaps the graph.
-   - [ ] Keep BOTH graphs exactly the SAME SIZE after increasing their bottom margins; adjust layout/available area rather than changing graph dimensions independently.
-   - [ ] Restore the left-side graph labels that were moved accidentally: the first graph's "Value" label and the second graph's "Energy" label must be on the LEFT side of their respective graphs again.
-   - [ ] Verify the right-side graph information remains correctly positioned and does not overlap the restored left-side labels.
-   - [ ] Verify both graphs remain visually aligned and identical in size on Windows and Android.
+6. Statistics graphs — 23.08 PASS IMPLEMENTED
+   - [x] Apply the correct UiSettings.cs border WIDTH to the rain amount graph.
+   - [x] Apply the correct UiSettings.cs border COLOR to the rain amount graph.
+   - [x] Increase the BOTTOM MARGIN of BOTH graphs so there is clearly more room for the bottom text/labels.
+   - [x] Move the bottom text of BOTH graphs approximately 10 px LOWER so it no longer overlaps the graph.
+   - [x] Keep BOTH graphs exactly the SAME SIZE after increasing their bottom margins; the shared GetEqualGraphHeight() calculation was preserved.
+   - [x] Restore the left-side graph labels that were moved accidentally: the first graph's "Value" label and the second graph's "Energy" label are on the LEFT side again.
+   - [x] Keep the graph spacing large enough that the lowered first-graph labels do not collide with the second graph title.
+   - [ ] Developer visual verification on Windows and Android is still required before marking this pass fully tested.
 
 7. Buy window — CURRENT TODO (23.08)
    - [ ] Make the main BUY button always pressable/clickable; it must open the Buy window even when the player cannot currently afford the purchase.
@@ -106,7 +106,9 @@ PROGRESS
 - Implemented TopUI resource positioning improvements: rain display is vertically centered in the 60 px TopUI frame, and Energy/Dollars use fixed label widths plus centered vertical positioning to prevent position changes when digit counts change.
 - TopUI rendering continues to use UiSettings window/border values.
 - Implemented and tested the anti-lag cleanup message; it was moved 120 px downward and centralized to UiSettings medium font size and enabled/white font color.
-- CURRENT OPEN WORK from the latest developer feedback: rain amount graph border width/color must come directly from UiSettings.cs; both graph bottom margins must be larger; bottom graph text must move about 10 px lower; both graphs must remain the same size; the left-side "Value" / "Energy" labels must be restored; and the BUY flow must be changed so the main BUY button is always pressable and opens a centered purchase window containing purchase text, a $10 Buy action, and a bottom Close Window button.
+- Implemented the 23.08 StatisticsGraph pass: UiSettings border width/color are used, both graph bottom margins were increased while preserving equal graph heights, bottom labels were moved 10 px lower, and Value/Energy labels were restored to the left side.
+- Statistics graph code commit: 8875af2e8bd3bb0bf00d825b8e275323a338a806.
+- REMAINING after this pass: developer visual verification of the graphs on Windows/Android, then the Buy-window redesign.
 
 [2026-08-22]
 - Created branch: ui-layering-fixes-20260822 from main.
