@@ -23,6 +23,7 @@ public static class UiSettings
 
 	public static readonly Color DisplayBackgroundColor = new Color(0.30f, 0.30f, 0.30f, 0.96f);
 	public const float BorderSize = 3.0f;
+	public const int ButtonBorderSize = 1;
 	public const int FontSizeBig = 30;
 	public const int FontSizeMedium = 24;
 	public const int FontSizeSmall = 20;
