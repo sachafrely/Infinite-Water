@@ -2,13 +2,15 @@ using Godot;
 
 /// <summary>
 /// Five small purchase windows, one for every locked wheel position.
-/// Every wheel can be purchased independently; there is no sequential order.
+/// Every wheel can be purchased independently; the Buy button remains
+/// pressable even when the player cannot currently afford the wheel.
 /// </summary>
 public partial class WheelPurchaseUi : Control
 {
     private const int MaxWheelCount = 6;
     private const float WindowWidth = 77.0f;
     private const float WindowHeight = 54.0f;
+    private const float WheelCost = 10.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
@@ -61,7 +63,7 @@ public partial class WheelPurchaseUi : Control
                 MouseFilter = Control.MouseFilterEnum.Stop
             };
             button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-            ApplyButtonStyle(button, true);
+            ApplyButtonStyle(button, IsPurchaseAvailable());
             int capturedIndex = wheelIndex;
             button.Pressed += () => OnBuyPressed(capturedIndex);
             content.AddChild(button);
@@ -71,8 +73,16 @@ public partial class WheelPurchaseUi : Control
         }
     }
 
+    private bool IsPurchaseAvailable()
+    {
+        return EnergySystem.Instance != null && EnergySystem.Instance.Dollars >= WheelCost;
+    }
+
     private void ApplyButtonStyle(Button button, bool available)
     {
+        // The Buy button must remain pressable even when unavailable. Only its
+        // text color communicates affordability; clicking it still opens the
+        // Buy Wheel window.
         button.Disabled = false;
         Color textColor = available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled;
         button.AddThemeColorOverride("font_color", textColor);
@@ -152,6 +162,7 @@ public partial class WheelPurchaseUi : Control
     private void Refresh()
     {
         if (simulator == null || !IsInsideTree()) return;
+        bool available = IsPurchaseAvailable();
         for (int wheelIndex = 0; wheelIndex < MaxWheelCount; wheelIndex++)
         {
             PanelContainer panel = windows[wheelIndex];
@@ -162,11 +173,7 @@ public partial class WheelPurchaseUi : Control
             panel.Position = new Vector2(wheelPosition.X - WindowWidth * 0.5f, wheelPosition.Y - WindowHeight * 0.5f);
             Button button = buttons[wheelIndex];
             if (button != null)
-            {
-                // The Buy button is intentionally always available. The actual
-                // affordability check happens inside the Buy Wheel window.
-                ApplyButtonStyle(button, true);
-            }
+                ApplyButtonStyle(button, available);
         }
     }
 }
