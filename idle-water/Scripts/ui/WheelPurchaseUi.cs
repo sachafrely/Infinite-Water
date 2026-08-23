@@ -42,7 +42,9 @@ public partial class WheelPurchaseUi : Control
             panel.MouseFilter = MouseFilterEnum.Stop;
             panel.ZIndex = 901;
             panel.ZAsRelative = false;
-            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
+            // The outer panel is only the layout/input container. Its border is removed
+            // so the visible button has exactly one UiSettings.BorderSize border.
+            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.WindowColor, 0));
 
             VBoxContainer content = new VBoxContainer();
             content.Alignment = BoxContainer.AlignmentMode.Center;
