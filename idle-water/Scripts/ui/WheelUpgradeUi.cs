@@ -4,7 +4,7 @@ public partial class WheelUpgradeUi : Control
 {
     private const int MaxWheelCount = 6;
     private const float WindowWidth = 90.0f;
-    private const float WindowHeight = 38.0f;
+    private const float WindowHeight = 54.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
