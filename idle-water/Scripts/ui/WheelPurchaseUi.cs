@@ -42,7 +42,7 @@ public partial class WheelPurchaseUi : Control
             panel.MouseFilter = MouseFilterEnum.Stop;
             panel.ZIndex = 901;
             panel.ZAsRelative = false;
-            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 
             VBoxContainer content = new VBoxContainer();
             content.Alignment = BoxContainer.AlignmentMode.Center;
@@ -75,11 +75,11 @@ public partial class WheelPurchaseUi : Control
         button.AddThemeColorOverride("font_pressed_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
         button.AddThemeColorOverride("font_focus_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
         button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
-        button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
-        button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
-        button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
-        button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
-        button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
+        button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
+        button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor));
+        button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
+        button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
     }
 
     private void OnBuyPressed(int wheelIndex)
