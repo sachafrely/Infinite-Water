@@ -88,9 +88,7 @@ public partial class WheelUpgradeWindow : Control
         bool pressed = false;
         Vector2 position = Vector2.Zero;
 
-        if (@event is InputEventMouseButton mouseButton &&
-            mouseButton.ButtonIndex == MouseButton.Left &&
-            mouseButton.Pressed)
+        if (@event is InputEventMouseButton mouseButton && mouseButton.ButtonIndex == MouseButton.Left && mouseButton.Pressed)
         {
             pressed = true;
             position = mouseButton.GlobalPosition;
@@ -104,9 +102,6 @@ public partial class WheelUpgradeWindow : Control
         if (!pressed || panel == null || !IsInstanceValid(panel))
             return;
 
-        // _Input runs before GUI hit-testing. Only consume clicks/touches outside
-        // the actual Upgrade window. Events inside it must continue to GUI
-        // processing so all Upgrade and Close buttons keep working.
         if (!panel.GetGlobalRect().HasPoint(position))
         {
             Close();
@@ -185,6 +180,8 @@ public partial class WheelUpgradeWindow : Control
             int price = simulator.GetWheelUpgradePrice(WheelIndex, types[i]);
             bool maxed = level >= WheelUpgradeState.MaxLevel;
             bool canBuy = simulator.CanPurchaseWheelUpgrade(WheelIndex, types[i]);
+            bool available = !maxed && canBuy;
+            Color textColor = available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled;
 
             if (levelLabels[i] != null)
                 levelLabels[i].Text = "Lv " + level;
@@ -193,7 +190,12 @@ public partial class WheelUpgradeWindow : Control
                 continue;
 
             purchaseButtons[i].Text = maxed ? "MAX" : price + "$";
-            purchaseButtons[i].Disabled = maxed || !canBuy;
+            purchaseButtons[i].Disabled = false;
+            purchaseButtons[i].AddThemeColorOverride("font_color", textColor);
+            purchaseButtons[i].AddThemeColorOverride("font_hover_color", textColor);
+            purchaseButtons[i].AddThemeColorOverride("font_pressed_color", textColor);
+            purchaseButtons[i].AddThemeColorOverride("font_focus_color", textColor);
+            purchaseButtons[i].AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
         }
     }
 
