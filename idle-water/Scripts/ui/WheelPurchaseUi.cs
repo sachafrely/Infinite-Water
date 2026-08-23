@@ -7,8 +7,8 @@ using Godot;
 public partial class WheelPurchaseUi : Control
 {
     private const int MaxWheelCount = 6;
-    private const float WindowWidth = 61.0f;
-    private const float WindowHeight = 38.0f;
+    private const float WindowWidth = 77.0f;
+    private const float WindowHeight = 54.0f;
 
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
@@ -56,7 +56,6 @@ public partial class WheelPurchaseUi : Control
             button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             button.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             button.FocusMode = Control.FocusModeEnum.None;
-            button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
             ApplyButtonStyle(button, true);
             int capturedIndex = wheelIndex;
             button.Pressed += () => OnBuyPressed(capturedIndex);
@@ -70,10 +69,11 @@ public partial class WheelPurchaseUi : Control
     private void ApplyButtonStyle(Button button, bool available)
     {
         button.Disabled = false;
-        button.AddThemeColorOverride("font_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
-        button.AddThemeColorOverride("font_hover_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
-        button.AddThemeColorOverride("font_pressed_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
-        button.AddThemeColorOverride("font_focus_color", available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled);
+        Color textColor = available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled;
+        button.AddThemeColorOverride("font_color", textColor);
+        button.AddThemeColorOverride("font_hover_color", textColor);
+        button.AddThemeColorOverride("font_pressed_color", textColor);
+        button.AddThemeColorOverride("font_focus_color", textColor);
         button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
         button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
         button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
@@ -85,14 +85,9 @@ public partial class WheelPurchaseUi : Control
     private void OnBuyPressed(int wheelIndex)
     {
         if (simulator == null || simulator.IsWheelUnlocked(wheelIndex)) return;
-
-        // BUY explicitly closes Settings/Statistics, but does not change their
-        // normal outside-click behavior. The Buy action continues afterwards.
         CloseSettingsAndStatisticsWindow();
-
         WheelUpgradeUi upgradeUi = GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi;
         upgradeUi?.CloseUpgradeWindow();
-
         OpenConfirmation(wheelIndex);
     }
 
@@ -105,10 +100,8 @@ public partial class WheelPurchaseUi : Control
     private void OpenConfirmation(int wheelIndex)
     {
         ClosePurchaseWindow();
-
         WheelUpgradeUi upgradeUi = GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi;
         upgradeUi?.SetPurchaseModalInputBlocked(true);
-
         confirmationWindow = new WheelPurchaseConfirmationWindow();
         confirmationWindow.Name = "WheelPurchaseConfirmationWindow";
         confirmationWindow.ZIndex = 2000;
@@ -141,7 +134,6 @@ public partial class WheelPurchaseUi : Control
     {
         if (confirmationWindow != null && IsInstanceValid(confirmationWindow))
             confirmationWindow.QueueFree();
-
         ReleaseUpgradeInputBlock();
         confirmationWindow = null;
     }
