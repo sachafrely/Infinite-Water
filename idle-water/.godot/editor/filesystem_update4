@@ -16,3 +16,5 @@ res://Scripts/ui/WheelUpgradeUi.cs
 res://Scripts/ui/WheelUpgradeWindow.cs
 res://Scripts/ui/WheelPurchaseUi.cs
 res://Scripts/ui/EconomyUi.cs
+res://Scenes/Main.tscn
+res://Scripts/ui/UiSettings.cs

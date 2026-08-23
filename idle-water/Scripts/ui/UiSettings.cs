@@ -9,11 +9,11 @@ public static class UiSettings
 {
 	// Shared window styling.
 	public static readonly Color BorderColor = new Color(0.30f, 0.30f, 0.30f, 1.0f);
-	public static readonly Color WindowBackgroundColor = new Color(0.50f, 0.50f, 0.50f, 0.70f);
+	public static readonly Color WindowBackgroundColor = new Color(0.50f, 0.50f, 0.50f, 1.00f);
 	public static readonly Color ButtonPressedColor = new Color(0.60f, 0.60f, 0.60f, 1.0f);
 	public static readonly Color ButtonUnpressedColor = new Color(0.40f, 0.40f, 0.40f, 1.0f);
 	public static readonly Color FontColorEnabled = new Color(1.0f, 1.0f, 1.0f, 1.0f);
-	public static readonly Color FontColorDisabled = new Color(0.0f, 0.0f, 0.0f, 1.0f);
+	public static readonly Color FontColorDisabled = new Color(0.30f, 0.30f, 0.30f, 1.0f);
 
 	// Compatibility aliases for existing UI code. These keep the first pass
 	// safe while callers are migrated to the more explicit names.
