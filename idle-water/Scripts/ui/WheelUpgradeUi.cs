@@ -46,7 +46,7 @@ public partial class WheelUpgradeUi : Control
                 ZAsRelative = false
             };
 
-            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+            panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor));
 
             VBoxContainer content = new VBoxContainer
             {
@@ -89,11 +89,11 @@ public partial class WheelUpgradeUi : Control
         button.AddThemeColorOverride("font_focus_color", textColor);
         button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
 
-        button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
-        button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
-        button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
-        button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
-        button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
+        button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
+        button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
+        button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor));
+        button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
+        button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor));
     }
 
     private void OnUpgradePressed(int wheelIndex)
