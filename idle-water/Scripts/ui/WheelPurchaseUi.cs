@@ -57,7 +57,8 @@ public partial class WheelPurchaseUi : Control
                 Size = new Vector2(WindowWidth, WindowHeight),
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                 SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-                FocusMode = Control.FocusModeEnum.None
+                FocusMode = Control.FocusModeEnum.None,
+                MouseFilter = Control.MouseFilterEnum.Stop
             };
             button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
             ApplyButtonStyle(button, true);
@@ -103,6 +104,7 @@ public partial class WheelPurchaseUi : Control
     {
         ClosePurchaseWindow();
         (GetTree().Root.FindChild("WheelUpgradeUi", true, false) as WheelUpgradeUi)?.SetPurchaseModalInputBlocked(true);
+
         confirmationWindow = new WheelPurchaseConfirmationWindow
         {
             Name = "WheelPurchaseConfirmationWindow",
@@ -111,6 +113,14 @@ public partial class WheelPurchaseUi : Control
         };
         confirmationWindow.Setup(wheelIndex, simulator, OnPurchaseConfirmed, OnPurchaseCancelled);
         AddChild(confirmationWindow);
+
+        Vector2 anchor = simulator.GetWheelUiPosition(wheelIndex);
+        Vector2 size = confirmationWindow.Size;
+        Vector2 viewportSize = GetViewportRect().Size;
+        Vector2 position = anchor - size * 0.5f;
+        position.X = Mathf.Clamp(position.X, 4.0f, Mathf.Max(4.0f, viewportSize.X - size.X - 4.0f));
+        position.Y = Mathf.Clamp(position.Y, 4.0f, Mathf.Max(4.0f, viewportSize.Y - size.Y - 4.0f));
+        confirmationWindow.Position = position;
     }
 
     private void OnPurchaseConfirmed(int wheelIndex)
@@ -153,8 +163,9 @@ public partial class WheelPurchaseUi : Control
             Button button = buttons[wheelIndex];
             if (button != null)
             {
-                bool available = EnergySystem.Instance != null && EnergySystem.Instance.Dollars >= EnergySystem.WheelPurchaseCost;
-                ApplyButtonStyle(button, available);
+                // The Buy button is intentionally always available. The actual
+                // affordability check happens inside the Buy Wheel window.
+                ApplyButtonStyle(button, true);
             }
         }
     }
