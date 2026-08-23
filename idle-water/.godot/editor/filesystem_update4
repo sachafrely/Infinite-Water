@@ -1,5 +1,4 @@
-res://Scripts/ui/StatisticsGraph.cs
-res://Scripts/ui/UiSettings.cs
+res://Scenes/Main.tscn
 res://Scripts/rendering/WaterWheelVisual.cs
 res://Scripts/rendering/FluidRenderer.cs
 res://Scripts/ui/SellEnergyButton.cs
@@ -10,6 +9,7 @@ res://Scripts/ui/UiToggleButton.cs
 res://Scripts/ui/SettingsWindow.cs
 res://Scripts/ui/StatisticsWindow.cs
 res://Scripts/core/FrameProfiler.cs
+res://Scripts/ui/StatisticsGraph.cs
 res://Scripts/simulation/TileMapPhysics.cs
 res://Scripts/simulation/FluidSimulator.cs
 res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
