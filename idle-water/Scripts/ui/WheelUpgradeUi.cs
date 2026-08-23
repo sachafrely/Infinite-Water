@@ -3,7 +3,7 @@ using Godot;
 public partial class WheelUpgradeUi : Control
 {
     private const int MaxWheelCount = 6;
-    private const float WindowWidth = 90.0f;
+    private const float WindowWidth = 100.0f;
     private const float WindowHeight = 54.0f;
     private readonly PanelContainer[] windows = new PanelContainer[MaxWheelCount];
     private readonly Button[] buttons = new Button[MaxWheelCount];
@@ -27,7 +27,7 @@ public partial class WheelUpgradeUi : Control
             PanelContainer panel = new PanelContainer { Name = "UpgradeWheelWindow_" + (wheelIndex + 1), CustomMinimumSize = new Vector2(WindowWidth, WindowHeight), Size = new Vector2(WindowWidth, WindowHeight), MouseFilter = MouseFilterEnum.Stop, ZIndex = 901, ZAsRelative = false };
             panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.WindowColor, 0));
             VBoxContainer content = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; content.AddThemeConstantOverride("separation", 0); panel.AddChild(content);
-            Button button = new Button { Name = "UpgradeButton", Text = "Upgrade", CustomMinimumSize = new Vector2(WindowWidth, WindowHeight), Size = new Vector2(WindowWidth, WindowHeight), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill, FocusMode = Control.FocusModeEnum.None, MouseFilter = MouseFilterEnum.Stop };
+            Button button = new Button { Name = "UpgradeButton", Text = "Upgrade", CustomMinimumSize = new Vector2(WindowWidth, WindowHeight), Size = new Vector2(WindowWidth, WindowHeight), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill, FocusMode = Control.FocusModeEnum.None, MouseFilter = Control.MouseFilterEnum.Stop };
             button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium); ApplyButtonStyle(button, false);
             int capturedIndex = wheelIndex; button.Pressed += () => OnUpgradePressed(capturedIndex); content.AddChild(button); AddChild(panel); windows[wheelIndex] = panel; buttons[wheelIndex] = button;
         }
