@@ -87,7 +87,7 @@ public partial class WheelPurchaseConfirmationWindow : Control
             Text = "10$",
             CustomMinimumSize = new Vector2(PurchaseButtonWidth, RowHeight - 6.0f),
             FocusMode = Control.FocusModeEnum.None,
-            MouseFilter = MouseFilterEnum.Stop
+            MouseFilter = Control.MouseFilterEnum.Stop
         };
         purchaseButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
         purchaseButton.Pressed += Purchase;
@@ -158,6 +158,11 @@ public partial class WheelPurchaseConfirmationWindow : Control
         purchaseButton.AddThemeColorOverride("font_pressed_color", textColor);
         purchaseButton.AddThemeColorOverride("font_focus_color", textColor);
         purchaseButton.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
+        purchaseButton.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        purchaseButton.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        purchaseButton.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        purchaseButton.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        purchaseButton.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
     }
 
     private void Purchase()
@@ -173,10 +178,12 @@ public partial class WheelPurchaseConfirmationWindow : Control
             return;
 
         confirmed?.Invoke(wheelIndex);
+        QueueFree();
     }
 
     private void Cancel()
     {
         cancelled?.Invoke();
+        QueueFree();
     }
 }
