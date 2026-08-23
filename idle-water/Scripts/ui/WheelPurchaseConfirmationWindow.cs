@@ -2,22 +2,25 @@ using System;
 using Godot;
 
 /// <summary>
-/// Full-screen modal confirmation dialog for a specific wheel purchase.
-/// The root Control owns the entire input area so controls underneath can never
-/// receive the same touch/click while this dialog is open.
+/// Modal Buy Wheel window styled like the existing WheelUpgradeWindow.
+/// The window is centered around the wheel's Buy button and closes when the
+/// user presses outside the window.
 /// </summary>
 public partial class WheelPurchaseConfirmationWindow : Control
 {
-    private const float WindowWidth = 360.0f;
-    private const float WindowHeight = 160.0f;
+    private const float WindowWidth = 440.0f;
+    private const float WindowHeight = 250.0f;
+    private const float RowHeight = 72.0f;
+    private const float CloseButtonHeight = 50.0f;
+    private const float PurchaseButtonWidth = 100.0f;
+    private const float PurchaseCost = 10.0f;
 
     private int wheelIndex;
     private FluidSimulator simulator;
     private Action<int> confirmed;
     private Action cancelled;
     private PanelContainer panel;
-    private Button yesButton;
-    private Button noButton;
+    private Button purchaseButton;
 
     public void Setup(int index, FluidSimulator fluidSimulator, Action<int> onConfirmed, Action onCancelled)
     {
@@ -31,59 +34,89 @@ public partial class WheelPurchaseConfirmationWindow : Control
     {
         ZIndex = 2000;
         ZAsRelative = false;
-        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Stop;
+        CustomMinimumSize = new Vector2(WindowWidth, WindowHeight);
+        Size = CustomMinimumSize;
 
         panel = new PanelContainer();
-        panel.Name = "ConfirmationPanel";
-        panel.CustomMinimumSize = new Vector2(WindowWidth, WindowHeight);
-        panel.Size = new Vector2(WindowWidth, WindowHeight);
-        panel.Position = GetViewportRect().Size * 0.5f - panel.Size * 0.5f;
+        panel.Name = "BuyWheelPanel";
+        panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         panel.MouseFilter = MouseFilterEnum.Stop;
-        panel.ZIndex = 1;
-
-        StyleBoxFlat style = UiSettings.CreateBox(
-            UiSettings.WindowColor,
-            UiSettings.BorderColor,
-            (int)UiSettings.BorderSize
-        );
-        panel.AddThemeStyleboxOverride("panel", style);
+        panel.AddThemeStyleboxOverride("panel", UiSettings.CreateBox(UiSettings.WindowColor, UiSettings.BorderColor, (int)UiSettings.BorderSize));
         AddChild(panel);
 
+        MarginContainer margin = new MarginContainer();
+        margin.AddThemeConstantOverride("margin_left", 18);
+        margin.AddThemeConstantOverride("margin_right", 18);
+        margin.AddThemeConstantOverride("margin_top", 18);
+        margin.AddThemeConstantOverride("margin_bottom", 18);
+        panel.AddChild(margin);
+
         VBoxContainer content = new VBoxContainer();
-        content.Alignment = BoxContainer.AlignmentMode.Center;
-        content.AddThemeConstantOverride("separation", 12);
-        panel.AddChild(content);
+        content.AddThemeConstantOverride("separation", 10);
+        margin.AddChild(content);
 
-        Label message = new Label();
-        message.Text = "Do you want to buy this wheel for 10$";
-        message.HorizontalAlignment = HorizontalAlignment.Center;
-        message.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-        content.AddChild(message);
+        Label title = new Label
+        {
+            Text = "Buy Wheel",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            CustomMinimumSize = new Vector2(0.0f, 42.0f)
+        };
+        title.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        content.AddChild(title);
 
-        HBoxContainer buttons = new HBoxContainer();
-        buttons.Alignment = BoxContainer.AlignmentMode.Center;
-        buttons.AddThemeConstantOverride("separation", 16);
-        content.AddChild(buttons);
+        HBoxContainer row = new HBoxContainer
+        {
+            CustomMinimumSize = new Vector2(0.0f, RowHeight)
+        };
+        row.AddThemeConstantOverride("separation", 10);
+        content.AddChild(row);
 
-        yesButton = new Button { Text = "Yes" };
-        yesButton.CustomMinimumSize = new Vector2(100, 40);
-        yesButton.FocusMode = Control.FocusModeEnum.None;
-        // The modal handles Yes/No input explicitly in _Input. Ignoring GUI
-        // hit-testing here prevents a lower sibling control from ever competing
-        // with the confirmation buttons while preserving their visual appearance.
-        yesButton.MouseFilter = MouseFilterEnum.Ignore;
-        yesButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-        yesButton.Pressed += Confirm;
-        buttons.AddChild(yesButton);
+        Label label = new Label
+        {
+            Text = "Unlock Wheel",
+            VerticalAlignment = VerticalAlignment.Center,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        };
+        label.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        row.AddChild(label);
 
-        noButton = new Button { Text = "No" };
-        noButton.CustomMinimumSize = new Vector2(100, 40);
-        noButton.FocusMode = Control.FocusModeEnum.None;
-        noButton.MouseFilter = MouseFilterEnum.Ignore;
-        noButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-        noButton.Pressed += Cancel;
-        buttons.AddChild(noButton);
+        purchaseButton = new Button
+        {
+            Text = "10$",
+            CustomMinimumSize = new Vector2(PurchaseButtonWidth, RowHeight - 6.0f),
+            FocusMode = Control.FocusModeEnum.None,
+            MouseFilter = MouseFilterEnum.Stop
+        };
+        purchaseButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        purchaseButton.Pressed += Purchase;
+        row.AddChild(purchaseButton);
+
+        Control spacer = new Control
+        {
+            CustomMinimumSize = new Vector2(0.0f, 4.0f),
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill
+        };
+        content.AddChild(spacer);
+
+        Button closeButton = new Button
+        {
+            Text = "Close Window",
+            CustomMinimumSize = new Vector2(0.0f, CloseButtonHeight),
+            FocusMode = Control.FocusModeEnum.None,
+            MouseFilter = MouseFilterEnum.Stop
+        };
+        closeButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        closeButton.Pressed += Cancel;
+        content.AddChild(closeButton);
+
+        Refresh();
+    }
+
+    public override void _Process(double delta)
+    {
+        Refresh();
     }
 
     public override void _Input(InputEvent @event)
@@ -91,9 +124,7 @@ public partial class WheelPurchaseConfirmationWindow : Control
         bool pressed = false;
         Vector2 position = Vector2.Zero;
 
-        if (@event is InputEventMouseButton mouseButton &&
-            mouseButton.ButtonIndex == MouseButton.Left &&
-            mouseButton.Pressed)
+        if (@event is InputEventMouseButton mouseButton && mouseButton.ButtonIndex == MouseButton.Left && mouseButton.Pressed)
         {
             pressed = true;
             position = mouseButton.GlobalPosition;
@@ -104,28 +135,9 @@ public partial class WheelPurchaseConfirmationWindow : Control
             position = screenTouch.Position;
         }
 
-        if (!pressed || panel == null)
+        if (!pressed || panel == null || !IsInstanceValid(panel))
             return;
 
-        // Handle the modal buttons at the _Input stage. This is deliberately
-        // before Control GUI hit-testing, so a sibling Upgrade button underneath
-        // the modal can never block the Yes/No action.
-        if (yesButton != null && yesButton.GetGlobalRect().HasPoint(position))
-        {
-            Confirm();
-            GetViewport().SetInputAsHandled();
-            return;
-        }
-
-        if (noButton != null && noButton.GetGlobalRect().HasPoint(position))
-        {
-            Cancel();
-            GetViewport().SetInputAsHandled();
-            return;
-        }
-
-        // Only consume outside clicks. Events inside the dialog that are not on
-        // Yes/No simply keep the dialog open.
         if (!panel.GetGlobalRect().HasPoint(position))
         {
             Cancel();
@@ -133,22 +145,38 @@ public partial class WheelPurchaseConfirmationWindow : Control
         }
     }
 
-    private void Confirm()
+    private void Refresh()
     {
-        if (simulator == null || !simulator.IsWheelUnlocked(wheelIndex))
-        {
-            confirmed?.Invoke(wheelIndex);
-            QueueFree();
-        }
-        else
+        if (purchaseButton == null)
+            return;
+
+        bool available = EnergySystem.Instance != null && EnergySystem.Instance.Dollars >= PurchaseCost;
+        Color textColor = available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled;
+        purchaseButton.Disabled = false;
+        purchaseButton.AddThemeColorOverride("font_color", textColor);
+        purchaseButton.AddThemeColorOverride("font_hover_color", textColor);
+        purchaseButton.AddThemeColorOverride("font_pressed_color", textColor);
+        purchaseButton.AddThemeColorOverride("font_focus_color", textColor);
+        purchaseButton.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
+    }
+
+    private void Purchase()
+    {
+        if (simulator == null || simulator.IsWheelUnlocked(wheelIndex))
         {
             Cancel();
+            return;
         }
+
+        bool available = EnergySystem.Instance != null && EnergySystem.Instance.Dollars >= PurchaseCost;
+        if (!available)
+            return;
+
+        confirmed?.Invoke(wheelIndex);
     }
 
     private void Cancel()
     {
         cancelled?.Invoke();
-        QueueFree();
     }
 }
