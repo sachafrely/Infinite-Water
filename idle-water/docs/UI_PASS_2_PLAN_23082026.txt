@@ -1,0 +1,76 @@
+UI PASS 2 — IMPLEMENTATION PLAN
+Date: 23.08.2026
+Branch: ui-pass-2-20260823
+
+GOAL
+Refactor the UI toward a proper Godot Node/Scene architecture while adding wheel numbering and a third statistics graph for Energy per Wheel.
+
+IMPORTANT PRINCIPLE
+This pass is incremental. Existing working UI behavior must be preserved while responsibilities are moved from scripts that dynamically construct UI into Nodes/Scenes created in Godot.
+
+PHASE 1 — GODOT UI NODE ARCHITECTURE
+1. Create the agreed UI root hierarchy in Godot.
+2. Create dedicated Nodes for major UI components and attach dedicated scripts.
+3. Move one component at a time from runtime-created Controls to scene Nodes.
+4. Do not delete old construction code until the replacement Node is working and tested.
+5. Establish exported Node references / GetNode references so scripts control existing Nodes instead of constructing complete UI trees.
+6. Keep shared visual configuration centralized in UiSettings.cs.
+
+TARGET COMPONENTS
+- Main UI root / CanvasLayer
+- Top UI
+- Bottom UI
+- Wheel UI
+- Buy Window
+- Upgrade Window
+- Settings Window
+- Statistics Window
+- Graph components
+- Window/modal coordination
+
+PHASE 2 — WHEEL NUMBERING
+1. Number wheels from left to right, beginning with Wheel 1.
+2. Display the wheel number in the Buy Window.
+3. Display the wheel number in the Upgrade Window.
+4. Use the same wheel index/number source everywhere so numbering cannot diverge.
+5. Verify numbering on Windows and Android.
+
+Expected examples:
+- Buy Wheel 1
+- Buy Wheel 2
+- Upgrade Wheel 1
+- Upgrade Wheel 2
+
+PHASE 3 — THIRD GRAPH: ENERGY PER WHEEL
+1. Add a third graph to the Statistics UI.
+2. The graph displays Energy per Wheel as bars.
+3. Each bar represents one wheel.
+4. Wheels must remain ordered left-to-right / Wheel 1 to Wheel 6 consistently.
+5. Reuse existing graph styling, dimensions, margins, borders and UiSettings values where appropriate.
+6. Ensure the third graph does not overlap existing labels or graphs.
+7. Verify readability on the target portrait viewport and Android.
+
+PHASE 4 — CLEANUP
+1. Remove obsolete runtime UI construction only after each component has been migrated.
+2. Remove duplicate styling/constants that should come from UiSettings.cs.
+3. Remove duplicate window-positioning logic where a centralized window/controller responsibility is more appropriate.
+4. Keep scripts focused: a script should control its Node/component rather than own the entire UI architecture.
+
+PHASE 5 — TESTING
+Windows:
+- Buy Window opens and closes correctly.
+- Upgrade Window opens and closes correctly.
+- Clicking outside modal windows closes them.
+- Buy/Upgrade affordability colors remain correct.
+- Wheel numbers are correct.
+- Third graph renders correctly.
+
+Android:
+- Touching inside windows works.
+- Touching outside windows closes them.
+- Wheel numbers remain correct.
+- Third graph remains readable.
+- No UI layering regressions.
+
+DEFINITION OF DONE
+UI Pass 2 is complete when the major UI components are represented by intentional Godot Nodes/Scenes with dedicated scripts, wheel numbering is consistent in Buy/Upgrade windows, the Energy-per-Wheel bar graph is implemented, and the existing UI behavior passes Windows and Android regression testing.
