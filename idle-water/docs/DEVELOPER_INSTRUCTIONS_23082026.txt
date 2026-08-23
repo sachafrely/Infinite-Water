@@ -1,0 +1,332 @@
+UI PASS 2 — DEVELOPER INSTRUCTIONS
+Date: 23.08.2026
+Branch: ui-pass-2-20260823
+
+PURPOSE
+This document defines the Godot Node/Scene architecture to create before refactoring the existing UI scripts.
+
+IMPORTANT
+Create these Nodes in the Godot editor first. Do not replace the existing UI in one large rewrite. The implementation should migrate existing behavior into these Nodes incrementally.
+
+ARCHITECTURE RULE
+A major UI component gets its own Node and dedicated script. A component becomes a separate Scene when it has its own layout, behavior, identity, or is reusable. Individual Labels, Buttons, Panels and containers normally remain children of their parent UI Scene rather than receiving their own scripts.
+
+1. ROOT UI
+
+Node:
+CanvasLayer
+Name:
+UI
+Script:
+UIController.cs
+
+Purpose:
+- Main UI root.
+- Owns the top-level UI components.
+- Provides the central entry point for UI coordination.
+- Should not contain detailed logic for individual windows.
+
+Children:
+- TopUI
+- BottomUI
+- WheelUI
+- StatisticsWindow
+- SettingsWindow
+- BuyWindow
+- UpgradeWindow
+
+2. TOP UI
+
+Node Type:
+Control
+Name:
+TopUI
+Script:
+TopUi.cs
+
+Children:
+- TopUIBackground (Panel/PanelContainer)
+- EnergyDisplay (Control)
+- DollarsDisplay (Control)
+- RainAmountDisplay (Control)
+
+Purpose:
+Own and update the persistent top-of-screen information.
+
+Do not create these Controls dynamically in TopUi.cs once migrated.
+
+3. BOTTOM UI
+
+Node Type:
+Control
+Name:
+BottomUI
+Script:
+BottomUi.cs
+
+Children:
+- BuyArea
+- UpgradeArea
+- SettingsButton
+- StatisticsButton
+- other persistent bottom controls as required by the current UI
+
+Purpose:
+Own the persistent bottom controls and route user interaction to the appropriate windows/components.
+
+4. WHEEL UI
+
+Node Type:
+Control
+Name:
+WheelUI
+Script:
+WheelUi.cs
+
+Children:
+Wheel1, Wheel2, Wheel3, Wheel4, Wheel5, Wheel6
+
+Each Wheel node:
+Node Type:
+Control
+Name:
+Wheel1 / Wheel2 / ... / Wheel6
+Script:
+WheelDisplay.cs
+
+Each Wheel should contain the visual Nodes needed for its wheel display, including its Buy/Upgrade interaction controls as appropriate.
+
+IMPORTANT NUMBERING RULE
+Wheel numbers are logical numbers from left to right:
+Wheel1 = 1
+Wheel2 = 2
+Wheel3 = 3
+Wheel4 = 4
+Wheel5 = 5
+Wheel6 = 6
+
+Do not derive display numbering independently in multiple scripts.
+
+5. BUY WINDOW
+
+Node Type:
+PanelContainer
+Name:
+BuyWindow
+Script:
+BuyWindow.cs
+
+Children:
+- MarginContainer
+  - VBoxContainer
+    - TitleLabel
+    - WheelNumberLabel
+    - UnlockRow
+      - UnlockLabel
+      - PriceButton
+    - Spacer
+    - CloseWindowButton
+
+TitleLabel:
+Text: Buy Wheel
+
+WheelNumberLabel:
+Displays the logical wheel number, e.g. Wheel 1.
+
+UnlockLabel:
+Text: Unlock Wheel
+
+PriceButton:
+Text: 10$
+
+CloseWindowButton:
+Text: Close Window
+
+IMPORTANT
+BuyWindow.cs controls these existing Nodes. It must not construct the complete window hierarchy at runtime.
+
+6. UPGRADE WINDOW
+
+Node Type:
+PanelContainer
+Name:
+UpgradeWindow
+Script:
+UpgradeWindow.cs
+
+Children:
+- MarginContainer
+  - VBoxContainer
+    - TitleLabel
+    - WheelNumberLabel
+    - UpgradeList
+    - CloseWindowButton
+
+WheelNumberLabel:
+Displays the logical wheel number.
+
+UpgradeWindow.cs should control existing upgrade rows/buttons instead of dynamically constructing the complete window.
+
+7. SETTINGS WINDOW
+
+Node Type:
+PanelContainer
+Name:
+SettingsWindow
+Script:
+SettingsWindow.cs
+
+Children:
+- MarginContainer
+  - VBoxContainer
+    - SettingsTitle
+    - TiltSettingsArea
+    - TiltSlider
+    - GravityIndicator
+    - additional existing settings controls
+    - CloseWindowButton
+
+SettingsWindow.cs owns settings interaction. Shared visual styling comes from UiSettings.cs.
+
+8. STATISTICS WINDOW
+
+Node Type:
+PanelContainer
+Name:
+StatisticsWindow
+Script:
+StatisticsWindow.cs
+
+Children:
+- MarginContainer
+  - VBoxContainer
+    - StatisticsHeader
+    - ExistingGraph
+    - RainAmountGraph
+    - EnergyPerWheelGraph
+    - CloseWindowButton
+
+The three graph components should have clearly defined child Nodes and should not overlap.
+
+9. GRAPH COMPONENT
+
+Node Type:
+Control
+Name examples:
+EnergyGraph
+RainAmountGraph
+EnergyPerWheelGraph
+
+Script:
+StatisticsGraph.cs for graph behavior, or a dedicated specialized graph script when the data representation differs materially.
+
+EnergyPerWheelGraph should use a bar representation rather than the point representation used by the other graph where appropriate.
+
+10. ENERGY PER WHEEL GRAPH
+
+Node Type:
+Control
+Name:
+EnergyPerWheelGraph
+Script:
+EnergyPerWheelGraph.cs
+
+Children:
+- GraphBackground
+- GraphArea
+- BarContainer
+- AxisLabels / ValueLabels as required
+
+EnergyPerWheelGraph.cs responsibilities:
+- Read energy-per-wheel data from the appropriate game/statistics source.
+- Maintain bars in Wheel 1 → Wheel 6 order.
+- Scale bars consistently.
+- Update labels.
+- Respect UiSettings styling.
+
+11. WINDOW / MODAL COORDINATION
+
+Node Type:
+Node
+Name:
+UIWindowManager
+Script:
+UiWindowManager.cs
+
+Place it as a direct child of UI.
+
+Responsibilities:
+- Track the active modal window.
+- Ensure modal windows are in front.
+- Close the active modal when clicking/touching outside it where appropriate.
+- Prevent multiple modal windows from fighting for input.
+
+Individual windows remain responsible for their own internal behavior.
+
+12. UI SETTINGS
+
+File:
+UiSettings.cs
+
+UiSettings remains a centralized static configuration class.
+
+All shared values such as:
+- BorderColor
+- BorderSize
+- ButtonBorderSize
+- Button colors
+- Enabled/disabled font colors
+- Font sizes
+
+must come from UiSettings.cs.
+
+Do not introduce local copies of these values inside individual UI scripts unless a component has a deliberate unique visual requirement.
+
+13. SCRIPT RESPONSIBILITY RULES
+
+UI scripts should:
+- Find/cache their child Nodes.
+- Update text and visual state.
+- Connect signals/events.
+- React to game state.
+- Position their own component when necessary.
+- Request modal/window changes from UIWindowManager when appropriate.
+
+UI scripts should NOT:
+- Build an entire UI hierarchy from scratch.
+- Duplicate shared UiSettings constants.
+- Own unrelated windows.
+- Duplicate wheel numbering logic.
+- Duplicate global modal input handling.
+
+14. RECOMMENDED MIGRATION ORDER
+
+1. Create UI root and UIWindowManager.
+2. Create WheelUI and wheel Nodes.
+3. Create BuyWindow Nodes and attach BuyWindow.cs.
+4. Migrate the current working Buy Window behavior.
+5. Create UpgradeWindow Nodes and attach UpgradeWindow.cs.
+6. Migrate the current working Upgrade Window behavior.
+7. Create StatisticsWindow and its three graph Nodes.
+8. Implement EnergyPerWheelGraph.
+9. Migrate SettingsWindow.
+10. Migrate TopUI and BottomUI.
+11. Remove obsolete runtime UI construction only after each migration is verified.
+
+15. TESTING REQUIREMENT
+
+After every migration:
+- Run on Windows.
+- Verify mouse interaction.
+- Verify outside-click behavior.
+- Verify window layering.
+- Verify enabled/disabled colors.
+- Verify no duplicate UI is being created.
+
+After the complete migration:
+- Test Android touch input.
+- Verify all six wheel numbers.
+- Verify Buy and Upgrade windows display the correct wheel number.
+- Verify all three statistics graphs.
+
+END OF DEVELOPER INSTRUCTIONS
