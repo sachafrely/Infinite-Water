@@ -15,7 +15,7 @@ public partial class SettingsContent : Control
 
 	private const float TiltLabelWidth = 80.0f;
 	// Move the complete Tilt settings area higher to use the free space above it.
-	private const float SliderTopOffset = 28.0f;
+	private const float SliderTopOffset = 8.0f;
 	private const float SliderBarHeight = 8.0f;
 	private const float SliderHandleWidth = 24.0f;
 	private const float SliderHandleHeight = 44.0f;
@@ -87,8 +87,6 @@ public partial class SettingsContent : Control
 		float sliderRight = GetSliderRight();
 		float barY = sliderY + SliderHandleHeight * 0.5f;
 
-		// TILT is intentionally placed to the left of the shortened slider.
-		// The old right-side "TILT INFLUENCE ..." text is removed.
 		DrawString(
 			font,
 			new Vector2(LeftMargin, barY + UiSettings.FontSizeMedium * 0.35f),
@@ -102,15 +100,9 @@ public partial class SettingsContent : Control
 		DrawTiltInfluenceSlider(sliderY, sliderLeft, sliderRight);
 	}
 
-	private float GetSliderLeft()
-	{
-		return SliderLeft;
-	}
+	private float GetSliderLeft() => SliderLeft;
 
-	private float GetSliderRight()
-	{
-		return Mathf.Max(GetSliderLeft() + 120.0f, Size.X - SliderRightMargin);
-	}
+	private float GetSliderRight() => Mathf.Max(GetSliderLeft() + 120.0f, Size.X - SliderRightMargin);
 
 	private void DrawTiltInfluenceSlider(float sliderY, float sliderLeft, float sliderRight)
 	{
@@ -174,10 +166,7 @@ public partial class SettingsContent : Control
 		return sliderLeft + sliderWidth * TiltSettings.TiltInfluenceRatio;
 	}
 
-	public float GetTiltInfluenceRatio()
-	{
-		return TiltSettings.TiltInfluenceRatio;
-	}
+	public float GetTiltInfluenceRatio() => TiltSettings.TiltInfluenceRatio;
 
 	public void SetTiltInfluenceRatio(float ratio)
 	{
@@ -189,8 +178,5 @@ public partial class SettingsContent : Control
 		QueueRedraw();
 	}
 
-	public void ResetTiltInfluence()
-	{
-		SetTiltInfluenceRatio(0.0f);
-	}
+	public void ResetTiltInfluence() => SetTiltInfluenceRatio(0.0f);
 }
