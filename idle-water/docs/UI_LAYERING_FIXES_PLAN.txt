@@ -1,6 +1,6 @@
 INFINITE-WATER — UI / WINDOW / GRAPH FIXES
 Implementation plan and progress
-Date: 2026-08-22
+Date: 2026-08-23
 Branch: ui-layering-fixes-20260822
 
 PURPOSE
@@ -27,7 +27,7 @@ IMPLEMENTATION ORDER
    - Use a modal/input-blocking layer where needed so visual layering and input hit-testing agree.
 
 3. Buy / Upgrade behavior
-   - Buy button remains always pressable and opens a purchase window.
+   - Buy button remains ALWAYS pressable, regardless of current money, and opens a purchase window.
    - Purchase window contains buying text, a Buy button, $10 cost, and a bottom Close button.
    - Opening Buy closes Upgrade; opening Upgrade closes Buy.
    - The Buy confirmation window must be centered around the Buy button/wheel position in the same way the Upgrade window is centered around its Upgrade button/wheel position.
@@ -49,31 +49,47 @@ IMPLEMENTATION ORDER
    - Standard border: dark grey, 0% transparency, 3 px.
    - All buttons, including the bottom three, use these centralized settings.
    - Rendered TopUI window part uses the same centralized background/border settings.
-   - Rain amount graph uses UiSettings border width and color.
+   - Rain amount graph MUST use UiSettings.cs border width and border color.
    - All relevant scripts read border width from UiSettings.cs instead of local constants.
    - Settings and Statistics buttons use buttonPressed while their windows are open, and therefore are not transparent.
 
 5. TopUI layout and text stability
-   - Center the top-left rain amount vertically inside the 60 px TopUI frame.
-   - Fix the top-right Energy/Dollars text flicker when selling energy.
-   - Keep the top-right text position stable when the number changes, e.g. 9 -> 10.
+   - Center the top-left rain amount vertically inside the 60 px TopUI frame. COMPLETED AND TESTED.
+   - Fix the top-right Energy/Dollars text flicker when selling energy. COMPLETED AND TESTED.
+   - Keep the top-right text position stable when the number changes, e.g. 9 -> 10. COMPLETED AND TESTED.
    - Keep the TopUI background and border driven by UiSettings.cs.
 
-6. Statistics graphs
-   - Increase bottom margin of each graph for labels/text.
-   - Move bottom text approximately 10 px lower so it no longer overlaps the graph.
-   - Keep both graphs exactly the same size.
-   - Restore left-side graph labels (value / energy) to the left side.
-   - Apply UiSettings border width/color to the rain amount graph.
+6. Statistics graphs — CURRENT TODO (23.08)
+   - [ ] Apply the correct UiSettings.cs border WIDTH to the rain amount graph.
+   - [ ] Apply the correct UiSettings.cs border COLOR to the rain amount graph.
+   - [ ] Increase the BOTTOM MARGIN of BOTH graphs so there is clearly more room for the bottom text/labels.
+   - [ ] Move the bottom text of BOTH graphs approximately 10 px LOWER so it no longer overlaps the graph.
+   - [ ] Keep BOTH graphs exactly the SAME SIZE after increasing their bottom margins; adjust layout/available area rather than changing graph dimensions independently.
+   - [ ] Restore the left-side graph labels that were moved accidentally: the first graph's "Value" label and the second graph's "Energy" label must be on the LEFT side of their respective graphs again.
+   - [ ] Verify the right-side graph information remains correctly positioned and does not overlap the restored left-side labels.
+   - [ ] Verify both graphs remain visually aligned and identical in size on Windows and Android.
 
-7. Settings layout
+7. Buy window — CURRENT TODO (23.08)
+   - [ ] Make the main BUY button always pressable/clickable; it must open the Buy window even when the player cannot currently afford the purchase.
+   - [ ] Make the Buy window follow the same interaction pattern as the Upgrade window.
+   - [ ] Buy window must contain the purchase text, a dedicated Buy button, and the $10 price.
+   - [ ] Add a Close Window button at the BOTTOM of the Buy window.
+   - [ ] Center the Buy window around the BUY button/wheel, using the same positioning logic that centers the Upgrade window around its corresponding Upgrade button/wheel.
+   - [ ] Preserve the existing Buy/Upgrade mutual exclusion and click-blocking behavior while implementing the new Buy window layout.
+   - [ ] Ensure the Buy window's internal Buy button handles the actual purchase; the main BUY button only opens the window.
+   - [ ] Ensure the internal Buy button correctly reflects whether $10 is affordable without making the main BUY button unpressable.
+
+8. Settings layout
    - Move the Tilt Slider further upward; reduce its excessive top margin.
 
-8. Anti-lag feedback
+9. Anti-lag feedback
    - Add a Top-Center message during anti-lag cleanup: "FPS low, cleaning up simulation..."
    - The message should be shown only for the cleanup state and must not interfere with normal gameplay input.
+   - IMPLEMENTED AND TESTED: developer confirmed the message appears and looks good; it was subsequently moved 120 px downward as requested.
+   - Message font size uses UiSettings.FontSizeMedium.
+   - Message font color uses UiSettings.FontColorEnabled (white).
 
-9. Verification / feedback checkpoints
+10. Verification / feedback checkpoints
    - After the baseline inspection and first safe layering change, report the exact implementation state and ask the developer to test/confirm before proceeding with more invasive scene changes.
    - Repeat feedback checkpoints after Buy/Upgrade modal behavior and after any Settings/Statistics changes.
    - Settings and Statistics must retain their existing open/close behavior; outside-click closing is explicitly NOT desired.
@@ -82,16 +98,15 @@ IMPLEMENTATION ORDER
 
 PROGRESS
 [2026-08-23]
-- Buy-window click blocking was confirmed reliable by the developer, including when an Upgrade button is underneath it.
+- Developer confirmed that the Upgrade window works correctly: its inside interaction remains open and clicking outside successfully closes it on Windows and Android.
+- Developer confirmed that the Settings/Statistics windows remain correct: clicking outside does not close them, while BUY/UPGRADE can close them as intended.
+- Developer confirmed the Buy-window click blocking is reliable, including when an Upgrade button is underneath it.
 - Implemented BUY -> close active Settings/Statistics, then continue with the Buy action.
 - Implemented UPGRADE -> close active Settings/Statistics, then continue with the Upgrade action.
-- These changes use the existing UiWindowManager and do not add outside-click closing to Settings/Statistics.
 - Implemented TopUI resource positioning improvements: rain display is vertically centered in the 60 px TopUI frame, and Energy/Dollars use fixed label widths plus centered vertical positioning to prevent position changes when digit counts change.
 - TopUI rendering continues to use UiSettings window/border values.
-- Added the anti-lag cleanup message "FPS low, cleaning up simulation..." to the TopUI and tied its visibility to the existing AntiLagController active state without changing simulation behavior.
-- Developer confirmed the Settings/Statistics -> Buy/Upgrade tests succeeded, empty-space clicks keep Settings/Statistics open, the rain display is well aligned, and the top-right display no longer jumps.
-- Newly observed issue recorded: the Upgrade button currently becomes visually dark while the Buy window is open. This is not intended; final behavior must keep the button background unchanged and only change text according to availability/enabled state.
-- Anti-lag cleanup message testing remains pending.
+- Implemented and tested the anti-lag cleanup message; it was moved 120 px downward and centralized to UiSettings medium font size and enabled/white font color.
+- CURRENT OPEN WORK from the latest developer feedback: rain amount graph border width/color must come directly from UiSettings.cs; both graph bottom margins must be larger; bottom graph text must move about 10 px lower; both graphs must remain the same size; the left-side "Value" / "Energy" labels must be restored; and the BUY flow must be changed so the main BUY button is always pressable and opens a centered purchase window containing purchase text, a $10 Buy action, and a bottom Close Window button.
 
 [2026-08-22]
 - Created branch: ui-layering-fixes-20260822 from main.
