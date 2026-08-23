@@ -7,6 +7,7 @@ public partial class WheelUpgradeWindow : Control
     private const float WindowHeight = 340.0f;
     private const float RowHeight = 72.0f;
     private const float CloseButtonHeight = 50.0f;
+    private const float UpgradeButtonWidth = 120.0f;
 
     private FluidSimulator simulator;
     private Action closeAction;
@@ -139,14 +140,24 @@ public partial class WheelUpgradeWindow : Control
 
         Button button = new Button
         {
-            CustomMinimumSize = new Vector2(100.0f, RowHeight - 6.0f),
+            CustomMinimumSize = new Vector2(UpgradeButtonWidth, RowHeight - 6.0f),
             FocusMode = Control.FocusModeEnum.None,
             MouseFilter = MouseFilterEnum.Stop
         };
         button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+        ApplyButtonStyle(button);
         button.Pressed += () => Purchase(type);
         row.AddChild(button);
         purchaseButtons[arrayIndex] = button;
+    }
+
+    private void ApplyButtonStyle(Button button)
+    {
+        button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
     }
 
     private void Purchase(WheelUpgradeType type)
