@@ -1,8 +1,144 @@
 UI PASS 2 — DEVELOPER INSTRUCTIONS
-Date: 23.08.2026
+Date: 24.08.2026
 Branch: ui-pass-2-20260823
 
-PURPOSE
+============================================================
+0. GODOT SCENE (.tscn) DECISION — READ THIS FIRST
+============================================================
+
+For the current UI refactor, the following items MUST be separate Godot Scenes (.tscn):
+
+1. UI ROOT
+   Scene: UI.tscn
+   Root Node: CanvasLayer named UI
+   Script: UIController.cs
+   Reason: This is the top-level UI composition and must provide a stable scene root.
+
+2. TOP UI
+   Scene: TopUI.tscn
+   Root Node: Control named TopUI
+   Script: TopUi.cs
+   Contains: TopUIBackground, EnergyDisplay, DollarsDisplay, RainAmountDisplay.
+   Reason: Persistent top-of-screen component with its own layout and behavior.
+
+3. BOTTOM UI
+   Scene: BottomUI.tscn
+   Root Node: Control named BottomUI
+   Script: BottomUi.cs
+   Contains: BuyArea, UpgradeArea, SettingsButton, StatisticsButton and other persistent bottom controls.
+   Reason: Persistent UI component with its own layout and interaction behavior.
+
+4. WHEEL UI
+   Scene: WheelUI.tscn
+   Root Node: Control named WheelUI
+   Script: WheelUi.cs
+   Contains: Wheel1 through Wheel6.
+   Reason: Dedicated repeated UI system with six logical wheel displays.
+
+5. INDIVIDUAL WHEEL DISPLAY
+   Scene: WheelDisplay.tscn
+   Root Node: Control named WheelDisplay
+   Script: WheelDisplay.cs
+   Used as an instance for Wheel1 through Wheel6 inside WheelUI.tscn.
+   Reason: The six wheels share the same structure and behavior and therefore must use one reusable scene rather than six copied hierarchies.
+   IMPORTANT: Wheel number is data/instance state, not a reason to create six different scenes.
+
+6. BUY WINDOW
+   Scene: BuyWindow.tscn
+   Root Node: PanelContainer named BuyWindow
+   Script: BuyWindow.cs
+   Reason: Independent modal window with its own layout and behavior.
+
+7. UPGRADE WINDOW
+   Scene: UpgradeWindow.tscn
+   Root Node: PanelContainer named UpgradeWindow
+   Script: UpgradeWindow.cs
+   Reason: Independent modal window with its own layout and behavior.
+
+8. SETTINGS WINDOW
+   Scene: SettingsWindow.tscn
+   Root Node: PanelContainer named SettingsWindow
+   Script: SettingsWindow.cs
+   Reason: Independent modal window with its own layout and behavior.
+
+9. STATISTICS WINDOW
+   Scene: StatisticsWindow.tscn
+   Root Node: PanelContainer named StatisticsWindow
+   Script: StatisticsWindow.cs
+   Contains the graph component instances.
+   Reason: Independent modal window with a substantial, self-contained layout.
+
+10. STANDARD GRAPH COMPONENT
+    Scene: StatisticsGraph.tscn
+    Root Node: Control named StatisticsGraph
+    Script: StatisticsGraph.cs
+    Used for graph types that share the same point/graph structure.
+    Reason: Reusable graph component with its own rendering/layout behavior.
+
+11. ENERGY PER WHEEL GRAPH
+    Scene: EnergyPerWheelGraph.tscn
+    Root Node: Control named EnergyPerWheelGraph
+    Script: EnergyPerWheelGraph.cs
+    Reason: This graph has materially different bar-based behavior and therefore deserves its own scene instead of being forced into the generic graph scene.
+
+The following items MUST NOT become separate Scenes merely because they are visible UI elements:
+
+- Individual Labels
+- Individual Buttons
+- Individual Panels
+- Individual PanelContainers used only as layout wrappers
+- MarginContainers
+- VBoxContainers / HBoxContainers
+- Spacers
+- Title labels
+- Wheel number labels
+- Price buttons
+- Close buttons
+- Individual graph labels/axis labels
+- TopUIBackground
+- EnergyDisplay
+- DollarsDisplay
+- RainAmountDisplay
+- BuyArea / UpgradeArea when they only act as sections of BottomUI
+- TiltSlider
+- GravityIndicator
+- Individual wheel buttons/labels inside WheelDisplay
+
+These remain child Nodes inside their owning Scene and are controlled by the owning component script.
+
+SCENE CREATION RULE
+
+Create a separate .tscn when a UI component has its own meaningful layout + behavior/identity, is independently shown/hidden, is reused as an instance, or is a substantial self-contained component.
+
+Do NOT create a .tscn for every Control. Scene-per-control would recreate the current UI architecture problem at a different level and make the hierarchy unnecessarily fragmented.
+
+COMPOSITION RULE
+
+The intended scene composition is:
+
+UI.tscn
+├── TopUI.tscn
+├── BottomUI.tscn
+├── WheelUI.tscn
+│   ├── WheelDisplay.tscn × 6
+├── StatisticsWindow.tscn
+│   ├── StatisticsGraph.tscn
+│   ├── StatisticsGraph.tscn / specialized graph instance as required
+│   └── EnergyPerWheelGraph.tscn
+├── SettingsWindow.tscn
+├── BuyWindow.tscn
+└── UpgradeWindow.tscn
+
+UIWindowManager is NOT a separate scene. It is a Node directly inside UI.tscn because it is an application-level coordinator rather than a visual UI component.
+
+UiSettings.cs is NOT a scene. It remains the centralized static UI configuration class.
+
+Do not create additional .tscn files without first checking this rule. If a proposed component does not clearly meet the scene criteria above, keep it as a child Node of its owning Scene.
+
+============================================================
+1. PURPOSE
+============================================================
+
 This document defines the Godot Node/Scene architecture to create before refactoring the existing UI scripts.
 
 IMPORTANT
@@ -11,7 +147,7 @@ Create these Nodes in the Godot editor first. Do not replace the existing UI in 
 ARCHITECTURE RULE
 A major UI component gets its own Node and dedicated script. A component becomes a separate Scene when it has its own layout, behavior, identity, or is reusable. Individual Labels, Buttons, Panels and containers normally remain children of their parent UI Scene rather than receiving their own scripts.
 
-1. ROOT UI
+2. ROOT UI
 
 Node:
 CanvasLayer
@@ -34,8 +170,9 @@ Children:
 - SettingsWindow
 - BuyWindow
 - UpgradeWindow
+- UIWindowManager
 
-2. TOP UI
+3. TOP UI
 
 Node Type:
 Control
@@ -55,7 +192,7 @@ Own and update the persistent top-of-screen information.
 
 Do not create these Controls dynamically in TopUi.cs once migrated.
 
-3. BOTTOM UI
+4. BOTTOM UI
 
 Node Type:
 Control
@@ -74,7 +211,7 @@ Children:
 Purpose:
 Own the persistent bottom controls and route user interaction to the appropriate windows/components.
 
-4. WHEEL UI
+5. WHEEL UI
 
 Node Type:
 Control
@@ -107,7 +244,7 @@ Wheel6 = 6
 
 Do not derive display numbering independently in multiple scripts.
 
-5. BUY WINDOW
+6. BUY WINDOW
 
 Node Type:
 PanelContainer
@@ -145,7 +282,7 @@ Text: Close Window
 IMPORTANT
 BuyWindow.cs controls these existing Nodes. It must not construct the complete window hierarchy at runtime.
 
-6. UPGRADE WINDOW
+7. UPGRADE WINDOW
 
 Node Type:
 PanelContainer
@@ -167,7 +304,7 @@ Displays the logical wheel number.
 
 UpgradeWindow.cs should control existing upgrade rows/buttons instead of dynamically constructing the complete window.
 
-7. SETTINGS WINDOW
+8. SETTINGS WINDOW
 
 Node Type:
 PanelContainer
@@ -188,7 +325,7 @@ Children:
 
 SettingsWindow.cs owns settings interaction. Shared visual styling comes from UiSettings.cs.
 
-8. STATISTICS WINDOW
+9. STATISTICS WINDOW
 
 Node Type:
 PanelContainer
@@ -208,7 +345,7 @@ Children:
 
 The three graph components should have clearly defined child Nodes and should not overlap.
 
-9. GRAPH COMPONENT
+10. GRAPH COMPONENT
 
 Node Type:
 Control
@@ -222,7 +359,7 @@ StatisticsGraph.cs for graph behavior, or a dedicated specialized graph script w
 
 EnergyPerWheelGraph should use a bar representation rather than the point representation used by the other graph where appropriate.
 
-10. ENERGY PER WHEEL GRAPH
+11. ENERGY PER WHEEL GRAPH
 
 Node Type:
 Control
@@ -244,7 +381,7 @@ EnergyPerWheelGraph.cs responsibilities:
 - Update labels.
 - Respect UiSettings styling.
 
-11. WINDOW / MODAL COORDINATION
+12. WINDOW / MODAL COORDINATION
 
 Node Type:
 Node
@@ -263,7 +400,7 @@ Responsibilities:
 
 Individual windows remain responsible for their own internal behavior.
 
-12. UI SETTINGS
+13. UI SETTINGS
 
 File:
 UiSettings.cs
@@ -282,7 +419,7 @@ must come from UiSettings.cs.
 
 Do not introduce local copies of these values inside individual UI scripts unless a component has a deliberate unique visual requirement.
 
-13. SCRIPT RESPONSIBILITY RULES
+14. SCRIPT RESPONSIBILITY RULES
 
 UI scripts should:
 - Find/cache their child Nodes.
@@ -299,21 +436,21 @@ UI scripts should NOT:
 - Duplicate wheel numbering logic.
 - Duplicate global modal input handling.
 
-14. RECOMMENDED MIGRATION ORDER
+15. RECOMMENDED MIGRATION ORDER
 
-1. Create UI root and UIWindowManager.
-2. Create WheelUI and wheel Nodes.
-3. Create BuyWindow Nodes and attach BuyWindow.cs.
+1. Create UI root scene and UIWindowManager.
+2. Create WheelUI scene and WheelDisplay scene; instance six wheels.
+3. Create BuyWindow scene and attach BuyWindow.cs.
 4. Migrate the current working Buy Window behavior.
-5. Create UpgradeWindow Nodes and attach UpgradeWindow.cs.
+5. Create UpgradeWindow scene and attach UpgradeWindow.cs.
 6. Migrate the current working Upgrade Window behavior.
-7. Create StatisticsWindow and its three graph Nodes.
-8. Implement EnergyPerWheelGraph.
-9. Migrate SettingsWindow.
-10. Migrate TopUI and BottomUI.
+7. Create StatisticsWindow scene and its graph scene instances.
+8. Implement EnergyPerWheelGraph scene.
+9. Migrate SettingsWindow scene.
+10. Migrate TopUI and BottomUI scenes.
 11. Remove obsolete runtime UI construction only after each migration is verified.
 
-15. TESTING REQUIREMENT
+16. TESTING REQUIREMENT
 
 After every migration:
 - Run on Windows.
