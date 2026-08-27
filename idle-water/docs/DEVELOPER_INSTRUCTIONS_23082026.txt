@@ -2,6 +2,26 @@ UI PASS 2 — DEVELOPER INSTRUCTIONS
 Date: 24.08.2026
 Branch: ui-pass-2-20260823
 
+// DEVLOG. WHAT DID I DO. (SHOULD NOT BE EDITED BY THE AI)
+25.08: Created a new Node in Main called Ui (Type: Control) (Size: 720x1280)
+25.08: Put the existing TopUI (Control) and BottomUI (Control) Nodes into this new Node
+25.08: Created a new Node in Ui called WheelUi (Control)
+25.08: Created a new Node (Node2D) in Ui called StatisticsWindow, and added the newly created Scene "StatisticsWindow.tscn" to it.
+25.08: Created a new Node (Node2D) in Ui called SettingsWindow and added the newly created Scene "SettingsWindow.tscn" to it.
+25.08: Created a new Node (Node2D) in Ui called BuyWindow and added the newly created Scene "BuyWindow.tscn" to it.
+25.08: Created a new Node (Node2D) in Ui called UpgradeWindow and added the newly created Scene "UpgradeWindow.tscn" to it.
+25.08: I moved the existing UiWindowManager node (Node) into the Ui Node.
+25.08: Renamed BottomUI to BottomUi and TopUI to TopUi (Lowercase i)
+25.08: Created a new Script "TopUi.cs" and attached it to the TopUi Node.
+25.08: Created a new Script "BottomUi.cs" and attached it to the BottomUi Node.
+25.08: BottomUi already has StatisticsButton, SellEnergyButton, SetingsButton.
+25.08: Created a new Node in BottomUi called PrestigeButton. (Control) and added a new Script to it "PrestigeButton.cs"
+25.08: Created a new Script "StatisticsButton.cs" and attached it to the StatisticsButton Node in BottomUi.
+25.08: Created a new Script "SettingsButton.cs" and attached it to the SettingsButton Node in BottomUi.
+!! -- We will have to Recycle "UiToggleButton.cs" -- !!
+!! -- We also have to remove res://Scripts/ui/StatisticsGraphUiSettings.cs because it does not seem to be needed. -- !!
+26.08:
+
 ============================================================
 0. GODOT SCENE (.tscn) DECISION — READ THIS FIRST
 ============================================================

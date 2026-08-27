@@ -1,10 +1,10 @@
 Control
 Node
+Node2D
 Panel
 PanelContainer
 VBoxContainer
 NavigationObstacle2D
-Node2D
 MarginContainer
 Sprite2D
 TileMapLayer

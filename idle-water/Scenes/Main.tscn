@@ -17,7 +17,6 @@
 [ext_resource type="Script" uid="uid://duwdhy0cyfdf0" path="res://Scripts/ui/SettingsWindow.cs" id="15_sxkr1"]
 [ext_resource type="Texture2D" uid="uid://07lvxomyo7se" path="res://assets/sprites/decorations/15.png" id="16_0sclb"]
 [ext_resource type="Texture2D" uid="uid://beuk4em8qf13n" path="res://assets/sprites/decorations/5.png" id="16_2w5on"]
-[ext_resource type="Script" uid="uid://btjayvbdsd16t" path="res://Scripts/ui/UiToggleButton.cs" id="16_346fj"]
 [ext_resource type="Script" uid="uid://cg5to84p5aidf" path="res://Scripts/ui/SettingsContent.cs" id="16_fq0cl"]
 [ext_resource type="Texture2D" uid="uid://idpd20skc4op" path="res://assets/sprites/decorations/9.png" id="17_346fj"]
 [ext_resource type="Texture2D" uid="uid://0gqfrx74wbgl" path="res://assets/sprites/decorations/14.png" id="17_sxkr1"]
@@ -25,6 +24,15 @@
 [ext_resource type="Script" uid="uid://diodqrojkp676" path="res://Scripts/ui/UiWindowManager.cs" id="18_sxkr1"]
 [ext_resource type="Texture2D" uid="uid://dvtafsihdn6xn" path="res://assets/sprites/ui/ArrowBlue.png" id="19_3tgeq"]
 [ext_resource type="Script" uid="uid://o6kjkecwwt0s" path="res://Scripts/ui/SellEnergyButton.cs" id="23_c4ay3"]
+[ext_resource type="Script" uid="uid://bt63jf43pgydf" path="res://Scripts/ui/BottomUi.cs" id="23_xvtyr"]
+[ext_resource type="Script" uid="uid://ngjk5ys51kip" path="res://Scripts/ui/StatisticsButton.cs" id="25_4yxf6"]
+[ext_resource type="Script" uid="uid://dhmgu8yliycqi" path="res://Scripts/ui/TopUi.cs" id="25_c5snn"]
+[ext_resource type="Script" uid="uid://dw047dtwnpl5x" path="res://Scripts/ui/PrestigeButton.cs" id="26_u7mjy"]
+[ext_resource type="PackedScene" uid="uid://d2k3fb3850lel" path="res://Scenes/StatisticsWindow.tscn" id="26_xvtyr"]
+[ext_resource type="Script" uid="uid://qa208842xldf" path="res://Scripts/ui/SettingsButton.cs" id="27_qta6b"]
+[ext_resource type="PackedScene" uid="uid://bnx0v1pf7lr56" path="res://Scenes/SettingsWindow.tscn" id="27_u7mjy"]
+[ext_resource type="PackedScene" uid="uid://cgbilp6etiojs" path="res://Scenes/BuyWindow.tscn" id="28_4yxf6"]
+[ext_resource type="PackedScene" uid="uid://dvmtfinlklxg0" path="res://Scenes/UpgradeWindow.tscn" id="29_qta6b"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vy5pj"]
 texture = ExtResource("3_50glp")
@@ -544,6 +552,9 @@ sources/1 = SubResource("TileSetAtlasSource_jyqft")
 
 [node name="Main" type="Node2D" unique_id=1086720320]
 
+[node name="FrameProfiler" type="Node" parent="." unique_id=1715470360]
+script = ExtResource("9_vy5pj")
+
 [node name="BackgroundImage" type="TextureRect" parent="." unique_id=1677817205]
 z_index = -5
 offset_right = 720.0
@@ -665,23 +676,6 @@ z_index = 90
 position = Vector2(360, 580)
 limit_enabled = false
 
-[node name="TopUI" type="Control" parent="." unique_id=1677817206]
-layout_mode = 3
-anchors_preset = 0
-offset_right = 720.0
-offset_bottom = 60.0
-mouse_filter = 2
-
-[node name="RainDisplayContainer" type="Node" parent="TopUI" unique_id=1083391097]
-
-[node name="RainDisplay" type="Node" parent="TopUI/RainDisplayContainer" unique_id=1438932253]
-
-[node name="CurrenciesContainer" type="Node" parent="TopUI" unique_id=1553702721]
-
-[node name="EnergyDisplay" type="Node" parent="TopUI/CurrenciesContainer" unique_id=556842591]
-
-[node name="MoneyDisplay" type="Node" parent="TopUI/CurrenciesContainer" unique_id=1858069315]
-
 [node name="CenterUI" type="Control" parent="." unique_id=1096158914]
 z_index = 22
 layout_mode = 3
@@ -775,39 +769,74 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("7_jw32o")
 
-[node name="BottomUI" type="Control" parent="." unique_id=1677817209]
-z_index = 200
+[node name="Ui" type="Control" parent="." unique_id=1139078614]
 layout_mode = 3
+anchors_preset = 0
+offset_right = 720.0
+offset_bottom = 1280.0
+
+[node name="WheelUi" type="Control" parent="Ui" unique_id=491471825]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="TopUi" type="Control" parent="Ui" unique_id=1677817206]
+anchors_preset = 0
+offset_right = 720.0
+offset_bottom = 60.0
+mouse_filter = 2
+script = ExtResource("25_c5snn")
+
+[node name="RainDisplayContainer" type="Node" parent="Ui/TopUi" unique_id=1083391097]
+
+[node name="RainDisplay" type="Node" parent="Ui/TopUi/RainDisplayContainer" unique_id=1438932253]
+
+[node name="CurrenciesContainer" type="Node" parent="Ui/TopUi" unique_id=1553702721]
+
+[node name="EnergyDisplay" type="Node" parent="Ui/TopUi/CurrenciesContainer" unique_id=556842591]
+
+[node name="MoneyDisplay" type="Node" parent="Ui/TopUi/CurrenciesContainer" unique_id=1858069315]
+
+[node name="BottomUi" type="Control" parent="Ui" unique_id=1677817209]
+z_index = 200
 anchors_preset = 0
 offset_top = 1160.0
 offset_right = 720.0
 offset_bottom = 1280.0
 mouse_filter = 2
+script = ExtResource("23_xvtyr")
 
-[node name="StatisticsButton" type="Control" parent="BottomUI" unique_id=1991513535]
+[node name="StatisticsButton" type="Control" parent="Ui/BottomUi" unique_id=1991513535]
 anchors_preset = 0
 offset_right = 240.0
 offset_bottom = 120.0
-script = ExtResource("16_346fj")
+script = ExtResource("25_4yxf6")
 
-[node name="SellEnergyButton" type="Control" parent="BottomUI" unique_id=582732163]
+[node name="SellEnergyButton" type="Control" parent="Ui/BottomUi" unique_id=582732163]
 anchors_preset = 0
 offset_left = 240.0
 offset_right = 480.0
 offset_bottom = 120.0
 script = ExtResource("23_c4ay3")
 
-[node name="SettingsButton" type="Control" parent="BottomUI" unique_id=1302883395]
+[node name="SettingsButton" type="Control" parent="Ui/BottomUi" unique_id=1302883395]
 anchors_preset = 0
 offset_left = 480.0
 offset_right = 720.0
 offset_bottom = 120.0
-script = ExtResource("16_346fj")
-ButtonText = "Settings"
-WindowName = "SettingsWindow"
+script = ExtResource("27_qta6b")
 
-[node name="FrameProfiler" type="Node" parent="." unique_id=1715470360]
-script = ExtResource("9_vy5pj")
+[node name="PrestigeButton" type="Control" parent="Ui/BottomUi" unique_id=993961922]
+anchors_preset = 0
+script = ExtResource("26_u7mjy")
 
-[node name="UiWindowManager" type="Node" parent="." unique_id=656663835]
+[node name="StatisticsWindow" parent="Ui" unique_id=817545247 instance=ExtResource("26_xvtyr")]
+
+[node name="SettingsWindow" parent="Ui" unique_id=1808166567 instance=ExtResource("27_u7mjy")]
+
+[node name="BuyWindow" parent="Ui" unique_id=1758576583 instance=ExtResource("28_4yxf6")]
+
+[node name="UpgradeWindow" parent="Ui" unique_id=450980618 instance=ExtResource("29_qta6b")]
+
+[node name="UiWindowManager" type="Node" parent="Ui" unique_id=656663835]
 script = ExtResource("18_sxkr1")
