@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://d4jwv3mbdfxsj"]
+
+[ext_resource type="Script" uid="uid://dickug2273eah" path="res://Scripts/ui/PrestigeWindow.cs" id="1_xifsn"]
+
+[node name="PrestigeWindow" type="Control" unique_id=400842995]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_xifsn")

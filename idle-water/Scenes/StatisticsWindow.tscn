@@ -1,3 +1,25 @@
 [gd_scene format=3 uid="uid://d2k3fb3850lel"]
 
-[node name="Node2D" type="Node2D" unique_id=817545247]
+[ext_resource type="Script" uid="uid://km0yghtkadt1" path="res://Scripts/ui/StatisticsWindow.cs" id="1_olxpn"]
+[ext_resource type="Script" uid="uid://cxso5j4afgo7r" path="res://Scripts/ui/graphs/Graph1.cs" id="2_e54ct"]
+[ext_resource type="Script" uid="uid://dl7cwlbnb576o" path="res://Scripts/ui/graphs/Graph2.cs" id="3_r07sq"]
+[ext_resource type="Script" uid="uid://chr8c75gmf1pv" path="res://Scripts/ui/graphs/Graph3.cs" id="4_j77cc"]
+
+[node name="StatisticsWindow" type="Control" unique_id=1302280841]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_olxpn")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1787046944]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Graph1" type="Node2D" parent="VBoxContainer" unique_id=1176368555]
+script = ExtResource("2_e54ct")
+
+[node name="Graph2" type="Node2D" parent="VBoxContainer" unique_id=280024154]
+script = ExtResource("3_r07sq")
+
+[node name="Graph3" type="Node2D" parent="VBoxContainer" unique_id=1278947733]
+script = ExtResource("4_j77cc")

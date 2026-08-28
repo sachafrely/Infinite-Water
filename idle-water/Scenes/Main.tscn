@@ -6,33 +6,34 @@
 [ext_resource type="Texture2D" uid="uid://cdtqrx7f0a4ch" path="res://assets/sprites/tilesets/Tileset.png" id="3_50glp"]
 [ext_resource type="Texture2D" uid="uid://cyqdboktr73ov" path="res://assets/sprites/tilesets/TilesetBackground.png" id="3_hwpts"]
 [ext_resource type="Texture2D" uid="uid://k6081dvmnuws" path="res://assets/sprites/decorations/20.png" id="4_v1gob"]
-[ext_resource type="Script" uid="uid://dxn2tnelhfpsr" path="res://Scripts/ui/StatisticsGraph.cs" id="7_jw32o"]
 [ext_resource type="Script" uid="uid://d31j1xvdj6522" path="res://Scripts/core/FrameProfiler.cs" id="9_vy5pj"]
 [ext_resource type="Texture2D" uid="uid://diwtbhnepb81v" path="res://assets/sprites/decorations/8.png" id="13_h1m7h"]
 [ext_resource type="Texture2D" uid="uid://jl7kwgkk88f6" path="res://assets/sprites/decorations/24.png" id="14_jyqft"]
-[ext_resource type="Script" uid="uid://km0yghtkadt1" path="res://Scripts/ui/StatisticsWindow.cs" id="15_0sclb"]
 [ext_resource type="Texture2D" uid="uid://guq02oiwrevb" path="res://assets/sprites/decorations/22.png" id="15_2w5on"]
 [ext_resource type="Texture2D" uid="uid://jnjp4yns5al3" path="res://assets/sprites/decorations/18.png" id="15_346fj"]
 [ext_resource type="Texture2D" uid="uid://b6b7fs31sqmaf" path="res://assets/sprites/decorations/26.png" id="15_h1m7h"]
-[ext_resource type="Script" uid="uid://duwdhy0cyfdf0" path="res://Scripts/ui/SettingsWindow.cs" id="15_sxkr1"]
 [ext_resource type="Texture2D" uid="uid://07lvxomyo7se" path="res://assets/sprites/decorations/15.png" id="16_0sclb"]
 [ext_resource type="Texture2D" uid="uid://beuk4em8qf13n" path="res://assets/sprites/decorations/5.png" id="16_2w5on"]
-[ext_resource type="Script" uid="uid://cg5to84p5aidf" path="res://Scripts/ui/SettingsContent.cs" id="16_fq0cl"]
 [ext_resource type="Texture2D" uid="uid://idpd20skc4op" path="res://assets/sprites/decorations/9.png" id="17_346fj"]
 [ext_resource type="Texture2D" uid="uid://0gqfrx74wbgl" path="res://assets/sprites/decorations/14.png" id="17_sxkr1"]
-[ext_resource type="Script" uid="uid://7mdjqr6jnedr" path="res://Scripts/ui/RenderedWindowBackground.cs" id="18_0sclb"]
 [ext_resource type="Script" uid="uid://diodqrojkp676" path="res://Scripts/ui/UiWindowManager.cs" id="18_sxkr1"]
-[ext_resource type="Texture2D" uid="uid://dvtafsihdn6xn" path="res://assets/sprites/ui/ArrowBlue.png" id="19_3tgeq"]
+[ext_resource type="Script" uid="uid://bebalv1xh5dqq" path="res://Scripts/ui/CenterUi.cs" id="21_qta6b"]
 [ext_resource type="Script" uid="uid://o6kjkecwwt0s" path="res://Scripts/ui/SellEnergyButton.cs" id="23_c4ay3"]
 [ext_resource type="Script" uid="uid://bt63jf43pgydf" path="res://Scripts/ui/BottomUi.cs" id="23_xvtyr"]
+[ext_resource type="Script" uid="uid://cgc0yxgyxscni" path="res://Scripts/ui/RainDisplay.cs" id="24_f7hdo"]
 [ext_resource type="Script" uid="uid://ngjk5ys51kip" path="res://Scripts/ui/StatisticsButton.cs" id="25_4yxf6"]
 [ext_resource type="Script" uid="uid://dhmgu8yliycqi" path="res://Scripts/ui/TopUi.cs" id="25_c5snn"]
+[ext_resource type="Script" uid="uid://dax2sfcicbix3" path="res://Scripts/ui/EnergyDisplay.cs" id="25_clvyn"]
+[ext_resource type="Script" uid="uid://chclypanadthx" path="res://Scripts/ui/MoneyDisplay.cs" id="26_d8m2u"]
 [ext_resource type="Script" uid="uid://dw047dtwnpl5x" path="res://Scripts/ui/PrestigeButton.cs" id="26_u7mjy"]
 [ext_resource type="PackedScene" uid="uid://d2k3fb3850lel" path="res://Scenes/StatisticsWindow.tscn" id="26_xvtyr"]
 [ext_resource type="Script" uid="uid://qa208842xldf" path="res://Scripts/ui/SettingsButton.cs" id="27_qta6b"]
 [ext_resource type="PackedScene" uid="uid://bnx0v1pf7lr56" path="res://Scenes/SettingsWindow.tscn" id="27_u7mjy"]
 [ext_resource type="PackedScene" uid="uid://cgbilp6etiojs" path="res://Scenes/BuyWindow.tscn" id="28_4yxf6"]
+[ext_resource type="Script" uid="uid://b2djhq8ws3w7j" path="res://Scripts/ui/WheelUi.cs" id="29_6heos"]
 [ext_resource type="PackedScene" uid="uid://dvmtfinlklxg0" path="res://Scenes/UpgradeWindow.tscn" id="29_qta6b"]
+[ext_resource type="PackedScene" uid="uid://60ndwkoy0qrx" path="res://Scenes/WheelDisplay.tscn" id="29_x3rx7"]
+[ext_resource type="PackedScene" uid="uid://d4jwv3mbdfxsj" path="res://Scenes/PrestigeWindow.tscn" id="35_vvnwx"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vy5pj"]
 texture = ExtResource("3_50glp")
@@ -548,8 +549,6 @@ texture = ExtResource("3_hwpts")
 sources/0 = SubResource("TileSetAtlasSource_vy5pj")
 sources/1 = SubResource("TileSetAtlasSource_jyqft")
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_erwvk"]
-
 [node name="Main" type="Node2D" unique_id=1086720320]
 
 [node name="FrameProfiler" type="Node" parent="." unique_id=1715470360]
@@ -676,109 +675,11 @@ z_index = 90
 position = Vector2(360, 580)
 limit_enabled = false
 
-[node name="CenterUI" type="Control" parent="." unique_id=1096158914]
-z_index = 22
-layout_mode = 3
-anchors_preset = 0
-offset_top = 761.0
-offset_right = 720.0
-offset_bottom = 1180.0
-
-[node name="PanelContainer" type="PanelContainer" parent="CenterUI" unique_id=1537815097]
-z_index = 10
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_bottom = 20.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxEmpty_erwvk")
-
-[node name="WindowBackground" type="Control" parent="CenterUI/PanelContainer" unique_id=160082409]
-z_index = 10
-layout_mode = 2
-mouse_filter = 2
-script = ExtResource("18_0sclb")
-
-[node name="MarginContainer" type="MarginContainer" parent="CenterUI/PanelContainer" unique_id=299561062]
-z_index = 15
-layout_mode = 2
-
-[node name="Content" type="VBoxContainer" parent="CenterUI/PanelContainer/MarginContainer" unique_id=1600717048]
-z_index = 25
-layout_mode = 2
-
-[node name="SettingsWindow" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1767892773]
-z_index = 30
-layout_mode = 2
-script = ExtResource("15_sxkr1")
-
-[node name="SettingsPanel" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow" unique_id=2115574602]
-z_index = 35
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_bottom = 360.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="Content" type="VBoxContainer" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel" unique_id=415157806]
-z_index = 40
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_bottom = 76.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("16_fq0cl")
-
-[node name="GravityIndicator" type="Sprite2D" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=521779533]
-position = Vector2(620, 112)
-rotation = -4.712389
-scale = Vector2(3, 3)
-texture = ExtResource("19_3tgeq")
-
-[node name="Title" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=921015842]
-
-[node name="Separator" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=1996221223]
-
-[node name="TiltSection" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=1567407503]
-
-[node name="AudioSection" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=630563356]
-
-[node name="MoreInfoButton" type="Node" parent="CenterUI/PanelContainer/MarginContainer/Content/SettingsWindow/SettingsPanel/Content" unique_id=1196479486]
-
-[node name="StatisticsWindow" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content" unique_id=1965062047]
-z_index = 100
-layout_mode = 2
-script = ExtResource("15_0sclb")
-
-[node name="StatisticsGraph" type="Control" parent="CenterUI/PanelContainer/MarginContainer/Content/StatisticsWindow" unique_id=1260497483]
-z_index = 105
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_bottom = 360.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("7_jw32o")
-
 [node name="Ui" type="Control" parent="." unique_id=1139078614]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 720.0
 offset_bottom = 1280.0
-
-[node name="WheelUi" type="Control" parent="Ui" unique_id=491471825]
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
 
 [node name="TopUi" type="Control" parent="Ui" unique_id=1677817206]
 anchors_preset = 0
@@ -787,15 +688,37 @@ offset_bottom = 60.0
 mouse_filter = 2
 script = ExtResource("25_c5snn")
 
+[node name="TopUiBackground" type="Node" parent="Ui/TopUi" unique_id=909815778]
+
 [node name="RainDisplayContainer" type="Node" parent="Ui/TopUi" unique_id=1083391097]
 
 [node name="RainDisplay" type="Node" parent="Ui/TopUi/RainDisplayContainer" unique_id=1438932253]
+script = ExtResource("24_f7hdo")
 
 [node name="CurrenciesContainer" type="Node" parent="Ui/TopUi" unique_id=1553702721]
 
 [node name="EnergyDisplay" type="Node" parent="Ui/TopUi/CurrenciesContainer" unique_id=556842591]
+script = ExtResource("25_clvyn")
 
 [node name="MoneyDisplay" type="Node" parent="Ui/TopUi/CurrenciesContainer" unique_id=1858069315]
+script = ExtResource("26_d8m2u")
+
+[node name="CenterUi" type="Control" parent="Ui" unique_id=1096158914]
+z_index = 22
+anchors_preset = 0
+offset_top = 761.0
+offset_right = 720.0
+offset_bottom = 1180.0
+script = ExtResource("21_qta6b")
+
+[node name="StatisticsWindow" parent="Ui/CenterUi" unique_id=817545247 instance=ExtResource("26_xvtyr")]
+position = Vector2(0, -761)
+
+[node name="SettingsWindow" parent="Ui/CenterUi" unique_id=1808166567 instance=ExtResource("27_u7mjy")]
+position = Vector2(0, -761)
+
+[node name="PrestigeWindow" parent="Ui/CenterUi" unique_id=1971957473 instance=ExtResource("35_vvnwx")]
+position = Vector2(0, -761)
 
 [node name="BottomUi" type="Control" parent="Ui" unique_id=1677817209]
 z_index = 200
@@ -830,9 +753,29 @@ script = ExtResource("27_qta6b")
 anchors_preset = 0
 script = ExtResource("26_u7mjy")
 
-[node name="StatisticsWindow" parent="Ui" unique_id=817545247 instance=ExtResource("26_xvtyr")]
+[node name="WheelUi" type="Control" parent="Ui" unique_id=491471825]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("29_6heos")
 
-[node name="SettingsWindow" parent="Ui" unique_id=1808166567 instance=ExtResource("27_u7mjy")]
+[node name="WheelDisplay1" parent="Ui/WheelUi" unique_id=1377181194 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay2" parent="Ui/WheelUi" unique_id=1957294664 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay3" parent="Ui/WheelUi" unique_id=64975347 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay4" parent="Ui/WheelUi" unique_id=1572221989 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay5" parent="Ui/WheelUi" unique_id=684298386 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay6" parent="Ui/WheelUi" unique_id=1736508512 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
 
 [node name="BuyWindow" parent="Ui" unique_id=1758576583 instance=ExtResource("28_4yxf6")]
 

@@ -20,7 +20,35 @@ Branch: ui-pass-2-20260823
 25.08: Created a new Script "SettingsButton.cs" and attached it to the SettingsButton Node in BottomUi.
 !! -- We will have to Recycle "UiToggleButton.cs" -- !!
 !! -- We also have to remove res://Scripts/ui/StatisticsGraphUiSettings.cs because it does not seem to be needed. -- !!
-26.08:
+28.08: Created a new Scene "WheelDisplay.tscn", attached the new script "WheelDisplay.cs" and instanzed it 6 Times in the WheelUi Node.
+28.08: Created a new Scene "PrestigeWindow.tscn" as a Node2D and put in in the Ui Node.
+28.08: Created a new Node (Node) "TopUiBackground" in TopUi.
+!! -- TopUi already has RainDisplayContainer (Type: Node) with RainDisplay Node, and CurrenciesContainer with EnergyDisplay and MoneyDisplay Nodes. We will keep them.
+28.08: Created and attached new Scripts for RainDisplay, EnergyDisplay, and MoneyDisplay Nodes.
+28.08: Created a new Script WheelUi.cs and Attached it to the WheelUi Node
+28.08: Created a VBoxContainer in StatisticsWindow and added 3 (Node2D) childs to it: Graph1, Graph2, Graph3.
+28.08: Created a Script for each of the 3 Graph Nodes in "res://Scripts/ui/graphs/" and attached it to them.
+28.08: Created a VBoxContainer ("SettingsContent") in SettingsWindow, with 3 children: TiltSettings, AudioSettings, MoreInfoButton
+28.08: I attached the already existing "SettingsContent.cs" to the VBoxContainer. We will have to migrate most of the Scripts content away.
+28.08: Created and attached a Script for each of these 3 children of SettingsWindow: TiltSettings.cs, AudioSettings.cs, MoreInfoButton.cs.
+28.08: Made sure all Windows and Scenes have their according Scripts attached.
+28.08: Created a new Folder called "global" in "scripts". Put "RenderedWindowBackground" there, and "UiSettings.cs".
+28.08: I also created a new Script in global called "RenderedButtonBackground.cs" because i want the background rendering to be centralized so that we don't have any duplicate script and so that we can change it easier later.
+28.08: I created a Node in WheelDisplay.tscn called ButtonContainer, it has no script attached.
+28.08: In this buttoncontainer i created BuyButton Node and UpgradeButton Node and created and attached their according scripts "BuyButton.cs" and "UpgradeButton.cs"
+!! -- Executing the Game at this Stage gives me an Error because we have 2 Files with the same name "TiltSettings.cs" i will rename the newer one to "TiltSettingsContent.cs".
+28.08: Also renamed the Node in SettingsWindow to "TitSettingsContent".
+28.08: Deleted all Content of the old CenterUi Node.
+28.08: Moved the CenterUi node to be a children of Ui.
+28.08: Moved the Nodes/Scenes "StatisticsWindow", "SettingsWindow", and "PrestigeWindow" to "CenterUi".
+28.08: Creating a new Script "CenterUi.cs" and attaching it to the CenterUi Node.
+28.08: Made StatisticsWindow, SettingsWindow and PrestigeWindow, Control Nodes due to some Error.
+!! -- Executing the Game now shows that the SellEnergyButton is still Visible. -- !!
+!! -- The Tilt Settings appear in the top Left of the screen. -- !!
+!! -- The old Buy and Upgrade Buttons and Windows Still work. -- !!
+!! -- TopUi is still visible. Settings and Statistics Buttons are not visible anymore. -- !!
+
+
 
 ============================================================
 0. GODOT SCENE (.tscn) DECISION — READ THIS FIRST

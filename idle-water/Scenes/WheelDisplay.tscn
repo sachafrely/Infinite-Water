@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://60ndwkoy0qrx"]
+
+[ext_resource type="Script" uid="uid://c1bl0ueo12lve" path="res://Scripts/ui/WheelDisplay.cs" id="1_mxmc2"]
+[ext_resource type="Script" uid="uid://bw7d4u8rgv1k1" path="res://Scripts/ui/BuyButton.cs" id="2_ihbjw"]
+[ext_resource type="Script" uid="uid://bpmggxm7uy51n" path="res://Scripts/ui/UpgradeButton.cs" id="3_x5cfr"]
+
+[node name="WheelDisplay" type="Control" unique_id=1377181194]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_mxmc2")
+
+[node name="ButtonContainer" type="Node" parent="." unique_id=467961637]
+
+[node name="BuyButton" type="Node" parent="ButtonContainer" unique_id=174279070]
+script = ExtResource("2_ihbjw")
+
+[node name="UpgradeButton" type="Node" parent="ButtonContainer" unique_id=396269631]
+script = ExtResource("3_x5cfr")

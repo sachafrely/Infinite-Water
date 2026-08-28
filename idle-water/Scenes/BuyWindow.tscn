@@ -1,3 +1,6 @@
 [gd_scene format=3 uid="uid://cgbilp6etiojs"]
 
+[ext_resource type="Script" uid="uid://dd0wlgaklcp2x" path="res://Scripts/ui/BuyWindow.cs" id="1_vrstw"]
+
 [node name="BuyWindow" type="Node2D" unique_id=1758576583]
+script = ExtResource("1_vrstw")

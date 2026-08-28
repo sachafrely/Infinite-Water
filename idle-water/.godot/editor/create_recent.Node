@@ -1,13 +1,14 @@
 Control
 Node
 Node2D
+VBoxContainer
+Container
+GPUParticlesAttractorSphere3D
 Panel
 PanelContainer
-VBoxContainer
 NavigationObstacle2D
 MarginContainer
 Sprite2D
 TileMapLayer
 Line2D
 TextureRect
-ParallaxBackground

@@ -1,3 +1,6 @@
 [gd_scene format=3 uid="uid://dvmtfinlklxg0"]
 
+[ext_resource type="Script" uid="uid://0omn030ec8h4" path="res://Scripts/ui/UpgradeWindow.cs" id="1_kemp7"]
+
 [node name="UpgradeWindow" type="Node2D" unique_id=450980618]
+script = ExtResource("1_kemp7")

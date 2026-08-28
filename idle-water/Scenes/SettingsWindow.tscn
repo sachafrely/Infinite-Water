@@ -1,3 +1,27 @@
 [gd_scene format=3 uid="uid://bnx0v1pf7lr56"]
 
-[node name="Node2D" type="Node2D" unique_id=1808166567]
+[ext_resource type="Script" uid="uid://duwdhy0cyfdf0" path="res://Scripts/ui/SettingsWindow.cs" id="1_kpggh"]
+[ext_resource type="Script" uid="uid://cg5to84p5aidf" path="res://Scripts/ui/SettingsContent.cs" id="2_f5cgl"]
+[ext_resource type="Script" uid="uid://ewfwwtrd8652" path="res://Scripts/ui/TiltSettingsContent.cs" id="2_sohj4"]
+[ext_resource type="Script" uid="uid://dg1865iqx1o81" path="res://Scripts/ui/AudioSettings.cs" id="3_f5cgl"]
+[ext_resource type="Script" uid="uid://b8t5x6s4j44qx" path="res://Scripts/ui/MoreInfoButton.cs" id="4_vcda0"]
+
+[node name="SettingsWindow" type="Control" unique_id=1766347942]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_kpggh")
+
+[node name="SettingsContent" type="VBoxContainer" parent="." unique_id=1056619963]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("2_f5cgl")
+
+[node name="TiltSettingsContent" type="Node2D" parent="SettingsContent" unique_id=630911531]
+script = ExtResource("2_sohj4")
+
+[node name="AudioSettings" type="Node2D" parent="SettingsContent" unique_id=426686103]
+script = ExtResource("3_f5cgl")
+
+[node name="MoreInfoButton" type="Node2D" parent="SettingsContent" unique_id=632330344]
+script = ExtResource("4_vcda0")
