@@ -692,17 +692,24 @@ script = ExtResource("25_c5snn")
 [node name="TopUiBackground" type="Node" parent="Ui/TopUi" unique_id=909815778]
 script = ExtResource("18_x3rx7")
 
-[node name="RainDisplayContainer" type="Node" parent="Ui/TopUi" unique_id=1083391097]
-
-[node name="RainDisplay" type="Node" parent="Ui/TopUi/RainDisplayContainer" unique_id=1438932253]
+[node name="RainDisplay" type="ProgressBar" parent="Ui/TopUi" unique_id=1764217303]
+layout_mode = 0
+offset_right = 240.0
+offset_bottom = 40.0
 script = ExtResource("24_f7hdo")
 
-[node name="CurrenciesContainer" type="Node" parent="Ui/TopUi" unique_id=1553702721]
-
-[node name="EnergyDisplay" type="Node" parent="Ui/TopUi/CurrenciesContainer" unique_id=556842591]
+[node name="EnergyDisplay" type="Label" parent="Ui/TopUi" unique_id=709452860]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 40.0
+vertical_alignment = 1
 script = ExtResource("25_clvyn")
 
-[node name="MoneyDisplay" type="Node" parent="Ui/TopUi/CurrenciesContainer" unique_id=1858069315]
+[node name="MoneyDisplay" type="Label" parent="Ui/TopUi" unique_id=38962242]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 40.0
+vertical_alignment = 1
 script = ExtResource("26_d8m2u")
 
 [node name="CenterUi" type="Control" parent="Ui" unique_id=1096158914]

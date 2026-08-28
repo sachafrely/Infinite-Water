@@ -1,3 +1,5 @@
+Label
+ProgressBar
 Button
 Control
 Node
@@ -10,5 +12,3 @@ PanelContainer
 NavigationObstacle2D
 MarginContainer
 Sprite2D
-TileMapLayer
-Line2D
