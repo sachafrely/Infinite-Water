@@ -6,24 +6,24 @@ using Godot;
 /// </summary>
 public partial class TopUi : Control
 {
-    private Control rainDisplay;
-    private Control energyDisplay;
-    private Control moneyDisplay;
+	private Control rainDisplay;
+	private Control energyDisplay;
+	private Control moneyDisplay;
 
-    public override void _Ready()
-    {
-        MouseFilter = MouseFilterEnum.Ignore;
-        ZIndex = 1000;
+	public override void _Ready()
+	{
+		MouseFilter = MouseFilterEnum.Ignore;
+		ZIndex = 1000;
 
-        rainDisplay = GetNodeOrNull<Control>("RainDisplayContainer/RainDisplay");
-        energyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/EnergyDisplay");
-        moneyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/MoneyDisplay");
+		rainDisplay = GetNodeOrNull<Control>("RainDisplayContainer/RainDisplay");
+		energyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/EnergyDisplay");
+		moneyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/MoneyDisplay");
 
-        if (rainDisplay == null)
-            GD.PushWarning("TopUi: RainDisplay Node not found.");
-        if (energyDisplay == null)
-            GD.PushWarning("TopUi: EnergyDisplay Node not found.");
-        if (moneyDisplay == null)
-            GD.PushWarning("TopUi: MoneyDisplay Node not found.");
-    }
+		if (rainDisplay == null)
+			GD.PushWarning("TopUi: RainDisplay Node not found.");
+		if (energyDisplay == null)
+			GD.PushWarning("TopUi: EnergyDisplay Node not found.");
+		if (moneyDisplay == null)
+			GD.PushWarning("TopUi: MoneyDisplay Node not found.");
+	}
 }

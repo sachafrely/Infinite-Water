@@ -1,7 +1,8 @@
+HBoxContainer
+Control
 Label
 ProgressBar
 Button
-Control
 Node
 Node2D
 VBoxContainer

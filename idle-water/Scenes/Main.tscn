@@ -683,32 +683,58 @@ offset_right = 720.0
 offset_bottom = 1280.0
 
 [node name="TopUi" type="Control" parent="Ui" unique_id=1677817206]
-anchors_preset = 0
-offset_right = 720.0
-offset_bottom = 60.0
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 80.0
+grow_horizontal = 2
 mouse_filter = 2
 script = ExtResource("25_c5snn")
 
-[node name="TopUiBackground" type="Node" parent="Ui/TopUi" unique_id=909815778]
+[node name="TopUiBackground" type="Control" parent="Ui/TopUi" unique_id=227640546]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("18_x3rx7")
 
 [node name="RainDisplay" type="ProgressBar" parent="Ui/TopUi" unique_id=1764217303]
-layout_mode = 0
-offset_right = 240.0
-offset_bottom = 40.0
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 20.0
+offset_top = -25.0
+offset_right = 260.0
+offset_bottom = 25.0
+grow_vertical = 2
 script = ExtResource("24_f7hdo")
 
-[node name="EnergyDisplay" type="Label" parent="Ui/TopUi" unique_id=709452860]
-layout_mode = 0
-offset_right = 120.0
-offset_bottom = 40.0
+[node name="CurrenciesContainer" type="HBoxContainer" parent="Ui/TopUi" unique_id=2135827537]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -340.0
+offset_top = -25.0
+offset_right = -20.0
+offset_bottom = 15.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="EnergyDisplay" type="Label" parent="Ui/TopUi/CurrenciesContainer" unique_id=709452860]
+layout_mode = 2
+size_flags_vertical = 1
 vertical_alignment = 1
 script = ExtResource("25_clvyn")
 
-[node name="MoneyDisplay" type="Label" parent="Ui/TopUi" unique_id=38962242]
-layout_mode = 0
-offset_right = 120.0
-offset_bottom = 40.0
+[node name="MoneyDisplay" type="Label" parent="Ui/TopUi/CurrenciesContainer" unique_id=38962242]
+layout_mode = 2
+size_flags_vertical = 1
 vertical_alignment = 1
 script = ExtResource("26_d8m2u")
 
