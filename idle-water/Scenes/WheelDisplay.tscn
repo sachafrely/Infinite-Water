@@ -11,8 +11,10 @@ script = ExtResource("1_mxmc2")
 
 [node name="ButtonContainer" type="Node" parent="." unique_id=467961637]
 
-[node name="BuyButton" type="Node" parent="ButtonContainer" unique_id=174279070]
+[node name="BuyButton" type="Button" parent="ButtonContainer" unique_id=522897936]
+offset_right = 23.0
+offset_bottom = 8.0
 script = ExtResource("2_ihbjw")
 
-[node name="UpgradeButton" type="Node" parent="ButtonContainer" unique_id=396269631]
+[node name="UpgradeButton" type="Button" parent="ButtonContainer" unique_id=275250727]
 script = ExtResource("3_x5cfr")
