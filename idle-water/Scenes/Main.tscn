@@ -17,6 +17,7 @@
 [ext_resource type="Texture2D" uid="uid://idpd20skc4op" path="res://assets/sprites/decorations/9.png" id="17_346fj"]
 [ext_resource type="Texture2D" uid="uid://0gqfrx74wbgl" path="res://assets/sprites/decorations/14.png" id="17_sxkr1"]
 [ext_resource type="Script" uid="uid://diodqrojkp676" path="res://Scripts/ui/UiWindowManager.cs" id="18_sxkr1"]
+[ext_resource type="Script" uid="uid://b01ik1xmd6ipd" path="res://Scripts/ui/TopUiBackground.cs" id="18_x3rx7"]
 [ext_resource type="Script" uid="uid://bebalv1xh5dqq" path="res://Scripts/ui/CenterUi.cs" id="21_qta6b"]
 [ext_resource type="Script" uid="uid://o6kjkecwwt0s" path="res://Scripts/ui/SellEnergyButton.cs" id="23_c4ay3"]
 [ext_resource type="Script" uid="uid://bt63jf43pgydf" path="res://Scripts/ui/BottomUi.cs" id="23_xvtyr"]
@@ -689,6 +690,7 @@ mouse_filter = 2
 script = ExtResource("25_c5snn")
 
 [node name="TopUiBackground" type="Node" parent="Ui/TopUi" unique_id=909815778]
+script = ExtResource("18_x3rx7")
 
 [node name="RainDisplayContainer" type="Node" parent="Ui/TopUi" unique_id=1083391097]
 
@@ -712,13 +714,19 @@ offset_bottom = 1180.0
 script = ExtResource("21_qta6b")
 
 [node name="StatisticsWindow" parent="Ui/CenterUi" unique_id=817545247 instance=ExtResource("26_xvtyr")]
-position = Vector2(0, -761)
+layout_mode = 0
+offset_top = -761.0
+offset_bottom = -761.0
 
 [node name="SettingsWindow" parent="Ui/CenterUi" unique_id=1808166567 instance=ExtResource("27_u7mjy")]
-position = Vector2(0, -761)
+layout_mode = 0
+offset_top = -761.0
+offset_bottom = -761.0
 
 [node name="PrestigeWindow" parent="Ui/CenterUi" unique_id=1971957473 instance=ExtResource("35_vvnwx")]
-position = Vector2(0, -761)
+layout_mode = 0
+offset_top = -761.0
+offset_bottom = -761.0
 
 [node name="BottomUi" type="Control" parent="Ui" unique_id=1677817209]
 z_index = 200
@@ -755,8 +763,8 @@ script = ExtResource("26_u7mjy")
 
 [node name="WheelUi" type="Control" parent="Ui" unique_id=491471825]
 anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
+offset_right = 720.0
+offset_bottom = 1280.0
 script = ExtResource("29_6heos")
 
 [node name="WheelDisplay1" parent="Ui/WheelUi" unique_id=1377181194 instance=ExtResource("29_x3rx7")]
@@ -778,8 +786,10 @@ layout_mode = 0
 layout_mode = 0
 
 [node name="BuyWindow" parent="Ui" unique_id=1758576583 instance=ExtResource("28_4yxf6")]
+layout_mode = 0
 
 [node name="UpgradeWindow" parent="Ui" unique_id=450980618 instance=ExtResource("29_qta6b")]
+layout_mode = 0
 
 [node name="UiWindowManager" type="Node" parent="Ui" unique_id=656663835]
 script = ExtResource("18_sxkr1")

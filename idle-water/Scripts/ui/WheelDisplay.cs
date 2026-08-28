@@ -8,34 +8,34 @@ using Godot;
 /// </summary>
 public partial class WheelDisplay : Control
 {
-    [Signal]
-    public delegate void BuyRequestedEventHandler(int wheelNumber);
+	[Signal]
+	public delegate void BuyRequestedEventHandler(int wheelNumber);
 
-    [Signal]
-    public delegate void UpgradeRequestedEventHandler(int wheelNumber);
+	[Signal]
+	public delegate void UpgradeRequestedEventHandler(int wheelNumber);
 
-    [Export]
-    public int WheelNumber { get; set; }
+	[Export]
+	public int WheelNumber { get; set; }
 
-    private Button buyButton;
-    private Button upgradeButton;
+	private Button buyButton;
+	private Button upgradeButton;
 
-    public override void _Ready()
-    {
-        buyButton = GetNodeOrNull<Button>("ButtonContainer/BuyButton");
-        upgradeButton = GetNodeOrNull<Button>("ButtonContainer/UpgradeButton");
+	public override void _Ready()
+	{
+		buyButton = GetNodeOrNull<Button>("ButtonContainer/BuyButton");
+		upgradeButton = GetNodeOrNull<Button>("ButtonContainer/UpgradeButton");
 
-        if (buyButton == null)
-            GD.PushWarning($"WheelDisplay {WheelNumber}: BuyButton was not found.");
+		if (buyButton == null)
+			GD.PushWarning($"WheelDisplay {WheelNumber}: BuyButton was not found.");
 
-        if (upgradeButton == null)
-            GD.PushWarning($"WheelDisplay {WheelNumber}: UpgradeButton was not found.");
+		if (upgradeButton == null)
+			GD.PushWarning($"WheelDisplay {WheelNumber}: UpgradeButton was not found.");
 
-        UpdateButtonState();
-    }
+		UpdateButtonState();
+	}
 
-    /// <summary>
-    /// Called by WheelUi after assigning this instance's logical number.
+	/// <summary>
+	/// Called by WheelUi after assigning this instance's logical number.
     /// </summary>
     public void SetWheelNumber(int wheelNumber)
     {
