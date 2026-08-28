@@ -26,22 +26,29 @@ Final Android testing: [ ]
 MIGRATION TRACKER
 ============================================================
 
-1. WheelDisplay.cs                         [~]
-   - Replace runtime UI construction with scene-node references.
-   - Expose logical WheelNumber.
-   - Own one WheelDisplay instance only.
+1. WheelDisplay.cs                         [!]
+   - Now inherits Control and controls existing scene Nodes.
+   - Exposes logical WheelNumber.
+   - Caches existing BuyButton/UpgradeButton Nodes.
+   - Emits BuyRequested/UpgradeRequested with the wheel number.
+   - Runtime verification still required.
 
-2. BuyButton.cs                            [~]
-   - Script controls the existing BuyButton Node.
-   - Route interaction to its owning WheelDisplay.
+2. BuyButton.cs                            [!]
+   - Now inherits Button and controls the existing BuyButton Node.
+   - Routes its press to the owning WheelDisplay.
+   - Runtime verification still required.
 
-3. UpgradeButton.cs                        [~]
-   - Script controls the existing UpgradeButton Node.
-   - Route interaction to its owning WheelDisplay.
+3. UpgradeButton.cs                        [!]
+   - Now inherits Button and controls the existing UpgradeButton Node.
+   - Routes its press to the owning WheelDisplay.
+   - Runtime verification still required.
 
-4. WheelUi.cs                              [~]
-   - Manage six WheelDisplay instances.
-   - Assign Wheel 1–6 from left to right.
+4. WheelUi.cs                              [!]
+   - Now inherits Control and manages the six WheelDisplay instances.
+   - Assigns Wheel 1–6 from left to right.
+   - Receives wheel interaction requests.
+   - Buy/Upgrade requests currently log only; window migration will consume them next.
+   - Runtime verification still required.
 
 5. BuyWindow.cs                            [ ]
    - Migrate old purchase-window behavior to BuyWindow.tscn.
@@ -132,12 +139,16 @@ LATEST WORK
 ============================================================
 
 28.08.2026
-- Created this migration tracker.
-- Began migration with WheelDisplay, BuyButton, UpgradeButton and WheelUi.
+- Created migration tracker.
+- Migrated WheelDisplay.cs from an empty placeholder to scene-owned Node references and wheel identity/signals.
+- Migrated BuyButton.cs to the actual Button Node type and routed presses through WheelDisplay.
+- Migrated UpgradeButton.cs to the actual Button Node type and routed presses through WheelDisplay.
+- Migrated WheelUi.cs to manage the six WheelDisplay instances and assign logical numbers 1–6.
+- Did NOT remove the old runtime UI yet; this remains intentionally until BuyWindow/UpgradeWindow migration is verified.
 - Identified EconomyUi.cs and EnergySystem.cs as major remaining runtime-UI construction sources.
 
 NEXT TARGET
 
-Complete WheelDisplay/WheelUi ownership and interaction wiring, then migrate BuyWindow and UpgradeWindow before removing the old WheelPurchaseUi/WheelUpgradeUi implementations.
+Migrate BuyWindow.cs and UpgradeWindow.cs to consume WheelDisplay requests. Then replace the old WheelPurchaseUi/WheelUpgradeUi runtime-created windows before removing their creation from EnergySystem.cs.
 
 END OF MIGRATION PROGRESS
