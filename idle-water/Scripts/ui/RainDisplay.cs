@@ -2,109 +2,98 @@ using System.Reflection;
 using Godot;
 
 /// <summary>
-/// Displays the current rain amount using the Nodes authored in Main.tscn.
-/// No rain UI hierarchy is created at runtime here.
+/// Displays the current rain amount as ten small pixel-style bars.
+/// Each bar represents 10% rain.
 /// </summary>
-public partial class RainDisplay : Node
+public partial class RainDisplay : Control
 {
-	private FieldInfo rainSystemField;
-	private PropertyInfo rainPercentProperty;
-	private Label rainLabel;
+    private const int SegmentCount = 10;
+    private const float SegmentWidth = 21.0f;
+    private const float SegmentHeight = 30.0f;
+    private const float SegmentGap = 4.5f;
 
-	public override void _Ready()
-	{
-		CacheRainAccess();
-		rainLabel = GetNodeOrNull<Label>("RainLabel")
-			?? FindChild("RainLabel", true, false) as Label
-			?? FindFirstLabel();
-	}
+    private FieldInfo rainSystemField;
+    private PropertyInfo rainPercentProperty;
+    private float rainPercent;
 
-	public override void _Process(double delta)
-	{
-		float rainPercent = GetCurrentRainPercent();
+    public override void _Ready()
+    {
+        MouseFilter = MouseFilterEnum.Ignore;
+        CacheRainAccess();
+        QueueRedraw();
+    }
 
-		if (rainLabel != null)
-		{
-			rainLabel.Text = $"Rain: {Mathf.RoundToInt(rainPercent)}%";
-			rainLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
-		}
+    public override void _Process(double delta)
+    {
+        rainPercent = GetCurrentRainPercent();
+        QueueRedraw();
+    }
 
-		UpdateProgressBars(rainPercent);
-	}
+    public override void _Draw()
+    {
+        int activeSegments = Mathf.RoundToInt(rainPercent / 10.0f);
+        float totalWidth = SegmentCount * SegmentWidth + (SegmentCount - 1) * SegmentGap;
+        float startX = Mathf.Max(0.0f, (Size.X - totalWidth) * 0.5f);
+        float startY = Mathf.Max(0.0f, (Size.Y - SegmentHeight) * 0.5f);
 
-	private void CacheRainAccess()
-	{
-		try
-		{
-			rainSystemField = typeof(FluidSimulator).GetField(
-				"rainSystem",
-				BindingFlags.Instance | BindingFlags.NonPublic
-			);
+        for (int i = 0; i < SegmentCount; i++)
+        {
+            bool active = i < activeSegments;
+            Color fill = active
+                ? UiSettings.FontColorWater
+                : new Color(0.30f, 0.30f, 0.30f, 1.0f);
 
-			if (rainSystemField != null)
-				rainPercentProperty = rainSystemField.FieldType.GetProperty("CurrentRainPercent");
-		}
-		catch
-		{
-			rainSystemField = null;
-			rainPercentProperty = null;
-		}
-	}
+            Rect2 rect = new Rect2(
+                startX + i * (SegmentWidth + SegmentGap),
+                startY,
+                SegmentWidth,
+                SegmentHeight
+            );
 
-	private FluidSimulator FindSimulator()
-	{
-		Node root = GetTree().CurrentScene;
-		return root?.FindChild("FluidSimulation", true, false) as FluidSimulator;
-	}
+            DrawRect(rect, fill, true);
+            DrawRect(rect, UiSettings.BorderColor, false, 1.0f);
+        }
+    }
 
-	private float GetCurrentRainPercent()
-	{
-		FluidSimulator simulator = FindSimulator();
-		if (simulator == null || rainSystemField == null || rainPercentProperty == null)
-			return 0.0f;
+    private void CacheRainAccess()
+    {
+        try
+        {
+            rainSystemField = typeof(FluidSimulator).GetField(
+                "rainSystem",
+                BindingFlags.Instance | BindingFlags.NonPublic
+            );
 
-		try
-		{
-			object rainSystem = rainSystemField.GetValue(simulator);
-			object value = rainSystem == null ? null : rainPercentProperty.GetValue(rainSystem);
-			return value is float percent ? Mathf.Clamp(percent, 0.0f, 100.0f) : 0.0f;
-		}
-		catch
-		{
-			return 0.0f;
-		}
-	}
+            if (rainSystemField != null)
+                rainPercentProperty = rainSystemField.FieldType.GetProperty("CurrentRainPercent");
+        }
+        catch
+        {
+            rainSystemField = null;
+            rainPercentProperty = null;
+        }
+    }
 
-	private void UpdateProgressBars(float rainPercent)
-	{
-		foreach (Node node in GetChildren())
-			UpdateProgressBarRecursive(node, rainPercent);
-	}
+    private FluidSimulator FindSimulator()
+    {
+        return GetTree().CurrentScene?.FindChild("FluidSimulation", true, false) as FluidSimulator;
+    }
 
-	private void UpdateProgressBarRecursive(Node node, float rainPercent)
-	{
-		if (node is ProgressBar progressBar)
-		{
-			progressBar.Value = rainPercent;
-			return;
-		}
+    private float GetCurrentRainPercent()
+    {
+        FluidSimulator simulator = FindSimulator();
+        if (simulator == null || rainSystemField == null || rainPercentProperty == null)
+            return 0.0f;
 
-		foreach (Node child in node.GetChildren())
-			UpdateProgressBarRecursive(child, rainPercent);
-	}
-
-	private Label FindFirstLabel()
-	{
-		foreach (Node child in GetChildren())
-		{
-			if (child is Label directLabel)
-				return directLabel;
-
-			Godot.Collections.Array<Node> labels = child.FindChildren("*", "Label", true, false);
-			if (labels.Count > 0 && labels[0] is Label label)
-				return label;
-		}
-
-		return null;
-	}
+        try
+        {
+            object rainSystem = rainSystemField.GetValue(simulator);
+            object value = rainSystem == null ? null : rainPercentProperty.GetValue(rainSystem);
+            return value is float percent ? Mathf.Clamp(percent, 0.0f, 100.0f) : 0.0f;
+        }
+        catch
+        {
+            return 0.0f;
+        }
+    }
 }
