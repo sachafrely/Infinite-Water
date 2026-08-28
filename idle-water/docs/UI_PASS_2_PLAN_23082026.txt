@@ -1,5 +1,5 @@
 UI PASS 2 — IMPLEMENTATION PLAN
-Date: 23.08.2026
+Date: 28.08.2026
 Branch: ui-pass-2-20260823
 
 GOAL
@@ -8,32 +8,77 @@ Refactor the UI toward a proper Godot Node/Scene architecture while adding wheel
 IMPORTANT PRINCIPLE
 This pass is incremental. Existing working UI behavior must be preserved while responsibilities are moved from scripts that dynamically construct UI into Nodes/Scenes created in Godot.
 
+The Godot scene architecture has now been created. The remaining work is primarily script migration, verification and cleanup.
+
+CURRENT ARCHITECTURE
+
+Main.tscn remains the composition root.
+
+Main
+└── Ui
+    ├── TopUi
+    ├── BottomUi
+    ├── WheelUi
+    │   ├── Wheel1  ← WheelDisplay.tscn instance
+    │   ├── Wheel2  ← WheelDisplay.tscn instance
+    │   ├── Wheel3  ← WheelDisplay.tscn instance
+    │   ├── Wheel4  ← WheelDisplay.tscn instance
+    │   ├── Wheel5  ← WheelDisplay.tscn instance
+    │   └── Wheel6  ← WheelDisplay.tscn instance
+    ├── CenterUi
+    │   ├── StatisticsWindow  ← StatisticsWindow.tscn instance
+    │   ├── SettingsWindow    ← SettingsWindow.tscn instance
+    │   └── PrestigeWindow     ← PrestigeWindow.tscn instance
+    ├── BuyWindow              ← BuyWindow.tscn instance
+    ├── UpgradeWindow          ← UpgradeWindow.tscn instance
+    └── UiWindowManager
+
+Approved separate scenes for UI Pass 2:
+- Main.tscn
+- WheelDisplay.tscn
+- BuyWindow.tscn
+- UpgradeWindow.tscn
+- SettingsWindow.tscn
+- StatisticsWindow.tscn
+- PrestigeWindow.tscn
+
+Do not create additional scenes for ordinary UI Nodes, individual graphs, buttons, displays, labels, containers or CenterUi unless a future requirement makes one independently reusable/self-contained.
+
 PHASE 1 — GODOT UI NODE ARCHITECTURE
-1. Create the agreed UI root hierarchy in Godot.
-2. Create dedicated Nodes for major UI components and attach dedicated scripts.
+1. Create the agreed UI root hierarchy in Godot. DONE.
+2. Create dedicated Nodes for major UI components and attach dedicated scripts. DONE / IN PROGRESS.
 3. Move one component at a time from runtime-created Controls to scene Nodes.
 4. Do not delete old construction code until the replacement Node is working and tested.
 5. Establish exported Node references / GetNode references so scripts control existing Nodes instead of constructing complete UI trees.
 6. Keep shared visual configuration centralized in UiSettings.cs.
+7. Keep CenterUi as an ordinary Control Node that groups centered modal windows.
+8. Keep UiWindowManager as an ordinary Node responsible for application-level modal coordination.
 
 TARGET COMPONENTS
 - Main UI root / CanvasLayer
-- Top UI
-- Bottom UI
-- Wheel UI
-- Buy Window
-- Upgrade Window
-- Settings Window
-- Statistics Window
+- TopUi
+- BottomUi
+- WheelUi
+- WheelDisplay
+- BuyWindow
+- UpgradeWindow
+- SettingsWindow
+- StatisticsWindow
+- PrestigeWindow
+- CenterUi
 - Graph components
 - Window/modal coordination
+- Shared UI rendering/configuration
 
 PHASE 2 — WHEEL NUMBERING
 1. Number wheels from left to right, beginning with Wheel 1.
-2. Display the wheel number in the Buy Window.
-3. Display the wheel number in the Upgrade Window.
-4. Use the same wheel index/number source everywhere so numbering cannot diverge.
-5. Verify numbering on Windows and Android.
+2. WheelUi is the single source of truth for logical wheel numbering.
+3. Pass the logical wheel number into each WheelDisplay instance.
+4. Display the wheel number in the Buy Window.
+5. Display the wheel number in the Upgrade Window.
+6. Use the same wheel number source everywhere so numbering cannot diverge.
+7. Verify that Buy and Upgrade actions operate on the correct wheel.
+8. Verify numbering on Windows and Android.
 
 Expected examples:
 - Buy Wheel 1
@@ -42,35 +87,132 @@ Expected examples:
 - Upgrade Wheel 2
 
 PHASE 3 — THIRD GRAPH: ENERGY PER WHEEL
-1. Add a third graph to the Statistics UI.
+1. Add/maintain the third graph in the Statistics UI.
 2. The graph displays Energy per Wheel as bars.
 3. Each bar represents one wheel.
-4. Wheels must remain ordered left-to-right / Wheel 1 to Wheel 6 consistently.
+4. Wheels remain ordered left-to-right / Wheel 1 to Wheel 6 consistently.
 5. Reuse existing graph styling, dimensions, margins, borders and UiSettings values where appropriate.
 6. Ensure the third graph does not overlap existing labels or graphs.
 7. Verify readability on the target portrait viewport and Android.
 
-PHASE 4 — CLEANUP
-1. Remove obsolete runtime UI construction only after each component has been migrated.
-2. Remove duplicate styling/constants that should come from UiSettings.cs.
-3. Remove duplicate window-positioning logic where a centralized window/controller responsibility is more appropriate.
-4. Keep scripts focused: a script should control its Node/component rather than own the entire UI architecture.
+PHASE 4 — SCRIPT MIGRATION
 
-PHASE 5 — TESTING
+Migrate the scripts in small, testable steps.
+
+1. WheelDisplay.cs
+   - Control the existing WheelDisplay Nodes.
+   - Do not construct the complete wheel UI hierarchy at runtime.
+
+2. BuyButton.cs and UpgradeButton.cs
+   - Control the existing Button Nodes inside WheelDisplay.
+   - Request the appropriate window/action rather than constructing duplicate UI.
+
+3. WheelUi.cs
+   - Manage the six WheelDisplay instances.
+   - Establish wheel numbers 1–6 from left to right.
+   - Provide the wheel identity used by Buy/Upgrade interactions.
+
+4. BuyWindow.cs
+   - Migrate the existing working Buy Window behavior to BuyWindow.tscn.
+   - Control existing scene Nodes.
+   - Display the supplied wheel number.
+
+5. UpgradeWindow.cs
+   - Migrate the existing working Upgrade Window behavior to UpgradeWindow.tscn.
+   - Control existing scene Nodes.
+   - Display the supplied wheel number.
+
+6. TopUi.cs and display scripts
+   - TopUi.cs owns the top-level layout/coordination.
+   - RainDisplay.cs controls RainDisplay.
+   - EnergyDisplay.cs controls EnergyDisplay.
+   - MoneyDisplay.cs controls MoneyDisplay.
+
+7. BottomUi.cs and button scripts
+   - BottomUi.cs controls the persistent bottom area.
+   - StatisticsButton.cs controls StatisticsButton.
+   - SettingsButton.cs controls SettingsButton.
+   - PrestigeButton.cs controls PrestigeButton.
+   - SellEnergyButton.cs remains responsible for selling energy.
+
+8. CenterUi.cs
+   - Manage the centered window group/layout where appropriate.
+   - Do not duplicate application-level modal state that belongs to UiWindowManager.
+
+9. SettingsWindow.cs and settings child scripts
+   - Migrate window-level behavior to SettingsWindow.cs.
+   - Move remaining settings responsibilities into TiltSettingsContent.cs, AudioSettings.cs and MoreInfoButton.cs as appropriate.
+   - Retire obsolete SettingsContent.cs responsibilities only after replacement behavior is verified.
+
+10. StatisticsWindow.cs and graph scripts
+    - StatisticsWindow.cs owns window-level behavior.
+    - Each graph script owns only its graph Node.
+    - Keep the third Energy-per-Wheel graph ordered Wheel 1 → Wheel 6.
+
+11. PrestigeWindow behavior
+    - Migrate behavior into the existing PrestigeWindow.tscn.
+
+12. UiWindowManager.cs
+    - Centralize modal state, input and window coordination.
+    - Do not make it responsible for the internal content of individual windows.
+
+13. Shared rendering/configuration
+    - Keep UiSettings.cs centralized.
+    - Use RenderedWindowBackground.cs and RenderedButtonBackground.cs where appropriate.
+
+PHASE 5 — CLEANUP
+1. Remove obsolete runtime UI construction only after each component has been migrated and tested.
+2. Remove duplicate styling/constants that should come from UiSettings.cs.
+3. Remove duplicate window-positioning logic where CenterUi or UiWindowManager now owns that responsibility.
+4. Remove duplicate wheel-numbering logic.
+5. Remove obsolete scripts only after all references are gone.
+6. Keep scripts focused: a script should control its Node/component rather than own the entire UI architecture.
+
+PHASE 6 — TESTING
+
 Windows:
+- Game starts without errors.
 - Buy Window opens and closes correctly.
 - Upgrade Window opens and closes correctly.
-- Clicking outside modal windows closes them.
+- Clicking outside modal windows closes them where appropriate.
 - Buy/Upgrade affordability colors remain correct.
 - Wheel numbers are correct.
+- Buy/Upgrade actions affect the correct wheel.
 - Third graph renders correctly.
+- Settings controls work.
+- Prestige window works.
+- No duplicate UI is created.
+- Simulation behavior is unchanged.
 
 Android:
 - Touching inside windows works.
-- Touching outside windows closes them.
+- Touching outside windows closes them where appropriate.
 - Wheel numbers remain correct.
+- Buy/Upgrade actions target the correct wheel.
 - Third graph remains readable.
+- Settings controls remain usable.
 - No UI layering regressions.
+- No duplicate UI is created.
+
+CURRENT KNOWN MIGRATION ISSUES
+
+These are expected to be resolved during script migration and should NOT trigger a redesign of the scene architecture:
+- SellEnergyButton is still visible when it should be hidden.
+- Tilt Settings currently appear in the top-left instead of their intended position.
+- Settings and Statistics Buttons are currently not visible.
+- Old Buy and Upgrade Buttons/Windows still work through the previous implementation.
 
 DEFINITION OF DONE
-UI Pass 2 is complete when the major UI components are represented by intentional Godot Nodes/Scenes with dedicated scripts, wheel numbering is consistent in Buy/Upgrade windows, the Energy-per-Wheel bar graph is implemented, and the existing UI behavior passes Windows and Android regression testing.
+
+UI Pass 2 is complete when:
+- The intentional Godot Node/Scene architecture is fully used by the UI scripts.
+- WheelDisplay.tscn is reused for all six wheels.
+- Wheel numbering is a single consistent source of truth.
+- Buy and Upgrade windows display and act on the correct wheel number.
+- The Energy-per-Wheel bar graph is implemented and readable.
+- TopUi, BottomUi, CenterUi and their child components use their scene Nodes rather than recreating complete UI hierarchies at runtime.
+- Modal coordination is centralized appropriately.
+- Obsolete runtime UI construction and duplicate styling have been removed.
+- Existing Windows and Android behavior passes regression testing.
+
+END OF UI PASS 2 PLAN
