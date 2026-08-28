@@ -1,53 +1,46 @@
 UI PASS 2 — DEVELOPER INSTRUCTIONS
-Date: 24.08.2026
+Date: 28.08.2026
 Branch: ui-pass-2-20260823
 
 // DEVLOG. WHAT DID I DO. (SHOULD NOT BE EDITED BY THE AI)
 25.08: Created a new Node in Main called Ui (Type: Control) (Size: 720x1280)
-25.08: Put the existing TopUi (Control) and BottomUi (Control) Nodes into this new Node
-25.08: Created a new Node in Ui called WheelUi (Control)
-25.08: Created a new Node (Node2D) in Ui called StatisticsWindow, and added the newly created Scene "StatisticsWindow.tscn" to it.
-25.08: Created a new Node (Node2D) in Ui called SettingsWindow and added the newly created Scene "SettingsWindow.tscn" to it.
-25.08: Created a new Node (Node2D) in Ui called BuyWindow and added the newly created Scene "BuyWindow.tscn" to it.
-25.08: Created a new Node (Node2D) in Ui called UpgradeWindow and added the newly created Scene "UpgradeWindow.tscn" to it.
-25.08: I moved the existing UiWindowManager node (Node) into the Ui Node.
-25.08: Renamed BottomUI to BottomUi and TopUI to TopUi (Lowercase i)
-25.08: Created a new Script "TopUi.cs" and attached it to the TopUi Node.
-25.08: Created a new Script "BottomUi.cs" and attached it to the BottomUi Node.
-25.08: BottomUi already has StatisticsButton, SellEnergyButton, SetingsButton.
-25.08: Created a new Node in BottomUi called PrestigeButton. (Control) and added a new Script to it "PrestigeButton.cs"
-25.08: Created a new Script "StatisticsButton.cs" and attached it to the StatisticsButton Node in BottomUi.
-25.08: Created a new Script "SettingsButton.cs" and attached it to the SettingsButton Node in BottomUi.
-!! -- We will have to Recycle "UiToggleButton.cs" -- !!
+25.08: Put the existing TopUi (Control) and BottomUi (Control) Nodes into this new Ui Node.
+25.08: Created a new Node in Ui called WheelUi (Control).
+25.08: Created StatisticsWindow, SettingsWindow, BuyWindow and UpgradeWindow scenes and placed their instances in Ui.
+25.08: Moved the existing UiWindowManager node into the Ui Node.
+25.08: Renamed BottomUI to BottomUi and TopUI to TopUi (lowercase i).
+25.08: Created TopUi.cs and attached it to TopUi.
+25.08: Created BottomUi.cs and attached it to BottomUi.
+25.08: BottomUi already has StatisticsButton, SellEnergyButton and SettingsButton.
+25.08: Created PrestigeButton (Control) in BottomUi and attached PrestigeButton.cs.
+25.08: Created StatisticsButton.cs and attached it to StatisticsButton.
+25.08: Created SettingsButton.cs and attached it to SettingsButton.
+!! -- We will have to recycle UiToggleButton.cs. -- !!
 !! -- We also have to remove res://Scripts/ui/StatisticsGraphUiSettings.cs because it does not seem to be needed. -- !!
-28.08: Created a new Scene "WheelDisplay.tscn", attached the new script "WheelDisplay.cs" and instanzed it 6 Times in the WheelUi Node.
-28.08: Created a new Scene "PrestigeWindow.tscn" as a Node2D and put in in the Ui Node.
-28.08: Created a new Node (Node) "TopUiBackground" in TopUi.
-!! -- TopUi already has RainDisplayContainer (Type: Node) with RainDisplay Node, and CurrenciesContainer with EnergyDisplay and MoneyDisplay Nodes. We will keep them.
-28.08: Created and attached new Scripts for RainDisplay, EnergyDisplay, and MoneyDisplay Nodes.
-28.08: Created a new Script WheelUi.cs and Attached it to the WheelUi Node
-28.08: Created a VBoxContainer in StatisticsWindow and added 3 (Node2D) childs to it: Graph1, Graph2, Graph3.
-28.08: Created a Script for each of the 3 Graph Nodes in "res://Scripts/ui/graphs/" and attached it to them.
-28.08: Created a VBoxContainer ("SettingsContent") in SettingsWindow, with 3 children: TiltSettings, AudioSettings, MoreInfoButton
-28.08: I attached the already existing "SettingsContent.cs" to the VBoxContainer. We will have to migrate most of the Scripts content away.
-28.08: Created and attached a Script for each of these 3 children of SettingsWindow: TiltSettings.cs, AudioSettings.cs, MoreInfoButton.cs.
-28.08: Made sure all Windows and Scenes have their according Scripts attached.
-28.08: Created a new Folder called "global" in "scripts". Put "RenderedWindowBackground" there, and "UiSettings.cs".
-28.08: I also created a new Script in global called "RenderedButtonBackground.cs" because i want the background rendering to be centralized so that we don't have any duplicate script and so that we can change it easier later.
-28.08: I created a Node in WheelDisplay.tscn called ButtonContainer, it has no script attached.
-28.08: In this buttoncontainer i created BuyButton Node and UpgradeButton Node and created and attached their according scripts "BuyButton.cs" and "UpgradeButton.cs"
-!! -- Executing the Game at this Stage gives me an Error because we have 2 Files with the same name "TiltSettings.cs" i will rename the newer one to "TiltSettingsContent.cs".
-28.08: Also renamed the Node in SettingsWindow to "TitSettingsContent".
-28.08: Deleted all Content of the old CenterUi Node.
-28.08: Moved the CenterUi node to be a children of Ui.
-28.08: Moved the Nodes/Scenes "StatisticsWindow", "SettingsWindow", and "PrestigeWindow" to "CenterUi".
-28.08: Creating a new Script "CenterUi.cs" and attaching it to the CenterUi Node.
-28.08: Made StatisticsWindow, SettingsWindow and PrestigeWindow, Control Nodes due to some Error.
-!! -- Executing the Game now shows that the SellEnergyButton is still Visible. -- !!
-!! -- The Tilt Settings appear in the top Left of the screen. -- !!
-!! -- The old Buy and Upgrade Buttons and Windows Still work. -- !!
-!! -- TopUi is still visible. Settings and Statistics Buttons are not visible anymore. -- !!
-
+28.08: Created WheelDisplay.tscn, attached WheelDisplay.cs and instanced it 6 times in WheelUi.
+28.08: Created PrestigeWindow.tscn as a Control-based modal window and placed it in CenterUi.
+28.08: Created TopUiBackground in TopUi.
+!! -- TopUi already has RainDisplayContainer (Type: Node) with RainDisplay, and CurrenciesContainer with EnergyDisplay and MoneyDisplay. We will keep them. -- !!
+28.08: Created and attached RainDisplay.cs, EnergyDisplay.cs and MoneyDisplay.cs.
+28.08: Created WheelUi.cs and attached it to WheelUi.
+28.08: Created a VBoxContainer in StatisticsWindow and added Graph1, Graph2 and Graph3 child Nodes.
+28.08: Created and attached a script for each graph Node in res://Scripts/ui/graphs/.
+28.08: Created SettingsContent (VBoxContainer) in SettingsWindow with TiltSettingsContent, AudioSettings and MoreInfoButton children.
+28.08: Attached SettingsContent.cs to SettingsContent. Most of its old responsibilities will be migrated to the child scripts.
+28.08: Created and attached TiltSettingsContent.cs, AudioSettings.cs and MoreInfoButton.cs.
+28.08: Made sure all Windows and Scenes have their appropriate scripts attached.
+28.08: Created res://Scripts/global and moved RenderedWindowBackground.cs and UiSettings.cs there.
+28.08: Created RenderedButtonBackground.cs in global so shared button background rendering is centralized.
+28.08: Created ButtonContainer in WheelDisplay.tscn with no script.
+28.08: Created BuyButton and UpgradeButton Nodes inside ButtonContainer and attached BuyButton.cs and UpgradeButton.cs.
+!! -- There were two files named TiltSettings.cs. The newer one was renamed to TiltSettingsContent.cs. -- !!
+28.08: Renamed the SettingsWindow Node to TiltSettingsContent.
+28.08: Deleted the old CenterUi content.
+28.08: Moved CenterUi to be a child of Ui.
+28.08: Moved StatisticsWindow, SettingsWindow and PrestigeWindow under CenterUi.
+28.08: Created CenterUi.cs and attached it to CenterUi.
+28.08: Made StatisticsWindow, SettingsWindow and PrestigeWindow Control Nodes.
+!! -- Current runtime notes: SellEnergyButton is still visible; Tilt Settings appear in the top-left; old Buy and Upgrade Buttons/Windows still work; TopUi is visible; Settings and Statistics Buttons are currently not visible. These are migration issues to resolve, not reasons to change the target architecture. -- !!
 
 
 ============================================================
@@ -56,14 +49,13 @@ Branch: ui-pass-2-20260823
 
 The UI architecture must stay simple. Do NOT create a separate .tscn for every UI Node or every visual element.
 
-For the current UI work, these are the ONLY separate UI scene types that should be created:
+For the current UI Pass 2 architecture, these are the approved separate UI scene types:
 
 1. Main.tscn
    Existing main game scene. This remains the overall composition root.
 
 2. WheelDisplay.tscn
-   Reusable scene for ONE wheel's UI display.
-   It is instantiated six times, once for each logical wheel.
+   Reusable scene for ONE wheel's UI display. It is instantiated six times.
 
 3. BuyWindow.tscn
    Self-contained Buy Wheel modal window.
@@ -77,9 +69,12 @@ For the current UI work, these are the ONLY separate UI scene types that should 
 6. StatisticsWindow.tscn
    Self-contained Statistics modal window containing its graph Nodes.
 
-These six scene types are sufficient for the current UI Pass 2 architecture.
+7. PrestigeWindow.tscn
+   Self-contained Prestige modal window.
 
-IMPORTANT: Do NOT create separate scenes for Ui, TopUi, BottomUi, WheelUi, UiWindowManager, individual graphs, displays, buttons, labels, panels, or layout containers unless a future requirement clearly makes one of them an independently reusable/self-contained component.
+These seven scene types are sufficient for the current UI Pass 2 architecture.
+
+IMPORTANT: Do NOT create separate scenes for Ui, TopUi, BottomUi, WheelUi, CenterUi, UiWindowManager, individual graphs, displays, buttons, labels, panels, or layout containers unless a future requirement clearly makes one of them an independently reusable/self-contained component.
 
 SCENE DECISION RULE
 
@@ -106,15 +101,19 @@ Main.tscn
     │   ├── Wheel4  ← WheelDisplay.tscn instance
     │   ├── Wheel5  ← WheelDisplay.tscn instance
     │   └── Wheel6  ← WheelDisplay.tscn instance
-    ├── StatisticsWindow  ← StatisticsWindow.tscn instance
-    ├── SettingsWindow    ← SettingsWindow.tscn instance
-    ├── BuyWindow         ← BuyWindow.tscn instance
-    ├── UpgradeWindow     ← UpgradeWindow.tscn instance
+    ├── CenterUi
+    │   ├── StatisticsWindow  ← StatisticsWindow.tscn instance
+    │   ├── SettingsWindow    ← SettingsWindow.tscn instance
+    │   └── PrestigeWindow     ← PrestigeWindow.tscn instance
+    ├── BuyWindow              ← BuyWindow.tscn instance
+    ├── UpgradeWindow          ← UpgradeWindow.tscn instance
     └── UiWindowManager
+
+CenterUi is an ordinary Control Node in Main.tscn. It groups the centered modal windows and owns their common positioning/layering as appropriate. It does NOT need its own scene.
 
 TopUi, BottomUi and WheelUi are ordinary Nodes inside Main.tscn. They do NOT need their own scenes.
 
-StatisticsGraph and EnergyPerWheelGraph are ordinary child Nodes inside StatisticsWindow.tscn. They do NOT need separate scenes at this stage.
+StatisticsWindow.tscn contains the graph Nodes. Individual graph Nodes do NOT need separate scenes at this stage.
 
 UiWindowManager is an application-level coordinator, not a visual component, and therefore is an ordinary Node inside the UI hierarchy.
 
@@ -125,8 +124,12 @@ DO NOT create:
 - TopUi.tscn
 - BottomUi.tscn
 - WheelUi.tscn
+- CenterUi.tscn
 - StatisticsGraph.tscn
 - EnergyPerWheelGraph.tscn
+- Graph1.tscn
+- Graph2.tscn
+- Graph3.tscn
 - Scenes for individual Labels, Buttons, Panels, MarginContainers, VBoxContainers, HBoxContainers, spacers, sliders, indicators, graph labels, or similar small UI pieces.
 
 If a proposed new scene is not clearly justified by the rules above, keep the component as a child Node in its owning scene.
@@ -135,15 +138,17 @@ If a proposed new scene is not clearly justified by the rules above, keep the co
 1. PURPOSE
 ============================================================
 
-This document defines the Godot Node/Scene architecture to use before refactoring the existing UI scripts.
+This document defines the Godot Node/Scene architecture to use during the UI script migration.
 
 IMPORTANT
-Create the required scene Nodes in the Godot editor first. Do not replace the existing UI in one large rewrite. Migrate existing behavior incrementally.
+The scene structure has already been created in Godot. Do not replace the existing UI in one large rewrite. Migrate existing behavior incrementally.
 
 ARCHITECTURE RULE
 A major UI component may have a dedicated script without having its own scene. A separate scene is reserved for reusable, self-contained, or independently managed UI components.
 
+============================================================
 2. MAIN UI HIERARCHY
+============================================================
 
 The existing Main.tscn remains the overall scene.
 
@@ -152,15 +157,25 @@ Its Ui area should contain:
   - TopUi
   - BottomUi
   - WheelUi
-  - StatisticsWindow
-  - SettingsWindow
+    - Wheel1
+    - Wheel2
+    - Wheel3
+    - Wheel4
+    - Wheel5
+    - Wheel6
+  - CenterUi
+    - StatisticsWindow
+    - SettingsWindow
+    - PrestigeWindow
   - BuyWindow
   - UpgradeWindow
   - UiWindowManager
 
-The exact existing Main.tscn structure should be preserved where possible during migration.
+The exact existing Main.tscn structure should be preserved during migration. Do not restructure unrelated simulation Nodes.
 
+============================================================
 3. TOP UI
+============================================================
 
 Node Type:
 Control
@@ -169,18 +184,29 @@ TopUi
 Script:
 TopUi.cs
 
-Children:
+Current children include:
 - TopUiBackground
-- EnergyDisplay
-- DollarsDisplay
-- RainAmountDisplay
+- RainDisplayContainer
+  - RainDisplay
+- CurrenciesContainer
+  - EnergyDisplay
+  - MoneyDisplay
 
 Purpose:
-Own and update persistent top-of-screen information.
+Own persistent top-of-screen UI layout and coordinate its display components.
+
+Display scripts:
+- RainDisplay.cs controls RainDisplay.
+- EnergyDisplay.cs controls EnergyDisplay.
+- MoneyDisplay.cs controls MoneyDisplay.
+
+Do not rename MoneyDisplay to DollarsDisplay during migration unless the Node is intentionally renamed in Godot first. Keep code and Node names synchronized.
 
 TopUi remains an ordinary Node in Main.tscn. Do not create TopUi.tscn.
 
+============================================================
 4. BOTTOM UI
+============================================================
 
 Node Type:
 Control
@@ -189,19 +215,27 @@ BottomUi
 Script:
 BottomUi.cs
 
-Children:
-- BuyArea
-- UpgradeArea
-- SettingsButton
+Current important children include:
 - StatisticsButton
-- other persistent bottom controls as required
+- SellEnergyButton
+- SettingsButton
+- PrestigeButton
+- existing Buy/Upgrade areas or controls that are still being migrated
+
+Button scripts:
+- StatisticsButton.cs
+- SettingsButton.cs
+- PrestigeButton.cs
+- existing SellEnergyButton.cs
 
 Purpose:
 Own persistent bottom controls and route interaction to the appropriate windows/components.
 
 BottomUi remains an ordinary Node in Main.tscn. Do not create BottomUi.tscn.
 
+============================================================
 5. WHEEL UI
+============================================================
 
 Node Type:
 Control
@@ -226,9 +260,13 @@ Wheel4 = 4
 Wheel5 = 5
 Wheel6 = 6
 
-Do not derive display numbering independently in multiple scripts.
+WheelUi is the single owner of wheel ordering/index assignment. WheelDisplay must receive or expose its logical wheel number rather than independently guessing its number.
 
+Do not derive display numbering independently in BuyWindow, UpgradeWindow, WheelDisplay and other scripts.
+
+============================================================
 6. WHEEL DISPLAY SCENE
+============================================================
 
 Scene:
 WheelDisplay.tscn
@@ -237,109 +275,165 @@ Control named WheelDisplay
 Script:
 WheelDisplay.cs
 
-This scene contains the visual Nodes needed for one wheel display, including its Buy/Upgrade interaction controls as appropriate.
+This scene contains the visual Nodes needed for one wheel display.
 
-The same scene is instantiated six times. The wheel number is instance data, not a reason to create six different scenes.
+Current structure includes:
+- ButtonContainer
+  - BuyButton
+  - UpgradeButton
 
+ButtonContainer has no script.
+BuyButton uses BuyButton.cs.
+UpgradeButton uses UpgradeButton.cs.
+
+The same WheelDisplay.tscn is instantiated six times. The wheel number is instance data, not a reason to create six different scenes.
+
+WheelDisplay.cs should control the existing Nodes belonging to one wheel and should not construct an entire wheel UI hierarchy at runtime.
+
+============================================================
 7. BUY WINDOW
+============================================================
 
 Scene:
 BuyWindow.tscn
 Root Node:
-PanelContainer named BuyWindow
+Control / PanelContainer-based modal root as currently implemented
 Script:
 BuyWindow.cs
 
-Children:
-- MarginContainer
-  - VBoxContainer
-    - TitleLabel
-    - WheelNumberLabel
-    - UnlockRow
-      - UnlockLabel
-      - PriceButton
-    - Spacer
-    - CloseWindowButton
+The exact child hierarchy in the scene is authoritative. BuyWindow.cs must control existing Nodes rather than constructing the complete window hierarchy at runtime.
 
-TitleLabel:
-Text: Buy Wheel
+The window must display the logical wheel number supplied by the wheel system.
 
-WheelNumberLabel:
-Displays the logical wheel number, e.g. Wheel 1.
+Expected examples:
+- Buy Wheel 1
+- Buy Wheel 2
 
-UnlockLabel:
-Text: Unlock Wheel
+Do not duplicate wheel-number calculation inside BuyWindow.cs.
 
-PriceButton:
-Text: 10$
-
-BuyWindow.cs controls these existing Nodes. It must not construct the complete window hierarchy at runtime.
-
+============================================================
 8. UPGRADE WINDOW
+============================================================
 
 Scene:
 UpgradeWindow.tscn
 Root Node:
-PanelContainer named UpgradeWindow
+Control / PanelContainer-based modal root as currently implemented
 Script:
 UpgradeWindow.cs
 
+The exact child hierarchy in the scene is authoritative. UpgradeWindow.cs must control existing upgrade Nodes/buttons rather than dynamically constructing the complete window hierarchy.
+
+The window must display the logical wheel number supplied by the wheel system.
+
+Expected examples:
+- Upgrade Wheel 1
+- Upgrade Wheel 2
+
+Do not duplicate wheel-number calculation inside UpgradeWindow.cs.
+
+============================================================
+9. CENTER UI
+============================================================
+
+Node Type:
+Control
+Name:
+CenterUi
+Script:
+CenterUi.cs
+
+CenterUi is an ordinary Node in Main.tscn, not a separate scene.
+
 Children:
-- MarginContainer
-  - VBoxContainer
-    - TitleLabel
-    - WheelNumberLabel
-    - UpgradeList
-    - CloseWindowButton
+- StatisticsWindow
+- SettingsWindow
+- PrestigeWindow
 
-WheelNumberLabel displays the logical wheel number.
+Purpose:
+- Group centered modal/content windows.
+- Provide a common parent for their positioning and layering where appropriate.
+- Keep centered windows separate from persistent TopUi, BottomUi and WheelUi.
 
-UpgradeWindow.cs controls existing upgrade rows/buttons instead of dynamically constructing the complete window.
+CenterUi must not take over the internal responsibilities of the individual windows. Each window remains responsible for its own content and interaction.
 
-9. SETTINGS WINDOW
+============================================================
+10. SETTINGS WINDOW
+============================================================
 
 Scene:
 SettingsWindow.tscn
 Root Node:
-PanelContainer named SettingsWindow
+Control
+Name:
+SettingsWindow
 Script:
 SettingsWindow.cs
 
-Children:
-- MarginContainer
-  - VBoxContainer
-    - SettingsTitle
-    - TiltSettingsArea
-    - TiltSlider
-    - GravityIndicator
-    - additional existing settings controls
-    - CloseWindowButton
+The SettingsWindow scene contains its settings content Nodes.
 
-SettingsWindow.cs owns settings interaction. Shared visual styling comes from UiSettings.cs.
+Current settings content includes:
+- SettingsContent (VBoxContainer) with SettingsContent.cs
+  - TiltSettingsContent
+  - AudioSettings
+  - MoreInfoButton
 
-10. STATISTICS WINDOW
+TiltSettingsContent.cs owns the migrated Tilt Settings content. AudioSettings.cs owns audio settings. MoreInfoButton.cs owns the More Info interaction.
+
+IMPORTANT
+The older SettingsContent.cs may still contain responsibilities from the previous runtime-built UI. Migrate those responsibilities incrementally into the appropriate child scripts. Do not delete working behavior until the replacement has been verified.
+
+SettingsWindow.cs owns the window-level behavior and should not recreate the complete settings hierarchy at runtime.
+
+Shared visual styling comes from UiSettings.cs.
+
+============================================================
+11. STATISTICS WINDOW
+============================================================
 
 Scene:
 StatisticsWindow.tscn
 Root Node:
-PanelContainer named StatisticsWindow
+Control
+Name:
+StatisticsWindow
 Script:
 StatisticsWindow.cs
 
-Children:
-- MarginContainer
-  - VBoxContainer
-    - StatisticsHeader
-    - ExistingGraph
-    - RainAmountGraph
-    - EnergyPerWheelGraph
-    - CloseWindowButton
+Current structure includes a VBoxContainer containing three graph Nodes:
+- Graph1
+- Graph2
+- Graph3
 
-The graph components are ordinary child Nodes in StatisticsWindow.tscn. They do not require separate .tscn files at this stage.
+Each graph Node has its own script in:
+res://Scripts/ui/graphs/
 
-StatisticsGraph.cs may control the standard graph Nodes, and EnergyPerWheelGraph.cs may control the bar-based graph. Scripts and scenes are separate architectural decisions.
+The graph Nodes are ordinary child Nodes in StatisticsWindow.tscn. They do not require separate .tscn files.
 
-11. WINDOW / MODAL COORDINATION
+Graph responsibilities must remain separated. A graph script controls its own graph Node and does not construct the entire StatisticsWindow hierarchy.
+
+The third graph is the Energy per Wheel graph and must preserve the planned Wheel 1 → Wheel 6 ordering.
+
+============================================================
+12. PRESTIGE WINDOW
+============================================================
+
+Scene:
+PrestigeWindow.tscn
+Root Node:
+Control
+Name:
+PrestigeWindow
+
+PrestigeWindow is a self-contained centered modal window under CenterUi.
+
+It is an approved separate scene because it is an independently shown/hidden major UI window.
+
+Use the existing scene hierarchy as the source of truth when migrating its behavior. Do not build its complete hierarchy dynamically in code.
+
+============================================================
+13. WINDOW / MODAL COORDINATION
+============================================================
 
 Node Type:
 Node
@@ -357,15 +451,22 @@ Responsibilities:
 - Ensure modal windows are in front.
 - Close the active modal when clicking/touching outside it where appropriate.
 - Prevent multiple modal windows from fighting for input.
+- Coordinate the modal windows without owning their internal content.
+
+CenterUi may handle common centered-window layout, but UiWindowManager remains responsible for application-level modal state/coordination.
 
 Individual windows remain responsible for their own internal behavior.
 
-12. UI SETTINGS
+============================================================
+14. SHARED UI SETTINGS AND RENDERING
+============================================================
 
-File:
-UiSettings.cs
+Files:
+- res://Scripts/global/UiSettings.cs
+- res://Scripts/global/RenderedWindowBackground.cs
+- res://Scripts/global/RenderedButtonBackground.cs
 
-UiSettings remains a centralized static configuration class.
+UiSettings remains the centralized static configuration class.
 
 All shared values such as:
 - BorderColor
@@ -377,9 +478,13 @@ All shared values such as:
 
 must come from UiSettings.cs.
 
-Do not introduce local copies of these values inside individual UI scripts unless a component has a deliberate unique visual requirement.
+RenderedWindowBackground.cs and RenderedButtonBackground.cs provide centralized rendering/background behavior where appropriate.
 
-13. SCRIPT RESPONSIBILITY RULES
+Do not introduce local copies of shared visual constants inside individual UI scripts unless a component has a deliberate unique visual requirement.
+
+============================================================
+15. SCRIPT RESPONSIBILITY RULES
+============================================================
 
 UI scripts should:
 - Find/cache their child Nodes.
@@ -388,6 +493,7 @@ UI scripts should:
 - React to game state.
 - Position their own component when necessary.
 - Request modal/window changes from UiWindowManager when appropriate.
+- Communicate with their parent/controller through explicit references or methods rather than recreating other UI components.
 
 UI scripts should NOT:
 - Build an entire UI hierarchy from scratch.
@@ -395,37 +501,91 @@ UI scripts should NOT:
 - Own unrelated windows.
 - Duplicate wheel numbering logic.
 - Duplicate global modal input handling.
+- Recreate Nodes that already exist in a .tscn.
 
 A script does NOT automatically require a separate .tscn. Prefer ordinary child Nodes when a component is not reusable or independently managed.
 
-14. RECOMMENDED MIGRATION ORDER
+============================================================
+16. MIGRATION ORDER
+============================================================
 
-1. Preserve Main.tscn as the overall composition root.
-2. Add/organize UiWindowManager as a Node in the existing UI hierarchy.
-3. Create WheelDisplay.tscn and instance it six times under WheelUi.
-4. Create BuyWindow.tscn and attach BuyWindow.cs.
-5. Migrate the current working Buy Window behavior.
-6. Create UpgradeWindow.tscn and attach UpgradeWindow.cs.
-7. Migrate the current working Upgrade Window behavior.
-8. Create StatisticsWindow.tscn and organize its graph child Nodes.
-9. Migrate SettingsWindow into SettingsWindow.tscn.
-10. Migrate TopUi and BottomUi as ordinary Nodes; do not create scenes for them.
-11. Remove obsolete runtime UI construction only after each migration is verified.
+Migrate incrementally and keep the old implementation only as long as needed for safe transition.
 
-15. TESTING REQUIREMENT
+1. Verify the current Godot Node hierarchy and script attachments.
+2. Migrate WheelDisplay.cs to control the existing WheelDisplay Nodes.
+3. Migrate BuyButton.cs and UpgradeButton.cs to control their existing Button Nodes.
+4. Migrate WheelUi.cs and establish the single source of truth for wheel numbers 1–6.
+5. Migrate BuyWindow.cs to the existing BuyWindow scene.
+6. Migrate UpgradeWindow.cs to the existing UpgradeWindow scene.
+7. Migrate TopUi.cs and its RainDisplay, EnergyDisplay and MoneyDisplay child scripts.
+8. Migrate BottomUi.cs and its button scripts.
+9. Migrate CenterUi.cs and the centered window positioning/grouping.
+10. Migrate SettingsWindow.cs and move remaining settings responsibilities into TiltSettingsContent.cs, AudioSettings.cs and MoreInfoButton.cs as appropriate.
+11. Migrate StatisticsWindow.cs and the three graph scripts.
+12. Migrate PrestigeWindow behavior.
+13. Finalize UiWindowManager.cs so modal coordination is centralized.
+14. Remove obsolete runtime UI construction only after each replacement has been verified.
+15. Remove obsolete scripts and duplicate styling/constants only after references are gone.
 
-After every migration:
+IMPORTANT
+Do not perform steps 2–15 as one giant rewrite. Each component must compile and be tested before moving to the next major component.
+
+============================================================
+17. MIGRATION SAFETY RULES
+============================================================
+
+During migration:
+- Do not change simulation behavior.
+- Do not change unrelated gameplay logic.
+- Do not replace working UI with a parallel second implementation unless needed temporarily for migration.
+- Do not delete old runtime construction before the corresponding scene-based implementation is working.
+- Do not create duplicate Nodes at runtime when an equivalent Node already exists in the scene.
+- Keep Node names and C# references synchronized.
+- Prefer explicit NodePath/exported references or stable GetNode paths over fragile searches.
+
+When a migrated component works, remove only the obsolete code belonging to that component.
+
+============================================================
+18. TESTING REQUIREMENT
+============================================================
+
+After every major migration:
 - Run on Windows.
+- Verify the game starts without errors.
 - Verify mouse interaction.
-- Verify outside-click behavior.
+- Verify outside-click behavior where applicable.
 - Verify window layering.
 - Verify enabled/disabled colors.
 - Verify no duplicate UI is being created.
+- Verify the simulation continues to behave normally.
 
-After the complete migration:
+After WheelDisplay/WheelUi migration:
+- Verify all six wheel displays exist.
+- Verify numbering is Wheel 1 through Wheel 6 from left to right.
+- Verify Buy and Upgrade actions target the correct wheel.
+
+After Buy/Upgrade migration:
+- Verify the correct wheel number is displayed.
+- Verify affordability colors.
+- Verify purchase/upgrade behavior remains unchanged.
+
+After Statistics migration:
+- Verify all three graphs.
+- Verify the Energy-per-Wheel graph contains the six wheels in the correct order.
+
+After Settings migration:
+- Verify Tilt Settings position.
+- Verify Tilt slider and Gravity Indicator.
+- Verify Audio Settings.
+- Verify More Info.
+
+After complete migration:
 - Test Android touch input.
 - Verify all six wheel numbers.
-- Verify Buy and Upgrade windows display the correct wheel number.
+- Verify Buy and Upgrade windows.
 - Verify all statistics graphs.
+- Verify all settings controls.
+- Verify Prestige window.
+- Verify no obsolete runtime UI is being constructed.
 
 END OF DEVELOPER INSTRUCTIONS
