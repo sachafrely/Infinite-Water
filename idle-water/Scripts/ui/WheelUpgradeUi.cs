@@ -1,3 +1,5 @@
+// THIS FILE SHALL BE GONE SOON //
+
 using Godot;
 
 public partial class WheelUpgradeUi : Control
