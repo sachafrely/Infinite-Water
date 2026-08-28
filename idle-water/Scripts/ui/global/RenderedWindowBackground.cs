@@ -7,26 +7,26 @@ using Godot;
 /// </summary>
 public static class RenderedWindowBackground
 {
-    public static void Draw(Control target)
-    {
-        if (target == null || target.Size.X <= 0.0f || target.Size.Y <= 0.0f)
-            return;
+	public static void Draw(Control target)
+	{
+		if (target == null || target.Size.X <= 0.0f || target.Size.Y <= 0.0f)
+			return;
 
-        target.DrawRect(
-            new Rect2(Vector2.Zero, target.Size),
-            UiSettings.WindowBackgroundColor,
-            true
-        );
+		target.DrawRect(
+			new Rect2(Vector2.Zero, target.Size),
+			UiSettings.WindowBackgroundColor,
+			true
+		);
 
-        float borderSize = UiSettings.BorderSize;
-        if (borderSize <= 0.0f)
-            return;
+		float borderSize = UiSettings.BorderSize;
+		if (borderSize <= 0.0f)
+			return;
 
-        Color borderColor = UiSettings.BorderColor;
+		Color borderColor = UiSettings.BorderColor;
 
-        target.DrawRect(new Rect2(0, 0, target.Size.X, borderSize), borderColor, true);
-        target.DrawRect(new Rect2(0, target.Size.Y - borderSize, target.Size.X, borderSize), borderColor, true);
-        target.DrawRect(new Rect2(0, 0, borderSize, target.Size.Y), borderColor, true);
-        target.DrawRect(new Rect2(target.Size.X - borderSize, 0, borderSize, target.Size.Y), borderColor, true);
-    }
+		target.DrawRect(new Rect2(0, 0, target.Size.X, borderSize), borderColor, true);
+		target.DrawRect(new Rect2(0, target.Size.Y - borderSize, target.Size.X, borderSize), borderColor, true);
+		target.DrawRect(new Rect2(0, 0, borderSize, target.Size.Y), borderColor, true);
+		target.DrawRect(new Rect2(target.Size.X - borderSize, 0, borderSize, target.Size.Y), borderColor, true);
+	}
 }

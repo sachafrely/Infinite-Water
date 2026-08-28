@@ -1,18 +1,24 @@
-// This script should initiate the Background-Function 
-// from "res://Scripts/ui/global/RenderedWindowBackground.cs"
+// This script initiates the background function
+// from "res://Scripts/ui/global/RenderedWindowBackground.cs".
 
 using Godot;
-using System;
 
-public partial class TopUiBackground : Node
+public partial class TopUiBackground : Control
 {
-	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
+		MouseFilter = MouseFilterEnum.Ignore;
+		QueueRedraw();
 	}
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
+	public override void _Notification(int what)
 	{
+		if (what == NotificationResized)
+			QueueRedraw();
+	}
+
+	public override void _Draw()
+	{
+		RenderedWindowBackground.Draw(this);
 	}
 }

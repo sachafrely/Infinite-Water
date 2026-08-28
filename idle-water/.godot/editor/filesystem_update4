@@ -1,4 +1,5 @@
 res://Scenes/Main.tscn
+res://Scripts/ui/TopUiBackground.cs
 res://Scripts/ui/WheelUpgradeWindow.cs
 res://Scripts/ui/WheelUpgradeUi.cs
 res://Scripts/ui/WheelPurchaseUi.cs
@@ -6,7 +7,6 @@ res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
 res://Scripts/rendering/WaterWheelVisual.cs
 res://Scripts/ui/UiToggleButton.cs
 res://Scripts/ui/StatisticsGraph.cs
-res://Scripts/ui/global/RenderedWindowBackground.cs
 res://Scripts/ui/global/RenderedButtonBackground.cs
 res://Scripts/rendering/FluidRenderer.cs
 res://Scripts/ui/PrestigeWindow.cs
@@ -35,7 +35,6 @@ res://Scripts/ui/RainDisplay.cs
 res://Scripts/ui/BottomUi.cs
 res://Scripts/ui/SellEnergyButton.cs
 res://Scripts/ui/CenterUi.cs
-res://Scripts/ui/TopUiBackground.cs
 res://Scripts/ui/UiWindowManager.cs
 res://Scripts/core/FrameProfiler.cs
 res://Scripts/simulation/TileMapPhysics.cs
