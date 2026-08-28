@@ -1,15 +1,30 @@
 using Godot;
-using System;
 
-public partial class BuyButton : Node
+/// <summary>
+/// Controls the BuyButton already present in WheelDisplay.tscn.
+/// Window opening/purchase behavior is supplied by the owning wheel/UI layer.
+/// </summary>
+public partial class BuyButton : Button
 {
-	// Called when the node enters the scene tree for the first time.
-	public override void _Ready()
-	{
-	}
+    public override void _Ready()
+    {
+        FocusMode = FocusModeEnum.None;
+        Pressed += OnPressed;
+    }
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
-	{
-	}
+    private void OnPressed()
+    {
+        WheelDisplay wheelDisplay = GetParent()?.GetParent() as WheelDisplay;
+        if (wheelDisplay == null)
+        {
+            GD.PushWarning("BuyButton: Could not find owning WheelDisplay.");
+            return;
+        }
+
+        wheelDisplay.GetNodeOrNull<WheelUi>("../..");
+        wheelDisplay.EmitSignal(WheelDisplay.SignalName.BuyRequested);
+    }
+
+    [Signal]
+    public delegate void BuyRequestedEventHandler();
 }
