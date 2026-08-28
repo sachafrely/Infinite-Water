@@ -44,7 +44,6 @@ public partial class EconomyUi : Control
         UpdateDisplay();
         UpdateRainDisplay();
         UpdateAntiLagDisplay();
-        HideLegacyRainText();
         ApplyGlobalUiBorders();
         SetDisplayPosition();
         QueueRedraw();
@@ -132,18 +131,6 @@ public partial class EconomyUi : Control
 
     private void UpdateRainDisplay() { if (rainDisplay is RainAmountDisplay display) display.RainPercent = GetCurrentRainPercent(); }
     private void UpdateAntiLagDisplay() { if (antiLagLabel != null) antiLagLabel.Visible = IsAntiLagCleanupActive(); }
-
-    private void HideLegacyRainText()
-    {
-        Node root = GetTree().CurrentScene;
-        if (root == null) return;
-        foreach (Node node in root.FindChildren("*", "Label", true, false))
-        {
-            if (node is not Label label || label == energyLabel || label == dollarsLabel || label == antiLagLabel) continue;
-            string text = label.Text.ToUpperInvariant();
-            if (text.Contains("RAIN") && text.Contains("NEXT CHANGE")) label.Visible = false;
-        }
-    }
 
     private void SetDisplayPosition()
     {
