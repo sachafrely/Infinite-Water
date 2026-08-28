@@ -24,8 +24,10 @@ public partial class BuyWindow : Control
 		purchaseButton = GetNodeOrNull<Button>("Panel/Margin/Content/UnlockRow/PurchaseButton");
 		closeButton = GetNodeOrNull<Button>("Panel/Margin/Content/CloseButton");
 
-		purchaseButton?.Pressed += Purchase;
-		closeButton?.Pressed += Close;
+		if (purchaseButton != null)
+			purchaseButton.Pressed += Purchase;
+		if (closeButton != null)
+			closeButton.Pressed += Close;
 
 		MouseFilter = MouseFilterEnum.Stop;
 		Hide();

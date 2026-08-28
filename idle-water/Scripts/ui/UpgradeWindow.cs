@@ -36,10 +36,12 @@ public partial class UpgradeWindow : Control
 		for (int i = 0; i < purchaseButtons.Length; i++)
 		{
 			int capturedIndex = i;
-			purchaseButtons[i]?.Pressed += () => Purchase(types[capturedIndex]);
+			if (purchaseButtons[i] != null)
+				purchaseButtons[i].Pressed += () => Purchase(types[capturedIndex]);
 		}
 
-		closeButton?.Pressed += Close;
+		if (closeButton != null)
+			closeButton.Pressed += Close;
 		MouseFilter = MouseFilterEnum.Stop;
 		Hide();
 		Refresh();
