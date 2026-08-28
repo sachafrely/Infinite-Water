@@ -27,98 +27,54 @@ MIGRATION TRACKER
 ============================================================
 
 1. WheelDisplay.cs                         [!]
-   - Now inherits Control and controls existing scene Nodes.
-   - Exposes logical WheelNumber.
-   - Caches existing BuyButton/UpgradeButton Nodes.
-   - Emits BuyRequested/UpgradeRequested with the wheel number.
-   - Runtime verification still required.
-
 2. BuyButton.cs                            [!]
-   - Now inherits Button and controls the existing BuyButton Node.
-   - Routes its press to the owning WheelDisplay.
-   - Runtime verification still required.
-
 3. UpgradeButton.cs                        [!]
-   - Now inherits Button and controls the existing UpgradeButton Node.
-   - Routes its press to the owning WheelDisplay.
-   - Runtime verification still required.
-
 4. WheelUi.cs                              [!]
-   - Now inherits Control and manages the six WheelDisplay instances.
-   - Assigns Wheel 1–6 from left to right.
-   - Receives wheel interaction requests.
-   - Buy/Upgrade requests currently log only; window migration will consume them next.
+   - Six WheelDisplay instances are discovered and numbered left-to-right.
+   - Buy/Upgrade requests now open the authored BuyWindow/UpgradeWindow scenes.
+
+5. BuyWindow.cs                            [!]
+   - Replaced placeholder with scene-owned implementation.
+   - Uses existing BuyWindow.tscn Nodes instead of constructing its hierarchy at runtime.
+   - Receives a logical wheel number and simulator reference.
+   - Handles purchase, close and outside-click behavior.
    - Runtime verification still required.
 
-5. BuyWindow.cs                            [ ]
-   - Migrate old purchase-window behavior to BuyWindow.tscn.
-
-6. UpgradeWindow.cs                        [ ]
-   - Migrate old upgrade-window behavior to UpgradeWindow.tscn.
+6. UpgradeWindow.cs                        [!]
+   - Replaced placeholder with scene-owned implementation.
+   - Uses existing UpgradeWindow.tscn Nodes instead of constructing its hierarchy at runtime.
+   - Receives a logical wheel number and simulator reference.
+   - Handles three upgrade types, levels, prices, close and outside-click behavior.
+   - Runtime verification still required.
 
 7. TopUi.cs                                [ ]
-   - Move top-level display coordination out of EconomyUi.cs.
-
 8. RainDisplay.cs                          [ ]
-   - Migrate rain display behavior from EconomyUi/RainAmountDisplay.
-
 9. EnergyDisplay.cs                        [ ]
-   - Migrate Energy label behavior from EconomyUi.cs.
-
 10. MoneyDisplay.cs                        [ ]
-    - Migrate Dollars label behavior from EconomyUi.cs.
-
 11. BottomUi.cs                            [ ]
-    - Migrate persistent bottom UI coordination.
-
 12. StatisticsButton.cs                    [ ]
 13. SettingsButton.cs                      [ ]
 14. PrestigeButton.cs                      [ ]
 15. SellEnergyButton.cs                    [ ]
-
 16. CenterUi.cs                            [ ]
-    - Own centered-window grouping/layout only.
-
 17. SettingsWindow.cs                      [ ]
 18. SettingsContent.cs                     [ ]
 19. TiltSettingsContent.cs                 [ ]
 20. AudioSettings.cs                       [ ]
 21. MoreInfoButton.cs                      [ ]
-
 22. StatisticsWindow.cs                    [ ]
 23. Graph1.cs                               [ ]
 24. Graph2.cs                               [ ]
 25. Graph3.cs                               [ ]
 26. StatisticsGraph.cs                     [ ]
-
 27. PrestigeWindow.cs                      [ ]
-
 28. UiWindowManager.cs                     [ ]
-    - Update paths for CenterUi hierarchy.
-    - Add Prestige state/window support as required.
-    - Keep application-level modal coordination centralized.
-
 29. EconomyUi.cs                            [ ]
-    - Retire after its responsibilities have been migrated.
-    - Do not delete until all references are removed.
-
 30. WheelPurchaseUi.cs                      [ ]
-    - Retire runtime-created purchase windows after BuyWindow/WheelDisplay migration is verified.
-
 31. WheelUpgradeUi.cs                       [ ]
-    - Retire runtime-created upgrade windows after UpgradeWindow/WheelDisplay migration is verified.
-
 32. EnergySystem.cs UI construction          [ ]
-    - Remove CreateEconomyUiDeferred().
-    - Remove CreateWheelPurchaseUiDeferred().
-    - Remove CreateWheelUpgradeUiDeferred().
-    - Only after replacement scene-based UI is verified.
-
 33. StatisticsGraphUiSettings.cs             [ ]
-    - Remove only after confirming no references remain.
-
 34. UiToggleButton.cs                        [ ]
-    - Recycle/remove only after references are gone.
 
 ============================================================
 CURRENT MIGRATION DECISIONS
@@ -127,12 +83,13 @@ CURRENT MIGRATION DECISIONS
 - Main.tscn remains the composition root.
 - WheelDisplay.tscn is reused six times.
 - WheelUi owns logical wheel numbering.
-- Buy/Upgrade windows receive the wheel identity; they do not calculate it independently.
+- Buy/Upgrade windows receive wheel identity; they do not calculate it independently.
 - CenterUi is a Control Node, not a scene.
 - StatisticsWindow contains Graph1, Graph2 and Graph3 as child Nodes.
 - Shared visual configuration remains in Scripts/global/UiSettings.cs.
 - Runtime UI creation is removed only after the equivalent scene-based implementation is verified.
 - Simulation/gameplay code must not be changed as part of UI migration unless required to remove obsolete UI construction.
+- Old WheelPurchaseUi and WheelUpgradeUi remain temporarily because runtime verification of the new scene-based windows has not yet been performed.
 
 ============================================================
 LATEST WORK
@@ -144,11 +101,13 @@ LATEST WORK
 - Migrated BuyButton.cs to the actual Button Node type and routed presses through WheelDisplay.
 - Migrated UpgradeButton.cs to the actual Button Node type and routed presses through WheelDisplay.
 - Migrated WheelUi.cs to manage the six WheelDisplay instances and assign logical numbers 1–6.
-- Did NOT remove the old runtime UI yet; this remains intentionally until BuyWindow/UpgradeWindow migration is verified.
-- Identified EconomyUi.cs and EnergySystem.cs as major remaining runtime-UI construction sources.
+- Migrated BuyWindow.cs to the authored BuyWindow.tscn hierarchy.
+- Migrated UpgradeWindow.cs to the authored UpgradeWindow.tscn hierarchy.
+- Updated WheelUi.cs so Buy/Upgrade requests now open the corresponding scene-based windows.
+- Kept old runtime purchase/upgrade systems intact until the new implementation is verified.
 
 NEXT TARGET
 
-Migrate BuyWindow.cs and UpgradeWindow.cs to consume WheelDisplay requests. Then replace the old WheelPurchaseUi/WheelUpgradeUi runtime-created windows before removing their creation from EnergySystem.cs.
+Migrate TopUi and the three top display scripts, then BottomUi/button coordination. After those are verified, migrate CenterUi/window coordination and remove obsolete runtime UI construction in a controlled cleanup pass.
 
 END OF MIGRATION PROGRESS
