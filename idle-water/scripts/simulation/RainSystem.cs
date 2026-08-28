@@ -86,7 +86,7 @@ internal sealed class RainSystem
 	private long rainRejectedByDensity = 0;
 
 	// ============================================================
-	// HUD
+	// HUD -- HAS TO BE REMOVED !!
 	// ============================================================
 
 	private CanvasLayer rainHudLayer;
@@ -264,7 +264,7 @@ internal sealed class RainSystem
 		);
 	}
 
-	public void SetupRainHud()
+	public void SetupRainHud() // !! HAS TO BE REMOVED !!
 	{
 		rainHudLayer =
 			new CanvasLayer();
@@ -297,7 +297,7 @@ internal sealed class RainSystem
 		);
 	}
 
-	public void UpdateRainHud()
+	public void UpdateRainHud() // !! HAS TO BE REMOVED !!
 	{
 		if (rainHudLabel == null)
 		{
