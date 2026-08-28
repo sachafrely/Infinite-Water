@@ -2,28 +2,43 @@ using Godot;
 
 /// <summary>
 /// Owns the persistent top UI and coordinates its display components.
-/// The visual/background implementation lives in RenderedButtonBackground.
+/// Layout and alignment are authored in Godot; the display scripts only update content.
 /// </summary>
 public partial class TopUi : Control
 {
-	private Control rainDisplay;
-	private Control energyDisplay;
-	private Control moneyDisplay;
+    private Control rainDisplay;
+    private Control energyDisplay;
+    private Control moneyDisplay;
 
-	public override void _Ready()
-	{
-		MouseFilter = MouseFilterEnum.Ignore;
-		ZIndex = 1000;
+    public override void _Ready()
+    {
+        MouseFilter = MouseFilterEnum.Ignore;
+        ZIndex = 1000;
 
-		rainDisplay = GetNodeOrNull<Control>("RainDisplayContainer/RainDisplay");
-		energyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/EnergyDisplay");
-		moneyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/MoneyDisplay");
+        rainDisplay = GetNodeOrNull<Control>("RainDisplayContainer/RainDisplay")
+            ?? FindChild("RainDisplay", true, false) as Control;
+        energyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/EnergyDisplay")
+            ?? FindChild("EnergyDisplay", true, false) as Control;
+        moneyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/MoneyDisplay")
+            ?? FindChild("MoneyDisplay", true, false) as Control;
 
-		if (rainDisplay == null)
-			GD.PushWarning("TopUi: RainDisplay Node not found.");
-		if (energyDisplay == null)
-			GD.PushWarning("TopUi: EnergyDisplay Node not found.");
-		if (moneyDisplay == null)
-			GD.PushWarning("TopUi: MoneyDisplay Node not found.");
-	}
+        HideLegacyRainInformation();
+    }
+
+    private void HideLegacyRainInformation()
+    {
+        foreach (Node node in FindChildren("*", "Label", true, false))
+        {
+            if (node is not Label label)
+                continue;
+
+            string text = label.Text.ToLowerInvariant();
+            if (text.Contains("rain amount") ||
+                text.Contains("rain rate") ||
+                text.Contains("next change"))
+            {
+                label.Visible = false;
+            }
+        }
+    }
 }
