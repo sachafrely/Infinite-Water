@@ -21,24 +21,5 @@ public partial class TopUi : Control
             ?? FindChild("EnergyDisplay", true, false) as Control;
         moneyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/MoneyDisplay")
             ?? FindChild("MoneyDisplay", true, false) as Control;
-
-        HideLegacyRainInformation();
-    }
-
-    private void HideLegacyRainInformation()
-    {
-        foreach (Node node in FindChildren("*", "Label", true, false))
-        {
-            if (node is not Label label)
-                continue;
-
-            string text = label.Text.ToLowerInvariant();
-            if (text.Contains("rain amount") ||
-                text.Contains("rain rate") ||
-                text.Contains("next change"))
-            {
-                label.Visible = false;
-            }
-        }
     }
 }
