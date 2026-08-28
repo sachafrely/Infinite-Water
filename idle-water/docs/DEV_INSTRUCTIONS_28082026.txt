@@ -1,0 +1,324 @@
+UI PASS 2 — NEXT DEVELOPER INSTRUCTIONS
+Date: 28.08.2026
+Branch: ui-pass-2-20260823
+
+PURPOSE
+This file is the immediate work plan for the next development session. The Godot scene architecture has already been established. The current task is to finish migrating the remaining UI behavior from the old runtime-built UI into the Nodes and Scenes that now exist in Godot.
+
+IMPORTANT
+Do not redesign the UI architecture. Do not create new scenes unless the existing scene decision rules explicitly justify one. Do not change the fluid simulation or unrelated gameplay behavior.
+
+============================================================
+1. FIRST: READ THESE FILES
+============================================================
+
+Read before changing code:
+
+- docs/DEVELOPER_INSTRUCTIONS_23082026.txt
+- docs/UI_PASS_2_PLAN_23082026.txt
+- docs/UI_PASS_2_MIGRATION_PROGRESS_28082026.txt
+
+The developer instructions define the target architecture.
+The UI Pass 2 plan defines the overall migration.
+The migration progress file records what has already been changed.
+
+============================================================
+2. MIGRATION RULE
+============================================================
+
+Migrate one logical component at a time.
+
+For every component:
+
+1. Inspect the current script and the existing Godot scene hierarchy.
+2. Identify which Nodes already exist in the scene.
+3. Change the script so it controls those Nodes instead of constructing duplicate UI at runtime.
+4. Preserve the existing behavior.
+5. Test/compile before moving to the next component.
+6. Only then remove obsolete runtime construction.
+7. Update docs/UI_PASS_2_MIGRATION_PROGRESS_28082026.txt.
+
+Do NOT delete a legacy script merely because it is marked:
+// THIS FILE SHALL BE GONE SOON //
+
+The marker means the file is intended for eventual removal. Remove it only after all of its responsibilities have been migrated and all references are gone.
+
+============================================================
+3. CURRENT MIGRATION STATUS
+============================================================
+
+ALREADY MIGRATED / STARTED
+
+- WheelDisplay.cs
+- BuyButton.cs
+- UpgradeButton.cs
+- WheelUi.cs
+- BuyWindow.cs
+- UpgradeWindow.cs
+
+These use the new scene-based architecture to the extent already implemented.
+
+LEGACY FILES ALREADY MARKED FOR REMOVAL
+
+- StatisticsGraphUiSettings.cs
+- UiToggleButton.cs
+- WheelUpgradeUi.cs
+
+Other legacy files may still need the removal marker after their purpose has been reviewed.
+
+============================================================
+4. NEXT TASK — TOP UI
+============================================================
+
+Migrate these scripts next:
+
+- TopUi.cs
+- RainDisplay.cs
+- EnergyDisplay.cs
+- MoneyDisplay.cs
+
+Use the existing scene Nodes:
+
+TopUi
+├── TopUiBackground
+├── RainDisplayContainer
+│   └── RainDisplay
+└── CurrenciesContainer
+    ├── EnergyDisplay
+    └── MoneyDisplay
+
+RULES
+
+- Do not create duplicate Labels/Controls at runtime.
+- Each display script owns its own display Node.
+- TopUi.cs owns top-level layout/coordination only.
+- Shared fonts, colors, borders and sizes come from UiSettings.cs.
+- Keep MoneyDisplay as the current Node/script name; do not introduce DollarsDisplay unless the Godot Node is intentionally renamed first.
+
+============================================================
+5. THEN — BOTTOM UI
+============================================================
+
+Migrate:
+
+- BottomUi.cs
+- StatisticsButton.cs
+- SettingsButton.cs
+- PrestigeButton.cs
+- SellEnergyButton.cs, if still using old runtime construction or old window assumptions
+
+Existing important Nodes:
+
+BottomUi
+├── StatisticsButton
+├── SellEnergyButton
+├── SettingsButton
+└── PrestigeButton
+
+The buttons should operate on their existing Godot Nodes.
+
+Do not recreate buttons in code.
+
+UiToggleButton.cs is obsolete and should remain marked for removal until all references to it are gone.
+
+============================================================
+6. THEN — CENTER UI
+============================================================
+
+Migrate/verify:
+
+- CenterUi.cs
+
+Existing hierarchy:
+
+CenterUi
+├── StatisticsWindow
+├── SettingsWindow
+└── PrestigeWindow
+
+CenterUi is a grouping/layout Node only.
+
+It should not duplicate the internal logic of the windows.
+It should not replace UiWindowManager as the application-level modal coordinator.
+
+============================================================
+7. SETTINGS WINDOW
+============================================================
+
+Migrate and verify:
+
+- SettingsWindow.cs
+- SettingsContent.cs
+- TiltSettingsContent.cs
+- AudioSettings.cs
+- MoreInfoButton.cs
+
+Existing hierarchy:
+
+SettingsWindow
+└── SettingsContent
+    ├── TiltSettingsContent
+    ├── AudioSettings
+    └── MoreInfoButton
+
+Move responsibilities from old SettingsContent runtime construction into the appropriate child scripts.
+
+Pay particular attention to the known issue:
+
+- Tilt Settings currently appear in the top-left.
+
+The intended position must be restored using the scene hierarchy/layout rather than rebuilding the entire settings UI at runtime.
+
+Do not create another TiltSettings scene.
+
+============================================================
+8. STATISTICS WINDOW
+============================================================
+
+Migrate and verify:
+
+- StatisticsWindow.cs
+- all three graph scripts in res://Scripts/ui/graphs/
+
+Existing hierarchy:
+
+StatisticsWindow
+└── VBoxContainer
+    ├── Graph1
+    ├── Graph2
+    └── Graph3
+
+Each graph script controls only its own graph Node.
+
+Do not create Graph1.tscn, Graph2.tscn or Graph3.tscn.
+
+Verify:
+
+- Existing graphs still work.
+- Graph 3 is Energy per Wheel.
+- Wheel bars are ordered Wheel 1 → Wheel 6.
+- Graph layout remains readable.
+
+============================================================
+9. PRESTIGE WINDOW
+============================================================
+
+Migrate:
+
+- PrestigeWindow.cs or the current prestige UI behavior into PrestigeWindow.tscn.
+
+Existing scene:
+
+CenterUi
+└── PrestigeWindow
+
+Do not construct the complete Prestige Window hierarchy at runtime when equivalent Nodes already exist in the scene.
+
+============================================================
+10. UI WINDOW MANAGER
+============================================================
+
+Finalize:
+
+- UiWindowManager.cs
+
+Responsibilities:
+
+- Track active modal window.
+- Control modal opening/closing.
+- Keep modal input/layering consistent.
+- Handle outside-click behavior where appropriate.
+- Coordinate the existing BuyWindow, UpgradeWindow, SettingsWindow, StatisticsWindow and PrestigeWindow.
+
+It must NOT construct complete window hierarchies dynamically.
+
+It must NOT duplicate internal window behavior.
+
+============================================================
+11. LEGACY UI CLEANUP
+============================================================
+
+After each replacement works, search the entire project for references to the old implementation.
+
+Likely legacy systems to remove eventually include:
+
+- WheelPurchaseUi.cs
+- WheelUpgradeUi.cs
+- UiToggleButton.cs
+- StatisticsGraphUiSettings.cs
+- old runtime-built Buy/Upgrade window classes
+- old runtime-built settings UI code
+- old runtime-built top/bottom UI code
+- any duplicate window or button construction
+
+Before deleting a legacy file:
+
+1. Search all references.
+2. Confirm its responsibilities are handled by the new scene-based implementation.
+3. Remove the obsolete references.
+4. Compile/test.
+5. Delete the file.
+6. Remove its // THIS FILE SHALL BE GONE SOON // marker because the file itself is gone.
+7. Update the migration progress document.
+
+============================================================
+12. DO NOT TOUCH
+============================================================
+
+During this migration, avoid unrelated changes to:
+
+- FluidSimulator
+- PbfSolver
+- FluidRenderer
+- terrain/collider systems
+- energy simulation logic
+- rain simulation
+- wheel physics
+- Android export configuration
+
+If a UI migration requires a small integration change, keep it narrowly scoped and document it.
+
+============================================================
+13. AFTER EVERY MAJOR STEP
+============================================================
+
+Update:
+
+docs/UI_PASS_2_MIGRATION_PROGRESS_28082026.txt
+
+Record:
+
+- date
+- files migrated
+- files marked for removal
+- obsolete runtime code removed
+- known issues
+- next migration target
+
+Do not mark a component complete merely because the code compiles. It must also use the intended scene Nodes and preserve the old behavior.
+
+============================================================
+14. FINAL DEFINITION OF DONE
+============================================================
+
+The migration is complete only when:
+
+- All intended UI behavior uses the Godot-authored Nodes/Scenes.
+- No duplicate runtime UI hierarchy is being created.
+- WheelDisplay.tscn is reused six times.
+- Wheel numbering has one source of truth.
+- Buy and Upgrade windows target the correct wheel.
+- TopUi uses its scene Nodes.
+- BottomUi uses its scene Nodes.
+- CenterUi contains and positions the centered windows.
+- StatisticsWindow contains all three graph Nodes.
+- SettingsWindow contains its settings Nodes.
+- PrestigeWindow is scene-based.
+- UiWindowManager coordinates modal state without constructing windows.
+- Shared styling is centralized in UiSettings.cs.
+- All obsolete UI scripts have been removed after their responsibilities are migrated.
+- Windows and Android regression testing passes.
+
+NEXT IMMEDIATE ACTION
+
+Start with TopUi.cs and its three display scripts. Do not begin another architecture redesign. The architecture is now established; finish the migration component-by-component and keep the progress document updated.
