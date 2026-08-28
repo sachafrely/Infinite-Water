@@ -1,15 +1,51 @@
 using Godot;
-using System;
 
+/// <summary>
+/// Displays the current Dollars value using the Label authored in Main.tscn.
+/// </summary>
 public partial class MoneyDisplay : Node
 {
-	// Called when the node enters the scene tree for the first time.
-	public override void _Ready()
-	{
-	}
+    private Label moneyLabel;
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
-	{
-	}
+    public override void _Ready()
+    {
+        moneyLabel = GetNodeOrNull<Label>("DollarsLabel")
+            ?? GetNodeOrNull<Label>("MoneyLabel")
+            ?? FindChild("DollarsLabel", true, false) as Label
+            ?? FindChild("MoneyLabel", true, false) as Label
+            ?? FindFirstLabel();
+
+        if (moneyLabel == null)
+            GD.PushWarning("MoneyDisplay: No Dollars/Money Label was found in the authored scene.");
+    }
+
+    public override void _Process(double delta)
+    {
+        UpdateDisplay();
+    }
+
+    private void UpdateDisplay()
+    {
+        if (moneyLabel == null)
+            return;
+
+        EnergySystem economy = EnergySystem.Instance;
+        double dollars = economy?.Dollars ?? 0.0;
+
+        moneyLabel.Text = "Dollars: $" + System.Math.Floor(dollars).ToString("F0");
+        moneyLabel.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
+        moneyLabel.AddThemeColorOverride("font_color", UiSettings.FontColorBasic);
+    }
+
+    private Label FindFirstLabel()
+    {
+        foreach (Node child in GetChildren())
+        {
+            Label label = child as Label ?? child.FindChild("*", "Label", true, false) as Label;
+            if (label != null)
+                return label;
+        }
+
+        return null;
+    }
 }
