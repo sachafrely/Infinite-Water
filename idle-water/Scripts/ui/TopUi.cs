@@ -1,15 +1,26 @@
 using Godot;
-using System;
 
-public partial class TopUi : Node
+/// <summary>
+/// Controls the authored TopUi scene.
+/// The display components are authored in the scene and own their own behavior.
+/// </summary>
+public partial class TopUi : Control
 {
-	// Called when the node enters the scene tree for the first time.
-	public override void _Ready()
-	{
-	}
+    private Control rainDisplay;
+    private Control energyDisplay;
+    private Control moneyDisplay;
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
-	{
-	}
+    public override void _Ready()
+    {
+        rainDisplay = GetNodeOrNull<Control>("RainDisplayContainer/RainDisplay");
+        energyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/EnergyDisplay");
+        moneyDisplay = GetNodeOrNull<Control>("CurrenciesContainer/MoneyDisplay");
+
+        if (rainDisplay == null)
+            GD.PushWarning("TopUi: RainDisplay Node not found.");
+        if (energyDisplay == null)
+            GD.PushWarning("TopUi: EnergyDisplay Node not found.");
+        if (moneyDisplay == null)
+            GD.PushWarning("TopUi: MoneyDisplay Node not found.");
+    }
 }
