@@ -39,8 +39,11 @@ public partial class EnergyDisplay : Node
     {
         foreach (Node child in GetChildren())
         {
-            Label label = child as Label ?? child.FindChild("*", "Label", true, false) as Label;
-            if (label != null)
+            if (child is Label directLabel)
+                return directLabel;
+
+            Godot.Collections.Array<Node> labels = child.FindChildren("*", "Label", true, false);
+            if (labels.Count > 0 && labels[0] is Label label)
                 return label;
         }
 
