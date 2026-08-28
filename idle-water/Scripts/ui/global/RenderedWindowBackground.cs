@@ -1,34 +1,32 @@
 using Godot;
 
-[Tool]
-public partial class RenderedWindowBackground : Control
+/// <summary>
+/// Shared drawing functions for window-style UI backgrounds.
+/// A UI-specific script such as TopUiBackground calls Draw() from its _Draw().
+/// This file is intentionally not attached to a scene node.
+/// </summary>
+public static class RenderedWindowBackground
 {
-	public override void _Ready()
-	{
-		MouseFilter = MouseFilterEnum.Ignore;
-		QueueRedraw();
-	}
+    public static void Draw(Control target)
+    {
+        if (target == null || target.Size.X <= 0.0f || target.Size.Y <= 0.0f)
+            return;
 
-	public override void _Notification(int what)
-	{
-		if (what == NotificationResized)
-			QueueRedraw();
-	}
+        target.DrawRect(
+            new Rect2(Vector2.Zero, target.Size),
+            UiSettings.WindowBackgroundColor,
+            true
+        );
 
-	public override void _Draw()
-	{
-		if (Size.X <= 0.0f || Size.Y <= 0.0f)
-			return;
+        float borderSize = UiSettings.BorderSize;
+        if (borderSize <= 0.0f)
+            return;
 
-		DrawRect(new Rect2(Vector2.Zero, Size), UiSettings.WindowBackgroundColor, true);
+        Color borderColor = UiSettings.BorderColor;
 
-		float w = UiSettings.BorderSize;
-		if (w <= 0.0f)
-			return;
-
-		DrawRect(new Rect2(0, 0, Size.X, w), UiSettings.BorderColor, true);
-		DrawRect(new Rect2(0, Size.Y - w, Size.X, w), UiSettings.BorderColor, true);
-		DrawRect(new Rect2(0, 0, w, Size.Y), UiSettings.BorderColor, true);
-		DrawRect(new Rect2(Size.X - w, 0, w, Size.Y), UiSettings.BorderColor, true);
-	}
+        target.DrawRect(new Rect2(0, 0, target.Size.X, borderSize), borderColor, true);
+        target.DrawRect(new Rect2(0, target.Size.Y - borderSize, target.Size.X, borderSize), borderColor, true);
+        target.DrawRect(new Rect2(0, 0, borderSize, target.Size.Y), borderColor, true);
+        target.DrawRect(new Rect2(target.Size.X - borderSize, 0, borderSize, target.Size.Y), borderColor, true);
+    }
 }
