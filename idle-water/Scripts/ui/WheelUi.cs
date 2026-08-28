@@ -9,9 +9,19 @@ public partial class WheelUi : Control
     private const int WheelCount = 6;
 
     private readonly WheelDisplay[] wheelDisplays = new WheelDisplay[WheelCount];
+    private BuyWindow buyWindow;
+    private UpgradeWindow upgradeWindow;
+    private FluidSimulator simulator;
 
     public override void _Ready()
     {
+        simulator = GetTree().CurrentScene?.FindChild("FluidSimulation", true, false) as FluidSimulator;
+        if (simulator == null)
+            simulator = GetTree().Root.FindChild("FluidSimulation", true, false) as FluidSimulator;
+
+        buyWindow = GetNodeOrNull<BuyWindow>("../BuyWindow");
+        upgradeWindow = GetNodeOrNull<UpgradeWindow>("../UpgradeWindow");
+
         for (int index = 0; index < WheelCount; index++)
         {
             int wheelNumber = index + 1;
@@ -54,13 +64,35 @@ public partial class WheelUi : Control
 
     private void OnBuyRequested(int wheelNumber)
     {
-        GD.Print($"WheelUi: Buy requested for Wheel {wheelNumber}.");
-        // BuyWindow migration will consume this request next.
+        if (simulator == null || buyWindow == null)
+            return;
+
+        if (wheelNumber < 1 || wheelNumber > WheelCount)
+            return;
+
+        int wheelIndex = wheelNumber - 1;
+        if (simulator.IsWheelUnlocked(wheelIndex))
+            return;
+
+        upgradeWindow?.Close();
+        buyWindow.Setup(wheelNumber, simulator);
+        buyWindow.Open();
     }
 
     private void OnUpgradeRequested(int wheelNumber)
     {
-        GD.Print($"WheelUi: Upgrade requested for Wheel {wheelNumber}.");
-        // UpgradeWindow migration will consume this request next.
+        if (simulator == null || upgradeWindow == null)
+            return;
+
+        if (wheelNumber < 1 || wheelNumber > WheelCount)
+            return;
+
+        int wheelIndex = wheelNumber - 1;
+        if (!simulator.IsWheelUnlocked(wheelIndex) || !simulator.HasAvailableWheelUpgrades(wheelIndex))
+            return;
+
+        buyWindow?.Close();
+        upgradeWindow.Setup(wheelNumber, simulator);
+        upgradeWindow.Open();
     }
 }
