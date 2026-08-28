@@ -18,7 +18,7 @@ CURRENT OVERALL STATUS
 Scene architecture: [x]
 Documentation synchronization: [x]
 Script migration: [~]
-Runtime cleanup: [ ]
+Runtime cleanup: [~]
 Final Windows testing: [ ]
 Final Android testing: [ ]
 
@@ -30,27 +30,28 @@ MIGRATION TRACKER
 2. BuyButton.cs                            [!]
 3. UpgradeButton.cs                        [!]
 4. WheelUi.cs                              [!]
-   - Six WheelDisplay instances are discovered and numbered left-to-right.
-   - Buy/Upgrade requests now open the authored BuyWindow/UpgradeWindow scenes.
-
 5. BuyWindow.cs                            [!]
-   - Replaced placeholder with scene-owned implementation.
-   - Uses existing BuyWindow.tscn Nodes instead of constructing its hierarchy at runtime.
-   - Receives a logical wheel number and simulator reference.
-   - Handles purchase, close and outside-click behavior.
-   - Runtime verification still required.
-
 6. UpgradeWindow.cs                        [!]
-   - Replaced placeholder with scene-owned implementation.
-   - Uses existing UpgradeWindow.tscn Nodes instead of constructing its hierarchy at runtime.
-   - Receives a logical wheel number and simulator reference.
-   - Handles three upgrade types, levels, prices, close and outside-click behavior.
-   - Runtime verification still required.
 
-7. TopUi.cs                                [ ]
-8. RainDisplay.cs                          [ ]
-9. EnergyDisplay.cs                        [ ]
-10. MoneyDisplay.cs                        [ ]
+7. TopUi.cs                                [!]
+   - Now references the authored TopUi child Nodes instead of constructing them.
+   - TopUi is the scene-level coordinator; displays own their data presentation.
+
+8. RainDisplay.cs                          [!]
+   - Reads current rain percentage from FluidSimulator.
+   - Updates authored RainDisplay Nodes where present.
+   - Runtime verification still required, especially the visual rain bars.
+
+9. EnergyDisplay.cs                        [!]
+   - Reads EnergySystem.Instance.Energy.
+   - Updates the authored Energy label.
+   - No runtime label creation.
+
+10. MoneyDisplay.cs                        [!]
+   - Reads EnergySystem.Instance.Dollars.
+   - Updates the authored Dollars/Money label.
+   - No runtime label creation.
+
 11. BottomUi.cs                            [ ]
 12. StatisticsButton.cs                    [ ]
 13. SettingsButton.cs                      [ ]
@@ -61,18 +62,25 @@ MIGRATION TRACKER
 18. SettingsContent.cs                     [ ]
 19. TiltSettingsContent.cs                 [ ]
 20. AudioSettings.cs                       [ ]
-21. MoreInfoButton.cs                      [ ]
+21. MoreInfoButton.cs                       [ ]
 22. StatisticsWindow.cs                    [ ]
-23. Graph1.cs                               [ ]
-24. Graph2.cs                               [ ]
-25. Graph3.cs                               [ ]
+23. Graph1.cs                              [ ]
+24. Graph2.cs                              [ ]
+25. Graph3.cs                              [ ]
 26. StatisticsGraph.cs                     [ ]
 27. PrestigeWindow.cs                      [ ]
 28. UiWindowManager.cs                     [ ]
-29. EconomyUi.cs                            [ ]
-30. WheelPurchaseUi.cs                      [ ]
+29. EconomyUi.cs                            [~]
+   - Marked as legacy with // THIS FILE SHALL BE GONE SOON //.
+   - EnergySystem no longer constructs EconomyUi at runtime.
+   - Keep the file temporarily until runtime verification confirms the authored TopUi replacement is complete.
+
+30. WheelPurchaseUi.cs                     [ ]
 31. WheelUpgradeUi.cs                       [ ]
-32. EnergySystem.cs UI construction          [ ]
+32. EnergySystem.cs UI construction          [~]
+   - Legacy EconomyUi construction removed.
+   - Legacy WheelPurchaseUi/WheelUpgradeUi construction remains until their replacements are verified.
+
 33. StatisticsGraphUiSettings.cs             [ ]
 34. UiToggleButton.cs                        [ ]
 
@@ -90,6 +98,7 @@ CURRENT MIGRATION DECISIONS
 - Runtime UI creation is removed only after the equivalent scene-based implementation is verified.
 - Simulation/gameplay code must not be changed as part of UI migration unless required to remove obsolete UI construction.
 - Old WheelPurchaseUi and WheelUpgradeUi remain temporarily because runtime verification of the new scene-based windows has not yet been performed.
+- EconomyUi is now a legacy compatibility file only; no new code should be added to it.
 
 ============================================================
 LATEST WORK
@@ -104,10 +113,27 @@ LATEST WORK
 - Migrated BuyWindow.cs to the authored BuyWindow.tscn hierarchy.
 - Migrated UpgradeWindow.cs to the authored UpgradeWindow.tscn hierarchy.
 - Updated WheelUi.cs so Buy/Upgrade requests now open the corresponding scene-based windows.
-- Kept old runtime purchase/upgrade systems intact until the new implementation is verified.
+- Migrated TopUi.cs to the authored TopUi hierarchy.
+- Migrated RainDisplay.cs, EnergyDisplay.cs and MoneyDisplay.cs to use authored scene Nodes.
+- Removed EnergySystem's runtime construction of EconomyUi.
+- Marked EconomyUi.cs as legacy and scheduled it for removal after runtime verification.
+- Kept old runtime purchase/upgrade systems intact until their scene-based replacements are verified.
 
 NEXT TARGET
 
-Migrate TopUi and the three top display scripts, then BottomUi/button coordination. After those are verified, migrate CenterUi/window coordination and remove obsolete runtime UI construction in a controlled cleanup pass.
+Migrate BottomUi and its buttons, then CenterUi/window coordination. After those are verified, migrate Settings, Statistics and Prestige, then remove the remaining obsolete runtime UI systems in a controlled cleanup pass.
+
+IMPORTANT RUNTIME CHECK BEFORE DELETING ECONOMYUI
+
+Run the game and verify:
+- Energy value appears correctly.
+- Dollars value appears correctly.
+- Rain display appears correctly.
+- Rain amount updates while the rain changes.
+- TopUi position/layering is correct.
+- No duplicate EconomyUi appears.
+- Sell Energy still works through the authored SellEnergyButton.
+
+Only after these checks pass should EconomyUi.cs be deleted.
 
 END OF MIGRATION PROGRESS
