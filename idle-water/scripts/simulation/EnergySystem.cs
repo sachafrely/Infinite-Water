@@ -16,7 +16,6 @@ public class EnergySystem
 	public EnergySystem()
 	{
 		Instance = this;
-		CreateEconomyUiDeferred();
 		CreateWheelPurchaseUiDeferred();
 		CreateWheelUpgradeUiDeferred();
 	}
@@ -27,13 +26,6 @@ public class EnergySystem
 	public int SellAllAvailableEnergy() { int chunks = (int)System.Math.Floor(energy / EnergyPerDollar); if (chunks <= 0) return 0; energy -= chunks * EnergyPerDollar; dollars += chunks; return chunks; }
 	public bool TrySellEnergyChunk() { if (energy < EnergyPerDollar) return false; energy -= EnergyPerDollar; dollars += 1.0; return true; }
 	public void Reset() { energy = 0.0; dollars = 200.0; totalGenerated = 0.0; }
-
-	private void CreateEconomyUiDeferred()
-	{
-		SceneTree tree = Engine.GetMainLoop() as SceneTree; Node currentScene = tree?.CurrentScene; if (currentScene == null) return;
-		if (currentScene.FindChild("EconomyUi", true, false) != null) return;
-		EconomyUi economyUi = new EconomyUi { Name = "EconomyUi" }; currentScene.CallDeferred(Node.MethodName.AddChild, economyUi);
-	}
 
 	private void CreateWheelPurchaseUiDeferred()
 	{
