@@ -1,0 +1,143 @@
+UI PASS 2 — SCRIPT MIGRATION PROGRESS
+Date: 28.08.2026
+Branch: ui-pass-2-20260823
+
+PURPOSE
+Track the migration from runtime-created UI to the Godot Node/Scene architecture. Update this file after each meaningful migration step.
+
+STATUS LEGEND
+[ ] Not started
+[~] In progress / partially migrated
+[x] Migrated
+[!] Migrated but requires runtime verification
+
+============================================================
+CURRENT OVERALL STATUS
+============================================================
+
+Scene architecture: [x]
+Documentation synchronization: [x]
+Script migration: [~]
+Runtime cleanup: [ ]
+Final Windows testing: [ ]
+Final Android testing: [ ]
+
+============================================================
+MIGRATION TRACKER
+============================================================
+
+1. WheelDisplay.cs                         [~]
+   - Replace runtime UI construction with scene-node references.
+   - Expose logical WheelNumber.
+   - Own one WheelDisplay instance only.
+
+2. BuyButton.cs                            [~]
+   - Script controls the existing BuyButton Node.
+   - Route interaction to its owning WheelDisplay.
+
+3. UpgradeButton.cs                        [~]
+   - Script controls the existing UpgradeButton Node.
+   - Route interaction to its owning WheelDisplay.
+
+4. WheelUi.cs                              [~]
+   - Manage six WheelDisplay instances.
+   - Assign Wheel 1–6 from left to right.
+
+5. BuyWindow.cs                            [ ]
+   - Migrate old purchase-window behavior to BuyWindow.tscn.
+
+6. UpgradeWindow.cs                        [ ]
+   - Migrate old upgrade-window behavior to UpgradeWindow.tscn.
+
+7. TopUi.cs                                [ ]
+   - Move top-level display coordination out of EconomyUi.cs.
+
+8. RainDisplay.cs                          [ ]
+   - Migrate rain display behavior from EconomyUi/RainAmountDisplay.
+
+9. EnergyDisplay.cs                        [ ]
+   - Migrate Energy label behavior from EconomyUi.cs.
+
+10. MoneyDisplay.cs                        [ ]
+    - Migrate Dollars label behavior from EconomyUi.cs.
+
+11. BottomUi.cs                            [ ]
+    - Migrate persistent bottom UI coordination.
+
+12. StatisticsButton.cs                    [ ]
+13. SettingsButton.cs                      [ ]
+14. PrestigeButton.cs                      [ ]
+15. SellEnergyButton.cs                    [ ]
+
+16. CenterUi.cs                            [ ]
+    - Own centered-window grouping/layout only.
+
+17. SettingsWindow.cs                      [ ]
+18. SettingsContent.cs                     [ ]
+19. TiltSettingsContent.cs                 [ ]
+20. AudioSettings.cs                       [ ]
+21. MoreInfoButton.cs                      [ ]
+
+22. StatisticsWindow.cs                    [ ]
+23. Graph1.cs                               [ ]
+24. Graph2.cs                               [ ]
+25. Graph3.cs                               [ ]
+26. StatisticsGraph.cs                     [ ]
+
+27. PrestigeWindow.cs                      [ ]
+
+28. UiWindowManager.cs                     [ ]
+    - Update paths for CenterUi hierarchy.
+    - Add Prestige state/window support as required.
+    - Keep application-level modal coordination centralized.
+
+29. EconomyUi.cs                            [ ]
+    - Retire after its responsibilities have been migrated.
+    - Do not delete until all references are removed.
+
+30. WheelPurchaseUi.cs                      [ ]
+    - Retire runtime-created purchase windows after BuyWindow/WheelDisplay migration is verified.
+
+31. WheelUpgradeUi.cs                       [ ]
+    - Retire runtime-created upgrade windows after UpgradeWindow/WheelDisplay migration is verified.
+
+32. EnergySystem.cs UI construction          [ ]
+    - Remove CreateEconomyUiDeferred().
+    - Remove CreateWheelPurchaseUiDeferred().
+    - Remove CreateWheelUpgradeUiDeferred().
+    - Only after replacement scene-based UI is verified.
+
+33. StatisticsGraphUiSettings.cs             [ ]
+    - Remove only after confirming no references remain.
+
+34. UiToggleButton.cs                        [ ]
+    - Recycle/remove only after references are gone.
+
+============================================================
+CURRENT MIGRATION DECISIONS
+============================================================
+
+- Main.tscn remains the composition root.
+- WheelDisplay.tscn is reused six times.
+- WheelUi owns logical wheel numbering.
+- Buy/Upgrade windows receive the wheel identity; they do not calculate it independently.
+- CenterUi is a Control Node, not a scene.
+- StatisticsWindow contains Graph1, Graph2 and Graph3 as child Nodes.
+- Shared visual configuration remains in Scripts/global/UiSettings.cs.
+- Runtime UI creation is removed only after the equivalent scene-based implementation is verified.
+- Simulation/gameplay code must not be changed as part of UI migration unless required to remove obsolete UI construction.
+
+============================================================
+LATEST WORK
+============================================================
+
+28.08.2026
+- Created this migration tracker.
+- Began migration with WheelDisplay, BuyButton, UpgradeButton and WheelUi.
+- Identified EconomyUi.cs and EnergySystem.cs as major remaining runtime-UI construction sources.
+
+NEXT TARGET
+
+Complete WheelDisplay/WheelUi ownership and interaction wiring, then migrate BuyWindow and UpgradeWindow before removing the old WheelPurchaseUi/WheelUpgradeUi implementations.
+
+END OF MIGRATION PROGRESS
