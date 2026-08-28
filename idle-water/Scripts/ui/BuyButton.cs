@@ -2,7 +2,6 @@ using Godot;
 
 /// <summary>
 /// Controls the BuyButton already present in WheelDisplay.tscn.
-/// Window opening/purchase behavior is supplied by the owning wheel/UI layer.
 /// </summary>
 public partial class BuyButton : Button
 {
@@ -21,10 +20,6 @@ public partial class BuyButton : Button
             return;
         }
 
-        wheelDisplay.GetNodeOrNull<WheelUi>("../..");
-        wheelDisplay.EmitSignal(WheelDisplay.SignalName.BuyRequested);
+        wheelDisplay.RequestBuy();
     }
-
-    [Signal]
-    public delegate void BuyRequestedEventHandler();
 }
