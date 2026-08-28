@@ -8,6 +8,12 @@ using Godot;
 /// </summary>
 public partial class WheelDisplay : Control
 {
+    [Signal]
+    public delegate void BuyRequestedEventHandler(int wheelNumber);
+
+    [Signal]
+    public delegate void UpgradeRequestedEventHandler(int wheelNumber);
+
     [Export]
     public int WheelNumber { get; set; }
 
@@ -40,10 +46,18 @@ public partial class WheelDisplay : Control
     public Button GetBuyButton() => buyButton;
     public Button GetUpgradeButton() => upgradeButton;
 
+    public void RequestBuy()
+    {
+        EmitSignal(SignalName.BuyRequested, WheelNumber);
+    }
+
+    public void RequestUpgrade()
+    {
+        EmitSignal(SignalName.UpgradeRequested, WheelNumber);
+    }
+
     private void UpdateButtonState()
     {
-        // Button behavior is intentionally kept enabled during this first
-        // migration step. Availability and window behavior are migrated next.
         if (buyButton != null)
             buyButton.Disabled = false;
 
