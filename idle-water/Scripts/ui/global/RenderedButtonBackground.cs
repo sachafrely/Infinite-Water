@@ -1,15 +1,24 @@
 using Godot;
-using System;
 
-public partial class RenderedButtonBackground : Node
+/// <summary>
+/// Draws the shared rectangular background used by rendered UI containers.
+/// Styling comes exclusively from UiSettings.
+/// </summary>
+public partial class RenderedButtonBackground : Control
 {
-	// Called when the node enters the scene tree for the first time.
-	public override void _Ready()
-	{
-	}
+    public override void _Ready()
+    {
+        MouseFilter = MouseFilterEnum.Ignore;
+        QueueRedraw();
+    }
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
-	{
-	}
+    public override void _Draw()
+    {
+        if (Size.X <= 0.0f || Size.Y <= 0.0f)
+            return;
+
+        Rect2 rect = new Rect2(Vector2.Zero, Size);
+        DrawRect(rect, UiSettings.WindowBackgroundColor, true);
+        DrawRect(rect, UiSettings.BorderColor, false, UiSettings.BorderSize);
+    }
 }
