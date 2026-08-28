@@ -4,7 +4,7 @@ Branch: ui-pass-2-20260823
 
 // DEVLOG. WHAT DID I DO. (SHOULD NOT BE EDITED BY THE AI)
 25.08: Created a new Node in Main called Ui (Type: Control) (Size: 720x1280)
-25.08: Put the existing TopUI (Control) and BottomUI (Control) Nodes into this new Node
+25.08: Put the existing TopUi (Control) and BottomUi (Control) Nodes into this new Node
 25.08: Created a new Node in Ui called WheelUi (Control)
 25.08: Created a new Node (Node2D) in Ui called StatisticsWindow, and added the newly created Scene "StatisticsWindow.tscn" to it.
 25.08: Created a new Node (Node2D) in Ui called SettingsWindow and added the newly created Scene "SettingsWindow.tscn" to it.
@@ -51,7 +51,7 @@ For the current UI work, these are the ONLY separate UI scene types that should 
 
 These six scene types are sufficient for the current UI Pass 2 architecture.
 
-IMPORTANT: Do NOT create separate scenes for UI, TopUI, BottomUI, WheelUI, UIWindowManager, individual graphs, displays, buttons, labels, panels, or layout containers unless a future requirement clearly makes one of them an independently reusable/self-contained component.
+IMPORTANT: Do NOT create separate scenes for Ui, TopUi, BottomUi, WheelUi, UiWindowManager, individual graphs, displays, buttons, labels, panels, or layout containers unless a future requirement clearly makes one of them an independently reusable/self-contained component.
 
 SCENE DECISION RULE
 
@@ -68,10 +68,10 @@ The goal is a clean, understandable hierarchy — not maximum scene fragmentatio
 SCENE COMPOSITION
 
 Main.tscn
-└── UI
-    ├── TopUI
-    ├── BottomUI
-    ├── WheelUI
+└── Ui
+    ├── TopUi
+    ├── BottomUi
+    ├── WheelUi
     │   ├── Wheel1  ← WheelDisplay.tscn instance
     │   ├── Wheel2  ← WheelDisplay.tscn instance
     │   ├── Wheel3  ← WheelDisplay.tscn instance
@@ -82,21 +82,21 @@ Main.tscn
     ├── SettingsWindow    ← SettingsWindow.tscn instance
     ├── BuyWindow         ← BuyWindow.tscn instance
     ├── UpgradeWindow     ← UpgradeWindow.tscn instance
-    └── UIWindowManager
+    └── UiWindowManager
 
-TopUI, BottomUI and WheelUI are ordinary Nodes inside Main.tscn. They do NOT need their own scenes.
+TopUi, BottomUi and WheelUi are ordinary Nodes inside Main.tscn. They do NOT need their own scenes.
 
 StatisticsGraph and EnergyPerWheelGraph are ordinary child Nodes inside StatisticsWindow.tscn. They do NOT need separate scenes at this stage.
 
-UIWindowManager is an application-level coordinator, not a visual component, and therefore is an ordinary Node inside the UI hierarchy.
+UiWindowManager is an application-level coordinator, not a visual component, and therefore is an ordinary Node inside the UI hierarchy.
 
 UiSettings.cs is a static configuration class and is NOT a scene.
 
 DO NOT create:
-- UI.tscn
-- TopUI.tscn
-- BottomUI.tscn
-- WheelUI.tscn
+- Ui.tscn
+- TopUi.tscn
+- BottomUi.tscn
+- WheelUi.tscn
 - StatisticsGraph.tscn
 - EnergyPerWheelGraph.tscn
 - Scenes for individual Labels, Buttons, Panels, MarginContainers, VBoxContainers, HBoxContainers, spacers, sliders, indicators, graph labels, or similar small UI pieces.
@@ -119,16 +119,16 @@ A major UI component may have a dedicated script without having its own scene. A
 
 The existing Main.tscn remains the overall scene.
 
-Its UI area should contain:
-- UI
-  - TopUI
-  - BottomUI
-  - WheelUI
+Its Ui area should contain:
+- Ui
+  - TopUi
+  - BottomUi
+  - WheelUi
   - StatisticsWindow
   - SettingsWindow
   - BuyWindow
   - UpgradeWindow
-  - UIWindowManager
+  - UiWindowManager
 
 The exact existing Main.tscn structure should be preserved where possible during migration.
 
@@ -137,12 +137,12 @@ The exact existing Main.tscn structure should be preserved where possible during
 Node Type:
 Control
 Name:
-TopUI
+TopUi
 Script:
 TopUi.cs
 
 Children:
-- TopUIBackground
+- TopUiBackground
 - EnergyDisplay
 - DollarsDisplay
 - RainAmountDisplay
@@ -150,14 +150,14 @@ Children:
 Purpose:
 Own and update persistent top-of-screen information.
 
-TopUI remains an ordinary Node in Main.tscn. Do not create TopUI.tscn.
+TopUi remains an ordinary Node in Main.tscn. Do not create TopUi.tscn.
 
 4. BOTTOM UI
 
 Node Type:
 Control
 Name:
-BottomUI
+BottomUi
 Script:
 BottomUi.cs
 
@@ -171,18 +171,18 @@ Children:
 Purpose:
 Own persistent bottom controls and route interaction to the appropriate windows/components.
 
-BottomUI remains an ordinary Node in Main.tscn. Do not create BottomUI.tscn.
+BottomUi remains an ordinary Node in Main.tscn. Do not create BottomUi.tscn.
 
 5. WHEEL UI
 
 Node Type:
 Control
 Name:
-WheelUI
+WheelUi
 Script:
 WheelUi.cs
 
-WheelUI remains an ordinary Node in Main.tscn. Do not create WheelUI.tscn.
+WheelUi remains an ordinary Node in Main.tscn. Do not create WheelUi.tscn.
 
 Children:
 Wheel1, Wheel2, Wheel3, Wheel4, Wheel5, Wheel6
@@ -316,11 +316,11 @@ StatisticsGraph.cs may control the standard graph Nodes, and EnergyPerWheelGraph
 Node Type:
 Node
 Name:
-UIWindowManager
+UiWindowManager
 Script:
 UiWindowManager.cs
 
-Place it directly inside the existing UI hierarchy in Main.tscn.
+Place it directly inside the existing Ui hierarchy in Main.tscn.
 
 It is NOT a separate scene.
 
@@ -359,7 +359,7 @@ UI scripts should:
 - Connect signals/events.
 - React to game state.
 - Position their own component when necessary.
-- Request modal/window changes from UIWindowManager when appropriate.
+- Request modal/window changes from UiWindowManager when appropriate.
 
 UI scripts should NOT:
 - Build an entire UI hierarchy from scratch.
@@ -373,15 +373,15 @@ A script does NOT automatically require a separate .tscn. Prefer ordinary child 
 14. RECOMMENDED MIGRATION ORDER
 
 1. Preserve Main.tscn as the overall composition root.
-2. Add/organize UIWindowManager as a Node in the existing UI hierarchy.
-3. Create WheelDisplay.tscn and instance it six times under WheelUI.
+2. Add/organize UiWindowManager as a Node in the existing UI hierarchy.
+3. Create WheelDisplay.tscn and instance it six times under WheelUi.
 4. Create BuyWindow.tscn and attach BuyWindow.cs.
 5. Migrate the current working Buy Window behavior.
 6. Create UpgradeWindow.tscn and attach UpgradeWindow.cs.
 7. Migrate the current working Upgrade Window behavior.
 8. Create StatisticsWindow.tscn and organize its graph child Nodes.
 9. Migrate SettingsWindow into SettingsWindow.tscn.
-10. Migrate TopUI and BottomUI as ordinary Nodes; do not create scenes for them.
+10. Migrate TopUi and BottomUi as ordinary Nodes; do not create scenes for them.
 11. Remove obsolete runtime UI construction only after each migration is verified.
 
 15. TESTING REQUIREMENT
