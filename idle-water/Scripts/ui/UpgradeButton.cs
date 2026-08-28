@@ -1,15 +1,25 @@
 using Godot;
-using System;
 
-public partial class UpgradeButton : Node
+/// <summary>
+/// Controls the UpgradeButton already present in WheelDisplay.tscn.
+/// </summary>
+public partial class UpgradeButton : Button
 {
-	// Called when the node enters the scene tree for the first time.
-	public override void _Ready()
-	{
-	}
+    public override void _Ready()
+    {
+        FocusMode = FocusModeEnum.None;
+        Pressed += OnPressed;
+    }
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
-	{
-	}
+    private void OnPressed()
+    {
+        WheelDisplay wheelDisplay = GetParent()?.GetParent() as WheelDisplay;
+        if (wheelDisplay == null)
+        {
+            GD.PushWarning("UpgradeButton: Could not find owning WheelDisplay.");
+            return;
+        }
+
+        wheelDisplay.RequestUpgrade();
+    }
 }
