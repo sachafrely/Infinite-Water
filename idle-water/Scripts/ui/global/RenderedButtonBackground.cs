@@ -1,24 +1,27 @@
 using Godot;
 
 /// <summary>
-/// Draws the shared rectangular background used by rendered UI containers.
-/// Styling comes exclusively from UiSettings.
+/// Shared button styling used by the UI.
+/// Visual settings come from UiSettings so buttons keep one consistent style.
 /// </summary>
-public partial class RenderedButtonBackground : Control
+public static class RenderedButtonBackground
 {
-	public override void _Ready()
-	{
-		MouseFilter = MouseFilterEnum.Ignore;
-		QueueRedraw();
-	}
+    public static void Apply(Button button)
+    {
+        if (button == null)
+            return;
 
-	public override void _Draw()
-	{
-		if (Size.X <= 0.0f || Size.Y <= 0.0f)
-			return;
+        button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+        button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
 
-		Rect2 rect = new Rect2(Vector2.Zero, Size);
-		DrawRect(rect, UiSettings.WindowBackgroundColor, true);
-		DrawRect(rect, UiSettings.BorderColor, false, UiSettings.BorderSize);
-	}
+        button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeBig);
+        button.AddThemeColorOverride("font_color", UiSettings.FontColorEnabled);
+        button.AddThemeColorOverride("font_hover_color", UiSettings.FontColorEnabled);
+        button.AddThemeColorOverride("font_pressed_color", UiSettings.FontColorEnabled);
+        button.AddThemeColorOverride("font_focus_color", UiSettings.FontColorEnabled);
+        button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
+    }
 }
