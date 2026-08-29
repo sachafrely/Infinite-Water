@@ -1,6 +1,6 @@
 Main
 ├── FrameProfiler (Node) (Scripts/core/FrameProfiler.cs)
-├── FrameProfiler (TextureRect) (No Script Attached)
+├── BackGround (TextureRect) (No Script Attached)
 ├── TileMaps (Control) (No Script Attached)
 │   └── Some Subnodes ...
 ├── Decorations (Control) (No Script Attached)
