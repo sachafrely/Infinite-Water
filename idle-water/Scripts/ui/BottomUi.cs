@@ -13,10 +13,10 @@ public partial class BottomUi : Control
 
 	public override void _Ready()
 	{
-		sellEnergyButton = FindButton("SellEnergy");
-		statisticsButton = FindButton("Statistics");
-		settingsButton = FindButton("Settings");
-		prestigeButton = FindButton("Prestige");
+		sellEnergyButton = FindButton("SellEnergyButton");
+		statisticsButton = FindButton("StatisticsButton");
+		settingsButton = FindButton("SettingsButton");
+		prestigeButton = FindButton("PrestigeButton");
 
 		StyleButton(sellEnergyButton);
 		StyleButton(statisticsButton);
