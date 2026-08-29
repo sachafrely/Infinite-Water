@@ -6,8 +6,8 @@ using Godot;
 /// </summary>
 public partial class PrestigeButton : Button
 {
-    public override void _Ready()
-    {
-        Disabled = true;
-    }
+	public override void _Ready()
+	{
+		Disabled = true;
+	}
 }

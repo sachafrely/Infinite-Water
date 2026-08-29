@@ -783,22 +783,22 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="SellEnergyButton" type="Button" parent="Ui/BottomUi/ButtonsContainer" unique_id=1023053822]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 script = ExtResource("23_c4ay3")
 
 [node name="StatisticsButton" type="Button" parent="Ui/BottomUi/ButtonsContainer" unique_id=2087293773]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 script = ExtResource("25_4yxf6")
 
 [node name="PrestigeButton" type="Button" parent="Ui/BottomUi/ButtonsContainer" unique_id=363152287]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 script = ExtResource("26_u7mjy")
 
 [node name="SettingsButton" type="Button" parent="Ui/BottomUi/ButtonsContainer" unique_id=1425361997]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 script = ExtResource("27_qta6b")
 

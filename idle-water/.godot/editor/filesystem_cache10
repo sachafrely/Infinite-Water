@@ -1,5 +1,5 @@
 9cad1ddce9e5a63143ba340c9520626b
-::res://::1787988669
+::res://::1788001946
 export_presets.cfg::TextFile::-1::1787471360::0::1::::<><><>0<>0<><>::
 icon.svg::CompressedTexture2D::6269370588664782730::1786113595::1786796455::1::::<><><>0<>0<>f9e22cb99bc16227c55628614734dd1b<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
 ::res://assets/::1786826673
@@ -52,9 +52,9 @@ WHEEL_UPGRADES_IMPLEMENTATION_PLAN.txt::TextFile::-1::1787935252::0::1::::<><><>
 WHEEL_UPGRADES_IMPLEMENTATION_STATUS.txt::TextFile::-1::1787935252::0::1::::<><><>0<>0<><>::
 World Size.txt::TextFile::-1::1786877286::0::1::::<><><>0<>0<><>::
 ::res://docs/archive/::1787935251
-::res://Scenes/::1787950939
+::res://Scenes/::1787988973
 BuyWindow.tscn::PackedScene::5196545022590193836::1787928026::0::1::::<><><>0<>0<><>::uid://dd0wlgaklcp2x::::res://Scripts/ui/BuyWindow.cs
-Main.tscn::PackedScene::4246241242636851641::1787950939::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://assets/sprites/background/Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://assets/sprites/tilesets/Tileset.png<>uid://cyqdboktr73ov::::res://assets/sprites/tilesets/TilesetBackground.png<>uid://k6081dvmnuws::::res://assets/sprites/decorations/20.png<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://assets/sprites/decorations/8.png<>uid://jl7kwgkk88f6::::res://assets/sprites/decorations/24.png<>uid://guq02oiwrevb::::res://assets/sprites/decorations/22.png<>uid://jnjp4yns5al3::::res://assets/sprites/decorations/18.png<>uid://b6b7fs31sqmaf::::res://assets/sprites/decorations/26.png<>uid://07lvxomyo7se::::res://assets/sprites/decorations/15.png<>uid://beuk4em8qf13n::::res://assets/sprites/decorations/5.png<>uid://idpd20skc4op::::res://assets/sprites/decorations/9.png<>uid://0gqfrx74wbgl::::res://assets/sprites/decorations/14.png<>uid://diodqrojkp676::::res://Scripts/ui/UiWindowManager.cs<>uid://b01ik1xmd6ipd::::res://Scripts/ui/TopUiBackground.cs<>uid://bebalv1xh5dqq::::res://Scripts/ui/CenterUi.cs<>uid://o6kjkecwwt0s::::res://Scripts/ui/SellEnergyButton.cs<>uid://bt63jf43pgydf::::res://Scripts/ui/BottomUi.cs<>uid://cgc0yxgyxscni::::res://Scripts/ui/RainDisplay.cs<>uid://ngjk5ys51kip::::res://Scripts/ui/StatisticsButton.cs<>uid://dhmgu8yliycqi::::res://Scripts/ui/TopUi.cs<>uid://dax2sfcicbix3::::res://Scripts/ui/EnergyDisplay.cs<>uid://chclypanadthx::::res://Scripts/ui/MoneyDisplay.cs<>uid://dw047dtwnpl5x::::res://Scripts/ui/PrestigeButton.cs<>uid://d2k3fb3850lel::::res://Scenes/StatisticsWindow.tscn<>uid://qa208842xldf::::res://Scripts/ui/SettingsButton.cs<>uid://bnx0v1pf7lr56::::res://Scenes/SettingsWindow.tscn<>uid://cgbilp6etiojs::::res://Scenes/BuyWindow.tscn<>uid://b2djhq8ws3w7j::::res://Scripts/ui/WheelUi.cs<>uid://dvmtfinlklxg0::::res://Scenes/UpgradeWindow.tscn<>uid://60ndwkoy0qrx::::res://Scenes/WheelDisplay.tscn<>uid://d4jwv3mbdfxsj::::res://Scenes/PrestigeWindow.tscn
+Main.tscn::PackedScene::4246241242636851641::1787988973::0::1::::<><><>0<>0<><>::uid://dfym1ivt35tdq::::res://assets/sprites/background/Background.png<>uid://ccmt13qtfb4xi::::res://Scripts/simulation/FluidSimulator.cs<>uid://cewbcpoc0l1qw::::res://Scripts/simulation/TileMapPhysics.cs<>uid://cdtqrx7f0a4ch::::res://assets/sprites/tilesets/Tileset.png<>uid://cyqdboktr73ov::::res://assets/sprites/tilesets/TilesetBackground.png<>uid://k6081dvmnuws::::res://assets/sprites/decorations/20.png<>uid://d31j1xvdj6522::::res://Scripts/core/FrameProfiler.cs<>uid://diwtbhnepb81v::::res://assets/sprites/decorations/8.png<>uid://jl7kwgkk88f6::::res://assets/sprites/decorations/24.png<>uid://guq02oiwrevb::::res://assets/sprites/decorations/22.png<>uid://jnjp4yns5al3::::res://assets/sprites/decorations/18.png<>uid://b6b7fs31sqmaf::::res://assets/sprites/decorations/26.png<>uid://07lvxomyo7se::::res://assets/sprites/decorations/15.png<>uid://beuk4em8qf13n::::res://assets/sprites/decorations/5.png<>uid://idpd20skc4op::::res://assets/sprites/decorations/9.png<>uid://0gqfrx74wbgl::::res://assets/sprites/decorations/14.png<>uid://diodqrojkp676::::res://Scripts/ui/UiWindowManager.cs<>uid://b01ik1xmd6ipd::::res://Scripts/ui/TopUiBackground.cs<>uid://bebalv1xh5dqq::::res://Scripts/ui/CenterUi.cs<>uid://o6kjkecwwt0s::::res://Scripts/ui/SellEnergyButton.cs<>uid://bt63jf43pgydf::::res://Scripts/ui/BottomUi.cs<>uid://cgc0yxgyxscni::::res://Scripts/ui/RainDisplay.cs<>uid://ngjk5ys51kip::::res://Scripts/ui/StatisticsButton.cs<>uid://dhmgu8yliycqi::::res://Scripts/ui/TopUi.cs<>uid://dax2sfcicbix3::::res://Scripts/ui/EnergyDisplay.cs<>uid://chclypanadthx::::res://Scripts/ui/MoneyDisplay.cs<>uid://dw047dtwnpl5x::::res://Scripts/ui/PrestigeButton.cs<>uid://d2k3fb3850lel::::res://Scenes/StatisticsWindow.tscn<>uid://qa208842xldf::::res://Scripts/ui/SettingsButton.cs<>uid://bnx0v1pf7lr56::::res://Scenes/SettingsWindow.tscn<>uid://cgbilp6etiojs::::res://Scenes/BuyWindow.tscn<>uid://b2djhq8ws3w7j::::res://Scripts/ui/WheelUi.cs<>uid://dvmtfinlklxg0::::res://Scenes/UpgradeWindow.tscn<>uid://60ndwkoy0qrx::::res://Scenes/WheelDisplay.tscn<>uid://d4jwv3mbdfxsj::::res://Scenes/PrestigeWindow.tscn
 PrestigeWindow.tscn::PackedScene::9214692681122770497::1787926459::0::1::::<><><>0<>0<><>::uid://dickug2273eah::::res://Scripts/ui/PrestigeWindow.cs
 SettingsWindow.tscn::PackedScene::3347913154871624215::1787926237::0::1::::<><><>0<>0<><>::uid://duwdhy0cyfdf0::::res://Scripts/ui/SettingsWindow.cs<>uid://cg5to84p5aidf::::res://Scripts/ui/SettingsContent.cs<>uid://ewfwwtrd8652::::res://Scripts/ui/TiltSettingsContent.cs<>uid://dg1865iqx1o81::::res://Scripts/ui/AudioSettings.cs<>uid://b8t5x6s4j44qx::::res://Scripts/ui/MoreInfoButton.cs
 StatisticsWindow.tscn::PackedScene::9076713708932089095::1787926223::0::1::::<><><>0<>0<><>::uid://km0yghtkadt1::::res://Scripts/ui/StatisticsWindow.cs<>uid://cxso5j4afgo7r::::res://Scripts/ui/graphs/Graph1.cs<>uid://dl7cwlbnb576o::::res://Scripts/ui/graphs/Graph2.cs<>uid://chr8c75gmf1pv::::res://Scripts/ui/graphs/Graph3.cs
@@ -126,9 +126,9 @@ PbfState.cs::CSharpScript::8021265557473124243::1786806180::0::1::::<><><>0<>0<>
 ISolver.cs::CSharpScript::8876761352774482908::1786804100::0::1::::<><><>0<>0<><>::
 SolverConfig.cs::CSharpScript::881408952242810574::1786806180::0::1::::<><><>0<>0<><>::
 ::res://Scripts/systems/::1787401375
-::res://Scripts/ui/::1787950805
+::res://Scripts/ui/::1788001888
 AudioSettings.cs::CSharpScript::7636129543703078132::1787924708::0::1::::<>Node<><>0<>0<><>::
-BottomUi.cs::CSharpScript::3785720879842753835::1787650878::0::1::::<>Node<><>0<>0<><>::
+BottomUi.cs::CSharpScript::3785720879842753835::1788001888::0::1::::<>Node<><>0<>0<><>::
 BuyButton.cs::CSharpScript::3996870373088092350::1787928341::0::1::::<>Button<><>0<>0<><>::
 BuyWindow.cs::CSharpScript::7422793759027962473::1787944739::0::1::::<>Control<><>0<>0<><>::
 CenterUi.cs::CSharpScript::2669261223943064316::1787925938::0::1::::<>Node<><>0<>0<><>::
@@ -136,14 +136,14 @@ EconomyUi.cs::CSharpScript::7003653212646707196::1787950305::0::1::::<>Control<>
 EnergyDisplay.cs::CSharpScript::7208414508590225650::1787950468::0::1::::<>Label<><>0<>0<><>::
 MoneyDisplay.cs::CSharpScript::5269003562775749769::1787950468::0::1::::<>Label<><>0<>0<><>::
 MoreInfoButton.cs::CSharpScript::4743739941479274179::1787924721::0::1::::<>Node<><>0<>0<><>::
-PrestigeButton.cs::CSharpScript::8756844181101583495::1787653925::0::1::::<>Node<><>0<>0<><>::
+PrestigeButton.cs::CSharpScript::8756844181101583495::1788001888::0::1::::<>Node<><>0<>0<><>::
 PrestigeWindow.cs::CSharpScript::7725544799617888791::1787925073::0::1::::<>Node<><>0<>0<><>::
 RainDisplay.cs::CSharpScript::5199665187023171018::1787944740::0::1::::<>Control<><>0<>0<><>::
-SellEnergyButton.cs::CSharpScript::1047263294914992000::1787491666::0::1::::<>Control<><>0<>0<><>::
-SettingsButton.cs::CSharpScript::1124707287464560735::1787685811::0::1::::<>Node<><>0<>0<><>::
+SellEnergyButton.cs::CSharpScript::1047263294914992000::1788001888::0::1::::<>Control<><>0<>0<><>::
+SettingsButton.cs::CSharpScript::1124707287464560735::1788001888::0::1::::<>Node<><>0<>0<><>::
 SettingsContent.cs::CSharpScript::5257086164604934667::1787491666::0::1::::<>Control<><>0<>0<><>::
 SettingsWindow.cs::CSharpScript::8608651185268556535::1787437463::0::1::::<>Control<><>0<>0<><>::
-StatisticsButton.cs::CSharpScript::925407158327498551::1787685846::0::1::::<>Node<><>0<>0<><>::
+StatisticsButton.cs::CSharpScript::925407158327498551::1788001888::0::1::::<>Node<><>0<>0<><>::
 StatisticsGraph.cs::CSharpScript::8802116343937840681::1787491666::0::1::::<>Control<><>0<>0<><>::
 StatisticsGraphUiSettings.cs::CSharpScript::5843920988586203978::1787928026::0::1::::<><><>0<>0<><>::
 StatisticsWindow.cs::CSharpScript::728222080132292588::1787491666::0::1::::<>Control<><>0<>0<><>::
@@ -160,8 +160,8 @@ WheelPurchaseUi.cs::CSharpScript::8576335546802391150::1787686095::0::1::::<>Con
 WheelUi.cs::CSharpScript::4288272441051295649::1787928341::0::1::::<>Control<><>0<>0<><>::
 WheelUpgradeUi.cs::CSharpScript::579293890342042400::1787928026::0::1::::<>Control<><>0<>0<><>::
 WheelUpgradeWindow.cs::CSharpScript::3289394571082647821::1787686095::0::1::::<>Control<><>0<>0<><>::
-::res://Scripts/ui/global/::1787950468
-RenderedButtonBackground.cs::CSharpScript::4001752770448739298::1787944740::0::1::::<>Control<><>0<>0<><>::
+::res://Scripts/ui/global/::1788001888
+RenderedButtonBackground.cs::CSharpScript::4001752770448739298::1788001888::0::1::::<>Control<><>0<>0<><>::
 RenderedWindowBackground.cs::CSharpScript::2271014620645515295::1787950468::0::1::::<><><>0<>0<><>::
 UiSettings.cs::CSharpScript::278247019129021212::1787650373::0::1::::<><><>0<>0<><>::
 ::res://Scripts/ui/graphs/::1787924086
