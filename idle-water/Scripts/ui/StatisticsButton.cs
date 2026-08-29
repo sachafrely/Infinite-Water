@@ -1,15 +1,18 @@
 using Godot;
-using System;
 
-public partial class StatisticsButton : Node
+/// <summary>
+/// Opens or closes the StatisticsWindow through the central window manager.
+/// </summary>
+public partial class StatisticsButton : Button
 {
-	// Called when the node enters the scene tree for the first time.
-	public override void _Ready()
-	{
-	}
+    public override void _Ready()
+    {
+        Pressed += OnPressed;
+    }
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
-	{
-	}
+    private void OnPressed()
+    {
+        UiWindowManager manager = GetTree().CurrentScene?.FindChild("UiWindowManager", true, false) as UiWindowManager;
+        manager?.ToggleStatistics();
+    }
 }
