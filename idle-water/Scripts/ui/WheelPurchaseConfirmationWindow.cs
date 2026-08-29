@@ -1,3 +1,5 @@
+// This Script should probably be recycled into BuyWindow.cs or create a new Script in the BuyWindow.tscn
+
 using System;
 using Godot;
 

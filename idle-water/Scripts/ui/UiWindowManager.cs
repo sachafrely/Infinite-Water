@@ -13,7 +13,8 @@ using Godot;
 /// StatisticsButton -> "StatisticsWindow"
 /// SettingsButton   -> "SettingsWindow"
 ///
-/// Only one window can be open at a time.
+/// Only one window can be open at a time!
+/// There are Windows in CenterUi but also Windows from Ui/BuyWindow Node and Ui/UpgradeWindow Node.
 ///
 /// The shared WindowBackground is shown while a window is open
 /// and hidden when no window is open.

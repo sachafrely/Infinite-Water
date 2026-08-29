@@ -2,13 +2,13 @@
 
 [ext_resource type="Script" uid="uid://dd0wlgaklcp2x" path="res://Scripts/ui/BuyWindow.cs" id="1_vrstw"]
 
-[node name="BuyWindow" type="Control"]
+[node name="BuyWindow" type="Control" unique_id=359070008]
 layout_mode = 3
 anchors_preset = 0
 mouse_filter = 1
 script = ExtResource("1_vrstw")
 
-[node name="Panel" type="PanelContainer" parent="."]
+[node name="Panel" type="PanelContainer" parent="." unique_id=1819059833]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -17,49 +17,48 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 
-[node name="Margin" type="MarginContainer" parent="Panel"]
+[node name="Margin" type="MarginContainer" parent="Panel" unique_id=2087570115]
 layout_mode = 2
 theme_override_constants/margin_left = 18
 theme_override_constants/margin_top = 18
 theme_override_constants/margin_right = 18
 theme_override_constants/margin_bottom = 18
 
-[node name="Content" type="VBoxContainer" parent="Panel/Margin"]
+[node name="Content" type="VBoxContainer" parent="Panel/Margin" unique_id=692648341]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="Panel/Margin/Content"]
-layout_mode = 2
+[node name="Title" type="Label" parent="Panel/Margin/Content" unique_id=170195216]
 custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
 text = "Buy Wheel"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="UnlockRow" type="HBoxContainer" parent="Panel/Margin/Content"]
-layout_mode = 2
+[node name="UnlockRow" type="HBoxContainer" parent="Panel/Margin/Content" unique_id=1209597147]
 custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Description" type="Label" parent="Panel/Margin/Content/UnlockRow"]
+[node name="Description" type="Label" parent="Panel/Margin/Content/UnlockRow" unique_id=1927038256]
 layout_mode = 2
-theme_override_sizes/outline_size = 0
+size_flags_horizontal = 3
 text = "Unlock Wheel"
 vertical_alignment = 1
-size_flags_horizontal = 3
 
-[node name="PurchaseButton" type="Button" parent="Panel/Margin/Content/UnlockRow"]
-layout_mode = 2
+[node name="PurchaseButton" type="Button" parent="Panel/Margin/Content/UnlockRow" unique_id=728240865]
 custom_minimum_size = Vector2(100, 66)
-text = "10$"
-focus_mode = 0
-
-[node name="Spacer" type="Control" parent="Panel/Margin/Content"]
 layout_mode = 2
+focus_mode = 0
+text = "10$"
+
+[node name="Spacer" type="Control" parent="Panel/Margin/Content" unique_id=422220363]
 custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
 size_flags_vertical = 3
 
-[node name="CloseButton" type="Button" parent="Panel/Margin/Content"]
-layout_mode = 2
+[node name="CloseButton" type="Button" parent="Panel/Margin/Content" unique_id=66832386]
 custom_minimum_size = Vector2(0, 50)
-text = "Close Window"
+layout_mode = 2
 focus_mode = 0
+text = "Close Window"

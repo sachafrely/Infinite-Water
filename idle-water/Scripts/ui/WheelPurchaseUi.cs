@@ -1,3 +1,5 @@
+// This file should probably be migrated/recycled
+
 using Godot;
 
 /// <summary>

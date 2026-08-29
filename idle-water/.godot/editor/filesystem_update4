@@ -1,2 +1,11 @@
-res://Scenes/SettingsWindow.tscn
 res://Scenes/Main.tscn
+res://Scripts/ui/UiWindowManager.cs
+res://Scripts/ui/WheelDisplay.cs
+res://Scripts/ui/WheelUpgradeWindow.cs
+res://Scenes/BuyWindow.tscn
+res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
+res://Scenes/WheelDisplay.tscn
+res://Scripts/ui/EconomyUi.cs
+res://Scripts/ui/WheelPurchaseUi.cs
+res://Scripts/ui/WheelUi.cs
+res://Scenes/SettingsWindow.tscn

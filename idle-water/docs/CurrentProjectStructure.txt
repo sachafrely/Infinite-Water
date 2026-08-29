@@ -1,0 +1,58 @@
+Main
+├── FrameProfiler (Node) (Scripts/core/FrameProfiler.cs)
+├── FrameProfiler (TextureRect) (No Script Attached)
+├── TileMaps (Control) (No Script Attached)
+│   └── Some Subnodes ...
+├── Decorations (Control) (No Script Attached)
+│   └── Some Subnodes ...
+├── Gameview (SubViewportContainer) (No Script Attached)
+│   └── SimulationViewport (SubViewPort) (No Script Attached)
+│   	├── FluidSimulation (Node2D) (Scripts/simulation/FluidSimulator.cs)
+│   	└── Camera2D (Camera2D) (No Script Attached)
+└── Ui (Control) (No Script Attached)
+    ├── WheelUi (Control) (Scripts/ui/WheelUi.cs)
+    │	├── WheelDisplay1 (Instance number 1 of WheelDisplay.tscn) (Control) (Scripts/ui/WheelDisplay.cs)
+    │	│	└── Some Nodes (Please check WheelDisplay.tscn in Scenes, this Scene contains the Buy and Upgrade Buttons on the Wheels)
+    │	├── WheelDisplay2 (Instance number 2 of WheelDisplay.tscn) (Control) (Scripts/ui/WheelDisplay.cs)
+    │	│	└── Some Nodes (Please check WheelDisplay.tscn in Scenes, this Scene contains the Buy and Upgrade Buttons on the Wheels)
+    │	└── etc. etc. until WheelDisplay6
+    ├── BuyWindow (Scene) (Control) (Scripts/ui/BuyWindow.cs)
+    │	└── Some Nodes (Please check BuyWindow.tscn in Scenes) ...
+    ├── UpgradeWindow (Scene) (Control) (Scripts/ui/UpgradeWindow.cs)
+    │	└── Some Nodes (Please check UpgradeWindow.tscn in Scenes) ...
+    ├── TopUi (Control) (Scripts/ui/TopUi.cs)
+    │	├── TopUiBackground (Control) (Scripts/ui/TopUiBackground.cs)
+    │	├── RainDisplay (ProgressBar) (Scripts/ui/RainDisplay.cs)
+    │	└── CurrenciesContainer (HBoxContainer) (No Script Attached)
+    │   	├── MoneyDisplay (Label) (Scripts/ui/MoneyDisplay.cs)
+    │   	└── EnergyDisplay (Label) (Scripts/ui/EnergyDisplay.cs)
+    ├── CenterUi (Control) (Scripts/ui/CenterUi.cs)
+    │   ├── StatisticsWindow (Scene) (Control) (Scripts/ui/StatisticsWindow.cs)
+    │   │	└── VBoxContainer (VBoxContainer) (No Script Attached)
+    │   │		├── Graph1 (Node2D) (Scripts/ui/graphs/Graph1.cs)
+    │   │		├── Graph2 (Node2D) (Scripts/ui/graphs/Graph2.cs)
+    │   │		└── Graph3 (Node2D) (Scripts/ui/graphs/Graph3.cs)
+    │   ├── SettingsWindow (Scene) (Control) (Scripts/ui/SettingsWindow.cs)
+    │   │	└── SettingsContent (VBoxContainer) (Scripts/ui/SettingsContent.cs)
+    │   │		├── TiltSettings (Node2D) (Scripts/ui/TiltSettingsDisplay.cs)
+    │   │		├── AudioSettings (Node2D) (Scripts/ui/AudioSettings.cs)
+    │   │		└── MoreInfoButton (Node2D) (Scripts/ui/MoreInfoButton.cs)
+    │   └── PrestigeWindow (Scene) (Control) (Scripts/ui/PrestigeWindow.cs) (Empty yet)
+    ├── BottomUi (Control) (Scripts/ui/BottomUi.cs)
+    │   └── ButtonsContainer (HBoxContainer) (No Script Attached)
+    │       	├── SellEnergyButton (Button) (Scripts/ui/SellEnergyButton.cs)
+    │       	├── StatisticsButton (Button) (Scripts/ui/StatisticsButton.cs)
+    │       	├── PrestigeButton (Button) (Scripts/ui/PrestigeButton.cs)
+    │       	└── SettingsButton (Button) (Scripts/ui/SettingsButton.cs)
+    └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
+
+The Upgrade Button Code of the old Button is in: res://Scripts/ui/WheelUpgradeUi.cs
+Some Code related to Upgrades is also here: res://Scripts/simulation/FluidSimulator.WheelProgression.cs
+The old Buy Button Code is here: res://Scripts/ui/WheelPurchaseUi.cs
+Some code related to Buying is here: res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
+
+Old Scripts that should be Recycled:
+res://Scripts/ui/WheelUpgradeWindow.cs
+res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
+res://Scripts/ui/EconomyUi.cs
+res://Scripts/ui/WheelUpgradeUi.cs

@@ -1,3 +1,7 @@
+// What Node is this Script attached to?
+// Is it needed? Should it be migrated?
+// I think it is the old script, which we should recycle.
+
 using System;
 using Godot;
 

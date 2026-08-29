@@ -36,32 +36,32 @@ public partial class WheelDisplay : Control
 
 	/// <summary>
 	/// Called by WheelUi after assigning this instance's logical number.
-    /// </summary>
-    public void SetWheelNumber(int wheelNumber)
-    {
-        WheelNumber = wheelNumber;
-        UpdateButtonState();
-    }
+	/// </summary>
+	public void SetWheelNumber(int wheelNumber)
+	{
+		WheelNumber = wheelNumber;
+		UpdateButtonState();
+	}
 
-    public Button GetBuyButton() => buyButton;
-    public Button GetUpgradeButton() => upgradeButton;
+	public Button GetBuyButton() => buyButton;
+	public Button GetUpgradeButton() => upgradeButton;
 
-    public void RequestBuy()
-    {
-        EmitSignal(SignalName.BuyRequested, WheelNumber);
-    }
+	public void RequestBuy()
+	{
+		EmitSignal(SignalName.BuyRequested, WheelNumber);
+	}
 
-    public void RequestUpgrade()
-    {
-        EmitSignal(SignalName.UpgradeRequested, WheelNumber);
-    }
+	public void RequestUpgrade()
+	{
+		EmitSignal(SignalName.UpgradeRequested, WheelNumber);
+	}
 
-    private void UpdateButtonState()
-    {
-        if (buyButton != null)
-            buyButton.Disabled = false;
+	private void UpdateButtonState()
+	{
+		if (buyButton != null)
+			buyButton.Disabled = false;
 
-        if (upgradeButton != null)
-            upgradeButton.Disabled = false;
-    }
+		if (upgradeButton != null)
+			upgradeButton.Disabled = false;
+	}
 }
