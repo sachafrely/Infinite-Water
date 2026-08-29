@@ -1,10 +1,10 @@
-Button
-HBoxContainer
+Node2D
 Control
+HBoxContainer
+Button
 Label
 ProgressBar
 Node
-Node2D
 VBoxContainer
 Container
 GPUParticlesAttractorSphere3D

@@ -17,7 +17,7 @@ offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("2_f5cgl")
 
-[node name="TiltSettingsContent" type="Node2D" parent="SettingsContent" unique_id=630911531]
+[node name="TiltSettings" type="Node2D" parent="SettingsContent" unique_id=1237217989]
 script = ExtResource("2_sohj4")
 
 [node name="AudioSettings" type="Node2D" parent="SettingsContent" unique_id=426686103]
