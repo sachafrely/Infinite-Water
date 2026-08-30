@@ -29,9 +29,9 @@ Main
     ├── CenterUi (Control) (Scripts/ui/CenterUi.cs)
     │   ├── StatisticsWindow (Scene) (Control) (Scripts/ui/StatisticsWindow.cs)
     │   │	└── VBoxContainer (VBoxContainer) (No Script Attached)
-    │   │		├── Graph1 (Node2D) (Scripts/ui/graphs/Graph1.cs)
-    │   │		├── Graph2 (Node2D) (Scripts/ui/graphs/Graph2.cs)
-    │   │		└── Graph3 (Node2D) (Scripts/ui/graphs/Graph3.cs)
+    │   │		├── Graph1 (Control) (Scripts/ui/graphs/Graph1.cs)
+    │   │		├── Graph2 (Control) (Scripts/ui/graphs/Graph2.cs)
+    │   │		└── Graph3 (Control) (Scripts/ui/graphs/Graph3.cs)
     │   ├── SettingsWindow (Scene) (Control) (Scripts/ui/SettingsWindow.cs)
     │   │	└── SettingsContent (VBoxContainer) (Scripts/ui/SettingsContent.cs)
     │   │		├── TiltSettings (Node2D) (Scripts/ui/TiltSettingsDisplay.cs)
@@ -46,13 +46,12 @@ Main
     │       	└── SettingsButton (Button) (Scripts/ui/SettingsButton.cs)
     └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
 
-The Upgrade Button Code of the old Button is in: res://Scripts/ui/WheelUpgradeUi.cs
-Some Code related to Upgrades is also here: res://Scripts/simulation/FluidSimulator.WheelProgression.cs
-The old Buy Button Code is here: res://Scripts/ui/WheelPurchaseUi.cs
-Some code related to Buying is here: res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
+The old Code for the Graphs is here: res://Scripts/ui/StatisticsGraph.cs it should go 1 graph in each of Graph1.cs, Graph2.cs and Graph3.cs.
+I made he Graph1 to 3 Nodes "Control" Nodes and gave them appropriate Sizes.
 
 Old Scripts that should be Recycled:
 res://Scripts/ui/WheelUpgradeWindow.cs
 res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
 res://Scripts/ui/EconomyUi.cs
 res://Scripts/ui/WheelUpgradeUi.cs
+res://Scripts/ui/StatisticsGraph.cs
