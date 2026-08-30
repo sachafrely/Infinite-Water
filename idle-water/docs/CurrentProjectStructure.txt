@@ -47,7 +47,7 @@ Main
     └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
 
 The old Code for the Graphs is here: res://Scripts/ui/StatisticsGraph.cs it should go 1 graph in each of Graph1.cs, Graph2.cs and Graph3.cs.
-I made he Graph1 to 3 Nodes "Control" Nodes and gave them appropriate Sizes.
+I made the Graph1 to 3 Nodes "Control" Nodes and gave them appropriate Sizes.
 
 Old Scripts that should be Recycled:
 res://Scripts/ui/WheelUpgradeWindow.cs
