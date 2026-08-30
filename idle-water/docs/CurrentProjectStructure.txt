@@ -47,7 +47,13 @@ Main
     └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
 
 The old Code for the Graphs is here: res://Scripts/ui/StatisticsGraph.cs it should go 1 graph in each of Graph1.cs, Graph2.cs and Graph3.cs.
-I made the Graph1 to 3 Nodes "Control" Nodes and gave them appropriate Sizes.
+
+The first graph shows a 10 minute time period with line graphs for "Particles Amount", Energy per Second, and FPS.
+
+The second graph is a scatter graph drawing yellow dots with energy per second on the vertical axis and particles amount on the horizontal axis
+
+the third graph should show 6 Bars with different heights, showing each wheel's energy generation. This is not implemented yet and has to be written with new code.
+
 
 Old Scripts that should be Recycled:
 res://Scripts/ui/WheelUpgradeWindow.cs

@@ -1,2 +1,3 @@
-res://Scenes/StatisticsWindow.tscn
-res://Scenes/Main.tscn
+res://Scripts/ui/graphs/Graph1.cs
+res://Scripts/ui/graphs/Graph2.cs
+res://Scripts/ui/graphs/Graph3.cs
