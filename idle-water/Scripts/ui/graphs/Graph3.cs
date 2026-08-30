@@ -27,7 +27,11 @@ public partial class Graph3 : Control
     public override void _PhysicsProcess(double delta)
     {
         if (fluidSimulator == null || !IsInstanceValid(fluidSimulator))
-            fluidSimulator = GetTree().CurrentScene?.FindChild("FluidSimulation", true, false) as FluidSimulator;
+        {
+            Node currentScene = GetTree().CurrentScene;
+            if (currentScene != null)
+                fluidSimulator = currentScene.FindChild("FluidSimulation", true, false) as FluidSimulator;
+        }
 
         if (fluidSimulator == null)
             return;
