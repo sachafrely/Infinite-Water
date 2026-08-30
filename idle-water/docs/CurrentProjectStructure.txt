@@ -1,3 +1,5 @@
+https://github.com/sachafrely/Infinite-Water/tree/ui-pass-2-20260823
+
 Main
 ├── FrameProfiler (Node) (Scripts/core/FrameProfiler.cs)
 ├── BackGroundImage (TextureRect) (No Script Attached)
@@ -53,7 +55,6 @@ The first graph shows a 10 minute time period with line graphs for "Particles Am
 The second graph is a scatter graph drawing yellow dots with energy per second on the vertical axis and particles amount on the horizontal axis
 
 the third graph should show 6 Bars with different heights, showing each wheel's energy generation. This is not implemented yet and has to be written with new code.
-
 
 Old Scripts that should be Recycled:
 res://Scripts/ui/WheelUpgradeWindow.cs
