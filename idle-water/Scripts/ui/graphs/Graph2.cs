@@ -37,8 +37,8 @@ public partial class Graph2 : Control
 		while (samples.Count > MaxSamples)
 			samples.RemoveAt(0);
 
-		maxEnergy = Mathf.Max(maxEnergy, (float)energyPerSecond, 0.001f);
-		maxFps = Mathf.Max(maxFps, fps, 1.0f);
+		maxEnergy = Mathf.Max(maxEnergy, (float)energyPerSecond);
+		maxFps = Mathf.Max(maxFps, fps);
 		QueueRedraw();
 	}
 
