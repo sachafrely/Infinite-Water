@@ -1,5 +1,4 @@
 using Godot;
-using System;
 using System.Collections.Generic;
 
 public partial class Graph1 : Control
@@ -25,7 +24,7 @@ public partial class Graph1 : Control
 		while (values.Count > MaxSamples)
 			values.RemoveAt(0);
 
-		maxValue = Mathf.Max(maxValue, activeParticles, 1.0f);
+		maxValue = Mathf.Max(maxValue, activeParticles);
 		QueueRedraw();
 	}
 
