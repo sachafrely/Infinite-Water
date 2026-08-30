@@ -1,13 +1,16 @@
 using Godot;
 
+/// <summary>
+/// Statistics window container.
+/// The scene owns the graphs; this script only handles window state and
+/// shared window rendering.
+/// </summary>
 public partial class StatisticsWindow : Control
 {
 	public override void _Ready()
 	{
-		// The Statistics window is modal while open. It must consume touches so
-		// controls underneath (including wheel Buy/Upgrade controls) cannot be
-		// activated through the window.
-		MouseFilter = Control.MouseFilterEnum.Stop;
+		MouseFilter = MouseFilterEnum.Stop;
+		Hide();
 		QueueRedraw();
 	}
 
@@ -37,8 +40,5 @@ public partial class StatisticsWindow : Control
 		Hide();
 	}
 
-	public bool IsOpen()
-	{
-		return Visible;
-	}
+	public bool IsOpen() => Visible;
 }
