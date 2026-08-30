@@ -1,5 +1,5 @@
 UI PASS 2 — SCRIPT MIGRATION PROGRESS
-Date: 28.08.2026
+Date: 30.08.2026
 Branch: ui-pass-2-20260823
 
 PURPOSE
@@ -33,47 +33,74 @@ MIGRATION TRACKER
 5. BuyWindow.cs                            [!]
 6. UpgradeWindow.cs                        [!]
 
-7. TopUi.cs                                [!]
-   - Now references the authored TopUi child Nodes instead of constructing them.
+7. TopUi.cs                                [x]
+   - Uses the authored TopUi child Nodes instead of constructing them.
    - TopUi is the scene-level coordinator; displays own their data presentation.
 
-8. RainDisplay.cs                          [!]
-   - Reads current rain percentage from FluidSimulator.
-   - Updates authored RainDisplay Nodes where present.
-   - Runtime verification still required, especially the visual rain bars.
+8. RainDisplay.cs                          [x]
+   - Uses the authored RainDisplay Node.
+   - Runtime verification passed.
+   - Rain display works correctly.
 
-9. EnergyDisplay.cs                        [!]
-   - Reads EnergySystem.Instance.Energy.
-   - Updates the authored Energy label.
-   - No runtime label creation.
+9. EnergyDisplay.cs                        [x]
+   - Uses the authored Energy label.
+   - Runtime verification passed.
+   - Energy display works correctly.
 
-10. MoneyDisplay.cs                        [!]
-   - Reads EnergySystem.Instance.Dollars.
-   - Updates the authored Dollars/Money label.
-   - No runtime label creation.
+10. MoneyDisplay.cs                        [x]
+   - Uses the authored Money/Dollars label.
+   - Runtime verification passed.
+   - Money display works correctly.
 
-11. BottomUi.cs                            [ ]
-12. StatisticsButton.cs                    [ ]
-13. SettingsButton.cs                      [ ]
-14. PrestigeButton.cs                      [ ]
-15. SellEnergyButton.cs                    [ ]
+11. BottomUi.cs                            [x]
+   - Uses the authored BottomUi/HBoxContainer/Button hierarchy.
+   - Styles all four buttons through RenderedButtonBackground.
+   - Prestige remains disabled until Prestige is implemented.
+
+12. StatisticsButton.cs                    [x]
+   - Attached to the authored StatisticsButton Node.
+   - Requests StatisticsWindow through UiWindowManager.
+   - Button action verified; StatisticsWindow migration is still incomplete.
+
+13. SettingsButton.cs                      [x]
+   - Attached to the authored SettingsButton Node.
+   - Requests SettingsWindow through UiWindowManager.
+   - Button action verified; SettingsWindow migration is still incomplete.
+
+14. PrestigeButton.cs                      [x]
+   - Attached to the authored PrestigeButton Node.
+   - Remains disabled because Prestige functionality is not implemented yet.
+
+15. SellEnergyButton.cs                    [x]
+   - Attached to the authored SellEnergyButton Node.
+   - Sells Energy through EnergySystem.
+   - Verified at runtime: 10 Energy is sold for 1 Dollar.
+
 16. CenterUi.cs                            [ ]
 17. SettingsWindow.cs                      [ ]
 18. SettingsContent.cs                     [ ]
 19. TiltSettingsContent.cs                 [ ]
 20. AudioSettings.cs                       [ ]
 21. MoreInfoButton.cs                       [ ]
-22. StatisticsWindow.cs                    [ ]
+22. StatisticsWindow.cs                    [~]
+   - Scene and button target exist.
+   - StatisticsWindow is not completely migrated/finished yet.
+
 23. Graph1.cs                              [ ]
 24. Graph2.cs                              [ ]
 25. Graph3.cs                              [ ]
 26. StatisticsGraph.cs                     [ ]
 27. PrestigeWindow.cs                      [ ]
-28. UiWindowManager.cs                     [ ]
+28. UiWindowManager.cs                     [x]
+   - Updated to the current Main/Ui/CenterUi hierarchy.
+   - Coordinates StatisticsWindow and SettingsWindow through the current scene structure.
+
 29. EconomyUi.cs                            [~]
    - Marked as legacy with // THIS FILE SHALL BE GONE SOON //.
    - EnergySystem no longer constructs EconomyUi at runtime.
-   - Keep the file temporarily until runtime verification confirms the authored TopUi replacement is complete.
+   - TopUi and BottomUi functionality is progressively being removed from this file.
+   - Do not add new functionality here.
+   - Delete only after all remaining legacy responsibilities have been migrated and verified.
 
 30. WheelPurchaseUi.cs                     [ ]
 31. WheelUpgradeUi.cs                       [ ]
@@ -84,17 +111,35 @@ MIGRATION TRACKER
 33. StatisticsGraphUiSettings.cs             [ ]
 34. UiToggleButton.cs                        [ ]
 
+35. RenderedButtonBackground.cs             [x]
+   - Centralized button rendering/styling.
+   - Uses UiSettings for background colors, pressed color, border color/size and font settings.
+   - Runtime verification passed for BottomUi buttons.
+
+36. TopUiBackground.cs                      [x]
+   - Uses RenderedWindowBackground.Draw(this).
+   - Existing TopUiBackground hierarchy was retained; no extra background node was added.
+
+37. RenderedWindowBackground.cs             [x]
+   - Provides the shared window/background rendering functions used by TopUiBackground.
+
 ============================================================
 CURRENT MIGRATION DECISIONS
 ============================================================
 
 - Main.tscn remains the composition root.
+- Main/Ui is the root of the authored UI hierarchy.
 - WheelDisplay.tscn is reused six times.
 - WheelUi owns logical wheel numbering.
 - Buy/Upgrade windows receive wheel identity; they do not calculate it independently.
 - CenterUi is a Control Node, not a scene.
 - StatisticsWindow contains Graph1, Graph2 and Graph3 as child Nodes.
-- Shared visual configuration remains in Scripts/global/UiSettings.cs.
+- BottomUi uses the existing HBoxContainer and Button Nodes; no additional BottomUi scene nodes are required.
+- PrestigeButton remains a disabled Button until Prestige is implemented.
+- StatisticsButton and SettingsButton route through UiWindowManager rather than duplicating window-management logic.
+- Shared visual configuration remains in Scripts/ui/global/UiSettings.cs.
+- RenderedButtonBackground is the centralized source for BottomUi button styling.
+- TopUiBackground calls RenderedWindowBackground instead of adding a separate background node.
 - Runtime UI creation is removed only after the equivalent scene-based implementation is verified.
 - Simulation/gameplay code must not be changed as part of UI migration unless required to remove obsolete UI construction.
 - Old WheelPurchaseUi and WheelUpgradeUi remain temporarily because runtime verification of the new scene-based windows has not yet been performed.
@@ -104,36 +149,49 @@ CURRENT MIGRATION DECISIONS
 LATEST WORK
 ============================================================
 
-28.08.2026
-- Created migration tracker.
-- Migrated WheelDisplay.cs from an empty placeholder to scene-owned Node references and wheel identity/signals.
-- Migrated BuyButton.cs to the actual Button Node type and routed presses through WheelDisplay.
-- Migrated UpgradeButton.cs to the actual Button Node type and routed presses through WheelDisplay.
-- Migrated WheelUi.cs to manage the six WheelDisplay instances and assign logical numbers 1–6.
-- Migrated BuyWindow.cs to the authored BuyWindow.tscn hierarchy.
-- Migrated UpgradeWindow.cs to the authored UpgradeWindow.tscn hierarchy.
-- Updated WheelUi.cs so Buy/Upgrade requests now open the corresponding scene-based windows.
-- Migrated TopUi.cs to the authored TopUi hierarchy.
-- Migrated RainDisplay.cs, EnergyDisplay.cs and MoneyDisplay.cs to use authored scene Nodes.
-- Removed EnergySystem's runtime construction of EconomyUi.
-- Marked EconomyUi.cs as legacy and scheduled it for removal after runtime verification.
-- Kept old runtime purchase/upgrade systems intact until their scene-based replacements are verified.
+30.08.2026
+- Completed the authored BottomUi hierarchy using an HBoxContainer with four Button Nodes.
+- Migrated BottomUi.cs to coordinate the authored buttons.
+- Migrated SellEnergyButton.cs to the authored SellEnergyButton Node.
+- Verified Sell Energy at runtime: 10 Energy is sold for 1 Dollar.
+- Migrated StatisticsButton.cs to the authored StatisticsButton Node.
+- Migrated SettingsButton.cs to the authored SettingsButton Node.
+- Kept PrestigeButton disabled because Prestige is not implemented yet.
+- Centralized BottomUi button styling in RenderedButtonBackground.cs.
+- Button styling verified at runtime: background, border, font size, enabled/disabled colors and pressed color are correct.
+- Fixed UiWindowManager to use the current Main/Ui/CenterUi/StatisticsWindow and SettingsWindow hierarchy.
+- Statistics and Settings button actions now correctly request their corresponding windows; the windows themselves still require migration/completion.
+- TopUiBackground was connected to RenderedWindowBackground while preserving the existing scene hierarchy.
 
+============================================================
 NEXT TARGET
+============================================================
 
-Migrate BottomUi and its buttons, then CenterUi/window coordination. After those are verified, migrate Settings, Statistics and Prestige, then remove the remaining obsolete runtime UI systems in a controlled cleanup pass.
+Migrate and finish the CenterUi/window system, starting with StatisticsWindow and SettingsWindow so the already-working Statistics and Settings buttons have complete destinations.
 
-IMPORTANT RUNTIME CHECK BEFORE DELETING ECONOMYUI
+Recommended order:
+1. CenterUi.cs
+2. StatisticsWindow.cs and its existing Graph1/Graph2/Graph3 children
+3. SettingsWindow.cs and SettingsContent.cs
+4. Remaining Settings child scripts
+5. PrestigeWindow.cs when Prestige functionality is actually implemented
+6. Controlled cleanup of remaining EconomyUi responsibilities
+7. Legacy WheelPurchaseUi/WheelUpgradeUi cleanup after their scene-based replacements are verified
 
-Run the game and verify:
+IMPORTANT RUNTIME CHECKS ALREADY PASSED
+
 - Energy value appears correctly.
 - Dollars value appears correctly.
 - Rain display appears correctly.
-- Rain amount updates while the rain changes.
+- Rain display updates correctly.
 - TopUi position/layering is correct.
 - No duplicate EconomyUi appears.
-- Sell Energy still works through the authored SellEnergyButton.
+- Sell Energy works through the authored SellEnergyButton.
+- BottomUi buttons have the correct centralized styling.
+- Statistics and Settings buttons reach UiWindowManager; their target windows are not yet fully migrated.
 
-Only after these checks pass should EconomyUi.cs be deleted.
+IMPORTANT CLEANUP RULE
+
+Do not delete EconomyUi.cs yet. First migrate and verify every remaining responsibility still contained in EconomyUi, then remove the legacy file and any obsolete runtime UI construction in a controlled cleanup pass.
 
 END OF MIGRATION PROGRESS
