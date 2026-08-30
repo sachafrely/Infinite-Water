@@ -26,11 +26,13 @@ public partial class StatisticsGraph : Control
         graph1?.AddSample(activeParticles, energyPerSecond, fps);
     }
 
-    public void AddRainEnergySample(float averageRain, float averageEnergy, float averageParticles)
+    public void AddRainEnergySample(float averageRain, float averageEnergyPerFrame, float averageParticles)
     {
         ResolveGraphs();
-        // The old API supplied one statistical point every 10 seconds.
-        // Graph2 now stores that point as particles vs energy/second.
-        graph2?.AddSample(averageParticles, averageEnergy);
+
+        // FluidSimulator currently supplies average generated energy per physics frame.
+        // Convert it to the graph's requested energy-per-second unit.
+        float averageEnergyPerSecond = averageEnergyPerFrame * Engine.PhysicsTicksPerSecond;
+        graph2?.AddSample(averageParticles, averageEnergyPerSecond);
     }
 }
