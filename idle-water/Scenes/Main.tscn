@@ -777,23 +777,40 @@ z_index = 22
 anchors_preset = 0
 offset_top = 761.0
 offset_right = 720.0
-offset_bottom = 1180.0
+offset_bottom = 1161.0
 script = ExtResource("21_qta6b")
 
 [node name="StatisticsWindow" parent="Ui/CenterUi" unique_id=817545247 instance=ExtResource("26_xvtyr")]
-layout_mode = 0
-offset_top = -761.0
-offset_bottom = -761.0
+layout_mode = 1
+anchors_preset = 15
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
 
 [node name="SettingsWindow" parent="Ui/CenterUi" unique_id=1808166567 instance=ExtResource("27_u7mjy")]
-layout_mode = 0
-offset_top = -761.0
-offset_bottom = -761.0
+layout_mode = 1
+anchors_preset = 15
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
 
 [node name="PrestigeWindow" parent="Ui/CenterUi" unique_id=1971957473 instance=ExtResource("35_vvnwx")]
-layout_mode = 0
-offset_top = -761.0
-offset_bottom = -761.0
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="BottomUi" type="Control" parent="Ui" unique_id=1677817209]
 z_index = 200
@@ -809,6 +826,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -6.0
+offset_right = 6.0
 grow_horizontal = 2
 grow_vertical = 2
 

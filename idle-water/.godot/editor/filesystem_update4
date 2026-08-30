@@ -1,3 +1,4 @@
+res://Scenes/Main.tscn
 res://Scripts/ui/WheelUpgradeWindow.cs
 res://Scripts/ui/WheelUpgradeUi.cs
 res://Scripts/ui/WheelPurchaseUi.cs
@@ -39,3 +40,4 @@ res://Scripts/ui/UiWindowManager.cs
 res://Scripts/core/FrameProfiler.cs
 res://Scripts/simulation/TileMapPhysics.cs
 res://Scripts/simulation/FluidSimulator.cs
+res://Scenes/SettingsWindow.tscn
