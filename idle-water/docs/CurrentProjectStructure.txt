@@ -48,6 +48,8 @@ Main
     │       	└── SettingsButton (Button) (Scripts/ui/SettingsButton.cs)
     └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
 
+I see the 3 graphs, but it just says "Collecting Data" indefinitely.
+
 The old Code for the Graphs is here: res://Scripts/ui/StatisticsGraph.cs it should go 1 graph in each of Graph1.cs, Graph2.cs and Graph3.cs.
 
 The first graph shows a 10 minute time period with line graphs for "Particles Amount", Energy per Second, and FPS.
