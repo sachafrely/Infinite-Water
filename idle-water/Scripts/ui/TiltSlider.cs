@@ -2,14 +2,13 @@ using Godot;
 
 /// <summary>
 /// Renders and controls the accelerometer tilt influence slider.
+/// All coordinates are local to this Control.
 /// </summary>
 public partial class TiltSlider : Control
 {
 	private const float SliderBarHeight = 8.0f;
 	private const float SliderHandleWidth = 24.0f;
 	private const float SliderHandleHeight = 44.0f;
-	private const float SliderLeft = 115.0f;
-	private const float SliderRightMargin = 165.0f;
 	private const float SliderHitPadding = 10.0f;
 	private const float MinimumTiltInfluenceRatio = 0.0f;
 	private const float MaximumTiltInfluenceRatio = 1.0f;
@@ -21,6 +20,7 @@ public partial class TiltSlider : Control
 	{
 		MouseFilter = MouseFilterEnum.Stop;
 		SizeFlagsHorizontal = SizeFlags.ExpandFill;
+		SizeFlagsVertical = SizeFlags.ShrinkCenter;
 		CustomMinimumSize = new Vector2(280.0f, SliderHandleHeight);
 		QueueRedraw();
 	}
@@ -48,6 +48,7 @@ public partial class TiltSlider : Control
 			{
 				_isDragging = false;
 				AcceptEvent();
+				return;
 			}
 		}
 
@@ -60,13 +61,12 @@ public partial class TiltSlider : Control
 
 	public override void _Draw()
 	{
-		float left = GetSliderLeft();
-		float right = GetSliderRight();
-		float width = right - left;
-
-		if (width <= 0.0f)
+		if (Size.X <= 0.0f || Size.Y <= 0.0f)
 			return;
 
+		float left = SliderHandleWidth * 0.5f;
+		float right = Mathf.Max(left + 1.0f, Size.X - SliderHandleWidth * 0.5f);
+		float width = right - left;
 		float barY = Size.Y * 0.5f;
 		float handleX = left + width * TiltSettings.TiltInfluenceRatio;
 
@@ -98,30 +98,19 @@ public partial class TiltSlider : Control
 		DrawLine(new Vector2(handleRect.End.X, handleRect.Position.Y), handleRect.End, handleShadow, 2.0f);
 	}
 
-	private float GetSliderLeft() => SliderLeft;
-
-	private float GetSliderRight()
-	{
-		return Mathf.Max(GetSliderLeft() + 120.0f, Size.X - SliderRightMargin);
-	}
-
 	private bool IsOverSlider(Vector2 position)
 	{
-		float top = Size.Y * 0.5f - SliderHandleHeight * 0.5f - SliderHitPadding;
-		float bottom = Size.Y * 0.5f + SliderHandleHeight * 0.5f + SliderHitPadding;
-
-		return position.X >= GetSliderLeft() - SliderHitPadding &&
-			position.X <= GetSliderRight() + SliderHitPadding &&
-			position.Y >= top &&
-			position.Y <= bottom;
+		return position.X >= -SliderHitPadding &&
+			position.X <= Size.X + SliderHitPadding &&
+			position.Y >= -SliderHitPadding &&
+			position.Y <= Size.Y + SliderHitPadding;
 	}
 
 	private void SetFromPosition(float mouseX)
 	{
-		float left = GetSliderLeft();
-		float width = GetSliderRight() - left;
-		if (width <= 0.0f)
-			return;
+		float left = SliderHandleWidth * 0.5f;
+		float right = Mathf.Max(left + 1.0f, Size.X - SliderHandleWidth * 0.5f);
+		float width = right - left;
 
 		float normalized = Mathf.Clamp((mouseX - left) / width, 0.0f, 1.0f);
 		TiltSettings.TiltInfluenceRatio = Mathf.Clamp(
