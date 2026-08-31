@@ -1,6 +1,6 @@
 public enum WheelUpgradeType
 {
-    BiggerPaddles,
-    LessFriction,
-    MoreEfficient
+	BiggerPaddles,
+	LessFriction,
+	MoreEfficient
 }

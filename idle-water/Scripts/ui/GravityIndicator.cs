@@ -6,7 +6,6 @@ using Godot;
 /// </summary>
 public partial class GravityIndicator : Sprite2D
 {
-	private const float RightMargin = 60.0f;
 
 	public override void _Ready()
 	{
@@ -25,12 +24,5 @@ public partial class GravityIndicator : Sprite2D
 		if (gravity.LengthSquared() >= 0.0001f)
 			Rotation = gravity.Angle();
 
-		if (GetParent() is Control parent)
-		{
-			Position = new Vector2(
-				parent.Size.X - RightMargin,
-				parent.Size.Y * 0.5f
-			);
-		}
 	}
 }

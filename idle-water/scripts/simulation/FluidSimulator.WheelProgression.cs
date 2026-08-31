@@ -1,3 +1,6 @@
+// I WANT THIS FILE GONE. REPLACE IT WITH ANY OTHER FILE.
+// THIS DOESN'T BELONG HERE.
+
 using Godot;
 
 public partial class FluidSimulator

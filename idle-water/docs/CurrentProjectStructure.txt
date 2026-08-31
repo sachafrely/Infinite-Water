@@ -40,9 +40,12 @@ Main
     │   │		├── TiltSettings (Control) (Scripts/ui/TiltSettingsDisplay.cs)
     │   │               │    └── HBoxContainer (HBoxContainer) (No Script Attached)
     │   │               │          ├── TiltSlider (Control) (Scripts/ui/TiltSlider.cs)
-    │   │               │          └── GravityIndicator (Sprite2D) (Scripts/ui/GravityIndicator.cs)
-    │   │		├── AudioSettings (Node2D) (Scripts/ui/AudioSettings.cs)
-    │   │		└── MoreInfoButton (Node2D) (Scripts/ui/MoreInfoButton.cs)
+    │   │               │          └── GravityIndicatorContainer (MarginContainer) (No Script Attached)
+    │   │		│	  	  └── GravityIndicator (Sprite2D) (Scripts/ui/GravityIndicator.cs)
+    │   │		├── AudioSettings (VBoxContainer) (Scripts/ui/AudioSettings.cs)
+    │	│		│	├── EffectsSlider (Control) (No Script Attached)
+    │   │		│	└── MusicSlider (Control) (No Script Attached)
+    │   │		└── MoreInfoButton (Button) (Scripts/ui/MoreInfoButton.cs)
     │   └── PrestigeWindow (Scene) (Control) (Scripts/ui/PrestigeWindow.cs) (Empty yet)
     ├── BottomUi (Control) (Scripts/ui/BottomUi.cs)
     │   └── ButtonsContainer (HBoxContainer) (No Script Attached)
@@ -52,10 +55,24 @@ Main
     │       	└── SettingsButton (Button) (Scripts/ui/SettingsButton.cs)
     └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
 
-Most of the old Settings Code is in "res://Scripts/ui/SettingsContent.cs"
-The old GravityIndicator Code was lost. There is a tile with an Arrow that should point Downward. Depending on the current gravity.
+Please migrate the Buy/Upgrade buttons on the wheels next.
+The Buy/Upgrade Buttons are small Buttons centered on each wheel.
+Remember the Buy Button shows only when a wheel is not bought yet.
+Then the Upgrade Button will show, until all Upgrades have been bought.
+Please make the Buy Button Say "Buy Wheel 1" and the Upgrade Button say "Upgrade Wheel 1" etc.
+The new Buttons go into the Scene "WheelDisplay.tscn" and have 2 Nodes (BuyButton" and "UpgradeButton") 
+With res://Scripts/ui/BuyButton.cs and res://Scripts/ui/UpgradeButton.cs attached.
+The WheelDisplay Node also has res://Scripts/ui/WheelDisplay.cs attached. These are the 3 new files.
+
+The old Buy/Upgrade Button code is in 
+res://Scripts/ui/WheelUpgradeWindow.cs, 
+res://Scripts/ui/WheelUpgradeUi.cs,
+res://Scripts/simulation/WheelUpgradeState.cs,
+res://Scripts/simulation/WaterWheelManager.cs,
+res://Scripts/simulation/FluidSimulator.WheelProgression.cs.
 
 Old Scripts that should be Recycled:
+res://Scripts/simulation/FluidSimulator.WheelProgression.cs
 res://Scripts/ui/WheelUpgradeWindow.cs
 res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
 res://Scripts/ui/EconomyUi.cs

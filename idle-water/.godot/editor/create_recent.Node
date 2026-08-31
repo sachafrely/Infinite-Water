@@ -1,14 +1,14 @@
+VBoxContainer
 Control
+Button
+MarginContainer
 Sprite2D
 Node2D
 HBoxContainer
-Button
 Label
 ProgressBar
 Node
-VBoxContainer
 Container
 GPUParticlesAttractorSphere3D
 Panel
 PanelContainer
-NavigationObstacle2D

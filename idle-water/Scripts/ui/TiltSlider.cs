@@ -19,9 +19,6 @@ public partial class TiltSlider : Control
 	public override void _Ready()
 	{
 		MouseFilter = MouseFilterEnum.Stop;
-		SizeFlagsHorizontal = SizeFlags.ExpandFill;
-		SizeFlagsVertical = SizeFlags.ShrinkCenter;
-		CustomMinimumSize = new Vector2(280.0f, SliderHandleHeight);
 		QueueRedraw();
 	}
 
