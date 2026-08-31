@@ -1,3 +1,13 @@
+res://Scenes/SettingsWindow.tscn
+res://Scripts/ui/graphs/Graph1.cs
+res://Scripts/ui/graphs/Graph2.cs
+res://Scripts/ui/graphs/Graph3.cs
+res://Scripts/ui/StatisticsGraph.cs
+res://Scripts/ui/StatisticsWindow.cs
+res://Scenes/Main.tscn
+res://Scripts/ui/StatisticsGraphUiSettings.cs
+res://Scripts/ui/GravityIndicator.cs
+res://Scripts/ui/TiltSlider.cs
 res://Scripts/ui/WheelUpgradeWindow.cs
 res://Scripts/ui/WheelUpgradeUi.cs
 res://Scripts/ui/WheelPurchaseUi.cs
@@ -5,7 +15,6 @@ res://Scripts/ui/WheelPurchaseConfirmationWindow.cs
 res://Scripts/rendering/WaterWheelVisual.cs
 res://Scripts/ui/UiToggleButton.cs
 res://Scripts/ui/TiltSettingsContent.cs
-res://Scripts/ui/StatisticsGraph.cs
 res://Scripts/rendering/FluidRenderer.cs
 res://Scripts/ui/EconomyUi.cs
 res://Scripts/ui/PrestigeWindow.cs
@@ -21,10 +30,6 @@ res://Scripts/ui/AudioSettings.cs
 res://Scripts/ui/SettingsContent.cs
 res://Scripts/ui/SettingsWindow.cs
 res://Scripts/ui/SettingsButton.cs
-res://Scripts/ui/graphs/Graph3.cs
-res://Scripts/ui/graphs/Graph2.cs
-res://Scripts/ui/graphs/Graph1.cs
-res://Scripts/ui/StatisticsWindow.cs
 res://Scripts/ui/PrestigeButton.cs
 res://Scripts/ui/MoneyDisplay.cs
 res://Scripts/ui/EnergyDisplay.cs
@@ -39,4 +44,3 @@ res://Scripts/ui/UiWindowManager.cs
 res://Scripts/core/FrameProfiler.cs
 res://Scripts/simulation/TileMapPhysics.cs
 res://Scripts/simulation/FluidSimulator.cs
-res://Scenes/Main.tscn

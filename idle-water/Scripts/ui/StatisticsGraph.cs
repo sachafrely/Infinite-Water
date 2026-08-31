@@ -31,8 +31,8 @@ public partial class StatisticsGraph : Control
         ResolveGraphs();
 
         // FluidSimulator currently supplies average generated energy per physics frame.
-        // Convert it to the graph's requested energy-per-second unit.
-        float averageEnergyPerSecond = averageEnergyPerFrame * Engine.PhysicsTicksPerSecond;
-        graph2?.AddSample(averageParticles, averageEnergyPerSecond);
-    }
+		// Convert it to the graph's requested energy-per-second unit.
+		float averageEnergyPerSecond = averageEnergyPerFrame * Engine.PhysicsTicksPerSecond;
+		graph2?.AddSample(averageParticles, averageEnergyPerSecond);
+	}
 }

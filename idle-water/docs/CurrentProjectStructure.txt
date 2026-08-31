@@ -36,7 +36,10 @@ Main
     │   │		└── Graph3 (Control) (Scripts/ui/graphs/Graph3.cs)
     │   ├── SettingsWindow (Scene) (Control) (Scripts/ui/SettingsWindow.cs)
     │   │	└── SettingsContent (VBoxContainer) (Scripts/ui/SettingsContent.cs)
-    │   │		├── TiltSettings (Node2D) (Scripts/ui/TiltSettingsDisplay.cs)
+    │   │		├── TiltSettings (Control) (Scripts/ui/TiltSettingsDisplay.cs)
+    │   │               │    └── HBoxContainer (HBoxContainer) (No Script Attached)
+    │   │               │          ├── TiltSlider (Control) (Scripts/ui/TiltSlider.cs)
+    │   │               │          └── GravityIndicator (Sprite2D) (Scripts/ui/GravityIndicator.cs)
     │   │		├── AudioSettings (Node2D) (Scripts/ui/AudioSettings.cs)
     │   │		└── MoreInfoButton (Node2D) (Scripts/ui/MoreInfoButton.cs)
     │   └── PrestigeWindow (Scene) (Control) (Scripts/ui/PrestigeWindow.cs) (Empty yet)
@@ -48,15 +51,7 @@ Main
     │       	└── SettingsButton (Button) (Scripts/ui/SettingsButton.cs)
     └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
 
-I see the 3 graphs, but it just says "Collecting Data" indefinitely.
-
-The old Code for the Graphs is here: res://Scripts/ui/StatisticsGraph.cs it should go 1 graph in each of Graph1.cs, Graph2.cs and Graph3.cs.
-
-The first graph shows a 10 minute time period with line graphs for "Particles Amount", Energy per Second, and FPS.
-
-The second graph is a scatter graph drawing yellow dots with energy per second on the vertical axis and particles amount on the horizontal axis
-
-the third graph should show 6 Bars with different heights, showing each wheel's energy generation. This is not implemented yet and has to be written with new code.
+The old GravityIndicator Code was lost. There is a tile with an Arrow that should point Downward.
 
 Old Scripts that should be Recycled:
 res://Scripts/ui/WheelUpgradeWindow.cs
