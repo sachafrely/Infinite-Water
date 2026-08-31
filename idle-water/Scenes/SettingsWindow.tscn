@@ -42,11 +42,16 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = 65.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
 [node name="TiltSlider" type="Control" parent="SettingsContent/TiltSettings/HBoxContainer" unique_id=822225302]
+custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 0
 script = ExtResource("4_8ua0p")
 
 [node name="GravityIndicator" type="Sprite2D" parent="SettingsContent/TiltSettings/HBoxContainer" unique_id=1360968995]
