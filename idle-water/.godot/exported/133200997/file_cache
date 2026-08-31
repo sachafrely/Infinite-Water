@@ -1,1 +1,7 @@
-res://Scenes/Main.tscn::6b46bd1ad603be5e164502bff003bb32::1787471302::res://.godot/exported/133200997/export-a8e1520d83f25710dd4e3da8c6f32601-Main.scn
+res://Scenes/Main.tscn::3207693aa28d117d897d45592a7e4527::1788199124::res://.godot/exported/133200997/export-a8e1520d83f25710dd4e3da8c6f32601-Main.scn
+res://Scenes/BuyWindow.tscn::099ff7f4f34b02e12061eb0868bce6d2::1788013690::res://.godot/exported/133200997/export-0712b538edc6c0f4d4c6e6c2f1d5d4de-BuyWindow.scn
+res://Scenes/PrestigeWindow.tscn::b43068537a547b8ec770ad5917bad121::1787926459::res://.godot/exported/133200997/export-7dc002838f5d4b54198ff0c3147ff6f5-PrestigeWindow.scn
+res://Scenes/SettingsWindow.tscn::9bf2122eb97fd7860673037a2867ffda::1788192210::res://.godot/exported/133200997/export-aec4a86ccd61b788984ff81aa96c4089-SettingsWindow.scn
+res://Scenes/StatisticsWindow.tscn::6380f8206ad03304023d9941b87e98fe::1788101633::res://.godot/exported/133200997/export-9ce880665adb59b339a9b53e83e3858b-StatisticsWindow.scn
+res://Scenes/UpgradeWindow.tscn::630c2ad735393e39be0e777458ae2ea9::1787928026::res://.godot/exported/133200997/export-a941ebce93f674ff59ad58281f59bf09-UpgradeWindow.scn
+res://Scenes/WheelDisplay.tscn::0b87cada676a3ff81beb9bbea4c4e98b::1788196774::res://.godot/exported/133200997/export-68175471ad8d30c79c1e2e9eb803dc93-WheelDisplay.scn
