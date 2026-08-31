@@ -51,7 +51,8 @@ Main
     │       	└── SettingsButton (Button) (Scripts/ui/SettingsButton.cs)
     └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
 
-The old GravityIndicator Code was lost. There is a tile with an Arrow that should point Downward.
+Most of the old Settings Code is in "res://Scripts/ui/SettingsContent.cs"
+The old GravityIndicator Code was lost. There is a tile with an Arrow that should point Downward. Depending on the current gravity.
 
 Old Scripts that should be Recycled:
 res://Scripts/ui/WheelUpgradeWindow.cs
