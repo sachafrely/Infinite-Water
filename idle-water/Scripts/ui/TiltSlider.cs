@@ -31,31 +31,41 @@ public partial class TiltSlider : Control
 			QueueRedraw();
 	}
 
-	public override void _GuiInput(InputEvent @event)
+	/// <summary>
+	/// Handles the slider through the node input path instead of relying on
+	/// Control GUI event propagation. This keeps the slider responsive even
+	/// when a parent UI Control consumes GUI events.
+	/// </summary>
+	public override void _Input(InputEvent @event)
 	{
+		if (!Visible || !IsInsideTree())
+			return;
+
 		if (@event is InputEventMouseButton mouseButton &&
 			mouseButton.ButtonIndex == MouseButton.Left)
 		{
-			if (mouseButton.Pressed && IsOverSlider(mouseButton.Position))
+			Vector2 localPosition = ToLocal(mouseButton.GlobalPosition);
+
+			if (mouseButton.Pressed && IsOverSlider(localPosition))
 			{
 				_isDragging = true;
-				SetFromPosition(mouseButton.Position.X);
-				AcceptEvent();
+				SetFromPosition(localPosition.X);
+				GetViewport().SetInputAsHandled();
 				return;
 			}
 
 			if (!mouseButton.Pressed && _isDragging)
 			{
 				_isDragging = false;
-				AcceptEvent();
+				GetViewport().SetInputAsHandled();
 				return;
 			}
 		}
 
 		if (@event is InputEventMouseMotion mouseMotion && _isDragging)
 		{
-			SetFromPosition(mouseMotion.Position.X);
-			AcceptEvent();
+			SetFromPosition(ToLocal(mouseMotion.GlobalPosition).X);
+			GetViewport().SetInputAsHandled();
 		}
 	}
 
