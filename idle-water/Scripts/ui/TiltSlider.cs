@@ -31,11 +31,6 @@ public partial class TiltSlider : Control
 			QueueRedraw();
 	}
 
-	/// <summary>
-	/// Handles the slider through the node input path instead of relying on
-	/// Control GUI event propagation. This keeps the slider responsive even
-	/// when a parent UI Control consumes GUI events.
-	/// </summary>
 	public override void _Input(InputEvent @event)
 	{
 		if (!Visible || !IsInsideTree())
@@ -44,7 +39,7 @@ public partial class TiltSlider : Control
 		if (@event is InputEventMouseButton mouseButton &&
 			mouseButton.ButtonIndex == MouseButton.Left)
 		{
-			Vector2 localPosition = ToLocal(mouseButton.GlobalPosition);
+			Vector2 localPosition = GetGlobalTransform().AffineInverse() * mouseButton.GlobalPosition;
 
 			if (mouseButton.Pressed && IsOverSlider(localPosition))
 			{
@@ -64,7 +59,8 @@ public partial class TiltSlider : Control
 
 		if (@event is InputEventMouseMotion mouseMotion && _isDragging)
 		{
-			SetFromPosition(ToLocal(mouseMotion.GlobalPosition).X);
+			Vector2 localPosition = GetGlobalTransform().AffineInverse() * mouseMotion.GlobalPosition;
+			SetFromPosition(localPosition.X);
 			GetViewport().SetInputAsHandled();
 		}
 	}
@@ -80,23 +76,11 @@ public partial class TiltSlider : Control
 		float barY = Size.Y * 0.5f;
 		float handleX = left + width * TiltSettings.TiltInfluenceRatio;
 
-		Rect2 barRect = new Rect2(
-			left,
-			barY - SliderBarHeight * 0.5f,
-			width,
-			SliderBarHeight
-		);
-
+		Rect2 barRect = new Rect2(left, barY - SliderBarHeight * 0.5f, width, SliderBarHeight);
 		DrawRect(barRect, UiSettings.ButtonColor, true);
 		DrawRect(barRect, UiSettings.BorderColor.Darkened(0.55f), false, 1.0f);
 
-		Rect2 handleRect = new Rect2(
-			handleX - SliderHandleWidth * 0.5f,
-			barY - SliderHandleHeight * 0.5f,
-			SliderHandleWidth,
-			SliderHandleHeight
-		);
-
+		Rect2 handleRect = new Rect2(handleX - SliderHandleWidth * 0.5f, barY - SliderHandleHeight * 0.5f, SliderHandleWidth, SliderHandleHeight);
 		Color handleColor = UiSettings.FontColorBasic.Darkened(0.28f);
 		Color handleHighlight = UiSettings.FontColorBasic.Darkened(0.10f);
 		Color handleShadow = UiSettings.FontColorBasic.Darkened(0.65f);
@@ -110,10 +94,8 @@ public partial class TiltSlider : Control
 
 	private bool IsOverSlider(Vector2 position)
 	{
-		return position.X >= -SliderHitPadding &&
-			position.X <= Size.X + SliderHitPadding &&
-			position.Y >= -SliderHitPadding &&
-			position.Y <= Size.Y + SliderHitPadding;
+		return position.X >= -SliderHitPadding && position.X <= Size.X + SliderHitPadding &&
+			position.Y >= -SliderHitPadding && position.Y <= Size.Y + SliderHitPadding;
 	}
 
 	private void SetFromPosition(float mouseX)
@@ -121,13 +103,10 @@ public partial class TiltSlider : Control
 		float left = SliderHandleWidth * 0.5f;
 		float right = Mathf.Max(left + 1.0f, Size.X - SliderHandleWidth * 0.5f);
 		float width = right - left;
-
 		float normalized = Mathf.Clamp((mouseX - left) / width, 0.0f, 1.0f);
+
 		TiltSettings.TiltInfluenceRatio = Mathf.Clamp(
-			Mathf.Snapped(
-				Mathf.Lerp(MinimumTiltInfluenceRatio, MaximumTiltInfluenceRatio, normalized),
-				TiltInfluenceStep
-			),
+			Mathf.Snapped(Mathf.Lerp(MinimumTiltInfluenceRatio, MaximumTiltInfluenceRatio, normalized), TiltInfluenceStep),
 			MinimumTiltInfluenceRatio,
 			MaximumTiltInfluenceRatio
 		);
