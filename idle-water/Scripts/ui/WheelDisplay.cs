@@ -3,7 +3,7 @@ using Godot;
 /// <summary>
 /// Controls one WheelDisplay.tscn instance.
 /// The wheel buttons are authored in the WheelDisplay scene; this script
-/// supplies their logical wheel number and visibility/state.
+/// supplies their logical wheel number, position, and visibility/state.
 /// </summary>
 public partial class WheelDisplay : Control
 {
@@ -91,5 +91,7 @@ public partial class WheelDisplay : Control
 
 		if (upgradeButton != null)
 			upgradeButton.Visible = hasAvailableUpgrades;
+
+		Position = simulator.GetWheelUiPosition(wheelIndex);
 	}
 }
