@@ -4,7 +4,8 @@ using Godot;
 
 /// <summary>
 /// Owns the six WheelDisplay instances already present under WheelUi.
-/// WheelUi is the single source of truth for logical wheel numbering.
+/// WheelUi is the single source of truth for logical wheel numbering and
+/// routes button requests to the authored BuyWindow and UpgradeWindow.
 /// </summary>
 public partial class WheelUi : Control
 {
@@ -27,11 +28,13 @@ public partial class WheelUi : Control
 		for (int index = 0; index < WheelCount; index++)
 		{
 			int wheelNumber = index + 1;
-			WheelDisplay display = GetNodeOrNull<WheelDisplay>($"Wheel{wheelNumber}");
+			WheelDisplay display = GetNodeOrNull<WheelDisplay>($"WheelDisplay{wheelNumber}");
+			if (display == null)
+				display = GetNodeOrNull<WheelDisplay>($"Wheel{wheelNumber}");
 
 			if (display == null)
 			{
-				GD.PushWarning($"WheelUi: Wheel{wheelNumber} is missing or is not a WheelDisplay instance.");
+				GD.PushWarning($"WheelUi: WheelDisplay{wheelNumber} is missing or is not a WheelDisplay instance.");
 				continue;
 			}
 
