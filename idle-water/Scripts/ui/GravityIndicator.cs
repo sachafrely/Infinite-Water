@@ -1,15 +1,36 @@
 using Godot;
-using System;
 
-public partial class GravityIndicator : Node
+/// <summary>
+/// Displays the current gravity direction using the ArrowBlue tile.
+/// The arrow points in the same direction as the gravity used by the simulation.
+/// </summary>
+public partial class GravityIndicator : Sprite2D
 {
-	// Called when the node enters the scene tree for the first time.
+	private const float RightMargin = 60.0f;
+
 	public override void _Ready()
 	{
+		UpdateVisual();
 	}
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
 	public override void _Process(double delta)
 	{
+		UpdateVisual();
+	}
+
+	private void UpdateVisual()
+	{
+		Vector2 gravity = TiltController.CurrentGravityAcceleration;
+
+		if (gravity.LengthSquared() >= 0.0001f)
+			Rotation = gravity.Angle();
+
+		if (GetParent() is Control parent)
+		{
+			Position = new Vector2(
+				parent.Size.X - RightMargin,
+				parent.Size.Y * 0.5f
+			);
+		}
 	}
 }
