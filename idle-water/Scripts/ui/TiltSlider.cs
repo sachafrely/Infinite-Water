@@ -36,8 +36,7 @@ public partial class TiltSlider : Control
 		if (!Visible || !IsInsideTree())
 			return;
 
-		if (@event is InputEventMouseButton mouseButton &&
-			mouseButton.ButtonIndex == MouseButton.Left)
+		if (@event is InputEventMouseButton mouseButton && mouseButton.ButtonIndex == MouseButton.Left)
 		{
 			Vector2 localPosition = GetGlobalTransform().AffineInverse() * mouseButton.GlobalPosition;
 
