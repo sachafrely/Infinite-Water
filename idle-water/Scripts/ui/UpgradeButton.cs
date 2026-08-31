@@ -8,6 +8,8 @@ public partial class UpgradeButton : Button
 	public override void _Ready()
 	{
 		FocusMode = FocusModeEnum.None;
+		RenderedButtonBackground.Apply(this);
+		AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
 		Pressed += OnPressed;
 	}
 
