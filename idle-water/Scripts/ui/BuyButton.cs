@@ -1,7 +1,7 @@
 using Godot;
 
 /// <summary>
-/// Controls the BuyButton already present in WheelDisplay.tscn.
+/// Buy button authored in WheelDisplay.tscn.
 /// </summary>
 public partial class BuyButton : Button
 {
@@ -13,7 +13,7 @@ public partial class BuyButton : Button
 
 	private void OnPressed()
 	{
-		WheelDisplay wheelDisplay = GetParent()?.GetParent() as WheelDisplay;
+		WheelDisplay wheelDisplay = GetParent() as WheelDisplay;
 		if (wheelDisplay == null)
 		{
 			GD.PushWarning("BuyButton: Could not find owning WheelDisplay.");
