@@ -20,7 +20,7 @@ public sealed class TiltController
 
 	/// <summary>
 	/// Gravity acceleration calculated from the latest tilt sample.
-	/// The PBF coordinator reads this instead of receiving a velocity change.
+	/// UI elements may read this value to visualize the actual simulation gravity.
 	/// </summary>
 	public static Vector2 CurrentGravityAcceleration { get; private set; } =
 		Vector2.Down * GravityMagnitude;
@@ -37,9 +37,7 @@ public sealed class TiltController
 
 		if (influence <= 0.0001f)
 		{
-			GravityDirection = Vector2.Down;
-			CurrentGravityAcceleration = Vector2.Down * GravityMagnitude;
-			UpdateGravityIndicatorVisual();
+			SetGravity(Vector2.Down);
 			return;
 		}
 
@@ -67,9 +65,7 @@ public sealed class TiltController
 
 		if (!hasSensorSample)
 		{
-			GravityDirection = Vector2.Down;
-			CurrentGravityAcceleration = Vector2.Down * GravityMagnitude;
-			UpdateGravityIndicatorVisual();
+			SetGravity(Vector2.Down);
 			return;
 		}
 
@@ -80,9 +76,7 @@ public sealed class TiltController
 
 		if (sensorDirection.LengthSquared() < 0.0001f)
 		{
-			GravityDirection = Vector2.Down;
-			CurrentGravityAcceleration = Vector2.Down * GravityMagnitude;
-			UpdateGravityIndicatorVisual();
+			SetGravity(Vector2.Down);
 			return;
 		}
 
@@ -102,72 +96,16 @@ public sealed class TiltController
 			maximumTiltRadians
 		);
 
-		GravityDirection = new Vector2(
+		SetGravity(new Vector2(
 			Mathf.Sin(simulatedAngle),
 			Mathf.Cos(simulatedAngle)
-		);
+		));
+	}
 
+	private void SetGravity(Vector2 direction)
+	{
+		GravityDirection = direction;
 		CurrentGravityAcceleration =
 			GravityDirection * GravityMagnitude;
-
-		UpdateGravityIndicatorVisual();
-	}
-
-	/// <summary>
-	/// Rotates the Sprite2D named "GravityIndicator" to match the actual
-	/// gravity vector used by the simulation. The lookup is recursive so the
-	/// indicator can live anywhere in the UI hierarchy.
-	///
-	/// The artwork points right at 0 degrees. Therefore Vector2.Down gives
-	/// 90 degrees, which is exactly the same direction as -270 degrees.
-	/// </summary>
-	private void UpdateGravityIndicatorVisual()
-	{
-		SceneTree tree =
-			Engine.GetMainLoop() as SceneTree;
-
-		if (tree == null || tree.Root == null)
-		{
-			return;
-		}
-
-		Sprite2D indicator =
-			FindGravityIndicator(tree.Root);
-
-		if (indicator == null)
-		{
-			return;
-		}
-
-		if (GravityDirection.LengthSquared() < 0.0001f)
-		{
-			return;
-		}
-
-		// The sprite points right at 0 degrees. GravityDirection.Angle()
-		// therefore directly gives the required sprite rotation.
-		// Down = +90 degrees = -270 degrees.
-		indicator.Rotation = GravityDirection.Angle();
-	}
-
-	private static Sprite2D FindGravityIndicator(Node node)
-	{
-		if (node is Sprite2D sprite && sprite.Name == "GravityIndicator")
-		{
-			return sprite;
-		}
-
-		foreach (Node child in node.GetChildren())
-		{
-			Sprite2D result =
-				FindGravityIndicator(child);
-
-			if (result != null)
-			{
-				return result;
-			}
-		}
-
-		return null;
 	}
 }
