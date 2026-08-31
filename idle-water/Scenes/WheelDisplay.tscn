@@ -11,22 +11,24 @@ mouse_filter = 2
 script = ExtResource("1_mxmc2")
 
 [node name="BuyButton" type="Button" parent="." unique_id=522897936]
+custom_minimum_size = Vector2(120, 36)
 layout_mode = 0
 offset_left = -60.0
-offset_top = -20.0
+offset_top = -18.0
 offset_right = 60.0
-offset_bottom = 20.0
+offset_bottom = 18.0
 focus_mode = 0
 mouse_filter = 0
 text = "Buy Wheel"
 script = ExtResource("2_ihbjw")
 
 [node name="UpgradeButton" type="Button" parent="." unique_id=275250727]
+custom_minimum_size = Vector2(120, 36)
 layout_mode = 0
 offset_left = -60.0
-offset_top = -20.0
+offset_top = -18.0
 offset_right = 60.0
-offset_bottom = 20.0
+offset_bottom = 18.0
 focus_mode = 0
 mouse_filter = 0
 text = "Upgrade Wheel"
