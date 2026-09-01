@@ -7,6 +7,8 @@ using Godot;
 public partial class BuyWindow : Control
 {
 	private const double PurchaseCost = 10.0;
+	private const float WindowWidth = 440.0f;
+	private const float WindowHeight = 250.0f;
 
 	private Label title;
 	private Label description;
@@ -29,7 +31,11 @@ public partial class BuyWindow : Control
 		if (closeButton != null)
 			closeButton.Pressed += Close;
 
+		CustomMinimumSize = new Vector2(WindowWidth, WindowHeight);
+		Size = CustomMinimumSize;
 		MouseFilter = MouseFilterEnum.Stop;
+		ZIndex = 150;
+		ZAsRelative = false;
 		Hide();
 		Refresh();
 	}
@@ -55,7 +61,9 @@ public partial class BuyWindow : Control
 	public void Close() => Hide();
 	public bool IsOpen() => Visible;
 
-	public override void _Input(InputEvent @event)
+	// Use _UnhandledInput so a Button click is consumed by Godot's GUI system
+	// before this outside-click handler can close the window.
+	public override void _UnhandledInput(InputEvent @event)
 	{
 		if (!Visible)
 			return;
@@ -75,10 +83,7 @@ public partial class BuyWindow : Control
 		}
 
 		if (pressed && !GetGlobalRect().HasPoint(position))
-		{
 			Close();
-			GetViewport().SetInputAsHandled();
-		}
 	}
 
 	private void Purchase()
@@ -92,8 +97,8 @@ public partial class BuyWindow : Control
 		if (EnergySystem.Instance == null || EnergySystem.Instance.Dollars < PurchaseCost)
 			return;
 
-		simulator.TryPurchaseWheel(wheelIndex);
-		Close();
+		if (simulator.TryPurchaseWheel(wheelIndex))
+			Close();
 	}
 
 	private void MoveToWheel()
@@ -124,13 +129,9 @@ public partial class BuyWindow : Control
 			title.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
 		if (description != null)
 			description.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-		purchaseButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-		if (closeButton != null)
-		{
-			closeButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-			RenderedButtonBackground.Apply(closeButton);
-		}
 
+		purchaseButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+		RenderedButtonBackground.Apply(purchaseButton);
 		purchaseButton.Disabled = false;
 		purchaseButton.Text = $"{PurchaseCost:0}$";
 		purchaseButton.AddThemeColorOverride("font_color", textColor);
@@ -138,6 +139,11 @@ public partial class BuyWindow : Control
 		purchaseButton.AddThemeColorOverride("font_pressed_color", textColor);
 		purchaseButton.AddThemeColorOverride("font_focus_color", textColor);
 		purchaseButton.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
-		RenderedButtonBackground.Apply(purchaseButton);
+
+		if (closeButton != null)
+		{
+			closeButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+			RenderedButtonBackground.Apply(closeButton);
+		}
 	}
 }
