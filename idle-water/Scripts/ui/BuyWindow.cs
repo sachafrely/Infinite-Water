@@ -126,7 +126,10 @@ public partial class BuyWindow : Control
 			description.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
 		purchaseButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
 		if (closeButton != null)
+		{
 			closeButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+			RenderedButtonBackground.Apply(closeButton);
+		}
 
 		purchaseButton.Disabled = false;
 		purchaseButton.Text = $"{PurchaseCost:0}$";
@@ -135,10 +138,6 @@ public partial class BuyWindow : Control
 		purchaseButton.AddThemeColorOverride("font_pressed_color", textColor);
 		purchaseButton.AddThemeColorOverride("font_focus_color", textColor);
 		purchaseButton.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
-		purchaseButton.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
-		purchaseButton.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
-		purchaseButton.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
-		purchaseButton.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
-		purchaseButton.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+		RenderedButtonBackground.Apply(purchaseButton);
 	}
 }
