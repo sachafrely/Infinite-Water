@@ -1,6 +1,7 @@
 // THIS IS THE NEW WHEEL UI SCRIPT
 
 using Godot;
+using System.Collections.Generic;
 
 /// <summary>
 /// Owns the six WheelDisplay instances already present under WheelUi.
@@ -25,9 +26,11 @@ public partial class WheelUi : Control
 		buyWindow = GetNodeOrNull<BuyWindow>("../BuyWindow");
 		upgradeWindow = GetNodeOrNull<UpgradeWindow>("../UpgradeWindow");
 
+		List<int> logicalWheelOrder = GetLogicalWheelOrderLeftToRight();
+
 		for (int index = 0; index < WheelCount; index++)
 		{
-			int wheelNumber = index + 1;
+			int wheelNumber = logicalWheelOrder[index] + 1;
 			WheelDisplay display = GetNodeOrNull<WheelDisplay>($"WheelDisplay{wheelNumber}");
 			if (display == null)
 				display = GetNodeOrNull<WheelDisplay>($"Wheel{wheelNumber}");
@@ -43,6 +46,29 @@ public partial class WheelUi : Control
 			display.BuyRequested += OnBuyRequested;
 			display.UpgradeRequested += OnUpgradeRequested;
 		}
+	}
+
+	private List<int> GetLogicalWheelOrderLeftToRight()
+	{
+		List<int> order = new List<int>();
+		for (int wheelIndex = 0; wheelIndex < WheelCount; wheelIndex++)
+			order.Add(wheelIndex);
+
+		if (simulator == null)
+			return order;
+
+		order.Sort((left, right) =>
+		{
+			Vector2 leftPosition = simulator.GetWheelUiPosition(left);
+			Vector2 rightPosition = simulator.GetWheelUiPosition(right);
+
+			int xComparison = leftPosition.X.CompareTo(rightPosition.X);
+			return xComparison != 0
+				? xComparison
+				: leftPosition.Y.CompareTo(rightPosition.Y);
+		});
+
+		return order;
 	}
 
 	public WheelDisplay GetWheelDisplay(int wheelNumber)
