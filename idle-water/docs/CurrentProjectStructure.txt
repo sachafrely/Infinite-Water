@@ -55,12 +55,6 @@ Main
     │       	└── SettingsButton (Button) (Scripts/ui/SettingsButton.cs)
     └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
 
-The Buy and Upgrade Buttons appear open the correct (new) windows.
-The Buy and Upgrade Buttons should appear darker (using the disabled-font-color from uisettings.cs) when there is not enough money for buying/upgrading, just like the old buttons did.
-The Numbering is top to bottom but i want it numbered left to right.
-The rightmost button goes out of the screen on the left. that should be fixed.
-the buywindow and upgradewindow will be migrated when this is done.
-
 The old Buy/Upgrade Button code is in 
 res://Scripts/ui/WheelUpgradeWindow.cs, 
 res://Scripts/ui/WheelUpgradeUi.cs,
