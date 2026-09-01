@@ -131,7 +131,10 @@ public partial class UpgradeWindow : Control
 		title.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
 		title.Text = wheelIndex >= 0 ? $"Wheel {wheelIndex + 1} Upgrades" : "Wheel Upgrades";
 		if (closeButton != null)
+		{
 			closeButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+			RenderedButtonBackground.Apply(closeButton);
+		}
 
 		if (simulator == null || wheelIndex < 0)
 			return;
@@ -162,11 +165,12 @@ public partial class UpgradeWindow : Control
 			button.AddThemeColorOverride("font_pressed_color", textColor);
 			button.AddThemeColorOverride("font_focus_color", textColor);
 			button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
-			button.AddThemeStyleboxOverride("normal", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
-			button.AddThemeStyleboxOverride("hover", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
-			button.AddThemeStyleboxOverride("pressed", UiSettings.CreateBox(UiSettings.ButtonPressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
-			button.AddThemeStyleboxOverride("focus", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
-			button.AddThemeStyleboxOverride("disabled", UiSettings.CreateBox(UiSettings.ButtonUnpressedColor, UiSettings.BorderColor, UiSettings.ButtonBorderSize));
+			RenderedButtonBackground.Apply(button);
+			button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
+			button.AddThemeColorOverride("font_color", textColor);
+			button.AddThemeColorOverride("font_hover_color", textColor);
+			button.AddThemeColorOverride("font_pressed_color", textColor);
+			button.AddThemeColorOverride("font_focus_color", textColor);
 		}
 	}
 }
