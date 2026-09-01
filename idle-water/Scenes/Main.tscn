@@ -708,9 +708,11 @@ layout_mode = 0
 layout_mode = 0
 
 [node name="BuyWindow" parent="Ui" unique_id=1758576583 instance=ExtResource("28_4yxf6")]
+z_index = 300
 layout_mode = 0
 
 [node name="UpgradeWindow" parent="Ui" unique_id=450980618 instance=ExtResource("29_qta6b")]
+z_index = 300
 layout_mode = 0
 
 [node name="TopUi" type="Control" parent="Ui" unique_id=1677817206]
