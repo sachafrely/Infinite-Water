@@ -15,6 +15,13 @@ public partial class WheelUpgradeUi : Control
 
 	public override void _Ready()
 	{
+		// Legacy runtime-generated upgrade buttons are disabled; UpgradeWindow.tscn is the active UI.
+		Visible = false;
+		SetProcess(false);
+		SetProcessInput(false);
+		SetProcessUnhandledInput(false);
+		return;
+
 		ZIndex = 900; ZAsRelative = false; MouseFilter = MouseFilterEnum.Pass;
 		simulator = GetTree().CurrentScene?.FindChild("FluidSimulation", true, false) as FluidSimulator;
 		if (simulator == null) simulator = GetTree().Root.FindChild("FluidSimulation", true, false) as FluidSimulator;
