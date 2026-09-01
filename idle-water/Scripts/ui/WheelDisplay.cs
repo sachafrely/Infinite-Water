@@ -86,12 +86,73 @@ public partial class WheelDisplay : Control
 		bool unlocked = simulator.IsWheelUnlocked(wheelIndex);
 		bool hasAvailableUpgrades = unlocked && simulator.HasAvailableWheelUpgrades(wheelIndex);
 
+		bool canBuyWheel = EnergySystem.Instance != null && EnergySystem.Instance.Dollars >= 10.0;
+		bool canBuyAnyUpgrade = false;
+
+		if (unlocked && hasAvailableUpgrades)
+		{
+			WheelUpgradeType[] upgradeTypes =
+			{
+				WheelUpgradeType.BiggerPaddles,
+				WheelUpgradeType.LessFriction,
+				WheelUpgradeType.MoreEfficient
+			};
+
+			foreach (WheelUpgradeType type in upgradeTypes)
+			{
+				if (simulator.CanPurchaseWheelUpgrade(wheelIndex, type))
+				{
+					canBuyAnyUpgrade = true;
+					break;
+				}
+			}
+		}
+
 		if (buyButton != null)
+		{
 			buyButton.Visible = !unlocked;
+			ApplyAffordabilityColor(buyButton, canBuyWheel);
+		}
 
 		if (upgradeButton != null)
+		{
 			upgradeButton.Visible = hasAvailableUpgrades;
+			ApplyAffordabilityColor(upgradeButton, canBuyAnyUpgrade);
+		}
 
-		Position = simulator.GetWheelUiPosition(wheelIndex);
+		Position = ClampToParent(simulator.GetWheelUiPosition(wheelIndex));
+	}
+
+	private void ApplyAffordabilityColor(Button button, bool available)
+	{
+		Color color = available ? UiSettings.FontColorEnabled : UiSettings.FontColorDisabled;
+		button.Disabled = false;
+		button.AddThemeColorOverride("font_color", color);
+		button.AddThemeColorOverride("font_hover_color", color);
+		button.AddThemeColorOverride("font_pressed_color", color);
+		button.AddThemeColorOverride("font_focus_color", color);
+		button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
+	}
+
+	private Vector2 ClampToParent(Vector2 desiredPosition)
+	{
+		Control parent = GetParent() as Control;
+		if (parent == null)
+			return desiredPosition;
+
+		Vector2 viewportSize = parent.Size;
+		if (viewportSize.X <= 0.0f || viewportSize.Y <= 0.0f)
+			viewportSize = GetViewportRect().Size;
+
+		float halfWidth = Mathf.Max(0.0f, Size.X * 0.5f);
+		float halfHeight = Mathf.Max(0.0f, Size.Y * 0.5f);
+		if (halfWidth <= 0.0f)
+			halfWidth = 60.0f;
+		if (halfHeight <= 0.0f)
+			halfHeight = 18.0f;
+
+		return new Vector2(
+			Mathf.Clamp(desiredPosition.X, halfWidth, Mathf.Max(halfWidth, viewportSize.X - halfWidth)),
+			Mathf.Clamp(desiredPosition.Y, halfHeight, Mathf.Max(halfHeight, viewportSize.Y - halfHeight)));
 	}
 }
