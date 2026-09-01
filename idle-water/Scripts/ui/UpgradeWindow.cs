@@ -42,7 +42,12 @@ public partial class UpgradeWindow : Control
 
 		if (closeButton != null)
 			closeButton.Pressed += Close;
+
+		CustomMinimumSize = new Vector2(440.0f, 340.0f);
+		Size = CustomMinimumSize;
 		MouseFilter = MouseFilterEnum.Stop;
+		ZIndex = 150;
+		ZAsRelative = false;
 		Hide();
 		Refresh();
 	}
@@ -68,13 +73,9 @@ public partial class UpgradeWindow : Control
 	public void Close() => Hide();
 	public bool IsOpen() => Visible;
 
-	public override void _Process(double delta)
-	{
-		if (Visible)
-			Refresh();
-	}
-
-	public override void _Input(InputEvent @event)
+	// Use _UnhandledInput so button clicks are handled by the GUI controls
+	// before the outside-click handler gets a chance to close the window.
+	public override void _UnhandledInput(InputEvent @event)
 	{
 		if (!Visible)
 			return;
@@ -94,10 +95,7 @@ public partial class UpgradeWindow : Control
 		}
 
 		if (pressed && !GetGlobalRect().HasPoint(position))
-		{
 			Close();
-			GetViewport().SetInputAsHandled();
-		}
 	}
 
 	private void Purchase(WheelUpgradeType type)
@@ -130,6 +128,7 @@ public partial class UpgradeWindow : Control
 
 		title.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
 		title.Text = wheelIndex >= 0 ? $"Wheel {wheelIndex + 1} Upgrades" : "Wheel Upgrades";
+
 		if (closeButton != null)
 		{
 			closeButton.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
@@ -160,17 +159,12 @@ public partial class UpgradeWindow : Control
 			button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
 			button.Text = maxed ? "MAX" : $"{price}$";
 			button.Disabled = false;
+			RenderedButtonBackground.Apply(button);
 			button.AddThemeColorOverride("font_color", textColor);
 			button.AddThemeColorOverride("font_hover_color", textColor);
 			button.AddThemeColorOverride("font_pressed_color", textColor);
 			button.AddThemeColorOverride("font_focus_color", textColor);
 			button.AddThemeColorOverride("font_disabled_color", UiSettings.FontColorDisabled);
-			RenderedButtonBackground.Apply(button);
-			button.AddThemeFontSizeOverride("font_size", UiSettings.FontSizeMedium);
-			button.AddThemeColorOverride("font_color", textColor);
-			button.AddThemeColorOverride("font_hover_color", textColor);
-			button.AddThemeColorOverride("font_pressed_color", textColor);
-			button.AddThemeColorOverride("font_focus_color", textColor);
 		}
 	}
 }
