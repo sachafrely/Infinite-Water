@@ -55,14 +55,11 @@ Main
     │       	└── SettingsButton (Button) (Scripts/ui/SettingsButton.cs)
     └── UiWindowManager (Node) (Scripts/ui/UiWindowManager.cs)
 
-Please migrate the Buy/Upgrade buttons on the wheels next.
-The Buy/Upgrade Buttons are small Buttons centered on each wheel.
-Remember the Buy Button shows only when a wheel is not bought yet.
-Then the Upgrade Button will show, until all Upgrades have been bought.
-Please make the Buy Button Say "Buy Wheel 1" and the Upgrade Button say "Upgrade Wheel 1" etc.
-The new Buttons go into the Scene "WheelDisplay.tscn" and have 2 Nodes (BuyButton" and "UpgradeButton") 
-With res://Scripts/ui/BuyButton.cs and res://Scripts/ui/UpgradeButton.cs attached.
-The WheelDisplay Node also has res://Scripts/ui/WheelDisplay.cs attached. These are the 3 new files.
+The Buy and Upgrade Buttons appear open the correct (new) windows.
+The Buy and Upgrade Buttons should appear darker (using the disabled-font-color from uisettings.cs) when there is not enough money for buying/upgrading, just like the old buttons did.
+The Numbering is top to bottom but i want it numbered left to right.
+The rightmost button goes out of the screen on the left. that should be fixed.
+the buywindow and upgradewindow will be migrated when this is done.
 
 The old Buy/Upgrade Button code is in 
 res://Scripts/ui/WheelUpgradeWindow.cs, 
