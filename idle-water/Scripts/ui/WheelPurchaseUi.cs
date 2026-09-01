@@ -21,6 +21,13 @@ public partial class WheelPurchaseUi : Control
 
 	public override void _Ready()
 	{
+		// Legacy runtime-generated buy buttons are disabled; BuyWindow.tscn is the active UI.
+		Visible = false;
+		SetProcess(false);
+		SetProcessInput(false);
+		SetProcessUnhandledInput(false);
+		return;
+
 		ZIndex = 900;
 		ZAsRelative = false;
 		MouseFilter = MouseFilterEnum.Pass;
