@@ -93,6 +93,12 @@ public partial class WheelUi : Control
 		return 0;
 	}
 
+	private void CloseCenterUiWindow()
+	{
+		UiWindowManager windowManager = GetTree().Root.FindChild("UiWindowManager", true, false) as UiWindowManager;
+		windowManager?.CloseActiveWindow();
+	}
+
 	private void OnBuyRequested(int wheelNumber)
 	{
 		if (simulator == null || buyWindow == null)
@@ -105,6 +111,7 @@ public partial class WheelUi : Control
 		if (simulator.IsWheelUnlocked(wheelIndex))
 			return;
 
+		CloseCenterUiWindow();
 		upgradeWindow?.Close();
 		buyWindow.Setup(wheelNumber, simulator);
 		buyWindow.Open();
@@ -122,6 +129,7 @@ public partial class WheelUi : Control
 		if (!simulator.IsWheelUnlocked(wheelIndex) || !simulator.HasAvailableWheelUpgrades(wheelIndex))
 			return;
 
+		CloseCenterUiWindow();
 		buyWindow?.Close();
 		upgradeWindow.Setup(wheelNumber, simulator);
 		upgradeWindow.Open();
