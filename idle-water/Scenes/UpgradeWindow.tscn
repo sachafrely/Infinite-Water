@@ -3,9 +3,14 @@
 [ext_resource type="Script" uid="uid://0omn030ec8h4" path="res://Scripts/ui/UpgradeWindow.cs" id="1_kemp7"]
 [ext_resource type="Script" path="res://Scripts/ui/UpgradeWindowBackground.cs" id="2_background"]
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_panel"]
+
 [node name="UpgradeWindow" type="Control"]
+custom_minimum_size = Vector2(440, 340)
 layout_mode = 3
 anchors_preset = 0
+offset_right = 440.0
+offset_bottom = 340.0
 mouse_filter = 1
 script = ExtResource("1_kemp7")
 
@@ -27,6 +32,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxEmpty_panel")
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
 layout_mode = 2
@@ -50,58 +56,70 @@ vertical_alignment = 1
 layout_mode = 2
 custom_minimum_size = Vector2(0, 72)
 theme_override_constants/separation = 10
+
 [node name="Label" type="Label" parent="Panel/Margin/Content/BiggerPaddlesRow"]
 layout_mode = 2
 text = "Bigger Paddles"
 vertical_alignment = 1
 size_flags_horizontal = 3
+
 [node name="Level" type="Label" parent="Panel/Margin/Content/BiggerPaddlesRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(68, 0)
 horizontal_alignment = 1
 vertical_alignment = 1
+
 [node name="PurchaseButton" type="Button" parent="Panel/Margin/Content/BiggerPaddlesRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(120, 66)
 focus_mode = 0
+mouse_filter = 0
 
 [node name="LessFrictionRow" type="HBoxContainer" parent="Panel/Margin/Content"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 72)
 theme_override_constants/separation = 10
+
 [node name="Label" type="Label" parent="Panel/Margin/Content/LessFrictionRow"]
 layout_mode = 2
 text = "Less Friction"
 vertical_alignment = 1
 size_flags_horizontal = 3
+
 [node name="Level" type="Label" parent="Panel/Margin/Content/LessFrictionRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(68, 0)
 horizontal_alignment = 1
 vertical_alignment = 1
+
 [node name="PurchaseButton" type="Button" parent="Panel/Margin/Content/LessFrictionRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(120, 66)
 focus_mode = 0
+mouse_filter = 0
 
 [node name="MoreEfficientRow" type="HBoxContainer" parent="Panel/Margin/Content"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 72)
 theme_override_constants/separation = 10
+
 [node name="Label" type="Label" parent="Panel/Margin/Content/MoreEfficientRow"]
 layout_mode = 2
 text = "More Efficient"
 vertical_alignment = 1
 size_flags_horizontal = 3
+
 [node name="Level" type="Label" parent="Panel/Margin/Content/MoreEfficientRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(68, 0)
 horizontal_alignment = 1
 vertical_alignment = 1
+
 [node name="PurchaseButton" type="Button" parent="Panel/Margin/Content/MoreEfficientRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(120, 66)
 focus_mode = 0
+mouse_filter = 0
 
 [node name="Spacer" type="Control" parent="Panel/Margin/Content"]
 layout_mode = 2
@@ -113,3 +131,4 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 50)
 text = "Close Window"
 focus_mode = 0
+mouse_filter = 0
