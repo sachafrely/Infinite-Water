@@ -682,39 +682,6 @@ anchors_preset = 0
 offset_right = 720.0
 offset_bottom = 1280.0
 
-[node name="WheelUi" type="Control" parent="Ui" unique_id=491471825]
-z_index = 100
-anchors_preset = 0
-offset_right = 720.0
-offset_bottom = 1280.0
-script = ExtResource("29_6heos")
-
-[node name="WheelDisplay1" parent="Ui/WheelUi" unique_id=1377181194 instance=ExtResource("29_x3rx7")]
-layout_mode = 0
-
-[node name="WheelDisplay2" parent="Ui/WheelUi" unique_id=1957294664 instance=ExtResource("29_x3rx7")]
-layout_mode = 0
-
-[node name="WheelDisplay3" parent="Ui/WheelUi" unique_id=64975347 instance=ExtResource("29_x3rx7")]
-layout_mode = 0
-
-[node name="WheelDisplay4" parent="Ui/WheelUi" unique_id=1572221989 instance=ExtResource("29_x3rx7")]
-layout_mode = 0
-
-[node name="WheelDisplay5" parent="Ui/WheelUi" unique_id=684298386 instance=ExtResource("29_x3rx7")]
-layout_mode = 0
-
-[node name="WheelDisplay6" parent="Ui/WheelUi" unique_id=1736508512 instance=ExtResource("29_x3rx7")]
-layout_mode = 0
-
-[node name="BuyWindow" parent="Ui" unique_id=1758576583 instance=ExtResource("28_4yxf6")]
-z_index = 300
-layout_mode = 0
-
-[node name="UpgradeWindow" parent="Ui" unique_id=450980618 instance=ExtResource("29_qta6b")]
-z_index = 300
-layout_mode = 0
-
 [node name="TopUi" type="Control" parent="Ui" unique_id=1677817206]
 layout_mode = 1
 anchors_preset = 10
@@ -796,6 +763,39 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="WheelUi" type="Control" parent="Ui" unique_id=491471825]
+z_index = 100
+anchors_preset = 0
+offset_right = 720.0
+offset_bottom = 1280.0
+script = ExtResource("29_6heos")
+
+[node name="WheelDisplay1" parent="Ui/WheelUi" unique_id=1377181194 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay2" parent="Ui/WheelUi" unique_id=1957294664 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay3" parent="Ui/WheelUi" unique_id=64975347 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay4" parent="Ui/WheelUi" unique_id=1572221989 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay5" parent="Ui/WheelUi" unique_id=684298386 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="WheelDisplay6" parent="Ui/WheelUi" unique_id=1736508512 instance=ExtResource("29_x3rx7")]
+layout_mode = 0
+
+[node name="UpgradeWindow" parent="Ui" unique_id=450980618 instance=ExtResource("29_qta6b")]
+z_index = 300
+layout_mode = 0
+
+[node name="BuyWindow" parent="Ui" unique_id=1758576583 instance=ExtResource("28_4yxf6")]
+z_index = 300
+layout_mode = 0
 
 [node name="BottomUi" type="Control" parent="Ui" unique_id=1677817209]
 z_index = 200

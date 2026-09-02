@@ -11,8 +11,10 @@ res://Scripts/ui/PrestigeWindow.cs
 res://Scripts/ui/UpgradeButton.cs
 res://Scripts/ui/BuyButton.cs
 res://Scripts/ui/WheelDisplay.cs
+res://Scripts/ui/UpgradeWindowBackground.cs
 res://Scripts/ui/UpgradeWindow.cs
 res://Scripts/ui/WheelUi.cs
+res://Scripts/ui/BuyWindowBackground.cs
 res://Scripts/ui/BuyWindow.cs
 res://Scripts/ui/GravityIndicator.cs
 res://Scripts/ui/MoreInfoButton.cs
