@@ -769,6 +769,7 @@ z_index = 100
 anchors_preset = 0
 offset_right = 720.0
 offset_bottom = 1280.0
+clip_contents = true
 script = ExtResource("29_6heos")
 
 [node name="WheelDisplay1" parent="Ui/WheelUi" unique_id=1377181194 instance=ExtResource("29_x3rx7")]
