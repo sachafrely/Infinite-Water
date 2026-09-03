@@ -16,6 +16,9 @@ public partial class WheelDisplay : Control
 	[Export]
 	public int WheelNumber { get; set; }
 
+	private const float DisplayWidth = 120.0f;
+	private const float DisplayHeight = 36.0f;
+
 	private Button buyButton;
 	private Button upgradeButton;
 	private FluidSimulator simulator;
@@ -140,19 +143,24 @@ public partial class WheelDisplay : Control
 		if (parent == null)
 			return desiredPosition;
 
-		Vector2 viewportSize = parent.Size;
-		if (viewportSize.X <= 0.0f || viewportSize.Y <= 0.0f)
-			viewportSize = GetViewportRect().Size;
+		Vector2 parentSize = parent.Size;
+		if (parentSize.X <= 0.0f || parentSize.Y <= 0.0f)
+			parentSize = GetViewportRect().Size;
 
-		float halfWidth = Mathf.Max(0.0f, Size.X * 0.5f);
-		float halfHeight = Mathf.Max(0.0f, Size.Y * 0.5f);
-		if (halfWidth <= 0.0f)
-			halfWidth = 60.0f;
-		if (halfHeight <= 0.0f)
-			halfHeight = 18.0f;
+		// WheelDisplay is intentionally positioned by its visual centre: its
+		// authored buttons extend 60 px left/right and 18 px up/down from
+		// Position. Clamp that complete visual rectangle, not the Control's
+		// zero-sized layout rect, so the rightmost button can never leave screen.
+		float halfWidth = DisplayWidth * 0.5f;
+		float halfHeight = DisplayHeight * 0.5f;
+
+		float minX = halfWidth;
+		float maxX = Mathf.Max(minX, parentSize.X - halfWidth);
+		float minY = halfHeight;
+		float maxY = Mathf.Max(minY, parentSize.Y - halfHeight);
 
 		return new Vector2(
-			Mathf.Clamp(desiredPosition.X, halfWidth, Mathf.Max(halfWidth, viewportSize.X - halfWidth)),
-			Mathf.Clamp(desiredPosition.Y, halfHeight, Mathf.Max(halfHeight, viewportSize.Y - halfHeight)));
+			Mathf.Clamp(desiredPosition.X, minX, maxX),
+			Mathf.Clamp(desiredPosition.Y, minY, maxY));
 	}
 }
