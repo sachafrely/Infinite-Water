@@ -147,20 +147,19 @@ public partial class WheelDisplay : Control
 		if (parentSize.X <= 0.0f || parentSize.Y <= 0.0f)
 			parentSize = GetViewportRect().Size;
 
-		// WheelDisplay is intentionally positioned by its visual centre: its
-		// authored buttons extend 60 px left/right and 18 px up/down from
-		// Position. Clamp that complete visual rectangle, not the Control's
-		// zero-sized layout rect, so the rightmost button can never leave screen.
-		float halfWidth = DisplayWidth * 0.5f;
-		float halfHeight = DisplayHeight * 0.5f;
+		// WheelDisplay now has a real 120x36 layout rectangle. Convert the
+		// simulation's wheel-centre position to the control's top-left corner,
+		// then clamp the complete rectangle inside WheelUi.
+		Vector2 displaySize = Size;
+		if (displaySize.X <= 0.0f || displaySize.Y <= 0.0f)
+			displaySize = new Vector2(DisplayWidth, DisplayHeight);
 
-		float minX = halfWidth;
-		float maxX = Mathf.Max(minX, parentSize.X - halfWidth);
-		float minY = halfHeight;
-		float maxY = Mathf.Max(minY, parentSize.Y - halfHeight);
+		Vector2 topLeft = desiredPosition - displaySize * 0.5f;
+		float maxX = Mathf.Max(0.0f, parentSize.X - displaySize.X);
+		float maxY = Mathf.Max(0.0f, parentSize.Y - displaySize.Y);
 
 		return new Vector2(
-			Mathf.Clamp(desiredPosition.X, minX, maxX),
-			Mathf.Clamp(desiredPosition.Y, minY, maxY));
+			Mathf.Clamp(topLeft.X, 0.0f, maxX),
+			Mathf.Clamp(topLeft.Y, 0.0f, maxY));
 	}
 }
